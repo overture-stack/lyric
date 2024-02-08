@@ -1,7 +1,6 @@
-import dotenv from 'dotenv';
+import 'dotenv/config';
 
 export const getServerConfig = () => {
-  dotenv.config();
   return {
     port: process.env.PORT || 3030,
     debug_mode: process.env.DEBUG || false,
