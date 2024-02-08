@@ -1,5 +1,5 @@
 {
-  "name": "lyric",
+  "name": "@overture-stack/lyric",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
