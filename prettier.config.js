@@ -1,4 +1,4 @@
-module.exports = {
+const config = {
 	organizeImportsSkipDestructiveCodeActions: true,
 	printWidth: 120,
 	semi: true,
@@ -6,3 +6,5 @@ module.exports = {
 	trailingComma: 'all',
 	useTabs: true,
 };
+
+export default config;
