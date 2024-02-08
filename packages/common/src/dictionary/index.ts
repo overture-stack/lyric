@@ -1,4 +1,4 @@
 export const getCurrentDictionary = async () => {
-  // TODO:
-  return 'OK';
+	// TODO:
+	return 'OK';
 };

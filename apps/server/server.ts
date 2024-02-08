@@ -1,9 +1,9 @@
 import express, { json, urlencoded } from 'express';
 import helmet from 'helmet';
 
-import pingRouter from './routers/ping';
-import dictionaryRouter from './routers/dictionary';
 import { getServerConfig } from './config';
+import dictionaryRouter from './routers/dictionary';
+import pingRouter from './routers/ping';
 
 const serverConfig = getServerConfig();
 
@@ -20,5 +20,5 @@ app.use(json({ limit: serverConfig.upload_limit }));
 
 // running the server
 app.listen(serverConfig.port, () => {
-  console.log(`Starting Express server on http://localhost:${serverConfig.port}`);
+	console.log(`Starting Express server on http://localhost:${serverConfig.port}`);
 });
