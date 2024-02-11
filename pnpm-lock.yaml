@@ -26,6 +26,9 @@ importers:
 
   apps/server:
     dependencies:
+      common:
+        specifier: workspace:^
+        version: link:../../packages/common
       dotenv:
         specifier: ^16.4.1
         version: 16.4.1

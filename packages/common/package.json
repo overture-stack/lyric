@@ -2,15 +2,15 @@
 	"name": "common",
 	"version": "1.0.0",
 	"description": "",
-	"main": "index.js",
+	"main": "dist/index.js",
 	"scripts": {
-		"build": "tsc",
+		"build": "rm -rf dist && tsc",
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
-	"type": "module",
+	"type": "nodenext",
 	"dependencies": {
 		"@overturebio-stack/lectern-client": "^1.5.0",
 		"drizzle-orm": "^0.29.3",
