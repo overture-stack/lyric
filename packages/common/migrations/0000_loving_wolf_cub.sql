@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS "dictionary_categories" (
 	"name" varchar NOT NULL,
 	"active_dictionary_id" integer,
 	"created_at" timestamp DEFAULT now(),
-	"udpated_at" timestamp
+	"udpated_at" timestamp,
+	CONSTRAINT "dictionary_categories_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "submissions" (
