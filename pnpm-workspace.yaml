@@ -1,3 +1,5 @@
 packages:
-  # all packages in direct subdirs of modules/
-  - 'modules/*'
+  # executable/launchable applications
+  - 'apps/*'
+  # all packages in subdirs of packages/
+  - 'packages/*'
