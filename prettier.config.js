@@ -3,7 +3,7 @@ const config = {
 	printWidth: 120,
 	semi: true,
 	singleQuote: true,
-	trailingComma: 'es5',
+	trailingComma: 'all',
 	useTabs: true,
 	plugins: ['prettier-plugin-organize-imports'],
 };
