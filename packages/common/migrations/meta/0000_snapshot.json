@@ -1,5 +1,5 @@
 {
-  "id": "c820bf1f-3f3d-4b80-aca4-02daae69cd57",
+  "id": "c6b8499f-9d1c-4fa9-b382-8c58e9e6b8b0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "5",
   "dialect": "pg",
@@ -110,7 +110,15 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {
+        "dictionary_categories_name_unique": {
+          "name": "dictionary_categories_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        }
+      }
     },
     "submissions": {
       "name": "submissions",
