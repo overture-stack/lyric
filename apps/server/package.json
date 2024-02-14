@@ -5,7 +5,7 @@
 	"main": "index.js",
 	"scripts": {
 		"build": "rm -rf dist && tsc",
-		"dev": "nodemon server.ts"
+		"dev": "nodemon src/server.ts"
 	},
 	"keywords": [],
 	"author": "",
