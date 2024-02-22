@@ -16,9 +16,12 @@
 	"dependencies": {
 		"@overturebio-stack/lectern-client": "^1.5.0",
 		"drizzle-orm": "^0.29.3",
-		"postgres": "^3.4.3"
+		"express": "^4.18.2",
+		"pg": "^8.11.3"
 	},
 	"devDependencies": {
+		"@types/express": "^4.17.21",
+		"@types/pg": "^8.11.0",
 		"drizzle-kit": "^0.20.14",
 		"tsx": "^4.7.1"
 	}

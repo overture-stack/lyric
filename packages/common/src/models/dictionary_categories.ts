@@ -9,3 +9,6 @@ export const dictionaryCategories = pgTable('dictionary_categories', {
 	createdAt: timestamp('created_at').defaultNow(),
 	udpatedAt: timestamp('udpated_at'),
 });
+
+export type Category = typeof dictionaryCategories.$inferSelect; // return type when queried
+export type NewCategory = typeof dictionaryCategories.$inferInsert; // insert type

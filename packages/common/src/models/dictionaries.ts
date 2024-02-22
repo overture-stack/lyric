@@ -19,3 +19,6 @@ export const dictionaryRelations = relations(dictionaries, ({ one }) => ({
 		references: [dictionaryCategories.id],
 	}),
 }));
+
+export type Dictionary = typeof dictionaries.$inferSelect; // return type when queried
+export type NewDictionary = typeof dictionaries.$inferInsert; // insert type

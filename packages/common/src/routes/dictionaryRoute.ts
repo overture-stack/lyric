@@ -1,22 +1,10 @@
 import { Router } from 'express';
 
-import * as dictionaryController from '../controllers/dictionaryController';
+import { auth } from '../auth/middleware';
+
+import { registerDictionary } from '../controllers/dictionaryController';
 
 const router = Router();
-
-/**
- * @swagger
- * /dictionary:
- *   get:
- *     summary: Retrieve the current dictionary
- *     tags:
- *       - dictionary
- *     responses:
- *       200:
- *         description: Current dictionary
- */
-
-router.get('/', dictionaryController.getCurrentDictionary);
 
 /**
  * @swagger
@@ -43,6 +31,6 @@ router.get('/', dictionaryController.getCurrentDictionary);
  *         description: Dictionary info
  */
 
-router.post('/register', dictionaryController.registerDictionary);
+router.post('/register', auth, registerDictionary);
 
-export default router;
+export { router as dictionaryRouter };

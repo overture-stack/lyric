@@ -31,3 +31,6 @@ export const submittedDataRelations = relations(submittedData, ({ one }) => ({
 		references: [dictionaries.id],
 	}),
 }));
+
+export type SubmittedData = typeof submittedData.$inferSelect; // return type when queried
+export type NewSubmittedData = typeof submittedData.$inferInsert; // insert type
