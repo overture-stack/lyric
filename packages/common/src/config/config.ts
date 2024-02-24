@@ -1,4 +1,4 @@
-import { DB } from './db';
+import { DB } from './db.js';
 
 export type dbInfo = {
 	host: string;
@@ -17,31 +17,28 @@ export type AppConfig = {
 	schemaService: schemaServiceInfo;
 };
 
-export const initConfig = async (configData: AppConfig) => {
-	const config = await ConfigManager.create(configData);
-	return config;
-};
+export interface Dependencies {
+	db: DB;
+	config: AppConfig;
+}
+
+export class GlobalConfig {
+	dependencies: Dependencies;
+	constructor(dependencies: Dependencies) {
+		this.dependencies = dependencies;
+	}
+}
 
 export class ConfigManager {
-	db!: DB;
-	private constructor(private configData: AppConfig) {}
-	public static async create(configData: AppConfig) {
-		const newConfigManager = new ConfigManager(configData);
-		await newConfigManager.loadDb();
-		return newConfigManager;
+	dependencies: Dependencies;
+	constructor(configData: AppConfig) {
+		this.dependencies = {
+			config: configData,
+		} as Dependencies;
 	}
-	private async loadDb() {
-		const db_ = new DB(this.configData.db);
+	async loadDb() {
+		const db_ = new DB(this.dependencies.config.db);
 		await db_.connect();
-		this.db = db_;
-	}
-	getConfig(): AppConfig {
-		return this.configData;
-	}
-	getDbInfo(): dbInfo {
-		return this.configData.db;
-	}
-	getSchemaServiceInfo(): schemaServiceInfo {
-		return this.configData.schemaService;
+		this.dependencies.db = db_;
 	}
 }

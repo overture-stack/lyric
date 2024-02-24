@@ -1,12 +1,12 @@
-import { drizzle, PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { Pool } from 'pg';
-import { dbInfo } from './config';
+import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
+import pg from 'pg';
+import { dbInfo } from './config.js';
 
 export class DB {
 	public info: dbInfo;
-	private connected = false;
-	public pg!: Pool;
-	public drizzle!: PostgresJsDatabase;
+	public connected = false;
+	public pg!: pg.Pool;
+	public drizzle!: NodePgDatabase;
 
 	constructor(info: dbInfo) {
 		this.info = info;
@@ -16,7 +16,7 @@ export class DB {
 			return;
 		}
 
-		const pool = new Pool({
+		const pool = new pg.Pool({
 			host: this.info.host,
 			port: this.info.port,
 			database: this.info.database,

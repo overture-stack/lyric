@@ -5,11 +5,15 @@
 	"main": "index.js",
 	"scripts": {
 		"build": "rm -rf dist && tsc",
-		"dev": "nodemon src/server.ts"
+		"dev": "nodemon"
+	},
+	"engines": {
+		"node": ">=18.0.0 <19.0.0"
 	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
+	"type": "module",
 	"dependencies": {
 		"common": "workspace:^",
 		"dotenv": "^16.4.1",

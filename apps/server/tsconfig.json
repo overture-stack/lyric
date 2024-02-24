@@ -2,8 +2,14 @@
 	"extends": "../../tsconfig.json",
 	"compilerOptions": {
 		"baseUrl": ".",
-		"outDir": "dist"
+		"outDir": "dist",
+		"resolveJsonModule": true,
+		"noEmit": true
 	},
-	"include": ["."],
+	"ts-node": {
+		"esm": true,
+		"logError": true
+	},
+	"include": ["src"],
 	"exclude": ["dist", "node_modules", "**/*.spec.ts"]
 }

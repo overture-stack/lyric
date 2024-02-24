@@ -1,7 +1,7 @@
 import { relations } from 'drizzle-orm';
 import { integer, jsonb, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
-import { dictionaryCategories } from './dictionary_categories';
+import { dictionaryCategories } from './dictionary_categories.js';
 
 export const dictionaries = pgTable('dictionaries', {
 	id: serial('id').primaryKey(),

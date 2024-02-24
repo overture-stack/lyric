@@ -4,6 +4,10 @@
 		"baseUrl": ".",
 		"outDir": "dist"
 	},
+	"ts-node": {
+		"esm": true,
+		"logError": true
+	},
 	"include": ["."],
 	"exclude": ["dist", "node_modules", "**/*.spec.ts"]
 }

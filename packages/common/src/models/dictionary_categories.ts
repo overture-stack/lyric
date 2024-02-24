@@ -1,6 +1,6 @@
 import { integer, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
-import { dictionaries } from './dictionaries';
+import { dictionaries } from './dictionaries.js';
 
 export const dictionaryCategories = pgTable('dictionary_categories', {
 	id: serial('id').primaryKey(),
