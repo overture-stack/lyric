@@ -44,6 +44,9 @@ importers:
       swagger-ui-express:
         specifier: ^5.0.0
         version: 5.0.0(express@4.18.2)
+      winston:
+        specifier: ^3.11.0
+        version: 3.11.0
     devDependencies:
       '@types/express':
         specifier: ^4.17.21
@@ -78,6 +81,9 @@ importers:
       pg:
         specifier: ^8.11.3
         version: 8.11.3
+      winston:
+        specifier: ^3.11.0
+        version: 3.11.0
     devDependencies:
       '@types/express':
         specifier: ^4.17.21

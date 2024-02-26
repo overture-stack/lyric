@@ -4,6 +4,7 @@ import { dictionaryRouters } from '../routers/dictionaryRouter.js';
 export class LyricManager extends ConfigManager {
 	public static async create(configData: AppConfig) {
 		const manager = new LyricManager(configData);
+		await manager.loadLogger();
 		await manager.loadDb();
 		return manager;
 	}
@@ -13,6 +14,7 @@ export class LyricManager extends ConfigManager {
 				const routers = dictionaryRouters({
 					db: this.dependencies.db,
 					config: this.dependencies.config,
+					logger: this.dependencies.logger,
 				} as Dependencies);
 				return routers;
 			},

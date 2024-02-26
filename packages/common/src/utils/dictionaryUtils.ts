@@ -11,13 +11,18 @@ const createDictionaryIfDoesNotExist =
 	(dependencies: Dependencies) =>
 	async (dictionaryName: string, version: string, category: any, dictionary: SchemasDictionary) => {
 		const dictionaryRepo = new DictionaryRepository(dependencies);
+		const { logger } = dependencies;
 		try {
 			const foundDictionary = await dictionaryRepo.select(
 				{},
 				and(eq(dictionaries.name, dictionaryName), eq(dictionaries.version, version)),
 			);
-			console.log(`foundDictionary:${JSON.stringify(foundDictionary)}`);
-			if (!isEmpty(foundDictionary)) return foundDictionary[0];
+			if (!isEmpty(foundDictionary)) {
+				logger.info(
+					`Dictionary with name:${dictionaryName} and version:${version} already exists. Not doing any action`,
+				);
+				return foundDictionary[0];
+			}
 
 			const newDictionary: NewDictionary = {
 				name: dictionaryName,
@@ -28,7 +33,7 @@ const createDictionaryIfDoesNotExist =
 			const savedDictionary = await dictionaryRepo.save(newDictionary);
 			return savedDictionary;
 		} catch (error) {
-			console.error(`Error saving dictionary: ${error}`);
+			logger.error(`Error saving dictionary: ${error}`);
 			throw error;
 		}
 	};
@@ -36,13 +41,14 @@ const createDictionaryIfDoesNotExist =
 const fetchDictionaryByVersion =
 	(dependencies: Dependencies) =>
 	async (dictionaryName: string, version: string): Promise<SchemasDictionary> => {
+		const { logger } = dependencies;
 		try {
 			const lecternClient = new LecternClient(dependencies.config.schemaService.url);
 			const dictionaryResponse = await lecternClient.fetchDictionaryByVersion(dictionaryName, version);
-			console.log(`dictionary fetched:${JSON.stringify(dictionaryResponse)}`);
+			logger.debug(`dictionary fetched from Lectern:${JSON.stringify(dictionaryResponse)}`);
 			return dictionaryResponse;
 		} catch (error) {
-			console.error(`Error Fetching dictionary from lectern: ${error}`);
+			logger.error(`Error Fetching dictionary from lectern: ${error}`);
 			throw error;
 		}
 	};

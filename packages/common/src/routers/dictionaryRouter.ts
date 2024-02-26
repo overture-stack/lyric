@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { auth } from '../auth/middleware.js';
+import { auth } from '../middleware/auth.js';
 
 import { Dependencies } from '../config/config.js';
 import { dictionaryControllers } from '../controllers/dictionaryController.js';

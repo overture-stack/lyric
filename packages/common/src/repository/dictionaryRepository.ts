@@ -7,11 +7,13 @@ import { Dictionary, NewDictionary, dictionaries } from '../models/dictionaries.
 
 export default class DictionaryRepository extends GlobalConfig {
 	async save(data: NewDictionary) {
-		console.log('saving dictionary');
+		const { db, logger } = this.dependencies;
 		try {
-			const { db } = this.dependencies;
-			return await db.drizzle.insert(dictionaries).values(data).returning();
+			const savedDictionary = await db.drizzle.insert(dictionaries).values(data).returning();
+			logger.info(`Dictionary with name:${data.name} and version:${data.version} saved successfully`);
+			return savedDictionary;
 		} catch (error) {
+			logger.error(`Failed saving Dictionary with: name ${data.name}, version:${data.version}. Details: ${error}`);
 			throw error;
 		}
 	}
@@ -25,12 +27,13 @@ export default class DictionaryRepository extends GlobalConfig {
 				[x: string]: unknown;
 		  }[]
 	> {
-		console.log('selecting dictionary');
+		const { db, logger } = this.dependencies;
+		logger.debug(`Querying Dictionary`);
 		try {
-			const { db } = this.dependencies;
 			if (isEmpty(selectionFields)) return await db.drizzle.select().from(dictionaries).where(conditions);
 			return await db.drizzle.select(selectionFields).from(dictionaries).where(conditions);
 		} catch (error) {
+			logger.error(`Failed querying Dictionary. Details: ${error}`);
 			throw error;
 		}
 	}

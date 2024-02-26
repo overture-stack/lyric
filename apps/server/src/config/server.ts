@@ -7,7 +7,6 @@ export const getServerConfig = () => {
 		port: process.env.PORT || 3030,
 		debug_mode: process.env.DEBUG || false,
 		upload_limit: process.env.UPLOAD_LIMIT || '50mb',
-		schema_service_url: process.env.SCHEMA_SERVICE_URL || '',
 	};
 };
 
@@ -21,5 +20,8 @@ export const defaultAppConfig: AppConfig = {
 	},
 	schemaService: {
 		url: process.env.LECTERN_URL || '',
+	},
+	logger: {
+		level: process.env.LOG_LEVEL || 'info',
 	},
 };

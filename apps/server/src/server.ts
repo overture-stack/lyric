@@ -2,7 +2,7 @@ import express, { json, urlencoded } from 'express';
 import helmet from 'helmet';
 import { serve, setup } from 'swagger-ui-express';
 
-import { LyricManager } from 'common';
+import { LyricManager, errorHandler } from 'common';
 import { defaultAppConfig, getServerConfig } from './config/server.js';
 import swaggerDoc from './config/swagger.js';
 import pingRouter from './routes/ping.js';
@@ -25,6 +25,7 @@ app.use('/dictionary', lyricManager.getRouters().getDicionaryRouters());
 // Swagger route
 app.use('/api-docs', serve, setup(swaggerDoc));
 
+app.use(errorHandler);
 // running the server
 app.listen(serverConfig.port, () => {
 	console.log(`Starting Express server on http://localhost:${serverConfig.port}`);

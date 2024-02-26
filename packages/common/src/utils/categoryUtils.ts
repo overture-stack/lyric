@@ -6,11 +6,14 @@ import { NewCategory, dictionaryCategories } from '../models/dictionary_categori
 import CategoryRepository from '../repository/categoryRepository.js';
 
 export const createCategoryIfDoesNotExist = (dependencies: Dependencies) => async (categoryName: string) => {
+	const { logger } = dependencies;
 	try {
 		const categoryRepo = new CategoryRepository(dependencies);
 		const foundCategory = await categoryRepo.select({}, eq(dictionaryCategories.name, categoryName));
-		console.log(`foundCategory:${JSON.stringify(foundCategory)}`);
-		if (!isEmpty(foundCategory)) return foundCategory[0];
+		if (!isEmpty(foundCategory)) {
+			logger.info(`Category ${categoryName} already exists. Not doing any action`);
+			return foundCategory[0];
+		}
 
 		const newCategory: NewCategory = {
 			name: categoryName,
@@ -18,7 +21,7 @@ export const createCategoryIfDoesNotExist = (dependencies: Dependencies) => asyn
 		const savedCategory = await categoryRepo.save(newCategory);
 		return savedCategory;
 	} catch (error) {
-		console.error(`Error saving Category: ${error}`);
+		logger.error(`Error saving Category: ${error}`);
 		throw error;
 	}
 };

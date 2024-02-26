@@ -7,12 +7,13 @@ import { Category, NewCategory, dictionaryCategories } from '../models/dictionar
 
 export default class CategoryRepository extends GlobalConfig {
 	async save(data: NewCategory): Promise<Category> {
-		console.log('saving Category');
+		const { db, logger } = this.dependencies;
 		try {
-			const { db } = this.dependencies;
 			const savedCategory = await db.drizzle.insert(dictionaryCategories).values(data).returning();
+			logger.info(`Category ${data.name} saved successfully`);
 			return savedCategory[0];
 		} catch (error) {
+			logger.error(`Failed saving category ${data.name}. Details: ${error}`);
 			throw error;
 		}
 	}
@@ -26,13 +27,14 @@ export default class CategoryRepository extends GlobalConfig {
 				[x: string]: unknown;
 		  }[]
 	> {
-		console.log('selecting Category');
+		const { db, logger } = this.dependencies;
+		logger.debug(`Querying Category`);
 		try {
-			const { db } = this.dependencies;
 			await db.connect();
 			if (isEmpty(selectionFields)) return await db.drizzle.select().from(dictionaryCategories).where(conditions);
 			return await db.drizzle.select(selectionFields).from(dictionaryCategories).where(conditions);
 		} catch (error) {
+			logger.error(`Failed querying category. Details: ${error}`);
 			throw error;
 		}
 	}

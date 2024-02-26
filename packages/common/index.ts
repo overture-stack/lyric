@@ -1,6 +1,7 @@
 // config
 export { AppConfig } from './src/config/config.js';
 export { LyricManager } from './src/core/manager.js';
+export { errorHandler } from './src/middleware/errorHandler.js';
 
 // routes
 export { dictionaryRouters } from './src/routers/dictionaryRouter.js';
