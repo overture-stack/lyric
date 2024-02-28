@@ -3,13 +3,12 @@
 	"compilerOptions": {
 		"baseUrl": ".",
 		"outDir": "dist",
-		"resolveJsonModule": true,
-		"noEmit": true
+		"resolveJsonModule": true
 	},
 	"ts-node": {
 		"esm": true,
 		"logError": true
 	},
-	"include": ["src"],
+	"include": ["."],
 	"exclude": ["dist", "node_modules", "**/*.spec.ts"]
 }
