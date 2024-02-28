@@ -1,13 +1,13 @@
 import swaggerJSDoc from 'swagger-jsdoc';
 
-import pkg from '../../package.json' assert { type: 'json' };
+import { version } from './manifest.js';
 
 const swaggerDefinition = {
 	failOnErrors: true, // Whether or not to throw when parsing errors. Defaults to false.
 	openapi: '3.0.0',
 	info: {
 		title: 'Submission service',
-		version: pkg.version,
+		version: version,
 	},
 };
 

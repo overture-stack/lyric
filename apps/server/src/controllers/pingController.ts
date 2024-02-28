@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 
-import pkg from '../../package.json' assert { type: 'json' };
+import { name, version } from '../config/manifest.js';
 
 export const ping = (req: Request, res: Response) => {
-	res.send({ name: pkg.name, version: pkg.version });
+	res.send({ name: name, version: version });
 };
