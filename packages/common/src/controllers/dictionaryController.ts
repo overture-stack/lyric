@@ -1,11 +1,11 @@
 import { NextFunction, Request, Response } from 'express';
 
 import { Dependencies } from '../config/config.js';
-import DictionaryService from '../services/dictionaryService.js';
+import dictionaryService from '../services/dictionaryService.js';
 import { BadRequest } from '../utils/errors.js';
 
-export const dictionaryControllers = (dependencies: Dependencies) => {
-	const dictionaryService = new DictionaryService(dependencies);
+const controller = (dependencies: Dependencies) => {
+	const service = dictionaryService(dependencies);
 	return {
 		getCurrentDictionary: async (req: Request, res: Response) => {
 			// const currentDictionary = await dictionaryService.getCurrentDictionary();
@@ -29,12 +29,14 @@ export const dictionaryControllers = (dependencies: Dependencies) => {
 				if (!dictionaryName) throw new BadRequest('Request is missing `dictionaryName` parameter.');
 				if (!dictionaryVersion) throw new BadRequest('Request is missing `version` parameter.');
 
-				const registered = await dictionaryService.registerDictionary(categoryName, dictionaryName, dictionaryVersion);
+				const registered = await service.registerDictionary(categoryName, dictionaryName, dictionaryVersion);
 				logger.info(`[Register Dictionary] completed!`);
-				res.send(registered);
+				return res.send(registered);
 			} catch (error) {
 				next(error);
 			}
 		},
 	};
 };
+
+export default controller;

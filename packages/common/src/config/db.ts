@@ -2,32 +2,14 @@ import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import { dbInfo } from './config.js';
 
-export class DB {
-	public info: dbInfo;
-	public connected = false;
-	public pg!: pg.Pool;
-	public drizzle!: NodePgDatabase;
-
-	constructor(info: dbInfo) {
-		this.info = info;
-	}
-	async connect() {
-		if (this.connected) {
-			return;
-		}
-
-		const pool = new pg.Pool({
-			host: this.info.host,
-			port: this.info.port,
-			database: this.info.database,
-			user: this.info.user,
-			password: this.info.password,
-		});
-		const drizzleClient = drizzle(pool);
-
-		this.connected = true;
-
-		this.pg = pool;
-		this.drizzle = drizzleClient;
-	}
-}
+export const connect = (info: dbInfo): NodePgDatabase => {
+	const pool = new pg.Pool({
+		host: info.host,
+		port: info.port,
+		database: info.database,
+		user: info.user,
+		password: info.password,
+	});
+	console.log(`Connecting to database on ${info.host}`);
+	return drizzle(pool);
+};

@@ -3,9 +3,9 @@ import { Router } from 'express';
 import { auth } from '../middleware/auth.js';
 
 import { Dependencies } from '../config/config.js';
-import { dictionaryControllers } from '../controllers/dictionaryController.js';
+import dictionaryControllers from '../controllers/dictionaryController.js';
 
-export const dictionaryRouters = (dependencies: Dependencies) => {
+const router = (dependencies: Dependencies): Router => {
 	const router = Router();
 	/**
 	 * @swagger
@@ -34,3 +34,5 @@ export const dictionaryRouters = (dependencies: Dependencies) => {
 	router.post('/register', auth, dictionaryControllers(dependencies).registerDictionary);
 	return router;
 };
+
+export default router;

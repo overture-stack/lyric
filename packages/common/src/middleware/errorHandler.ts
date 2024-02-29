@@ -29,6 +29,4 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
 	}
 
 	res.status(status).send({ error: err.name, message: customizableMsg });
-	// pass the error down (so other error handlers can also process the error)
-	next(err);
 };

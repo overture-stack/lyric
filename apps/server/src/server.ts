@@ -2,14 +2,14 @@ import express, { json, urlencoded } from 'express';
 import helmet from 'helmet';
 import { serve, setup } from 'swagger-ui-express';
 
-import { LyricManager, errorHandler } from 'common';
+import { errorHandler, manager } from 'common';
 import { defaultAppConfig, getServerConfig } from './config/server.js';
 import swaggerDoc from './config/swagger.js';
 import pingRouter from './routes/ping.js';
 
 const serverConfig = getServerConfig();
 
-const lyricManager = await LyricManager.create(defaultAppConfig);
+const lyricManager = manager(defaultAppConfig);
 
 // Create Express server
 const app = express();
@@ -20,7 +20,7 @@ app.use(json());
 app.use(helmet());
 
 app.use('/ping', pingRouter);
-app.use('/dictionary', lyricManager.getRouters().getDicionaryRouters());
+app.use('/dictionary', lyricManager.getRouters.dictionaryRouters);
 
 // Swagger route
 app.use('/api-docs', serve, setup(swaggerDoc));

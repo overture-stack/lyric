@@ -1,27 +1,28 @@
-import { AppConfig, ConfigManager, Dependencies } from '../config/config.js';
-import { dictionaryRouters } from '../routers/dictionaryRouter.js';
+import { AppConfig, Dependencies } from '../config/config.js';
+import dictionaryRouters from '../routers/dictionaryRouter.js';
 
-export class LyricManager extends ConfigManager {
-	public static async create(configData: AppConfig) {
-		const manager = new LyricManager(configData);
-		await manager.loadLogger();
-		await manager.loadDb();
-		return manager;
-	}
-	getRouters() {
-		return {
-			getDicionaryRouters: () => {
-				const routers = dictionaryRouters({
-					db: this.dependencies.db,
-					config: this.dependencies.config,
-					logger: this.dependencies.logger,
-				} as Dependencies);
-				return routers;
-			},
-			getOtherRouter: () => {
-				return null;
-			},
-		};
-	}
-	getServices() {}
-}
+import { connect } from '../config/db.js';
+import { getLogger } from '../config/logger.js';
+import getCategoryUtils from '../utils/categoryUtils.js';
+import getDictionaryUtils from '../utils/dictionaryUtils.js';
+
+const manager = (configData: AppConfig) => {
+	const deps = {
+		db: connect(configData.db),
+		logger: getLogger(configData.logger),
+		config: configData,
+	} as Dependencies;
+
+	return {
+		getConfig: deps,
+		getRouters: {
+			dictionaryRouters: dictionaryRouters(deps),
+		},
+		getFunctions: {
+			dictionaryFunctions: getDictionaryUtils(deps),
+			categoryFunctions: getCategoryUtils(deps),
+		},
+	};
+};
+
+export default manager;
