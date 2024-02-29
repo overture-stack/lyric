@@ -7,11 +7,11 @@ import getCategoryUtils from '../utils/categoryUtils.js';
 import getDictionaryUtils from '../utils/dictionaryUtils.js';
 
 const manager = (configData: AppConfig) => {
-	const deps = {
+	const deps: Dependencies = {
 		db: connect(configData.db),
 		logger: getLogger(configData.logger),
 		config: configData,
-	} as Dependencies;
+	};
 
 	return {
 		getConfig: deps,

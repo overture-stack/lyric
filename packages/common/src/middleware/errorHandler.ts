@@ -28,5 +28,5 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
 			status = 500;
 	}
 
-	res.status(status).send({ error: err.name, message: customizableMsg });
+	return res.status(status).send({ error: err.name, message: customizableMsg });
 };
