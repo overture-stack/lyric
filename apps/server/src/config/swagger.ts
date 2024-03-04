@@ -7,7 +7,7 @@ const swaggerDefinition = {
 	openapi: '3.0.0',
 	info: {
 		title: 'Submission service',
-		version: version,
+		version,
 	},
 };
 
