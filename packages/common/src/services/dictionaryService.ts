@@ -4,9 +4,9 @@ import { Dependencies } from '../config/config.js';
 import getCategoryUtils from '../utils/categoryUtils.js';
 import getDictionaryUtils from '../utils/dictionaryUtils.js';
 
-const service = (dependencies: Dependencies) => {
+const dictionaryService = (dependencies: Dependencies) => {
 	return {
-		registerDictionary: async (categoryName: string, dictionaryName: string, version: string) => {
+		register: async (categoryName: string, dictionaryName: string, version: string) => {
 			const { createCategoryIfDoesNotExist } = getCategoryUtils(dependencies);
 			const savedCategory = await createCategoryIfDoesNotExist(categoryName);
 			if (isEmpty(savedCategory)) return;
@@ -27,4 +27,4 @@ const service = (dependencies: Dependencies) => {
 	};
 };
 
-export default service;
+export default dictionaryService;

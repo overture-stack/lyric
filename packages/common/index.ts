@@ -1,6 +1,6 @@
 // config
 export { AppConfig } from './src/config/config.js';
-export { default as manager } from './src/core/manager.js';
+export { default as provider } from './src/core/provider.js';
 export { errorHandler } from './src/middleware/errorHandler.js';
 
 // routes

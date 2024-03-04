@@ -46,7 +46,7 @@ const utils = (dependencies: Dependencies) => {
 		fetchDictionaryByVersion: async (dictionaryName: string, version: string): Promise<SchemasDictionary> => {
 			const { logger } = dependencies;
 			try {
-				const client = lecternClient(dependencies.config.schemaService.url);
+				const client = lecternClient(dependencies.config.schemaService.url, logger);
 				const dictionaryResponse = await client.fetchDictionaryByVersion(dictionaryName, version);
 				logger.debug(`dictionary fetched from Lectern:${JSON.stringify(dictionaryResponse)}`);
 				return dictionaryResponse;

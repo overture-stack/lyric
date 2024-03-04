@@ -6,7 +6,7 @@ import { getLogger } from '../config/logger.js';
 import getCategoryUtils from '../utils/categoryUtils.js';
 import getDictionaryUtils from '../utils/dictionaryUtils.js';
 
-const manager = (configData: AppConfig) => {
+const provider = (configData: AppConfig) => {
 	const deps: Dependencies = {
 		db: connect(configData.db),
 		logger: getLogger(configData.logger),
@@ -14,15 +14,15 @@ const manager = (configData: AppConfig) => {
 	};
 
 	return {
-		getConfig: deps,
-		getRouters: {
-			dictionaryRouters: dictionaryRouters(deps),
+		configs: deps,
+		routers: {
+			dictionary: dictionaryRouters(deps),
 		},
-		getFunctions: {
-			dictionaryFunctions: getDictionaryUtils(deps),
-			categoryFunctions: getCategoryUtils(deps),
+		utils: {
+			dictionary: getDictionaryUtils(deps),
+			category: getCategoryUtils(deps),
 		},
 	};
 };
 
-export default manager;
+export default provider;
