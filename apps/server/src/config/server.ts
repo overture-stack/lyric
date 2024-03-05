@@ -11,11 +11,11 @@ export const getServerConfig = () => {
 
 export const defaultAppConfig: AppConfig = {
 	db: {
-		host: process.env.LYRIC_DB_URL || '',
-		port: Number(process.env.LYRIC_DB_PORT) || 5432,
-		database: process.env.LYRIC_DB_NAME || '',
-		user: process.env.LYRIC_DB_USER || '',
-		password: process.env.LYRIC_DB_PASSWORD || '',
+		host: process.env.DB_URL || '',
+		port: Number(process.env.DB_PORT) || 5432,
+		database: process.env.DB_NAME || '',
+		user: process.env.DB_USER || '',
+		password: process.env.DB_PASSWORD || '',
 	},
 	schemaService: {
 		url: process.env.LECTERN_URL || '',
