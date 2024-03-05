@@ -8,7 +8,14 @@ import {
 	TSVParseError,
 } from '../utils/errors.js';
 
-// general catch all error handler
+/**
+ * A Middleware use to map Error types
+ * @param err An Error instance
+ * @param req Incoming HTTP Request object
+ * @param res HTTP Response Object
+ * @param next Next middleware function
+ * @returns An HTTP Response Object with the corresponding HTTP code and message
+ */
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction): any => {
 	console.error('error handler received error: ', err);
 	let status: number;

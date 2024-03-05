@@ -6,6 +6,12 @@ import { BadRequest, ServiceUnavailable } from '../utils/errors.js';
 const client = (schemaServiceUrl: string, logger: Logger) => {
 	const LOG_MODULE = 'LECTERN_CLIENT';
 	return {
+		/**
+		 * Fetch a Dictionary using Schema Service(Lectern)
+		 * @param name Dictionary Name
+		 * @param version Dictionary version
+		 * @returns A Dictionary found
+		 */
 		async fetchDictionaryByVersion(name: string, version: string): Promise<dictionaryEntities.SchemasDictionary> {
 			try {
 				const newSchema = await dictionaryRestClient.fetchSchema(schemaServiceUrl, name, version);

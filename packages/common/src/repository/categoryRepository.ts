@@ -10,6 +10,11 @@ const repository = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'CATEGORY_REPOSITORY';
 	const { db, logger } = dependencies;
 	return {
+		/**
+		 * Save a new Category in Database
+		 * @param data A Category object to be saved
+		 * @returns The created Category
+		 */
 		save: async (data: NewCategory): Promise<Category> => {
 			try {
 				const savedCategory = await db.insert(dictionaryCategories).values(data).returning();
@@ -21,6 +26,12 @@ const repository = (dependencies: Dependencies) => {
 			}
 		},
 
+		/**
+		 * Find a Category in Database
+		 * @param selectionFields Specific fields we want to get. Use '{}' (empty Object) to get all the fields from a Category
+		 * @param conditions SQL where clause
+		 * @returns The Category found
+		 */
 		select: async <P extends Partial<(typeof dictionaryCategories)['_']['columns']>>(
 			selectionFields: P,
 			conditions: SQL<unknown> | ((aliases: SelectedFields) => SQL<unknown> | undefined) | undefined,

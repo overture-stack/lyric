@@ -10,6 +10,11 @@ export type Logger = {
 	error: loggerFunction;
 };
 
+/**
+ * Get a Logger instance for log messages
+ * @param config logger configuration
+ * @returns functions to log messages based on each log level
+ */
 export const getLogger = (config: LoggerConfig): Logger => {
 	const transportList: LoggerOptions['transports'] = [];
 

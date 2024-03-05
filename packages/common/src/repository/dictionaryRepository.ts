@@ -9,6 +9,11 @@ const repository = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'DICTIONARY_REPOSITORY';
 	const { db, logger } = dependencies;
 	return {
+		/**
+		 * Save a new Dictionary in Database
+		 * @param data A dictionary object to be saved
+		 * @returns The created dictionary
+		 */
 		save: async (data: NewDictionary): Promise<Dictionary> => {
 			try {
 				const savedDictionary = await db.insert(dictionaries).values(data).returning();
@@ -24,6 +29,12 @@ const repository = (dependencies: Dependencies) => {
 			}
 		},
 
+		/**
+		 * Find a Dictionary in Database
+		 * @param selectionFields Specific fields we want to get. Use '{}' (empty Object) to get all the fields from a Dictionary
+		 * @param conditions SQL where clause
+		 * @returns The Dictionary found
+		 */
 		select: async <P extends Partial<(typeof dictionaries)['_']['columns']>>(
 			selectionFields: P,
 			conditions: SQL<unknown> | ((aliases: SelectedFields) => SQL<unknown> | undefined) | undefined,

@@ -18,12 +18,19 @@ export type LoggerConfig = {
 	file?: boolean;
 };
 
+/**
+ * Environment variables to configure internal and external resources
+ * (database, external services, logger, etc)
+ */
 export type AppConfig = {
 	db: dbInfo;
 	schemaService: schemaServiceInfo;
 	logger: LoggerConfig;
 };
 
+/**
+ * Dependencies required for utils/services
+ */
 export interface Dependencies {
 	db: NodePgDatabase;
 	config: AppConfig;

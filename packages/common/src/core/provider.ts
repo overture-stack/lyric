@@ -6,6 +6,11 @@ import { getLogger } from '../config/logger.js';
 import getCategoryUtils from '../utils/categoryUtils.js';
 import getDictionaryUtils from '../utils/dictionaryUtils.js';
 
+/**
+ * The main provider of submission resources
+ * @param configData Environment variables required to configure resources
+ * @returns A provider to get access to resources
+ */
 const provider = (configData: AppConfig) => {
 	const deps: Dependencies = {
 		db: connect(configData.db),

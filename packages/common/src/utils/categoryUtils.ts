@@ -9,6 +9,11 @@ const utils = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'CATEGORY_UTILS';
 	const { logger } = dependencies;
 	return {
+		/**
+		 * Saves a new category if it doesn't exist or returns the existing one
+		 * @param categoryName The name of the category to create
+		 * @returns A category created or the existing one
+		 */
 		createCategoryIfDoesNotExist: async (categoryName: string): Promise<Category> => {
 			try {
 				const categoryRepo = categoryRepository(dependencies);

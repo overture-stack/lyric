@@ -11,6 +11,14 @@ const utils = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'DICTIONARY_UTILS';
 	const { logger } = dependencies;
 	return {
+		/**
+		 * Creates a new dictionary only if it doesn't exist or returns if it already exists
+		 * @param dictionaryName The name of the dictionary to create
+		 * @param version The version of the dictionary to create
+		 * @param category The category object to which this dictionary belongs
+		 * @param dictionary The Schema of the dictionary
+		 * @returns The new dictionary created or the existing one
+		 */
 		createDictionaryIfDoesNotExist: async (
 			dictionaryName: string,
 			version: string,
@@ -46,6 +54,12 @@ const utils = (dependencies: Dependencies) => {
 			}
 		},
 
+		/**
+		 * Fetch the dictionary from Schema Service(Lectern)
+		 * @param dictionaryName The dictionary name we want to fetch
+		 * @param version The version of the dictionary we want to fetch
+		 * @returns {SchemaDictionary} The found Dictionary
+		 */
 		fetchDictionaryByVersion: async (dictionaryName: string, version: string): Promise<SchemasDictionary> => {
 			try {
 				const client = lecternClient(dependencies.config.schemaService.url, logger);
