@@ -1,5 +1,12 @@
 import { NextFunction, Request, Response } from 'express';
-import { BadRequest, NotFound, StateConflict, TSVParseError } from '../utils/errors.js';
+import {
+	BadRequest,
+	NotFound,
+	NotImplemented,
+	ServiceUnavailable,
+	StateConflict,
+	TSVParseError,
+} from '../utils/errors.js';
 
 // general catch all error handler
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction): any => {
@@ -18,6 +25,12 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
 			break;
 		case err instanceof TSVParseError:
 			status = 422;
+			break;
+		case err instanceof NotImplemented:
+			status = 501;
+			break;
+		case err instanceof ServiceUnavailable:
+			status = 503;
 			break;
 		case (err as any).name == 'CastError':
 			status = 404;

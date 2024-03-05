@@ -1,4 +1,4 @@
-import express, { json, urlencoded } from 'express';
+import express from 'express';
 import helmet from 'helmet';
 import { serve, setup } from 'swagger-ui-express';
 
@@ -13,9 +13,6 @@ const lyricProvider = provider(defaultAppConfig);
 
 // Create Express server
 const app = express();
-
-app.use(urlencoded({ extended: false }));
-app.use(json());
 
 app.use(helmet());
 

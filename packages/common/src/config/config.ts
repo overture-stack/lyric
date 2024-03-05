@@ -1,5 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { Logger } from 'winston';
+import { Logger } from './logger.js';
 
 export type dbInfo = {
 	host: string;

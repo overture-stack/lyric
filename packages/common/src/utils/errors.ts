@@ -25,3 +25,17 @@ export class TSVParseError extends Error {
 		this.name = 'Parse Error';
 	}
 }
+
+export class NotImplemented extends Error {
+	constructor(msg?: string) {
+		super(msg);
+		this.name = 'Not Implemented';
+	}
+}
+
+export class ServiceUnavailable extends Error {
+	constructor(msg?: string) {
+		super(msg || 'Server is unable to access the necessary resources to process the request. Please try again later.');
+		this.name = 'Service unavailable';
+	}
+}

@@ -2,27 +2,31 @@ import { NextFunction, Request, Response } from 'express';
 
 import { Dependencies } from '../config/config.js';
 import dictionarySvc from '../services/dictionaryService.js';
-import { BadRequest } from '../utils/errors.js';
+import { BadRequest, NotImplemented } from '../utils/errors.js';
 
 const controller = (dependencies: Dependencies) => {
 	const dictionaryService = dictionarySvc(dependencies);
+	const { logger } = dependencies;
+	const LOG_MODULE = 'DICTIONARY_CONTROLLER';
 	return {
-		getCurrentDictionary: async (req: Request, res: Response) => {
-			// const currentDictionary = await dictionaryService.getCurrentDictionary();
-			// res.send(currentDictionary);
-			res.status(200).send();
+		getCurrentDictionary: async (req: Request, res: Response, next: NextFunction) => {
+			try {
+				//TODO: implement logic to get current dictionary from DB
+				throw new NotImplemented('This functionallity is not implemented');
+			} catch (error) {
+				next(error);
+			}
 		},
 
 		registerDictionary: async (req: Request, res: Response, next: NextFunction) => {
 			try {
-				const { logger } = dependencies;
-
 				const categoryName = req.body.categoryName;
 				const dictionaryName = req.body.dictionaryName;
 				const dictionaryVersion = req.body.version;
 
 				logger.info(
-					`[Register Dictionary] Request: categoryName:${categoryName} dictionaryName:${dictionaryName} dictionaryVersion:${dictionaryVersion}`,
+					LOG_MODULE,
+					`Register Dictionary Request categoryName '${categoryName}' name '${dictionaryName}' version '${dictionaryVersion}'`,
 				);
 
 				if (!categoryName) throw new BadRequest('Request is missing `categoryName` parameter.');
@@ -30,7 +34,7 @@ const controller = (dependencies: Dependencies) => {
 				if (!dictionaryVersion) throw new BadRequest('Request is missing `version` parameter.');
 
 				const registered = await dictionaryService.register(categoryName, dictionaryName, dictionaryVersion);
-				logger.info(`[Register Dictionary] completed!`);
+				logger.info(LOG_MODULE, `Register Dictionary completed!`);
 				return res.send(registered);
 			} catch (error) {
 				next(error);
