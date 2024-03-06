@@ -1,5 +1,7 @@
 import { Router } from 'express';
 
+import pingController from '../controllers/pingController.js';
+
 const router = Router();
 
 /**
@@ -14,6 +16,6 @@ const router = Router();
  *         description: Status
  */
 
-router.get('/', (_req, res) => res.send({ message: 'Pong' }));
+router.get('/', pingController.ping);
 
 export default router;

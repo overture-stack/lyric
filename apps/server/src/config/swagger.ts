@@ -1,6 +1,6 @@
 import swaggerJSDoc from 'swagger-jsdoc';
 
-import { version } from '../package.json';
+import { version } from './manifest.js';
 
 const swaggerDefinition = {
 	failOnErrors: true, // Whether or not to throw when parsing errors. Defaults to false.
@@ -14,7 +14,7 @@ const swaggerDefinition = {
 const options = {
 	swaggerDefinition,
 	// Paths to files containing OpenAPI definitions
-	apis: ['./routes/*.ts'],
+	apis: ['./src/routes/*.ts'],
 };
 
 export default swaggerJSDoc(options);

@@ -1,8 +1,8 @@
 import { relations } from 'drizzle-orm';
 import { boolean, integer, jsonb, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
-import { dictionaries } from './dictionaries';
-import { dictionaryCategories } from './dictionary_categories';
+import { dictionaries } from './dictionaries.js';
+import { dictionaryCategories } from './dictionary_categories.js';
 
 export const submittedData = pgTable('submitted_data', {
 	id: serial('id').primaryKey(),
@@ -31,3 +31,6 @@ export const submittedDataRelations = relations(submittedData, ({ one }) => ({
 		references: [dictionaries.id],
 	}),
 }));
+
+export type SubmittedData = typeof submittedData.$inferSelect; // return type when queried
+export type NewSubmittedData = typeof submittedData.$inferInsert; // insert type

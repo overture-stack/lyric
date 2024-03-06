@@ -1,6 +1,6 @@
 import { integer, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
-import { dictionaries } from './dictionaries';
+import { dictionaries } from './dictionaries.js';
 
 export const dictionaryCategories = pgTable('dictionary_categories', {
 	id: serial('id').primaryKey(),
@@ -9,3 +9,6 @@ export const dictionaryCategories = pgTable('dictionary_categories', {
 	createdAt: timestamp('created_at').defaultNow(),
 	udpatedAt: timestamp('udpated_at'),
 });
+
+export type Category = typeof dictionaryCategories.$inferSelect; // return type when queried
+export type NewCategory = typeof dictionaryCategories.$inferInsert; // insert type
