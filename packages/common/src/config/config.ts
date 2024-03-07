@@ -1,4 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import * as schema from '../models/index.js';
 import { Logger } from './logger.js';
 
 export type dbInfo = {
@@ -32,7 +33,7 @@ export type AppConfig = {
  * Dependencies required for utils/services
  */
 export interface Dependencies {
-	db: NodePgDatabase;
+	db: NodePgDatabase<typeof schema>;
 	config: AppConfig;
 	logger: Logger;
 }

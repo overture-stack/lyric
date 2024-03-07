@@ -22,6 +22,9 @@ const dictionaryService = (dependencies: Dependencies) => {
 			const dictionary = await fetchDictionaryByVersion(dictionaryName, version);
 
 			const savedDictionary = await createDictionaryIfDoesNotExist(dictionaryName, version, savedCategory, dictionary);
+
+			//TODO: Update the category to have this dictionary as current
+
 			return savedDictionary;
 		},
 

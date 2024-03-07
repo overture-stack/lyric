@@ -5,11 +5,14 @@ import { SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-
 import { Dependencies } from '../config/config.js';
 import lecternClient from '../external/lecternClient.js';
 import { Dictionary, NewDictionary, dictionaries } from '../models/dictionaries.js';
+import { dictionaryCategories } from '../models/dictionary_categories.js';
+import categoryRepository from '../repository/categoryRepository.js';
 import dictionaryRepository from '../repository/dictionaryRepository.js';
 
 const utils = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'DICTIONARY_UTILS';
 	const { logger } = dependencies;
+	const dictionaryRepo = dictionaryRepository(dependencies);
 	return {
 		/**
 		 * Creates a new dictionary only if it doesn't exist or returns if it already exists
@@ -25,8 +28,6 @@ const utils = (dependencies: Dependencies) => {
 			category: any,
 			dictionary: SchemasDictionary,
 		): Promise<Dictionary> => {
-			const dictionaryRepo = dictionaryRepository(dependencies);
-
 			try {
 				const foundDictionary = await dictionaryRepo.select(
 					{},
@@ -68,6 +69,33 @@ const utils = (dependencies: Dependencies) => {
 				return dictionaryResponse;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Error Fetching dictionary from lectern`, error);
+				throw error;
+			}
+		},
+
+		/**
+		 * Get the current Dictionary from database
+		 * @param {number} categoryId The Category ID
+		 * @returns A Dictionary instance
+		 */
+		getCurrentDictionary: async (categoryId: number): Promise<Dictionary> => {
+			try {
+				const categoryRepo = categoryRepository(dependencies);
+
+				const dictionaryFound = await categoryRepo.findFirst(eq(dictionaryCategories.id, categoryId), {
+					dictionary: true,
+				});
+				logger.info(
+					LOG_MODULE,
+					`Getting Current Dictionary name '${dictionaryFound?.dictionary?.name}' version '${dictionaryFound?.dictionary?.version}'`,
+				);
+
+				if (isEmpty(dictionaryFound)) {
+					throw new Error(`Dictionary in category '${categoryId}' not found`);
+				}
+				return dictionaryFound.dictionary;
+			} catch (error) {
+				logger.error(LOG_MODULE, `Error getting current dictionary`, error);
 				throw error;
 			}
 		},
