@@ -5,19 +5,21 @@
     summary: Register new dictionary
     tags:
       - dictionary
-    parameters:
-      - name: categoryName
-        in: formData
-        type: string
-        required: true
-      - name: dictionaryName
-        in: formData
-        type: string
-        required: true
-      - name: version
-        in: formData
-        type: string
-        required: true
+    requestBody:
+      content:
+        application/x-www-form-urlencoded:
+          schema:
+            type: object
+            properties:
+              categoryName:
+                type: string
+                required: true
+              dictionaryName:
+                type: string
+                required: true
+              version:
+                type: string
+                required: true
     responses:
       200:
         description: Dictionary info
