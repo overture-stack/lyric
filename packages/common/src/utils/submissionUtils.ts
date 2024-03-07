@@ -9,7 +9,6 @@ const utils = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'SUBMISSION_UTILS';
 	const { logger } = dependencies;
 	const submissionRepo = submissionRepository(dependencies);
-	const _self = utils(dependencies);
 	return {
 		/**
 		 * Creates a new Active Submission in database or update if already exists
@@ -23,7 +22,7 @@ const utils = (dependencies: Dependencies) => {
 			schemaErrors: any, // TODO: define Schema Errors type
 			dictionaryId: number,
 		): Promise<Submission> => {
-			const foundOpenSubmission = await _self.getCurrentActiveSubmission(Number(categoryId));
+			const foundOpenSubmission = await utils(dependencies).getCurrentActiveSubmission(Number(categoryId));
 			let updatedSubmission: Submission;
 			if (!isEmpty(foundOpenSubmission)) {
 				const { id, data } = foundOpenSubmission[0];
