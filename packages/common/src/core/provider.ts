@@ -22,7 +22,7 @@ const provider = (configData: AppConfig) => {
 		configs: deps,
 		routers: {
 			dictionary: dictionaryRouters(deps),
-			submssion: submissionRouters(deps),
+			submission: submissionRouters(deps),
 		},
 		utils: {
 			dictionary: getDictionaryUtils(deps),

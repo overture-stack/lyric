@@ -5,7 +5,7 @@ import { integer, jsonb, pgEnum, pgTable, serial, timestamp, varchar } from 'dri
 import { dictionaries } from './dictionaries.js';
 import { dictionaryCategories } from './dictionary_categories.js';
 
-export const submissionStateEnum = pgEnum('submission_state', ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITED']);
+export const submissionStateEnum = pgEnum('submission_state', ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITTED']);
 
 export const submissions = pgTable('submissions', {
 	id: serial('id').primaryKey(),

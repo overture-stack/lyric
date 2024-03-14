@@ -37,7 +37,7 @@ const utils = (dependencies: Dependencies) => {
 
 		/**
 		 * Finds a Category instance based on its unique ID
-		 * @param {niumber} categoryId The ID of the Category
+		 * @param {number} categoryId The ID of the Category
 		 * @returns A Category instance
 		 */
 		getCategoryById: async (categoryId: number): Promise<Category> => {
