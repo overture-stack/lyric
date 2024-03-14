@@ -1,0 +1,25 @@
+# Description of Dictionary API
+
+/dictionary/register:
+  post:
+    summary: Register new dictionary
+    tags:
+      - dictionary
+    requestBody:
+      content:
+        application/x-www-form-urlencoded:
+          schema:
+            type: object
+            properties:
+              categoryName:
+                type: string
+                required: true
+              dictionaryName:
+                type: string
+                required: true
+              version:
+                type: string
+                required: true
+    responses:
+      200:
+        description: Dictionary info

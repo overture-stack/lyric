@@ -16,7 +16,10 @@ This projects uses:
 
 For quick start development use `docker-compose up -d` to start postgress database
 
-For database migration use `pnpm --filter common migrate`
+For database migration:
+
+- Set DB_URL environment variable `export DB_URL=[YOUR_DATABASE_CONNECTION_URL]`
+- Run the command `pnpm --filter common migrate`
 
 ### Quickstart development
 
@@ -24,13 +27,21 @@ Use command `pnpm dev` to start server running by default in [http://localhost:3
 
 ## Environment variables
 
-In each package use the provided `.env.schema` and create an `.env` file.
+Create a `.env` file based on `.env.schema` located under `apps/server` and set the environment variables for your application.
 
-| Package     | Name           | Description               | Default |
-| ----------- | -------------- | ------------------------- | ------- |
-| apps/server | `PORT`         | Server Port.              | 3030    |
-| apps/server | `DEBUG_MODE`   | Set logger to debug level | false   |
-| apps/server | `UPLOAD_LIMIT` | Limit upload file size    | '50mb'  |
+The Environment Variables used for this application are listed in the table bellow
+
+| Name           | Description                  | Default |
+| -------------- | ---------------------------- | ------- |
+| `PORT`         | Server Port.                 | 3030    |
+| `UPLOAD_LIMIT` | Limit upload file size       | '50mb'  |
+| `DB_HOST`      | Database Hostname            |         |
+| `DB_PORT`      | Database Port                |         |
+| `DB_NAME`      | Database Name                |         |
+| `DB_USER`      | Database User                |         |
+| `DB_PASSWORD`  | Database Password            |         |
+| `LECTERN_URL`  | Schema Service (Lectern) URL |         |
+| `LOG_LEVEL`    | Log Level                    | 'info'  |
 
 ## Script commands
 

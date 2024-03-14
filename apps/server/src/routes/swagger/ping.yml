@@ -1,0 +1,10 @@
+# Description of Ping
+
+/ping:
+  get:
+    summary: Status of the service
+    tags:
+      - ping
+    responses:
+      200:
+        description: Status

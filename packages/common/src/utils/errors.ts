@@ -28,7 +28,7 @@ export class TSVParseError extends Error {
 
 export class NotImplemented extends Error {
 	constructor(msg?: string) {
-		super(msg);
+		super(msg || 'This functionallity is not yet implemented');
 		this.name = 'Not Implemented';
 	}
 }
@@ -39,3 +39,8 @@ export class ServiceUnavailable extends Error {
 		this.name = 'Service unavailable';
 	}
 }
+
+export const getErrorMessage = (error: unknown) => {
+	if (error instanceof Error) return error.message;
+	return String(error);
+};

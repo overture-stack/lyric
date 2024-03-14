@@ -5,6 +5,7 @@ export { errorHandler } from './src/middleware/errorHandler.js';
 
 // routes
 export { default as dictionaryRouters } from './src/routers/dictionaryRouter.js';
+export { default as submissionRouter } from './src/routers/submissionRouter.js';
 
 // utils
 export { default as getCategoryUtils } from './src/utils/categoryUtils.js';

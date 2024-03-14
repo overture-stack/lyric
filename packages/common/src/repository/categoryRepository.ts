@@ -36,12 +36,30 @@ const repository = (dependencies: Dependencies) => {
 			selectionFields: P,
 			conditions: SQL<unknown> | ((aliases: SelectedFields) => SQL<unknown> | undefined) | undefined,
 		): Promise<Category[]> => {
-			logger.debug(LOG_MODULE, `Querying Category`);
 			try {
-				if (isEmpty(selectionFields)) return await db.select().from(dictionaryCategories).where(conditions);
-				return await db.select(selectionFields).from(dictionaryCategories).where(conditions);
+				let result;
+				if (isEmpty(selectionFields)) result = await db.select().from(dictionaryCategories).where(conditions);
+				result = await db.select(selectionFields).from(dictionaryCategories).where(conditions);
+				logger.debug(LOG_MODULE, `Found Categories '${result?.map((cat) => cat?.name)}' in database`);
+				return result;
 			} catch (error: any) {
 				logger.error(LOG_MODULE, `Failed querying category`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+		findFirst: async (
+			whereClause: SQL<unknown> | ((aliases: SelectedFields) => SQL<unknown> | undefined) | undefined,
+			withRelations: any,
+		): Promise<any> => {
+			try {
+				const result = await db.query.dictionaryCategories.findFirst({
+					where: whereClause,
+					with: withRelations,
+				});
+				logger.debug(LOG_MODULE, `Found '${result?.name}' category in database`);
+				return result;
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed FindFirst Query on Active Submission`, error);
 				throw new ServiceUnavailable();
 			}
 		},

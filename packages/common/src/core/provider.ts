@@ -1,8 +1,8 @@
 import { AppConfig, Dependencies } from '../config/config.js';
-import dictionaryRouters from '../routers/dictionaryRouter.js';
-
 import { connect } from '../config/db.js';
 import { getLogger } from '../config/logger.js';
+import dictionaryRouters from '../routers/dictionaryRouter.js';
+import submissionRouters from '../routers/submissionRouter.js';
 import getCategoryUtils from '../utils/categoryUtils.js';
 import getDictionaryUtils from '../utils/dictionaryUtils.js';
 
@@ -22,6 +22,7 @@ const provider = (configData: AppConfig) => {
 		configs: deps,
 		routers: {
 			dictionary: dictionaryRouters(deps),
+			submission: submissionRouters(deps),
 		},
 		utils: {
 			dictionary: getDictionaryUtils(deps),

@@ -12,7 +12,7 @@ const controller = (dependencies: Dependencies) => {
 		getCurrentDictionary: async (req: Request, res: Response, next: NextFunction) => {
 			try {
 				//TODO: implement logic to get current dictionary from DB
-				throw new NotImplemented('This functionallity is not implemented');
+				throw new NotImplemented();
 			} catch (error) {
 				next(error);
 			}
