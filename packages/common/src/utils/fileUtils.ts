@@ -1,3 +1,4 @@
+import firstline from 'firstline';
 import fs from 'fs';
 import * as lodash from 'lodash-es';
 import { BadRequest } from './errors.js';
@@ -18,6 +19,16 @@ export const validateTsvExtension = (file: Express.Multer.File): void => {
 	if (!file.originalname.match(/.*\.tsv$/)) {
 		throw new BadRequest('Invalid extension');
 	}
+};
+
+/**
+ * Reads only first line of the file
+ * Usefull when file is too large and we're only interested in column names
+ * @param file A file we want to read
+ * @returns a string with the content of the first line of the file
+ */
+export const readHeaders = async (file: Express.Multer.File) => {
+	return firstline(file.path);
 };
 
 /**

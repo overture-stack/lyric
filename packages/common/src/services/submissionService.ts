@@ -6,6 +6,7 @@ import {
 import { isEmpty } from 'lodash-es';
 import { Dependencies } from '../config/config.js';
 import dictionaryUtils from '../utils/dictionaryUtils.js';
+import { tsvToJson } from '../utils/fileUtils.js';
 import submissionUtils, { parseToResultSubmission } from '../utils/submissionUtils.js';
 import { BatchError, CreateSubmissionResult, SubmissionEntity } from '../utils/types.js';
 
@@ -15,19 +16,13 @@ const service = (dependencies: Dependencies) => {
 	return {
 		/**
 		 * Validates and Creates the Entities Schemas of the Active Submission and stores it in the database
-		 * @param {SubmissionEntity[]} submissionsEntities An array of Entities within the Submission
+		 * @param {Express.Multer.File[]} files An array of files
 		 * @param {number} categoryId Category ID of the Submission
 		 * @returns The Active Submission created or Updated
 		 */
-		uploadSubmission: async (
-			submissionsEntities: SubmissionEntity[],
-			categoryId: number,
-		): Promise<CreateSubmissionResult> => {
-			logger.info(
-				LOG_MODULE,
-				`Processing '${submissionsEntities.length}' Submission entities on category id '${categoryId}'`,
-			);
-			const { createOrUpdateActiveSubmission, mappingEntities, processSchemaValidation, checkEntityFieldNames } =
+		uploadSubmission: async (files: Express.Multer.File[], categoryId: number): Promise<CreateSubmissionResult> => {
+			logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
+			const { createOrUpdateActiveSubmission, checkFileNames, processSchemaValidation, checkEntityFieldNames } =
 				submissionUtils(dependencies);
 			const { getCurrentDictionary } = dictionaryUtils(dependencies);
 
@@ -36,35 +31,40 @@ const service = (dependencies: Dependencies) => {
 			let submissionSchemaErrors: Record<string, SchemaValidationError[]> = {};
 			let updateSubmissionEntities: Record<string, SubmissionEntity> = {};
 
-			if (submissionsEntities.length > 0) {
+			if (files.length > 0) {
 				const currentDictionary = await getCurrentDictionary(categoryId);
 				const schemasDictionary: SchemasDictionary = {
 					name: currentDictionary.name,
 					version: currentDictionary.version,
 					schemas: currentDictionary.dictionary as SchemaDefinition[],
 				};
-				const schemaNames: string[] = schemasDictionary.schemas.map((item) => item.name);
 
 				// step 1 Validation. Validate entity type (filename matches dictionary entities, remove duplicates)
-				const { entityMap, mappingError } = await mappingEntities(submissionsEntities, schemaNames);
-				batchErrors.push(...mappingError);
+				const schemaNames: string[] = schemasDictionary.schemas.map((item) => item.name);
+				const { validFileEntity, batchErrors: fileNamesErrors } = await checkFileNames(files, schemaNames);
+				batchErrors.push(...fileNamesErrors);
+
 				// step 2 Validation. Validate fieldNames (missing required fields based on schema)
-				const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, entityMap);
+				const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
 				batchErrors.push(...fieldNameErrors);
 
 				if (!isEmpty(checkedEntities)) {
 					await Promise.all(
-						Object.entries(checkedEntities).map(async ([entityName, entityData]) => {
-							logger.debug(
-								LOG_MODULE,
-								`Running validation for entity '${entityName}' containing '${entityData.records.length}' records`,
-							);
+						Object.entries(checkedEntities).map(async ([entityName, file]) => {
+							logger.debug(LOG_MODULE, `Running validation for file '${file.originalname}' on entity '${entityName}'`);
+
+							const parsedData = await tsvToJson(file.path);
+
 							// step 3 Validation. Validate schema data (lectern-client processParallel)
-							const { schemaErrors } = await processSchemaValidation(schemasDictionary, entityName, entityData.records);
+							const { schemaErrors } = await processSchemaValidation(schemasDictionary, entityName, parsedData);
 							if (schemaErrors.length > 0) {
 								submissionSchemaErrors[entityName] = schemaErrors;
 							} else {
-								updateSubmissionEntities[entityName] = { ...entityData };
+								updateSubmissionEntities[entityName] = {
+									batchName: file.originalname,
+									creator: '', //TODO: get user from auth
+									records: parsedData,
+								};
 							}
 						}),
 					);

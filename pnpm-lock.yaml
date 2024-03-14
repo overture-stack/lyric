@@ -78,6 +78,9 @@ importers:
       express:
         specifier: ^4.18.2
         version: 4.18.2
+      firstline:
+        specifier: ^2.0.2
+        version: 2.0.2
       lodash-es:
         specifier: ^4.17.21
         version: 4.17.21
@@ -97,6 +100,9 @@ importers:
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.21
+      '@types/firstline':
+        specifier: ^2.0.4
+        version: 2.0.4
       '@types/lodash-es':
         specifier: ^4.17.12
         version: 4.17.12
@@ -680,6 +686,12 @@ packages:
       '@types/express-serve-static-core': 4.17.43
       '@types/qs': 6.9.11
       '@types/serve-static': 1.15.5
+    dev: true
+
+  /@types/firstline@2.0.4:
+    resolution: {integrity: sha512-EYoMzk783ncj3soLGADXD/rklDMw1PAO5Hc3lRZa5G21vkfacwkdTlIdhTJ39omqDLezTSmxjDG1psd4A/mUHg==}
+    dependencies:
+      '@types/node': 20.11.16
     dev: true
 
   /@types/http-errors@2.0.4:
@@ -1428,6 +1440,11 @@ packages:
       unpipe: 1.0.0
     transitivePeerDependencies:
       - supports-color
+    dev: false
+
+  /firstline@2.0.2:
+    resolution: {integrity: sha512-8KcmfI0jgSECnzdhucm0i7vrwef3BWwgjimW2YkRC5eSFwjb5DibVoA0YvgkYwwxuJi9c+7M7X3b3lX8o9B6wg==}
+    engines: {node: '>=6.4.0'}
     dev: false
 
   /fn.name@1.1.0:

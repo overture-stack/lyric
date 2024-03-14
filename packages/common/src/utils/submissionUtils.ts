@@ -11,7 +11,7 @@ import { Dependencies } from '../config/config.js';
 import { NewSubmission, Submission, submissions } from '../models/submissions.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
-import { TsvRecordAsJsonObj } from './fileUtils.js';
+import { TsvRecordAsJsonObj, readHeaders } from './fileUtils.js';
 import { BATCH_ERROR_TYPE, BatchError, CreateActiveSubmission, SUBMISSION_STATE, SubmissionEntity } from './types.js';
 
 const utils = (dependencies: Dependencies) => {
@@ -89,47 +89,53 @@ const utils = (dependencies: Dependencies) => {
 		},
 
 		/**
-		 * Removes invalid/duplicated Entity names.
-		 * Converts an Array of SubmissionEntity into a Record type with Entity Name as key
-		 * @param {SubmissionEntity[]} entitiesArray An array of Submission Entities
+		 * Removes invalid/duplicated files
+		 * @param {Express.Multer.File[]} files An array of files
 		 * @param {string[]} dictionarySchemaNames Schema names in the dictionary
-		 * @returns A Record type of SubmissionEntities with Entity names as key, and an array of errors found
+		 * @returns A list of valid files mapped by schema/entity names
 		 */
-		mappingEntities: async (
-			entitiesArray: SubmissionEntity[],
+		checkFileNames: async (
+			files: Express.Multer.File[],
 			dictionarySchemaNames: string[],
-		): Promise<{ entityMap: Record<string, SubmissionEntity>; mappingError: Array<BatchError> }> => {
-			const entityMap: Record<string, SubmissionEntity> = {};
-			const mappingError: Array<BatchError> = [];
+		): Promise<{ validFileEntity: Record<string, Express.Multer.File>; batchErrors: BatchError[] }> => {
+			const validFileEntity: Record<string, Express.Multer.File> = {};
+			const batchErrors: BatchError[] = [];
 
-			//find duplicates
-			for (const schemasNames of dictionarySchemaNames) {
-				const filteredValidEntities = entitiesArray.filter(
-					(entities) => entities.batchName.split('.')[0].toLowerCase() == schemasNames.toLowerCase(),
+			for (const file of files) {
+				const matchingName = dictionarySchemaNames.filter(
+					(schemaName) => schemaName.toLowerCase() == file.originalname.split('.')[0].toLowerCase(),
 				);
 
-				if (filteredValidEntities.length > 1) {
-					logger.error(LOG_MODULE, `Duplicated schema name '${schemasNames}'`);
-					mappingError.push({
-						batchName: schemasNames,
-						message: '',
+				if (matchingName.length > 1) {
+					logger.error(LOG_MODULE, `Duplicated schema for file name '${file.originalname}'`);
+					batchErrors.push({
 						type: BATCH_ERROR_TYPE.MULTIPLE_TYPED_FILES,
+						message: 'Multiple schemas matches this file',
+						batchName: file.originalname,
 					});
-				} else if (filteredValidEntities.length == 1) {
-					logger.debug(LOG_MODULE, `Mapping a valid schema name '${schemasNames}'`);
-					entityMap[schemasNames] = filteredValidEntities[0];
+				} else if (matchingName.length == 1) {
+					logger.debug(LOG_MODULE, `Mapping a valid schema name '${matchingName[0]}' for file '${file.originalname}'`);
+					validFileEntity[matchingName[0]] = file;
+				} else {
+					logger.error(LOG_MODULE, `No schema found for file name '${file.originalname}'`);
+					batchErrors.push({
+						type: BATCH_ERROR_TYPE.INVALID_FILE_NAME,
+						message: 'Filename does not relate any schema name',
+						batchName: file.originalname,
+					});
 				}
 			}
 
-			if (isEmpty(entityMap)) {
-				logger.info(LOG_MODULE, `No valid Entities on submission`);
+			if (isEmpty(validFileEntity)) {
+				logger.info(LOG_MODULE, `No valid files for submission`);
 			}
 
 			return {
-				entityMap,
-				mappingError,
+				validFileEntity,
+				batchErrors,
 			};
 		},
+
 		/**
 		 * Run Schema Validation process
 		 * @param {SchemasDictionary} dictionary The dictionary to validate data with
@@ -183,41 +189,41 @@ const utils = (dependencies: Dependencies) => {
 		},
 
 		/**
-		 *
-		 * @param dictionary
-		 * @param submissionEntityMap
-		 * @returns
+		 * Checks if file contains required fields based on schema
+		 * @param {SchemasDictionary} dictionary A dictionary to validate with
+		 * @param {Record<string, Express.Multer.File>} entityFileMap A Record to map a file with a entityName as a key
+		 * @returns a list of valid files and a list of errors
 		 */
 		checkEntityFieldNames: async (
 			dictionary: SchemasDictionary,
-			submissionEntityMap: Record<string, SubmissionEntity>,
+			entityFileMap: Record<string, Express.Multer.File>,
 		) => {
 			const { getSchemaFieldNames } = dictionaryUtils(dependencies);
-			const checkedEntities: Record<string, SubmissionEntity> = {};
+			const checkedEntities: Record<string, Express.Multer.File> = {};
 			const fieldNameErrors: BatchError[] = [];
 
-			Object.entries(submissionEntityMap).map(async ([entityName, submissionEntity]) => {
-				const submissionFieldNames = new Set(Object.keys(submissionEntity.records[0]));
+			for (const [entityName, file] of Object.entries(entityFileMap)) {
+				const fileHeaders = await readHeaders(file);
 
 				const schemaFieldNames = await getSchemaFieldNames(dictionary, entityName);
 
 				const missingRequiredFields = schemaFieldNames.required.filter(
-					(requiredField) => !submissionFieldNames.has(requiredField),
+					(requiredField) => !fileHeaders.includes(requiredField),
 				);
 				if (missingRequiredFields.length > 0) {
 					logger.error(
 						LOG_MODULE,
-						`Missing required fields '${JSON.stringify(missingRequiredFields)}' on batch named '${submissionEntity.batchName}'`,
+						`Missing required fields '${JSON.stringify(missingRequiredFields)}' on batch named '${file.originalname}'`,
 					);
 					fieldNameErrors.push({
-						batchName: submissionEntity.batchName,
-						message: `Missing required fields '${JSON.stringify(missingRequiredFields)}'`,
 						type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
+						message: `Missing required fields '${JSON.stringify(missingRequiredFields)}'`,
+						batchName: file.originalname,
 					});
 				} else {
-					checkedEntities[entityName] = submissionEntity;
+					checkedEntities[entityName] = file;
 				}
-			});
+			}
 			return {
 				checkedEntities,
 				fieldNameErrors,

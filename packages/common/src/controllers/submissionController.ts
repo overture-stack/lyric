@@ -4,8 +4,8 @@ import { isNaN } from 'lodash-es';
 import { Dependencies } from '../config/config.js';
 import submissionService from '../services/submissionService.js';
 import { BadRequest, NotImplemented, getErrorMessage } from '../utils/errors.js';
-import { tsvToJson, validateTsvExtension } from '../utils/fileUtils.js';
-import { BATCH_ERROR_TYPE, BatchError, SubmissionEntity } from '../utils/types.js';
+import { validateTsvExtension } from '../utils/fileUtils.js';
+import { BATCH_ERROR_TYPE, BatchError } from '../utils/types.js';
 
 const controller = (dependencies: Dependencies) => {
 	const service = submissionService(dependencies);
@@ -31,24 +31,16 @@ const controller = (dependencies: Dependencies) => {
 				}
 
 				const fileErrors: BatchError[] = [];
-				const rawSubmissionEntities: SubmissionEntity[] = [];
 
 				for (const file of files) {
 					try {
 						validateTsvExtension(file);
-
-						const parsedData = await tsvToJson(file.path);
-						rawSubmissionEntities.push({
-							batchName: file.originalname,
-							creator: '', //TODO: get user from auth
-							records: parsedData,
-						});
 					} catch (error) {
 						logger.error(LOG_MODULE, `Error processing file '${file.originalname}'`, getErrorMessage(error));
 
 						const batchError: BatchError = {
+							type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
 							message: getErrorMessage(error),
-							type: BATCH_ERROR_TYPE.TSV_PARSING_FAILED,
 							batchName: file.originalname,
 						};
 
@@ -56,11 +48,11 @@ const controller = (dependencies: Dependencies) => {
 					}
 				}
 
-				const resultSubmission = await service.uploadSubmission(rawSubmissionEntities, categoryId);
+				const resultSubmission = await service.uploadSubmission(files, categoryId);
 
-				let status = 422;
+				let status = 400;
 				if (resultSubmission.successful && fileErrors.length == 0 && resultSubmission.batchErrors.length == 0) {
-					status = 201;
+					status = 200;
 					logger.info(LOG_MODULE, `Submission uploaded successfully`);
 				} else {
 					logger.error(LOG_MODULE, 'Found some errors processing this request');
