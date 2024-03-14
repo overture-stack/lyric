@@ -1,7 +1,8 @@
+import { entities as dictionaryEntities, functions as dictionaryFunctions } from '@overturebio-stack/lectern-client';
 import { and, eq } from 'drizzle-orm/sql';
 import { isEmpty } from 'lodash-es';
 
-import { SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import { SchemaDefinition, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { Dependencies } from '../config/config.js';
 import lecternClient from '../external/lecternClient.js';
 import { Dictionary, NewDictionary, dictionaries } from '../models/dictionaries.js';
@@ -26,7 +27,7 @@ const utils = (dependencies: Dependencies) => {
 			dictionaryName: string,
 			version: string,
 			category: any,
-			dictionary: SchemasDictionary,
+			schemas: SchemaDefinition[],
 		): Promise<Dictionary> => {
 			try {
 				const foundDictionary = await dictionaryRepo.select(
@@ -45,7 +46,7 @@ const utils = (dependencies: Dependencies) => {
 					name: dictionaryName,
 					version: version,
 					dictionaryCategoryId: category?.id,
-					dictionary: dictionary.schemas,
+					dictionary: schemas,
 				};
 				const savedDictionary = await dictionaryRepo.save(newDictionary);
 				return savedDictionary;
@@ -98,6 +99,19 @@ const utils = (dependencies: Dependencies) => {
 				logger.error(LOG_MODULE, `Error getting current dictionary`, error);
 				throw error;
 			}
+		},
+
+		/**
+		 * Get Fields from Schema
+		 * @param {SchemasDictionary} dictionary Dictionary object
+		 * @param {string} entityType Name of the Entity
+		 * @returns The arrays of requied and options fields from the schema
+		 */
+		getSchemaFieldNames: async (
+			dictionary: dictionaryEntities.SchemasDictionary,
+			entityType: string,
+		): Promise<dictionaryEntities.FieldNamesByPriorityMap> => {
+			return dictionaryFunctions.getSchemaFieldNamesWithPriority(dictionary, entityType);
 		},
 	};
 };

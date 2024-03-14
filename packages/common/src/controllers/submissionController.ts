@@ -1,8 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
 
+import { isNaN } from 'lodash-es';
 import { Dependencies } from '../config/config.js';
 import submissionService from '../services/submissionService.js';
-import { NotImplemented, getErrorMessage } from '../utils/errors.js';
+import { BadRequest, NotImplemented, getErrorMessage } from '../utils/errors.js';
 import { tsvToJson, validateTsvExtension } from '../utils/fileUtils.js';
 import { BATCH_ERROR_TYPE, BatchError, SubmissionEntity } from '../utils/types.js';
 
@@ -18,8 +19,16 @@ const controller = (dependencies: Dependencies) => {
 
 				logger.info(
 					LOG_MODULE,
-					`Upload Submission Request categoryId '${categoryId}' files '${files.map((f) => f.originalname)}'`,
+					`Upload Submission Request categoryId '${categoryId}' files '${files?.map((f) => f.originalname)}'`,
 				);
+
+				if (isNaN(categoryId)) {
+					throw new BadRequest('Invalid categoryId number format');
+				}
+
+				if (!files || files.length == 0) {
+					throw new BadRequest('Request is missing attach `files`');
+				}
 
 				const fileErrors: BatchError[] = [];
 				const rawSubmissionEntities: SubmissionEntity[] = [];
@@ -29,10 +38,6 @@ const controller = (dependencies: Dependencies) => {
 						validateTsvExtension(file);
 
 						const parsedData = await tsvToJson(file.path);
-						logger.debug(
-							LOG_MODULE,
-							`Request file '${file.originalname}' parsed in JSON format'${JSON.stringify(parsedData)}'`,
-						);
 						rawSubmissionEntities.push({
 							batchName: file.originalname,
 							creator: '', //TODO: get user from auth
@@ -53,16 +58,12 @@ const controller = (dependencies: Dependencies) => {
 
 				const resultSubmission = await service.uploadSubmission(rawSubmissionEntities, categoryId);
 
-				let status = 201;
-				if (!resultSubmission.successful || fileErrors.length > 0 || resultSubmission.batchErrors.length > 0) {
-					status = 422;
-					logger.error(
-						LOG_MODULE,
-						'Submission uploaded with errors',
-						fileErrors.length > 0 ? JSON.stringify(fileErrors) : JSON.stringify(resultSubmission?.batchErrors),
-					);
-				} else {
+				let status = 422;
+				if (resultSubmission.successful && fileErrors.length == 0 && resultSubmission.batchErrors.length == 0) {
+					status = 201;
 					logger.info(LOG_MODULE, `Submission uploaded successfully`);
+				} else {
+					logger.error(LOG_MODULE, 'Found some errors processing this request');
 				}
 				return res
 					.status(status)

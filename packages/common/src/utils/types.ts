@@ -1,3 +1,4 @@
+import { SchemaValidationError } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { DeepReadonly } from 'deep-freeze';
 import { TsvRecordAsJsonObj } from './fileUtils.js';
 
@@ -24,7 +25,7 @@ export type CreateSubmissionResult = {
 export type CreateActiveSubmission = {
 	id?: string;
 	categoryId: string;
-	entities: any; //TODO: change to ReadonlyArray<SubmissionEntity>
+	entities: Record<string, SubmissionEntity>;
 	state: string; //TODO: change to SUBMISSION_STATE
 	createdAt?: string;
 	createdBy: string;
@@ -34,25 +35,8 @@ export type SubmissionEntity = {
 	batchName: string;
 	creator: string;
 	records: ReadonlyArray<TsvRecordAsJsonObj>;
-	dataErrors?: ReadonlyArray<ValidationError>;
+	dataErrors?: SchemaValidationError[];
 };
-
-export type ValidationError = {
-	fieldName: string;
-	info: Object;
-	index: number;
-	type: SCHEMA_TYPE_ERROR;
-};
-
-export enum SCHEMA_TYPE_ERROR {
-	MISSING_REQUIRED_FIELD = 'MISSING_REQUIRED_FIELD',
-	INVALID_FIELD_VALUE_TYPE = 'INVALID_FIELD_VALUE_TYPE',
-	INVALID_BY_REGEX = 'INVALID_BY_REGEX',
-	INVALID_BY_RANGE = 'INVALID_BY_RANGE',
-	INVALID_BY_SCRIPT = 'INVALID_BY_SCRIPT',
-	INVALID_ENUM_VALUE = 'INVALID_ENUM_VALUE',
-	UNRECOGNIZED_FIELD = 'UNRECOGNIZED_FIELD',
-}
 
 export enum BATCH_ERROR_TYPE {
 	TSV_PARSING_FAILED = 'TSV_PARSING_FAILED',
@@ -67,10 +51,4 @@ export type BatchError = {
 	message: string;
 	type: BATCH_ERROR_TYPE;
 	batchName: string;
-};
-
-export type DictionaryData = {
-	name: string;
-	fields: string[];
-	description: string;
 };
