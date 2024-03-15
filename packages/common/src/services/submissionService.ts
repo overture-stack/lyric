@@ -59,13 +59,15 @@ const service = (dependencies: Dependencies) => {
 							const { schemaErrors } = await processSchemaValidation(schemasDictionary, entityName, parsedData);
 							if (schemaErrors.length > 0) {
 								submissionSchemaErrors[entityName] = schemaErrors;
-							} else {
-								updateSubmissionEntities[entityName] = {
-									batchName: file.originalname,
-									creator: '', //TODO: get user from auth
-									records: parsedData,
-								};
 							}
+
+							// To be stored in the submission data
+							updateSubmissionEntities[entityName] = {
+								batchName: file.originalname,
+								creator: '', //TODO: get user from auth
+								records: parsedData,
+								dataErrors: schemaErrors,
+							};
 						}),
 					);
 
@@ -73,7 +75,7 @@ const service = (dependencies: Dependencies) => {
 						let createdSubmission = await createOrUpdateActiveSubmission(
 							updateSubmissionEntities,
 							categoryId.toString(),
-							[],
+							submissionSchemaErrors,
 							currentDictionary.id,
 							'', // TODO: get User from auth.
 						);
