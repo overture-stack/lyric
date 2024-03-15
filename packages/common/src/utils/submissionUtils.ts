@@ -12,7 +12,7 @@ import { NewSubmission, Submission, submissions } from '../models/submissions.js
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
 import { TsvRecordAsJsonObj, readHeaders } from './fileUtils.js';
-import { BATCH_ERROR_TYPE, BatchError, CreateActiveSubmission, SUBMISSION_STATE, SubmissionEntity } from './types.js';
+import { BATCH_ERROR_TYPE, BatchError, SUBMISSION_STATE, SubmissionEntity } from './types.js';
 
 const utils = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'SUBMISSION_UTILS';
@@ -233,22 +233,6 @@ const utils = (dependencies: Dependencies) => {
 				fieldNameErrors,
 			};
 		},
-	};
-};
-
-/**
- * Converts a 'Submission' to a 'CreateActiveSubmission' type or it's defaults
- * @param {Submission} submission
- * @returns a Submission of type 'CreateActiveSubmission'
- */
-export const parseToResultSubmission = (submission?: Submission): CreateActiveSubmission => {
-	return {
-		id: submission?.id.toString(),
-		categoryId: submission?.dictionaryCategoryId?.toString() || '',
-		entities: (submission?.data as Record<string, SubmissionEntity>) || {},
-		state: submission?.state?.toString() || '',
-		createdAt: submission?.createdAt?.toISOString(),
-		createdBy: '', // TODO: Auth not implemented yet.
 	};
 };
 

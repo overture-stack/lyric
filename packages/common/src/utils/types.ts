@@ -2,6 +2,9 @@ import { SchemaValidationError } from '@overturebio-stack/lectern-client/lib/sch
 import { DeepReadonly } from 'deep-freeze';
 import { TsvRecordAsJsonObj } from './fileUtils.js';
 
+/**
+ * Enum matching Submission state in database
+ */
 export enum SUBMISSION_STATE {
 	OPEN = 'OPEN',
 	VALID = 'VALID',
@@ -11,24 +14,22 @@ export enum SUBMISSION_STATE {
 }
 
 /**
+ * Enum used in the Reponse on Create new Submissions
+ */
+export enum CREATE_SUBMISSION_STATE {
+	PROCESSING = 'PROCESSING',
+	INVALID_SUBMISSION = 'INVALID_SUBMISSION',
+	PARTIAL_SUBMISSION = 'PARTIAL_SUBMISSION',
+}
+
+/**
  * Used as a Response type on a Create new Active Submission
  */
 export type CreateSubmissionResult = {
-	readonly successful: boolean;
-	readonly submission: CreateActiveSubmission;
+	state: CREATE_SUBMISSION_STATE;
+	description: string;
+	inProcessEntities: string[];
 	batchErrors: DeepReadonly<BatchError>[];
-};
-
-/**
- * Used in the Response on a Create new Active Submission
- */
-export type CreateActiveSubmission = {
-	id?: string;
-	categoryId: string;
-	entities: Record<string, SubmissionEntity>;
-	state: string; //TODO: change to SUBMISSION_STATE
-	createdAt?: string;
-	createdBy: string;
 };
 
 export type SubmissionEntity = {

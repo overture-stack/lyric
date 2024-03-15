@@ -7,8 +7,8 @@ import { isEmpty } from 'lodash-es';
 import { Dependencies } from '../config/config.js';
 import dictionaryUtils from '../utils/dictionaryUtils.js';
 import { tsvToJson } from '../utils/fileUtils.js';
-import submissionUtils, { parseToResultSubmission } from '../utils/submissionUtils.js';
-import { BatchError, CreateSubmissionResult, SubmissionEntity } from '../utils/types.js';
+import submissionUtils from '../utils/submissionUtils.js';
+import { BatchError, CREATE_SUBMISSION_STATE, CreateSubmissionResult, SubmissionEntity } from '../utils/types.js';
 
 const service = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'SUBMISSION_SERVICE';
@@ -26,7 +26,7 @@ const service = (dependencies: Dependencies) => {
 				submissionUtils(dependencies);
 			const { getCurrentDictionary } = dictionaryUtils(dependencies);
 
-			let resultSubmission = parseToResultSubmission();
+			let entitiesToProcess: string[] = [];
 			let batchErrors: BatchError[] = [];
 			let submissionSchemaErrors: Record<string, SchemaValidationError[]> = {};
 			let updateSubmissionEntities: Record<string, SubmissionEntity> = {};
@@ -47,56 +47,65 @@ const service = (dependencies: Dependencies) => {
 				// step 2 Validation. Validate fieldNames (missing required fields based on schema)
 				const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
 				batchErrors.push(...fieldNameErrors);
+				entitiesToProcess = Object.keys(checkedEntities);
 
 				if (!isEmpty(checkedEntities)) {
-					await Promise.all(
-						Object.entries(checkedEntities).map(async ([entityName, file]) => {
-							logger.debug(LOG_MODULE, `Running validation for file '${file.originalname}' on entity '${entityName}'`);
+					// Running Schema validation in the background
+					// Result of validations will be stored in database
+					(async () => {
+						await Promise.all(
+							Object.entries(checkedEntities).map(async ([entityName, file]) => {
+								logger.debug(
+									LOG_MODULE,
+									`Running validation for file '${file.originalname}' on entity '${entityName}'`,
+								);
 
-							const parsedData = await tsvToJson(file.path);
+								const parsedData = await tsvToJson(file.path);
 
-							// step 3 Validation. Validate schema data (lectern-client processParallel)
-							const { schemaErrors } = await processSchemaValidation(schemasDictionary, entityName, parsedData);
-							if (schemaErrors.length > 0) {
-								submissionSchemaErrors[entityName] = schemaErrors;
-							}
+								// step 3 Validation. Validate schema data (lectern-client processParallel)
+								const { schemaErrors } = await processSchemaValidation(schemasDictionary, entityName, parsedData);
+								if (schemaErrors.length > 0) {
+									submissionSchemaErrors[entityName] = schemaErrors;
+								}
 
-							// To be stored in the submission data
-							updateSubmissionEntities[entityName] = {
-								batchName: file.originalname,
-								creator: '', //TODO: get user from auth
-								records: parsedData,
-								dataErrors: schemaErrors,
-							};
-						}),
-					);
-
-					if (Object.keys(updateSubmissionEntities).length > 0) {
-						let createdSubmission = await createOrUpdateActiveSubmission(
-							updateSubmissionEntities,
-							categoryId.toString(),
-							submissionSchemaErrors,
-							currentDictionary.id,
-							'', // TODO: get User from auth.
+								// To be stored in the submission data
+								updateSubmissionEntities[entityName] = {
+									batchName: file.originalname,
+									creator: '', //TODO: get user from auth
+									records: parsedData,
+									dataErrors: schemaErrors,
+								};
+							}),
 						);
-						resultSubmission = parseToResultSubmission(createdSubmission);
-					}
+
+						if (Object.keys(updateSubmissionEntities).length > 0) {
+							await createOrUpdateActiveSubmission(
+								updateSubmissionEntities,
+								categoryId.toString(),
+								submissionSchemaErrors,
+								currentDictionary.id,
+								'', // TODO: get User from auth.
+							);
+						}
+					})();
 				}
 			}
 
-			// Put Schema Errors in each Entity
-			for (const entityName in submissionSchemaErrors) {
-				resultSubmission.entities[entityName] = {} as any;
-				resultSubmission.entities[entityName].dataErrors = submissionSchemaErrors[entityName];
+			let state = CREATE_SUBMISSION_STATE.INVALID_SUBMISSION;
+			let description: string = 'No valid files for submission';
+			if (batchErrors.length === 0 && entitiesToProcess.length > 0) {
+				state = CREATE_SUBMISSION_STATE.PROCESSING;
+				description = 'Submission files are being processed';
+			} else if (batchErrors.length > 0 && entitiesToProcess.length > 0) {
+				state = CREATE_SUBMISSION_STATE.PARTIAL_SUBMISSION;
+				description = 'Some Submission files are being processed while others were unable to process';
 			}
 
 			return {
-				successful:
-					batchErrors.length === 0 &&
-					Object.keys(submissionSchemaErrors).length === 0 &&
-					Object.keys(resultSubmission.entities).length > 0,
+				state,
+				description,
 				batchErrors,
-				submission: resultSubmission,
+				inProcessEntities: entitiesToProcess,
 			};
 		},
 	};

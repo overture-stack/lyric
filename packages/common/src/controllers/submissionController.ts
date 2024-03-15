@@ -5,7 +5,7 @@ import { Dependencies } from '../config/config.js';
 import submissionService from '../services/submissionService.js';
 import { BadRequest, NotImplemented, getErrorMessage } from '../utils/errors.js';
 import { validateTsvExtension } from '../utils/fileUtils.js';
-import { BATCH_ERROR_TYPE, BatchError } from '../utils/types.js';
+import { BATCH_ERROR_TYPE, BatchError, CREATE_SUBMISSION_STATE } from '../utils/types.js';
 
 const controller = (dependencies: Dependencies) => {
 	const service = submissionService(dependencies);
@@ -31,10 +31,12 @@ const controller = (dependencies: Dependencies) => {
 				}
 
 				const fileErrors: BatchError[] = [];
+				const validFiles: Express.Multer.File[] = [];
 
 				for (const file of files) {
 					try {
 						validateTsvExtension(file);
+						validFiles.push(file);
 					} catch (error) {
 						logger.error(LOG_MODULE, `Error processing file '${file.originalname}'`, getErrorMessage(error));
 
@@ -48,10 +50,10 @@ const controller = (dependencies: Dependencies) => {
 					}
 				}
 
-				const resultSubmission = await service.uploadSubmission(files, categoryId);
+				const resultSubmission = await service.uploadSubmission(validFiles, categoryId);
 
 				let status = 400;
-				if (resultSubmission.successful && fileErrors.length == 0 && resultSubmission.batchErrors.length == 0) {
+				if (fileErrors.length == 0 && resultSubmission.batchErrors.length == 0) {
 					status = 200;
 					logger.info(LOG_MODULE, `Submission uploaded successfully`);
 				} else {
