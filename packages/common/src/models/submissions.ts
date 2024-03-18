@@ -11,11 +11,14 @@ export const submissions = pgTable('submissions', {
 	id: serial('id').primaryKey(),
 	state: submissionStateEnum('state'),
 	dictionaryCategoryId: integer('dictionary_category_id'),
+	organization: varchar('organization').notNull(),
 	data: jsonb('data').notNull(),
 	errors: jsonb('errors'),
 	dictionaryId: integer('dictionary_id'),
 	createdAt: timestamp('created_at').defaultNow(),
 	createdBy: varchar('created_by'),
+	udpatedAt: timestamp('updated_at').defaultNow(),
+	updatedBy: varchar('updatedBy'),
 });
 
 export const submissionRelations = relations(submissions, ({ one }) => ({

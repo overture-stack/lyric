@@ -18,9 +18,14 @@ const service = (dependencies: Dependencies) => {
 		 * Validates and Creates the Entities Schemas of the Active Submission and stores it in the database
 		 * @param {Express.Multer.File[]} files An array of files
 		 * @param {number} categoryId Category ID of the Submission
+		 * @param {string} organization Organization name
 		 * @returns The Active Submission created or Updated
 		 */
-		uploadSubmission: async (files: Express.Multer.File[], categoryId: number): Promise<CreateSubmissionResult> => {
+		uploadSubmission: async (
+			files: Express.Multer.File[],
+			categoryId: number,
+			organization: string,
+		): Promise<CreateSubmissionResult> => {
 			logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
 			const {
 				createOrUpdateActiveSubmission,
@@ -102,6 +107,7 @@ const service = (dependencies: Dependencies) => {
 								submissionSchemaErrors,
 								currentDictionary.id,
 								'', // TODO: get User from auth.
+								organization,
 							);
 						}
 					})();

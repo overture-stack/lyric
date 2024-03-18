@@ -16,14 +16,19 @@ const controller = (dependencies: Dependencies) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const files = req.files as Express.Multer.File[];
+				const organization = req.body.organization;
 
 				logger.info(
 					LOG_MODULE,
-					`Upload Submission Request categoryId '${categoryId}' files '${files?.map((f) => f.originalname)}'`,
+					`Upload Submission Request categoryId '${categoryId}' organization '${organization}' files '${files?.map((f) => f.originalname)}'`,
 				);
 
 				if (isNaN(categoryId)) {
 					throw new BadRequest('Invalid categoryId number format');
+				}
+
+				if (!organization) {
+					throw new BadRequest('Request is missing `organization` parameter.');
 				}
 
 				if (!files || files.length == 0) {
@@ -50,15 +55,18 @@ const controller = (dependencies: Dependencies) => {
 					}
 				}
 
-				const resultSubmission = await service.uploadSubmission(validFiles, categoryId);
+				const resultSubmission = await service.uploadSubmission(validFiles, categoryId, organization);
 
-				let status = 400;
 				if (fileErrors.length == 0 && resultSubmission.batchErrors.length == 0) {
-					status = 200;
 					logger.info(LOG_MODULE, `Submission uploaded successfully`);
 				} else {
 					logger.error(LOG_MODULE, 'Found some errors processing this request');
 				}
+
+				// HTTP 200 status Submission Accepted
+				const status = 200;
+
+				// This response provides the details of file Submission
 				return res
 					.status(status)
 					.send({ ...resultSubmission, batchErrors: [...fileErrors, ...resultSubmission?.batchErrors] });

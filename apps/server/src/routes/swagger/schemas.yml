@@ -2,45 +2,70 @@
 
 components:
   responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
+
     UnauthorizedError:
       description: Access token is missing or invalid
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/CreateSubmissionResult'
+            $ref: '#/components/responses/Error'
 
     ServerError:
       description: Internal Server Error
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/CreateSubmissionResult'
+            $ref: '#/components/responses/Error'
 
     ServiceUnavailableError:
       description: Service Unavailable Error
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/CreateSubmissionResult'
+            $ref: '#/components/responses/Error'
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          decription: Description of the error
 
   schemas:
     CreateSubmissionResult:
       required:
-        - successful
-        - submission
+        - state
+        - description
         - batchErrors
+        - inProcessEntities
       type: object
       properties:
-        successful:
-          type: boolean
-          description: whether the full submission is valid or not
-        submission:
-          $ref: '#/components/schemas/Submission'
+        state:
+          type: string
+          description: Result of uploading Submission files
+          enum: ['PROCESSING', 'INVALID_SUBMISSION', 'PARTIAL_SUBMISSION']
+        description:
+          type: string
+          description: Description of uploading Submission files
         batchErrors:
           type: array
           description: list of all batch related errors, should be empty on success
           items:
             $ref: '#/components/schemas/BatchError'
+        inProcessEntities:
+          type: array
+          description: Entities that are being processed
+          items:
+            type: string
     Submission:
       type: object
       required:
@@ -145,13 +170,14 @@ components:
           type: string
           description: the type of error
           enum:
+            - INVALID_FILE_EXTENSION
             - TSV_PARSING_FAILED
             - INVALID_FILE_NAME
             - INCORRECT_SECTION
             - MULTIPLE_TYPED_FILES
             - UNRECOGNIZED_HEADER
             - MISSING_REQUIRED_HEADER
-        batchNames:
+        batchName:
           type: array
           description: list of batch names causing error
           items:

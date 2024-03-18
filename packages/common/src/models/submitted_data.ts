@@ -9,6 +9,7 @@ export const submittedData = pgTable('submitted_data', {
 	data: jsonb('data'),
 	entityName: varchar('entity_name').notNull(),
 	dictionaryCategoryId: integer('dictionary_category_id'),
+	organization: varchar('organization').notNull(),
 	lastValidSchemaId: integer('last_valid_schema_id'),
 	originalSchemaId: integer('original_schema_id'),
 	isValid: boolean('is_valid'),

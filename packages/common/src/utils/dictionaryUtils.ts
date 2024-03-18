@@ -9,6 +9,7 @@ import { Dictionary, NewDictionary, dictionaries } from '../models/dictionaries.
 import { dictionaryCategories } from '../models/dictionary_categories.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import dictionaryRepository from '../repository/dictionaryRepository.js';
+import { BadRequest } from './errors.js';
 
 const utils = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'DICTIONARY_UTILS';
@@ -92,7 +93,7 @@ const utils = (dependencies: Dependencies) => {
 				);
 
 				if (isEmpty(dictionaryFound)) {
-					throw new Error(`Dictionary in category '${categoryId}' not found`);
+					throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
 				}
 				return dictionaryFound.dictionary;
 			} catch (error) {

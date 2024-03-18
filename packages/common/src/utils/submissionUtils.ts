@@ -26,7 +26,7 @@ const utils = (dependencies: Dependencies) => {
 		 * @param {string} categoryId The category ID of the Submission
 		 * @param {Record<string, SchemaValidationError[]>} schemaErrors Array of schemaErrors
 		 * @param {number} dictionaryId The Dictionary ID of the Submission
-		 * @param {string} createdBy User creating the active submission
+		 * @param {string} userName User creating/updating the active submission
 		 * @returns An Active Submission created or updated
 		 */
 		createOrUpdateActiveSubmission: async (
@@ -35,7 +35,8 @@ const utils = (dependencies: Dependencies) => {
 			categoryId: string,
 			schemaErrors: Record<string, SchemaValidationError[]>,
 			dictionaryId: number,
-			createdBy: string,
+			userName: string,
+			organization: string,
 		): Promise<Submission> => {
 			let updatedSubmission: Submission;
 			const newStateSubmission =
@@ -43,7 +44,14 @@ const utils = (dependencies: Dependencies) => {
 			if (toNumber(idActiveSubmission)) {
 				// Update with new data
 				const updatedRecord = await submissionRepo.update(
-					{ data: entityMap, state: newStateSubmission, errors: schemaErrors },
+					{
+						data: entityMap,
+						state: newStateSubmission,
+						organization,
+						dictionaryId,
+						updatedBy: userName,
+						errors: schemaErrors,
+					},
 					eq(submissions.id, idActiveSubmission),
 				);
 				updatedSubmission = updatedRecord[0];
@@ -55,10 +63,11 @@ const utils = (dependencies: Dependencies) => {
 				const newSubmission: NewSubmission = {
 					state: newStateSubmission,
 					dictionaryCategoryId: Number(categoryId),
+					organization,
 					data: entityMap,
 					errors: schemaErrors,
 					dictionaryId: dictionaryId,
-					createdBy,
+					createdBy: userName,
 				};
 
 				updatedSubmission = await submissionRepo.save(newSubmission);
