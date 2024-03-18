@@ -22,8 +22,13 @@ const service = (dependencies: Dependencies) => {
 		 */
 		uploadSubmission: async (files: Express.Multer.File[], categoryId: number): Promise<CreateSubmissionResult> => {
 			logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
-			const { createOrUpdateActiveSubmission, checkFileNames, processSchemaValidation, checkEntityFieldNames } =
-				submissionUtils(dependencies);
+			const {
+				createOrUpdateActiveSubmission,
+				checkFileNames,
+				processSchemaValidation,
+				checkEntityFieldNames,
+				getCurrentActiveSubmission,
+			} = submissionUtils(dependencies);
 			const { getCurrentDictionary } = dictionaryUtils(dependencies);
 
 			let entitiesToProcess: string[] = [];
@@ -50,9 +55,17 @@ const service = (dependencies: Dependencies) => {
 				entitiesToProcess = Object.keys(checkedEntities);
 
 				if (!isEmpty(checkedEntities)) {
-					// Running Schema validation in the background
+					// Running Schema validation in the background do not need to wait
 					// Result of validations will be stored in database
 					(async () => {
+						const activeSubmission = await getCurrentActiveSubmission(categoryId);
+						let idActiveSubmission;
+						let activeSubmissionData: Record<string, SubmissionEntity> = {};
+						if (activeSubmission.length > 0 && !isEmpty(activeSubmission[0])) {
+							idActiveSubmission = activeSubmission[0].id;
+							activeSubmissionData = activeSubmission[0].data as Record<string, SubmissionEntity>;
+						}
+
 						await Promise.all(
 							Object.entries(checkedEntities).map(async ([entityName, file]) => {
 								logger.debug(
@@ -60,10 +73,13 @@ const service = (dependencies: Dependencies) => {
 									`Running validation for file '${file.originalname}' on entity '${entityName}'`,
 								);
 
-								const parsedData = await tsvToJson(file.path);
+								const parsedFileData = await tsvToJson(file.path);
+
+								// TODO: merge existing data + new data for validation (Submitted data + active Submission +  tsv parsed Data)
+								// Validating new data only! as we haven't found a reason yet to validate entire merged data set
 
 								// step 3 Validation. Validate schema data (lectern-client processParallel)
-								const { schemaErrors } = await processSchemaValidation(schemasDictionary, entityName, parsedData);
+								const { schemaErrors } = await processSchemaValidation(schemasDictionary, entityName, parsedFileData);
 								if (schemaErrors.length > 0) {
 									submissionSchemaErrors[entityName] = schemaErrors;
 								}
@@ -72,7 +88,7 @@ const service = (dependencies: Dependencies) => {
 								updateSubmissionEntities[entityName] = {
 									batchName: file.originalname,
 									creator: '', //TODO: get user from auth
-									records: parsedData,
+									records: parsedFileData,
 									dataErrors: schemaErrors,
 								};
 							}),
@@ -80,6 +96,7 @@ const service = (dependencies: Dependencies) => {
 
 						if (Object.keys(updateSubmissionEntities).length > 0) {
 							await createOrUpdateActiveSubmission(
+								idActiveSubmission,
 								updateSubmissionEntities,
 								categoryId.toString(),
 								submissionSchemaErrors,

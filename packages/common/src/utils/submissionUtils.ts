@@ -1,6 +1,6 @@
 import { parallel } from '@overturebio-stack/lectern-client';
 import { and, eq, or } from 'drizzle-orm';
-import { flatten, isEmpty } from 'lodash-es';
+import { flatten, isEmpty, toNumber } from 'lodash-es';
 
 import {
 	SchemaValidationError,
@@ -21,40 +21,30 @@ const utils = (dependencies: Dependencies) => {
 	return {
 		/**
 		 * Creates a new Active Submission in database or update if already exists
+		 * @param {any} idActiveSubmission ID of the Active Submission if already exists
 		 * @param {Record<string, SubmissionEntity>} entityMap Map of Entities with Entity Types as keys
 		 * @param {string} categoryId The category ID of the Submission
 		 * @param {Record<string, SchemaValidationError[]>} schemaErrors Array of schemaErrors
 		 * @param {number} dictionaryId The Dictionary ID of the Submission
+		 * @param {string} createdBy User creating the active submission
 		 * @returns An Active Submission created or updated
 		 */
 		createOrUpdateActiveSubmission: async (
+			idActiveSubmission: any,
 			entityMap: Record<string, SubmissionEntity>,
 			categoryId: string,
 			schemaErrors: Record<string, SchemaValidationError[]>,
 			dictionaryId: number,
 			createdBy: string,
 		): Promise<Submission> => {
-			const foundOpenSubmission = await utils(dependencies).getCurrentActiveSubmission(Number(categoryId));
 			let updatedSubmission: Submission;
 			const newStateSubmission =
 				Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATE.INVALID : SUBMISSION_STATE.VALID;
-			if (!isEmpty(foundOpenSubmission)) {
-				const { id, data } = foundOpenSubmission[0];
-				const currentSubmissionId = Number(id);
-				const currentData = data as Record<string, SubmissionEntity>;
-				logger.debug(LOG_MODULE, `Found an Active submission`, JSON.stringify(currentData));
-
-				// merge current active submission data
-				const newData = { ...currentData, ...entityMap };
-
+			if (toNumber(idActiveSubmission)) {
 				// Update with new data
-				foundOpenSubmission[0].data = newData;
-				foundOpenSubmission[0].state = newStateSubmission;
-				foundOpenSubmission[0].errors = schemaErrors;
-
 				const updatedRecord = await submissionRepo.update(
-					foundOpenSubmission[0],
-					eq(submissions.id, currentSubmissionId),
+					{ data: entityMap, state: newStateSubmission, errors: schemaErrors },
+					eq(submissions.id, idActiveSubmission),
 				);
 				updatedSubmission = updatedRecord[0];
 				logger.info(
