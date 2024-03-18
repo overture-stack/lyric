@@ -1,0 +1,55 @@
+table dictionaries {
+  id serial [pk, not null, increment]
+  name varchar [not null]
+  version varchar [not null]
+  dictionary_category_id integer
+  dictionary jsonb
+  created_at timestamp [default: `now()`]
+  created_by varchar
+}
+
+table dictionary_categories {
+  id serial [pk, not null, increment]
+  name varchar [not null, unique]
+  active_dictionary_id integer
+  created_at timestamp [default: `now()`]
+  udpated_at timestamp
+}
+
+table submissions {
+  id serial [pk, not null, increment]
+  state submission_state
+  dictionary_category_id integer
+  organization varchar [not null]
+  data jsonb [not null]
+  errors jsonb
+  dictionary_id integer
+  created_at timestamp [default: `now()`]
+  created_by varchar
+  updated_at timestamp [default: `now()`]
+  updatedBy varchar
+}
+
+table submitted_data {
+  id serial [pk, not null, increment]
+  data jsonb
+  entity_name varchar [not null]
+  dictionary_category_id integer
+  organization varchar [not null]
+  last_valid_schema_id integer
+  original_schema_id integer
+  is_valid boolean
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  created_by varchar
+}
+
+ref: dictionaries.dictionary_category_id - dictionary_categories.id
+
+ref: submissions.dictionary_category_id - dictionary_categories.id
+
+ref: submissions.dictionary_id - dictionaries.id
+
+ref: submitted_data.dictionary_category_id - dictionary_categories.id
+
+ref: submitted_data.original_schema_id - dictionaries.id
