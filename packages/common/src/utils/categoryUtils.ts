@@ -50,6 +50,14 @@ const utils = (dependencies: Dependencies) => {
 
 			return categoryFound[0];
 		},
+
+		/**
+		 * Save dictionary as Current for this category
+		 */
+		saveAsCurrentDictionaryOnCategory: async (dictionaryId: number, categoryId: number) => {
+			const updateResult = await categoryRepo.updateCurrentDictionaryOnCategory(dictionaryId, categoryId);
+			return updateResult;
+		},
 	};
 };
 

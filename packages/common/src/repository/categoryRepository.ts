@@ -1,5 +1,5 @@
 import { SelectedFields } from 'drizzle-orm/pg-core/query-builders/select.types';
-import { SQL } from 'drizzle-orm/sql';
+import { SQL, eq } from 'drizzle-orm/sql';
 import { isEmpty } from 'lodash-es';
 
 import { Dependencies } from '../config/config.js';
@@ -38,8 +38,12 @@ const repository = (dependencies: Dependencies) => {
 		): Promise<Category[]> => {
 			try {
 				let result;
-				if (isEmpty(selectionFields)) result = await db.select().from(dictionaryCategories).where(conditions);
-				result = await db.select(selectionFields).from(dictionaryCategories).where(conditions);
+				if (isEmpty(selectionFields)) {
+					result = await db.select().from(dictionaryCategories).where(conditions);
+				} else {
+					result = await db.select(selectionFields).from(dictionaryCategories).where(conditions);
+				}
+
 				logger.debug(LOG_MODULE, `Found Categories '${result?.map((cat) => cat?.name)}' in database`);
 				return result;
 			} catch (error: any) {
@@ -59,7 +63,21 @@ const repository = (dependencies: Dependencies) => {
 				logger.debug(LOG_MODULE, `Found '${result?.name}' category in database`);
 				return result;
 			} catch (error) {
-				logger.error(LOG_MODULE, `Failed FindFirst Query on Active Submission`, error);
+				logger.error(LOG_MODULE, `Failed FindFirst Query on Category`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		updateCurrentDictionaryOnCategory: async (dictionaryId: number, categoryId: number) => {
+			try {
+				return await db
+					.update(dictionaryCategories)
+					.set({
+						activeDictionaryId: dictionaryId,
+					})
+					.where(eq(dictionaryCategories.id, categoryId));
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed update current dictionary on Category`, error);
 				throw new ServiceUnavailable();
 			}
 		},

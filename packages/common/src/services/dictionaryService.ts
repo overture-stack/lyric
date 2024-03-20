@@ -1,4 +1,3 @@
-import { isEmpty } from 'lodash-es';
 import { Dependencies } from '../config/config.js';
 
 import { Dictionary } from '../models/dictionaries.js';
@@ -15,8 +14,9 @@ const dictionaryService = (dependencies: Dependencies) => {
 				LOG_MODULE,
 				`Register new dictionary categoryName '${categoryName}' dictionaryName '${dictionaryName}' version '${version}'`,
 			);
-			const { createCategoryIfDoesNotExist } = getCategoryUtils(dependencies);
+			const { createCategoryIfDoesNotExist, saveAsCurrentDictionaryOnCategory } = getCategoryUtils(dependencies);
 			const savedCategory = await createCategoryIfDoesNotExist(categoryName);
+			logger.debug(`savedCategory:${JSON.stringify(savedCategory)}`);
 
 			const { createDictionaryIfDoesNotExist, fetchDictionaryByVersion } = getDictionaryUtils(dependencies);
 			const dictionary = await fetchDictionaryByVersion(dictionaryName, version);
@@ -28,7 +28,7 @@ const dictionaryService = (dependencies: Dependencies) => {
 				dictionary.schemas,
 			);
 
-			//TODO: Update the category to have this dictionary as current
+			await saveAsCurrentDictionaryOnCategory(savedDictionary.id, savedCategory.id);
 
 			return savedDictionary;
 		},
