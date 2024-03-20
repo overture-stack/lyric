@@ -66,62 +66,74 @@ components:
           description: Entities that are being processed
           items:
             type: string
-    Submission:
+
+    ActiveSubmissionResult:
       type: object
-      required:
-        - id
-        - categoryId
-        - entities
-        - state
-        - createdAt
-        - createdBy
       properties:
         id:
-          type: string
-          description: the id of the registration
-        categoryId:
-          type: string
-          description: the program short name this registration is for
-        entities:
-          type: object
-          description: submitted data
-          properties:
-            entityType:
-              $ref: '#/components/schemas/Entities'
+          type: number
+          description: Id of the Submission
         state:
           type: string
-          description: the state of the submission
+          description: State of the Submission
           enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITED']
-        createdBy:
+        organization:
           type: string
-          description: the user who created the submission
+          description: Organization the Submission belongs to
+        data:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              creator:
+                type: string
+                description: The user who created the submission
+              records:
+                type: array
+                items:
+                  type: object
+                  description: Content of the file in JSON format
+              batchName:
+                type: string
+                description: Original filename  of the submission
+              dataErrors:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationError'
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/ValidationError'
         createdAt:
           type: string
-          description: the date/time of the creation
-    Entities:
-      type: array
-      items:
-        $ref: '#/components/schemas/SubmissionEntity'
-    SubmissionEntity:
-      required:
-        - batchName
-        - creator
-        - records
-        - dataErrors
-      properties:
-        batchName:
+          description: The date/time of the creation
+        createdBy:
           type: string
-          description: the filename must start with an entity type (e.g. donor, sample) and have .tsv extension
-        creator:
+          description: The user who created the submission
+        udpatedAt:
           type: string
-          description: first name and last name of the user who add this entity data
-        records:
-          type: array
-          description: content of the file in JSON format
-        dataErrors:
-          type: array
-          items:
-            $ref: '#/components/schemas/ValidationError'
+          description: The date/time of the last update
+        updatedBy:
+          type: string
+          description: The user who last updated the submission
+        dictionary:
+          type: object
+          description: The dictionary used to validate submission
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+        dictionaryCategory:
+          type: object
+          description: The Category to which this dictionary belongs
+          properties:
+            id:
+              type: number
+            name:
+              type: string
     ValidationError:
       type: object
       required:
@@ -137,19 +149,15 @@ components:
           description: contains context information related to the error
           properties:
             value:
-              type: string
-              nullable: true
+              type: array
               description: the faulty value
-            submitterId:
-              type: string
-              nullable: true
-              description: the submitter Id in that row
-          additionalProperties: true
+              items:
+                type: string
         index:
           type: number
           format: integer
           description: the 0 based index of the row for this error
-        type:
+        errorType:
           type: string
           description: the type of error
           enum:
@@ -160,6 +168,9 @@ components:
             - INVALID_BY_SCRIPT
             - INVALID_ENUM_VALUE
             - UNRECOGNIZED_FIELD
+        message:
+          type: string
+          description: Details of the error
     BatchError:
       type: object
       properties:

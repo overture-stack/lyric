@@ -11,10 +11,19 @@
         type: string
         required: true
     responses:
-      201:
-        description: Submission accepted
+      200:
+        description: Active Submission
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActiveSubmissionResult'
+
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
 
 /submission/category/{categoryId}/upload:
   post:
