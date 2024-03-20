@@ -1,11 +1,11 @@
 import { NextFunction, Request, Response } from 'express';
 
-import { isNaN } from 'lodash-es';
+import { isEmpty, isNaN } from 'lodash-es';
 import { Dependencies } from '../config/config.js';
 import submissionService from '../services/submissionService.js';
-import { BadRequest, NotImplemented, getErrorMessage } from '../utils/errors.js';
+import { BadRequest, NotFound, NotImplemented, getErrorMessage } from '../utils/errors.js';
 import { validateTsvExtension } from '../utils/fileUtils.js';
-import { BATCH_ERROR_TYPE, BatchError, CREATE_SUBMISSION_STATE } from '../utils/types.js';
+import { BATCH_ERROR_TYPE, BatchError } from '../utils/types.js';
 
 const controller = (dependencies: Dependencies) => {
 	const service = submissionService(dependencies);
@@ -82,10 +82,20 @@ const controller = (dependencies: Dependencies) => {
 				next(error);
 			}
 		},
-		listActive: async (req: Request, res: Response, next: NextFunction) => {
+		active: async (req: Request, res: Response, next: NextFunction) => {
 			try {
-				// TODO: Get active submissions for a category
-				throw new NotImplemented();
+				const categoryId = Number(req.params.categoryId);
+				if (isNaN(categoryId)) {
+					throw new BadRequest('Invalid categoryId number format');
+				}
+
+				logger.info(LOG_MODULE, `Request Active Submission categoryId '${categoryId}'`);
+
+				const activeSubmission = await service.activeSubmission(categoryId);
+
+				if (isEmpty(activeSubmission)) throw new NotFound('Active Submission not found');
+
+				return res.status(200).send(activeSubmission);
 			} catch (error) {
 				next(error);
 			}

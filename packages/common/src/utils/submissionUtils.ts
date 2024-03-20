@@ -92,6 +92,15 @@ const utils = (dependencies: Dependencies) => {
 		},
 
 		/**
+		 * Gets the current 'open' active submission with all reference attributes based on Category ID
+		 * @param {number} categoryId A Category ID
+		 * @returns An Active Submission
+		 */
+		getCurrentActiveSubmissionWithRelations: async (categoryId: number) => {
+			return await submissionRepo.getActiveSubmissionWithRelations(categoryId);
+		},
+
+		/**
 		 * Removes invalid/duplicated files
 		 * @param {Express.Multer.File[]} files An array of files
 		 * @param {string[]} dictionarySchemaNames Schema names in the dictionary

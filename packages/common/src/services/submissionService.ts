@@ -131,6 +131,12 @@ const service = (dependencies: Dependencies) => {
 				inProcessEntities: entitiesToProcess,
 			};
 		},
+
+		activeSubmission: async (categoryId: number) => {
+			const { getCurrentActiveSubmissionWithRelations } = submissionUtils(dependencies);
+
+			return await getCurrentActiveSubmissionWithRelations(categoryId);
+		},
 	};
 };
 

@@ -1,5 +1,5 @@
 import { SelectedFields } from 'drizzle-orm/pg-core/query-builders/select.types';
-import { SQL } from 'drizzle-orm/sql';
+import { SQL, and, eq, or } from 'drizzle-orm/sql';
 import { isEmpty } from 'lodash-es';
 
 import { Dependencies } from '../config/config.js';
@@ -59,6 +59,50 @@ const repository = (dependencies: Dependencies) => {
 		update: async (newData: any, whereConditions: SQL<unknown>): Promise<Submission[]> => {
 			const updated = await db.update(submissions).set(newData).where(whereConditions).returning();
 			return updated;
+		},
+
+		/**
+		 * Get Active Submission by category
+		 * @param {number} categoryId Category ID
+		 * @returns An Active Submission
+		 */
+		getActiveSubmissionWithRelations: async (categoryId: number) => {
+			try {
+				return await db.query.submissions.findFirst({
+					where: and(
+						eq(submissions.dictionaryCategoryId, categoryId),
+						or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
+					),
+					columns: {
+						id: true,
+						state: true,
+						organization: true,
+						data: true,
+						errors: true,
+						createdAt: true,
+						createdBy: true,
+						udpatedAt: true,
+						updatedBy: true,
+					},
+					with: {
+						dictionary: {
+							columns: {
+								name: true,
+								version: true,
+							},
+						},
+						dictionaryCategory: {
+							columns: {
+								id: true,
+								name: true,
+							},
+						},
+					},
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying Active Submission with relations`, error);
+				throw new ServiceUnavailable();
+			}
 		},
 	};
 };
