@@ -7,7 +7,7 @@ export const dictionaries = pgTable('dictionaries', {
 	id: serial('id').primaryKey(),
 	name: varchar('name').notNull(),
 	version: varchar('version').notNull(),
-	dictionaryCategoryId: integer('dictionary_category_id'),
+	dictionaryCategoryId: integer('dictionary_category_id').references(() => dictionaryCategories.id),
 	dictionary: jsonb('dictionary'),
 	createdAt: timestamp('created_at').defaultNow(),
 	createdBy: varchar('created_by'),

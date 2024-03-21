@@ -10,15 +10,15 @@ export const submissionStateEnum = pgEnum('submission_state', ['OPEN', 'VALID', 
 export const submissions = pgTable('submissions', {
 	id: serial('id').primaryKey(),
 	state: submissionStateEnum('state'),
-	dictionaryCategoryId: integer('dictionary_category_id'),
+	dictionaryCategoryId: integer('dictionary_category_id').references(() => dictionaryCategories.id),
 	organization: varchar('organization').notNull(),
 	data: jsonb('data').notNull(),
 	errors: jsonb('errors'),
-	dictionaryId: integer('dictionary_id'),
+	dictionaryId: integer('dictionary_id').references(() => dictionaries.id),
 	createdAt: timestamp('created_at').defaultNow(),
 	createdBy: varchar('created_by'),
-	udpatedAt: timestamp('updated_at').defaultNow(),
-	updatedBy: varchar('updatedBy'),
+	updatedAt: timestamp('updated_at').defaultNow(),
+	updatedBy: varchar('updated_by'),
 });
 
 export const submissionRelations = relations(submissions, ({ one }) => ({
