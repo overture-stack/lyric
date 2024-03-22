@@ -11,6 +11,7 @@ import {
 	BatchError,
 	CREATE_SUBMISSION_STATE,
 	CreateSubmissionResult,
+	CreateSubmissionState,
 	SubmissionEntity,
 	ValidateFilesParams,
 } from '../utils/types.js';
@@ -120,7 +121,7 @@ const service = (dependencies: Dependencies) => {
 				}
 			}
 
-			let state = CREATE_SUBMISSION_STATE.INVALID_SUBMISSION;
+			let state: CreateSubmissionState = CREATE_SUBMISSION_STATE.INVALID_SUBMISSION;
 			let description: string = 'No valid files for submission';
 			if (batchErrors.length === 0 && entitiesToProcess.length > 0) {
 				state = CREATE_SUBMISSION_STATE.PROCESSING;
