@@ -11,12 +11,12 @@ export const submissionStateEnum = pgEnum('submission_state', ['OPEN', 'VALID', 
 
 export const submissions = pgTable('submissions', {
 	id: serial('id').primaryKey(),
-	state: submissionStateEnum('state'),
-	dictionaryCategoryId: integer('dictionary_category_id').references(() => dictionaryCategories.id),
-	organization: varchar('organization').notNull(),
 	data: jsonb('data').$type<Record<string, SubmissionEntity>>().notNull(),
-	errors: jsonb('errors').$type<Record<string, SchemaValidationError[]>>(),
+	dictionaryCategoryId: integer('dictionary_category_id').references(() => dictionaryCategories.id),
 	dictionaryId: integer('dictionary_id').references(() => dictionaries.id),
+	errors: jsonb('errors').$type<Record<string, SchemaValidationError[]>>(),
+	organization: varchar('organization').notNull(),
+	state: submissionStateEnum('state'),
 	createdAt: timestamp('created_at').defaultNow(),
 	createdBy: varchar('created_by'),
 	updatedAt: timestamp('updated_at').defaultNow(),
@@ -24,13 +24,13 @@ export const submissions = pgTable('submissions', {
 });
 
 export const submissionRelations = relations(submissions, ({ one }) => ({
-	dictionaryCategory: one(dictionaryCategories, {
-		fields: [submissions.dictionaryCategoryId],
-		references: [dictionaryCategories.id],
-	}),
 	dictionary: one(dictionaries, {
 		fields: [submissions.dictionaryId],
 		references: [dictionaries.id],
+	}),
+	dictionaryCategory: one(dictionaryCategories, {
+		fields: [submissions.dictionaryCategoryId],
+		references: [dictionaryCategories.id],
 	}),
 }));
 

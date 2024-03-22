@@ -6,10 +6,10 @@ import { dictionaryCategories } from './dictionary_categories.js';
 
 export const dictionaries = pgTable('dictionaries', {
 	id: serial('id').primaryKey(),
+	dictionary: jsonb('dictionary').$type<SchemaDefinition[]>().notNull(),
+	dictionaryCategoryId: integer('dictionary_category_id').references(() => dictionaryCategories.id),
 	name: varchar('name').notNull(),
 	version: varchar('version').notNull(),
-	dictionaryCategoryId: integer('dictionary_category_id').references(() => dictionaryCategories.id),
-	dictionary: jsonb('dictionary').$type<SchemaDefinition[]>().notNull(),
 	createdAt: timestamp('created_at').defaultNow(),
 	createdBy: varchar('created_by'),
 });
