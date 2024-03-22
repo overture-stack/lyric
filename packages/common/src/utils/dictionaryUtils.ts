@@ -1,13 +1,10 @@
 import { entities as dictionaryEntities, functions as dictionaryFunctions } from '@overturebio-stack/lectern-client';
-import { and, eq } from 'drizzle-orm/sql';
+import { SchemaDefinition, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { isEmpty } from 'lodash-es';
 
-import { SchemaDefinition, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { Dependencies } from '../config/config.js';
 import lecternClient from '../external/lecternClient.js';
-import { Dictionary, NewDictionary, dictionaries } from '../models/dictionaries.js';
-import { dictionaryCategories } from '../models/dictionary_categories.js';
-import categoryRepository from '../repository/categoryRepository.js';
+import { Dictionary, NewDictionary } from '../models/dictionaries.js';
 import dictionaryRepository from '../repository/dictionaryRepository.js';
 
 const utils = (dependencies: Dependencies) => {
@@ -30,16 +27,10 @@ const utils = (dependencies: Dependencies) => {
 			schemas: SchemaDefinition[],
 		): Promise<Dictionary> => {
 			try {
-				const foundDictionary = await dictionaryRepo.select(
-					{},
-					and(eq(dictionaries.name, dictionaryName), eq(dictionaries.version, version)),
-				);
+				const foundDictionary = await dictionaryRepo.getDictionary(dictionaryName, version);
 				if (!isEmpty(foundDictionary)) {
-					logger.info(
-						LOG_MODULE,
-						`Dictionary with name '${dictionaryName}' and version '${version}' already exists. Not doing any action`,
-					);
-					return foundDictionary[0];
+					logger.info(LOG_MODULE, `Dictionary with name '${dictionaryName}' and version '${version}' already exists`);
+					return foundDictionary;
 				}
 
 				const newDictionary: NewDictionary = {
@@ -70,33 +61,6 @@ const utils = (dependencies: Dependencies) => {
 				return dictionaryResponse;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Error Fetching dictionary from lectern`, error);
-				throw error;
-			}
-		},
-
-		/**
-		 * Get the current Dictionary from database
-		 * @param {number} categoryId The Category ID
-		 * @returns A Dictionary instance
-		 */
-		getCurrentDictionary: async (categoryId: number): Promise<Dictionary> => {
-			try {
-				const categoryRepo = categoryRepository(dependencies);
-
-				const dictionaryFound = await categoryRepo.findFirst(eq(dictionaryCategories.id, categoryId), {
-					dictionary: true,
-				});
-				logger.info(
-					LOG_MODULE,
-					`Getting Current Dictionary name '${dictionaryFound?.dictionary?.name}' version '${dictionaryFound?.dictionary?.version}'`,
-				);
-
-				if (isEmpty(dictionaryFound)) {
-					throw new Error(`Dictionary in category '${categoryId}' not found`);
-				}
-				return dictionaryFound.dictionary;
-			} catch (error) {
-				logger.error(LOG_MODULE, `Error getting current dictionary`, error);
 				throw error;
 			}
 		},

@@ -40,6 +40,13 @@ export class ServiceUnavailable extends Error {
 	}
 }
 
+export class InternalServerError extends Error {
+	constructor(msg?: string) {
+		super(msg || 'Something unexpected happened');
+		this.name = 'Internal Server Error';
+	}
+}
+
 export const getErrorMessage = (error: unknown) => {
 	if (error instanceof Error) return error.message;
 	return String(error);

@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import {
 	BadRequest,
+	InternalServerError,
 	NotFound,
 	NotImplemented,
 	ServiceUnavailable,
@@ -33,16 +34,14 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
 		case err instanceof TSVParseError:
 			status = 422;
 			break;
+		case err instanceof InternalServerError:
+			status = 500;
+			break;
 		case err instanceof NotImplemented:
 			status = 501;
 			break;
 		case err instanceof ServiceUnavailable:
 			status = 503;
-			break;
-		case (err as any).name == 'CastError':
-			status = 404;
-			err.name = 'Not found';
-			customizableMsg = 'Id not found';
 			break;
 		default:
 			status = 500;
