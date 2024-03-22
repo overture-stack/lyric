@@ -1,7 +1,7 @@
 import { entities as dictionaryEntities, functions as dictionaryFunctions } from '@overturebio-stack/lectern-client';
+import { SchemaDefinition, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { isEmpty } from 'lodash-es';
 
-import { SchemaDefinition, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { Dependencies } from '../config/config.js';
 import lecternClient from '../external/lecternClient.js';
 import { Dictionary, NewDictionary } from '../models/dictionaries.js';

@@ -1,14 +1,13 @@
 import { parallel } from '@overturebio-stack/lectern-client';
-import { eq } from 'drizzle-orm';
-import { flatten, isEmpty, toNumber } from 'lodash-es';
-
 import {
 	SchemaValidationError,
 	SchemasDictionary,
 	TypedDataRecord,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import { flatten, isEmpty, toNumber } from 'lodash-es';
+
 import { Dependencies } from '../config/config.js';
-import { NewSubmission, Submission, submissions } from '../models/submissions.js';
+import { NewSubmission, Submission } from '../models/submissions.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
 import { TsvRecordAsJsonObj, readHeaders } from './fileUtils.js';
@@ -44,18 +43,14 @@ const utils = (dependencies: Dependencies) => {
 				Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATE.INVALID : SUBMISSION_STATE.VALID;
 			if (isNumber(idActiveSubmission)) {
 				// Update with new data
-				const updatedRecord = await submissionRepo.update(
-					{
-						data: entityMap,
-						state: newStateSubmission,
-						organization,
-						dictionaryId,
-						updatedBy: userName,
-						errors: schemaErrors,
-					},
-					eq(submissions.id, toNumber(idActiveSubmission)),
-				);
-				updatedSubmission = updatedRecord[0];
+				updatedSubmission = await submissionRepo.update(toNumber(idActiveSubmission), {
+					data: entityMap,
+					state: newStateSubmission,
+					organization,
+					dictionaryId,
+					updatedBy: userName,
+					errors: schemaErrors,
+				});
 				logger.info(
 					LOG_MODULE,
 					`Updated Active submission '${updatedSubmission.id}' for category '${updatedSubmission.dictionaryCategoryId}'`,

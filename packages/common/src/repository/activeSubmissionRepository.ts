@@ -1,6 +1,4 @@
-import { SelectedFields } from 'drizzle-orm/pg-core/query-builders/select.types';
-import { SQL, and, eq, or } from 'drizzle-orm/sql';
-import { isEmpty } from 'lodash-es';
+import { and, eq, or } from 'drizzle-orm/sql';
 
 import { Dependencies } from '../config/config.js';
 import { NewSubmission, Submission, submissions } from '../models/submissions.js';
@@ -27,30 +25,11 @@ const repository = (dependencies: Dependencies) => {
 		},
 
 		/**
-		 * Find an Active Submission in Database
-		 * @param selectionFields Specific fields we want to get. Use '{}' (empty Object) to get all the fields from an Active Submission
-		 * @param conditions SQL where clause
+		 * Finds the current Active Submission by Category ID
+		 * @param {number} categoryId Category ID
 		 * @returns The Active Submission found
 		 */
-		select: async (
-			selectionFields: SelectedFields | undefined,
-			conditions: SQL<unknown> | ((aliases: SelectedFields) => SQL<unknown> | undefined) | undefined,
-		): Promise<
-			| Submission[]
-			| {
-					[x: string]: unknown;
-			  }[]
-		> => {
-			logger.debug(LOG_MODULE, `Querying Active Submission`);
-			try {
-				if (isEmpty(selectionFields)) return await db.select().from(submissions).where(conditions);
-				return await db.select(selectionFields).from(submissions).where(conditions);
-			} catch (error) {
-				logger.error(LOG_MODULE, `Failed querying Active Submission`, error);
-				throw new ServiceUnavailable();
-			}
-		},
-		getActiveSubmission: async (categoryId: number): Promise<Submission | undefined> => {
+		getActiveSubmissionByCategoryId: async (categoryId: number): Promise<Submission | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(
@@ -65,13 +44,13 @@ const repository = (dependencies: Dependencies) => {
 		},
 		/**
 		 * Update a Submission record in database
-		 * @param newData Set fields to update
-		 * @param whereConditions Where clause
-		 * @returns An updated record(s)
+		 * @param {number} submissionId Submission ID to update
+		 * @param {any} newData Set fields to update
+		 * @returns An updated record
 		 */
-		update: async (newData: any, whereConditions: SQL<unknown>): Promise<Submission[]> => {
-			const updated = await db.update(submissions).set(newData).where(whereConditions).returning();
-			return updated;
+		update: async (submissionId: number, newData: Partial<Submission>): Promise<Submission> => {
+			const updated = await db.update(submissions).set(newData).where(eq(submissions.id, submissionId)).returning();
+			return updated[0];
 		},
 	};
 };

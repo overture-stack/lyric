@@ -1,8 +1,10 @@
 import { SchemaValidationError, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { isEmpty } from 'lodash-es';
+
 import { Dependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
+import { BadRequest } from '../utils/errors.js';
 import { tsvToJson } from '../utils/fileUtils.js';
 import submissionUtils from '../utils/submissionUtils.js';
 import {
@@ -18,12 +20,12 @@ const service = (dependencies: Dependencies) => {
 	const { logger } = dependencies;
 
 	const validateFilesAsync = async (files: Record<string, Express.Multer.File>, params: ValidateFilesParams) => {
-		const { getActiveSubmission } = submissionRepository(dependencies);
+		const { getActiveSubmissionByCategoryId } = submissionRepository(dependencies);
 		const { createOrUpdateActiveSubmission, processSchemaValidation } = submissionUtils(dependencies);
 
 		const { categoryId, currentDictionaryId, organization, schemasDictionary } = params;
 
-		const activeSubmission = await getActiveSubmission(categoryId);
+		const activeSubmission = await getActiveSubmissionByCategoryId(categoryId);
 
 		const submissionSchemaErrors: Record<string, SchemaValidationError[]> = {};
 		const updateSubmissionEntities: Record<string, SubmissionEntity> = {};
@@ -88,6 +90,7 @@ const service = (dependencies: Dependencies) => {
 
 			if (files.length > 0) {
 				const currentDictionary = await getActiveDictionaryByCategory(categoryId);
+				if (isEmpty(currentDictionary)) throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
 
 				const schemasDictionary: SchemasDictionary = {
 					name: currentDictionary.name,
