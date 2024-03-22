@@ -2,6 +2,8 @@ import { relations } from 'drizzle-orm';
 
 import { integer, jsonb, pgEnum, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
+import { SchemaValidationError } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import { SubmissionEntity } from '../utils/types.js';
 import { dictionaries } from './dictionaries.js';
 import { dictionaryCategories } from './dictionary_categories.js';
 
@@ -12,8 +14,8 @@ export const submissions = pgTable('submissions', {
 	state: submissionStateEnum('state'),
 	dictionaryCategoryId: integer('dictionary_category_id').references(() => dictionaryCategories.id),
 	organization: varchar('organization').notNull(),
-	data: jsonb('data').notNull(),
-	errors: jsonb('errors'),
+	data: jsonb('data').$type<Record<string, SubmissionEntity>>().notNull(),
+	errors: jsonb('errors').$type<Record<string, SchemaValidationError[]>>(),
 	dictionaryId: integer('dictionary_id').references(() => dictionaries.id),
 	createdAt: timestamp('created_at').defaultNow(),
 	createdBy: varchar('created_by'),

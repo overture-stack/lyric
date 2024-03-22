@@ -153,12 +153,12 @@ components:
           type: string
           description: the type of error
           enum:
-            - MISSING_REQUIRED_FIELD
-            - INVALID_FIELD_VALUE_TYPE
-            - INVALID_BY_REGEX
             - INVALID_BY_RANGE
+            - INVALID_BY_REGEX
             - INVALID_BY_SCRIPT
             - INVALID_ENUM_VALUE
+            - INVALID_FIELD_VALUE_TYPE
+            - MISSING_REQUIRED_FIELD
             - UNRECOGNIZED_FIELD
     BatchError:
       type: object
@@ -170,13 +170,13 @@ components:
           type: string
           description: the type of error
           enum:
-            - INVALID_FILE_EXTENSION
-            - TSV_PARSING_FAILED
-            - INVALID_FILE_NAME
             - INCORRECT_SECTION
-            - MULTIPLE_TYPED_FILES
-            - UNRECOGNIZED_HEADER
+            - INVALID_FILE_EXTENSION
+            - INVALID_FILE_NAME
             - MISSING_REQUIRED_HEADER
+            - MULTIPLE_TYPED_FILES
+            - TSV_PARSING_FAILED
+            - UNRECOGNIZED_HEADER
         batchName:
           type: array
           description: list of batch names causing error

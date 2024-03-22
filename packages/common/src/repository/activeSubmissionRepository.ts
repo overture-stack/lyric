@@ -1,5 +1,5 @@
 import { SelectedFields } from 'drizzle-orm/pg-core/query-builders/select.types';
-import { SQL } from 'drizzle-orm/sql';
+import { SQL, and, eq, or } from 'drizzle-orm/sql';
 import { isEmpty } from 'lodash-es';
 
 import { Dependencies } from '../config/config.js';
@@ -47,6 +47,19 @@ const repository = (dependencies: Dependencies) => {
 				return await db.select(selectionFields).from(submissions).where(conditions);
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying Active Submission`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+		getActiveSubmission: async (categoryId: number): Promise<Submission | undefined> => {
+			try {
+				return await db.query.submissions.findFirst({
+					where: and(
+						eq(submissions.dictionaryCategoryId, categoryId),
+						or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
+					),
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed getting active Submission`, error);
 				throw new ServiceUnavailable();
 			}
 		},

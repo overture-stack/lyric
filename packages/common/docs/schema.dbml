@@ -3,7 +3,7 @@ table dictionaries {
   name varchar [not null]
   version varchar [not null]
   dictionary_category_id integer
-  dictionary jsonb
+  dictionary jsonb [not null]
   created_at timestamp [default: `now()`]
   created_by varchar
 }

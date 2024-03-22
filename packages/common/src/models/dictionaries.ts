@@ -1,6 +1,7 @@
 import { relations } from 'drizzle-orm';
 import { integer, jsonb, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
+import { SchemaDefinition } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { dictionaryCategories } from './dictionary_categories.js';
 
 export const dictionaries = pgTable('dictionaries', {
@@ -8,7 +9,7 @@ export const dictionaries = pgTable('dictionaries', {
 	name: varchar('name').notNull(),
 	version: varchar('version').notNull(),
 	dictionaryCategoryId: integer('dictionary_category_id').references(() => dictionaryCategories.id),
-	dictionary: jsonb('dictionary'),
+	dictionary: jsonb('dictionary').$type<SchemaDefinition[]>().notNull(),
 	createdAt: timestamp('created_at').defaultNow(),
 	createdBy: varchar('created_by'),
 });
