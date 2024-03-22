@@ -1,17 +1,17 @@
 table dictionaries {
   id serial [pk, not null, increment]
+  dictionary jsonb [not null]
+  dictionary_category_id integer
   name varchar [not null]
   version varchar [not null]
-  dictionary_category_id integer
-  dictionary jsonb [not null]
   created_at timestamp [default: `now()`]
   created_by varchar
 }
 
 table dictionary_categories {
   id serial [pk, not null, increment]
-  name varchar [not null, unique]
   active_dictionary_id integer
+  name varchar [not null, unique]
   created_at timestamp [default: `now()`]
   created_by varchar
   updated_at timestamp
@@ -20,12 +20,12 @@ table dictionary_categories {
 
 table submissions {
   id serial [pk, not null, increment]
-  state submission_state
-  dictionary_category_id integer
-  organization varchar [not null]
   data jsonb [not null]
-  errors jsonb
+  dictionary_category_id integer
   dictionary_id integer
+  errors jsonb
+  organization varchar [not null]
+  state submission_state
   created_at timestamp [default: `now()`]
   created_by varchar
   updated_at timestamp [default: `now()`]
@@ -35,12 +35,12 @@ table submissions {
 table submitted_data {
   id serial [pk, not null, increment]
   data jsonb
-  entity_name varchar [not null]
   dictionary_category_id integer
-  organization varchar [not null]
-  last_valid_schema_id integer
-  original_schema_id integer
+  entity_name varchar [not null]
   is_valid boolean
+  last_valid_schema_id integer
+  organization varchar [not null]
+  original_schema_id integer
   created_at timestamp [default: `now()`]
   created_by varchar
   updated_at timestamp [default: `now()`]
@@ -51,9 +51,9 @@ ref: dictionary_categories.active_dictionary_id - dictionaries.id
 
 ref: dictionaries.dictionary_category_id > dictionary_categories.id
 
-ref: submissions.dictionary_category_id > dictionary_categories.id
-
 ref: submissions.dictionary_id - dictionaries.id
+
+ref: submissions.dictionary_category_id > dictionary_categories.id
 
 ref: submitted_data.dictionary_category_id > dictionary_categories.id
 

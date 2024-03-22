@@ -1,9 +1,10 @@
 import { SelectedFields } from 'drizzle-orm/pg-core/query-builders/select.types';
-import { SQL } from 'drizzle-orm/sql';
+import { SQL, and, eq } from 'drizzle-orm/sql';
 import { isEmpty } from 'lodash-es';
 
 import { Dependencies } from '../config/config.js';
 import { Dictionary, NewDictionary, dictionaries } from '../models/dictionaries.js';
+import { BadRequest, ServiceUnavailable } from '../utils/errors.js';
 
 const repository = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'DICTIONARY_REPOSITORY';
@@ -46,6 +47,23 @@ const repository = (dependencies: Dependencies) => {
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying Dictionary`, error);
 				throw error;
+			}
+		},
+
+		getDictionary: async (dictionaryName: string, version: string): Promise<Dictionary> => {
+			try {
+				const result = await db.query.dictionaries.findFirst({
+					where: and(eq(dictionaries.name, dictionaryName), eq(dictionaries.version, version)),
+				});
+				if (result) return result;
+				throw new BadRequest(`Dictionary with name '${dictionaryName}' and version '${version}' not found`);
+			} catch (error) {
+				logger.error(
+					LOG_MODULE,
+					`Failed querying Dictionary with name '${dictionaryName}' and version '${version}'`,
+					error,
+				);
+				throw new ServiceUnavailable();
 			}
 		},
 	};

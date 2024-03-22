@@ -2,14 +2,70 @@ import { SchemaValidationError, SchemasDictionary } from '@overturebio-stack/lec
 import { isEmpty } from 'lodash-es';
 import { Dependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
-import dictionaryUtils from '../utils/dictionaryUtils.js';
+import categoryRepository from '../repository/categoryRepository.js';
 import { tsvToJson } from '../utils/fileUtils.js';
 import submissionUtils from '../utils/submissionUtils.js';
-import { BatchError, CREATE_SUBMISSION_STATE, CreateSubmissionResult, SubmissionEntity } from '../utils/types.js';
+import {
+	BatchError,
+	CREATE_SUBMISSION_STATE,
+	CreateSubmissionResult,
+	SubmissionEntity,
+	ValidateFilesParams,
+} from '../utils/types.js';
 
 const service = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'SUBMISSION_SERVICE';
 	const { logger } = dependencies;
+
+	const validateFilesAsync = async (files: Record<string, Express.Multer.File>, params: ValidateFilesParams) => {
+		const { getActiveSubmission } = submissionRepository(dependencies);
+		const { createOrUpdateActiveSubmission, processSchemaValidation } = submissionUtils(dependencies);
+
+		const { categoryId, currentDictionaryId, organization, schemasDictionary } = params;
+
+		const activeSubmission = await getActiveSubmission(categoryId);
+
+		const submissionSchemaErrors: Record<string, SchemaValidationError[]> = {};
+		const updateSubmissionEntities: Record<string, SubmissionEntity> = {};
+
+		await Promise.all(
+			Object.entries(files).map(async ([entityName, file]) => {
+				logger.debug(LOG_MODULE, `Running validation for file '${file.originalname}' on entity '${entityName}'`);
+
+				const parsedFileData = await tsvToJson(file.path);
+
+				// TODO: merge existing data + new data for validation (Submitted data + active Submission +  tsv parsed Data)
+				// Validating new data only! as we haven't found a reason yet to validate entire merged data set
+
+				// step 3 Validation. Validate schema data (lectern-client processParallel)
+				const { schemaErrors } = await processSchemaValidation(schemasDictionary, entityName, parsedFileData);
+				if (schemaErrors.length > 0) {
+					submissionSchemaErrors[entityName] = schemaErrors;
+				}
+
+				// To be stored in the submission data
+				updateSubmissionEntities[entityName] = {
+					batchName: file.originalname,
+					creator: '', //TODO: get user from auth
+					records: parsedFileData,
+					dataErrors: schemaErrors,
+				};
+			}),
+		);
+
+		if (Object.keys(updateSubmissionEntities).length > 0) {
+			await createOrUpdateActiveSubmission(
+				activeSubmission?.id,
+				updateSubmissionEntities,
+				categoryId.toString(),
+				submissionSchemaErrors,
+				currentDictionaryId,
+				'', // TODO: get User from auth.
+				organization,
+			);
+		}
+	};
+
 	return {
 		/**
 		 * Validates and Creates the Entities Schemas of the Active Submission and stores it in the database
@@ -24,22 +80,19 @@ const service = (dependencies: Dependencies) => {
 			organization: string,
 		): Promise<CreateSubmissionResult> => {
 			logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
-			const { createOrUpdateActiveSubmission, checkFileNames, processSchemaValidation, checkEntityFieldNames } =
-				submissionUtils(dependencies);
-			const { getCurrentDictionary } = dictionaryUtils(dependencies);
-			const { getActiveSubmission } = submissionRepository(dependencies);
+			const { checkFileNames, checkEntityFieldNames } = submissionUtils(dependencies);
+			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 
 			const entitiesToProcess: string[] = [];
 			const batchErrors: BatchError[] = [];
-			const submissionSchemaErrors: Record<string, SchemaValidationError[]> = {};
-			const updateSubmissionEntities: Record<string, SubmissionEntity> = {};
 
 			if (files.length > 0) {
-				const currentDictionary = await getCurrentDictionary(categoryId);
+				const currentDictionary = await getActiveDictionaryByCategory(categoryId);
+
 				const schemasDictionary: SchemasDictionary = {
 					name: currentDictionary.name,
 					version: currentDictionary.version,
-					schemas: currentDictionary.dictionary,
+					schemas: currentDictionary.schemas,
 				};
 
 				// step 1 Validation. Validate entity type (filename matches dictionary entities, remove duplicates)
@@ -50,54 +103,17 @@ const service = (dependencies: Dependencies) => {
 				// step 2 Validation. Validate fieldNames (missing required fields based on schema)
 				const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
 				batchErrors.push(...fieldNameErrors);
-				entitiesToProcess.concat(Object.keys(checkedEntities));
+				entitiesToProcess.push(...Object.keys(checkedEntities));
 
 				if (!isEmpty(checkedEntities)) {
 					// Running Schema validation in the background do not need to wait
 					// Result of validations will be stored in database
-					(async () => {
-						const activeSubmission = await getActiveSubmission(categoryId);
-
-						await Promise.all(
-							Object.entries(checkedEntities).map(async ([entityName, file]) => {
-								logger.debug(
-									LOG_MODULE,
-									`Running validation for file '${file.originalname}' on entity '${entityName}'`,
-								);
-
-								const parsedFileData = await tsvToJson(file.path);
-
-								// TODO: merge existing data + new data for validation (Submitted data + active Submission +  tsv parsed Data)
-								// Validating new data only! as we haven't found a reason yet to validate entire merged data set
-
-								// step 3 Validation. Validate schema data (lectern-client processParallel)
-								const { schemaErrors } = await processSchemaValidation(schemasDictionary, entityName, parsedFileData);
-								if (schemaErrors.length > 0) {
-									submissionSchemaErrors[entityName] = schemaErrors;
-								}
-
-								// To be stored in the submission data
-								updateSubmissionEntities[entityName] = {
-									batchName: file.originalname,
-									creator: '', //TODO: get user from auth
-									records: parsedFileData,
-									dataErrors: schemaErrors,
-								};
-							}),
-						);
-
-						if (Object.keys(updateSubmissionEntities).length > 0) {
-							await createOrUpdateActiveSubmission(
-								activeSubmission?.id,
-								updateSubmissionEntities,
-								categoryId.toString(),
-								submissionSchemaErrors,
-								currentDictionary.id,
-								'', // TODO: get User from auth.
-								organization,
-							);
-						}
-					})();
+					validateFilesAsync(checkedEntities, {
+						categoryId,
+						currentDictionaryId: currentDictionary.id,
+						organization,
+						schemasDictionary,
+					});
 				}
 			}
 

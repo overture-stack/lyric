@@ -1,4 +1,4 @@
-import { SchemaValidationError } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import { SchemaValidationError, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { DeepReadonly } from 'deep-freeze';
 import { TsvRecordAsJsonObj } from './fileUtils.js';
 
@@ -54,3 +54,10 @@ export type BatchError = {
 	type: BATCH_ERROR_TYPE;
 	batchName: string;
 };
+
+export interface ValidateFilesParams {
+	categoryId: number;
+	currentDictionaryId: number;
+	organization: string;
+	schemasDictionary: SchemasDictionary;
+}

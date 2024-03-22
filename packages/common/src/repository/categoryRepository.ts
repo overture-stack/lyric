@@ -1,10 +1,11 @@
 import { SelectedFields } from 'drizzle-orm/pg-core/query-builders/select.types';
-import { SQL } from 'drizzle-orm/sql';
+import { SQL, eq } from 'drizzle-orm/sql';
 import { isEmpty } from 'lodash-es';
 
+import { SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { Dependencies } from '../config/config.js';
 import { Category, NewCategory, dictionaryCategories } from '../models/dictionary_categories.js';
-import { ServiceUnavailable } from '../utils/errors.js';
+import { BadRequest, ServiceUnavailable } from '../utils/errors.js';
 
 const repository = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'CATEGORY_REPOSITORY';
@@ -47,19 +48,42 @@ const repository = (dependencies: Dependencies) => {
 				throw new ServiceUnavailable();
 			}
 		},
-		findFirst: async (
-			whereClause: SQL<unknown> | ((aliases: SelectedFields) => SQL<unknown> | undefined) | undefined,
-			withRelations: any,
-		): Promise<any> => {
+
+		/**
+		 * Finds the current Dictionary for a Category
+		 * @param {number} categoryId Category ID
+		 * @returns The current Dictionary for this category
+		 */
+		getActiveDictionaryByCategory: async (categoryId: number): Promise<SchemasDictionary & { id: number }> => {
 			try {
 				const result = await db.query.dictionaryCategories.findFirst({
-					where: whereClause,
-					with: withRelations,
+					where: eq(dictionaryCategories.id, categoryId),
+					with: {
+						activeDictionary: {
+							columns: {
+								id: true,
+								name: true,
+								version: true,
+								dictionary: true,
+							},
+						},
+					},
 				});
-				logger.debug(LOG_MODULE, `Found '${result?.name}' category in database`);
-				return result;
+				if (result?.activeDictionary) {
+					logger.debug(
+						LOG_MODULE,
+						`Found category '${result?.name}' with  dictionary '${result?.activeDictionary.name}' version '${result?.activeDictionary.version}'`,
+					);
+					return {
+						id: result.activeDictionary.id,
+						version: result?.activeDictionary.version,
+						name: result?.activeDictionary.name,
+						schemas: result?.activeDictionary.dictionary,
+					};
+				}
+				throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
 			} catch (error) {
-				logger.error(LOG_MODULE, `Failed FindFirst Query on Active Submission`, error);
+				logger.error(LOG_MODULE, `Failed get Active Dictionary By Category '${categoryId}'`, error);
 				throw new ServiceUnavailable();
 			}
 		},
