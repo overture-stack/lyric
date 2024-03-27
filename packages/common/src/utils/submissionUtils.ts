@@ -73,33 +73,6 @@ const utils = (dependencies: Dependencies) => {
 		},
 
 		/**
-<<<<<<< HEAD
-		 * Gets the current 'open' active submission based on Category ID
-		 * @param {number} categoryId A Category ID
-		 * @returns An Active Submission
-		 */
-		getCurrentActiveSubmission: async (categoryId: number) => {
-			return await submissionRepo.select(
-				{},
-				and(
-					eq(submissions.dictionaryCategoryId, categoryId),
-					or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
-				),
-			);
-		},
-
-		/**
-		 * Gets the current 'open' active submission with all reference attributes based on Category ID
-		 * @param {number} categoryId A Category ID
-		 * @returns An Active Submission
-		 */
-		getCurrentActiveSubmissionWithRelations: async (categoryId: number) => {
-			return await submissionRepo.getActiveSubmissionWithRelations(categoryId);
-		},
-
-		/**
-=======
->>>>>>> feat/refactor-submission
 		 * Removes invalid/duplicated files
 		 * @param {Express.Multer.File[]} files An array of files
 		 * @param {string[]} dictionarySchemaNames Schema names in the dictionary

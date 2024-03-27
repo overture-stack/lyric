@@ -140,9 +140,9 @@ const service = (dependencies: Dependencies) => {
 		},
 
 		activeSubmission: async (categoryId: number) => {
-			const { getCurrentActiveSubmissionWithRelations } = submissionUtils(dependencies);
+			const { getActiveSubmissionWithRelations } = submissionRepository(dependencies);
 
-			return await getCurrentActiveSubmissionWithRelations(categoryId);
+			return await getActiveSubmissionWithRelations(categoryId);
 		},
 	};
 };
