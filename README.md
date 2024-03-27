@@ -45,9 +45,10 @@ The Environment Variables used for this application are listed in the table bell
 
 ## Script commands
 
-| Command                         | Description                  |
-| ------------------------------- | ---------------------------- |
-| `pnpm dev`                      | Start server in dev mode     |
-| `pnpm --filter common generate` | Generate SQL migration files |
-| `pnpm --filter common migrate`  | Run database migration       |
-| `pnpm build`                    | Compile typescript code      |
+| Command                         | Description                                                                                                                              |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                      | Start server in dev mode                                                                                                                 |
+| `pnpm --filter common generate` | Generate SQL migration files on folder `./packages/common/migrations/`                                                                   |
+| `pnpm --filter common migrate`  | Run database migration. It uses DB_URL env variable to connect to the database (example: postgres://user:password@localhost:5432/dbname) |
+| `pnpm --filter common dbmlGen`  | Generate DBML file based on Models. Output file on `./packages/common/docs/schema.dbml`                                                  |
+| `pnpm build`                    | Compile typescript code                                                                                                                  |

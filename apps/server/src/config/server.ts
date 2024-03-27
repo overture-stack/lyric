@@ -19,7 +19,7 @@ const getRequiredConfig = (name: string) => {
 
 export const defaultAppConfig: AppConfig = {
 	db: {
-		host: getRequiredConfig('DB_URL'),
+		host: getRequiredConfig('DB_HOST'),
 		port: Number(getRequiredConfig('DB_PORT')),
 		database: getRequiredConfig('DB_NAME'),
 		user: getRequiredConfig('DB_USER'),

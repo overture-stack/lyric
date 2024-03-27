@@ -13,14 +13,16 @@ const client = (schemaServiceUrl: string, logger: Logger) => {
 		 * @returns A Dictionary found
 		 */
 		async fetchDictionaryByVersion(name: string, version: string): Promise<dictionaryEntities.SchemasDictionary> {
+			let newSchema;
 			try {
-				const newSchema = await dictionaryRestClient.fetchSchema(schemaServiceUrl, name, version);
-				if (!newSchema) throw new BadRequest(`Schema with name '${name}' and version '${version}' not found`);
-				return newSchema;
+				newSchema = await dictionaryRestClient.fetchSchema(schemaServiceUrl, name, version);
 			} catch (error) {
 				logger.error(LOG_MODULE, `Error Fetching dictionary from lectern`, error);
 				throw new ServiceUnavailable();
 			}
+
+			if (!newSchema) throw new BadRequest(`Schema with name '${name}' and version '${version}' not found`);
+			return newSchema;
 		},
 	};
 };

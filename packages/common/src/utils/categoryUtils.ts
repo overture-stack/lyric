@@ -1,10 +1,8 @@
-import { eq } from 'drizzle-orm/sql';
 import { isEmpty } from 'lodash-es';
 
 import { Dependencies } from '../config/config.js';
-import { Category, NewCategory, dictionaryCategories } from '../models/dictionary_categories.js';
+import { Category, NewCategory } from '../models/dictionary_categories.js';
 import categoryRepository from '../repository/categoryRepository.js';
-import { BadRequest } from './errors.js';
 
 const utils = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'CATEGORY_UTILS';
@@ -18,10 +16,10 @@ const utils = (dependencies: Dependencies) => {
 		 */
 		createCategoryIfDoesNotExist: async (categoryName: string): Promise<Category> => {
 			try {
-				const foundCategory = await categoryRepo.select({}, eq(dictionaryCategories.name, categoryName));
+				const foundCategory = await categoryRepo.getCategoryByName(categoryName);
 				if (!isEmpty(foundCategory)) {
-					logger.info(LOG_MODULE, `Category '${categoryName}' already exists. Not doing any action`);
-					return foundCategory[0];
+					logger.info(LOG_MODULE, `Category '${categoryName}' already exists`);
+					return foundCategory;
 				}
 
 				const newCategory: NewCategory = {
@@ -33,22 +31,6 @@ const utils = (dependencies: Dependencies) => {
 				logger.error(LOG_MODULE, `Error saving Category`, error);
 				throw error;
 			}
-		},
-
-		/**
-		 * Finds a Category instance based on its unique ID
-		 * @param {number} categoryId The ID of the Category
-		 * @returns A Category instance
-		 */
-		getCategoryById: async (categoryId: number): Promise<Category> => {
-			const categoryFound = await categoryRepo.select({}, eq(dictionaryCategories.id, categoryId));
-
-			if (isEmpty(categoryFound) || categoryFound.length == 0) {
-				logger.error(LOG_MODULE, `Category '${categoryId}' not found`);
-				throw new BadRequest('Invalid Category');
-			}
-
-			return categoryFound[0];
 		},
 	};
 };

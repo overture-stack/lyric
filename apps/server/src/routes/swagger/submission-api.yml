@@ -11,10 +11,19 @@
         type: string
         required: true
     responses:
-      201:
-        description: Submission accepted
+      200:
+        description: Active Submission
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActiveSubmissionResult'
+
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
 
 /submission/category/{categoryId}/upload:
   post:
@@ -39,21 +48,19 @@
                 items:
                   type: string
                   format: binary
+              organization:
+                type: string
     responses:
-      201:
+      200:
         description: Submission accepted
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateSubmissionResult'
+      400:
+        $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
-      422:
-        description: Submission failed
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateSubmissionResult'
       500:
         $ref: '#/components/responses/ServerError'
       503:
