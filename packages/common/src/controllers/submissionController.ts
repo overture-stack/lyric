@@ -5,6 +5,7 @@ import { Dependencies } from '../config/config.js';
 import submissionService from '../services/submissionService.js';
 import { BadRequest, NotFound, NotImplemented, getErrorMessage } from '../utils/errors.js';
 import { validateTsvExtension } from '../utils/fileUtils.js';
+import { isEmptyString } from '../utils/formatUtils.js';
 import { BATCH_ERROR_TYPE, BatchError } from '../utils/types.js';
 
 const controller = (dependencies: Dependencies) => {
@@ -16,7 +17,7 @@ const controller = (dependencies: Dependencies) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const files = req.files as Express.Multer.File[];
-				const organization = req.body.organization;
+				const organization: string = req.body.organization;
 
 				logger.info(
 					LOG_MODULE,
@@ -27,7 +28,7 @@ const controller = (dependencies: Dependencies) => {
 					throw new BadRequest('Invalid categoryId number format');
 				}
 
-				if (!organization) {
+				if (isEmptyString(organization)) {
 					throw new BadRequest('Request is missing `organization` parameter.');
 				}
 
@@ -63,12 +64,9 @@ const controller = (dependencies: Dependencies) => {
 					logger.error(LOG_MODULE, 'Found some errors processing this request');
 				}
 
-				// HTTP 200 status Submission Accepted
-				const status = 200;
-
 				// This response provides the details of file Submission
 				return res
-					.status(status)
+					.status(200)
 					.send({ ...resultSubmission, batchErrors: [...fileErrors, ...resultSubmission?.batchErrors] });
 			} catch (error) {
 				next(error);

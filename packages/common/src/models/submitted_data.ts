@@ -7,15 +7,16 @@ import { dictionaryCategories } from './dictionary_categories.js';
 export const submittedData = pgTable('submitted_data', {
 	id: serial('id').primaryKey(),
 	data: jsonb('data'),
+	dictionaryCategoryId: integer('dictionary_category_id').references(() => dictionaryCategories.id),
 	entityName: varchar('entity_name').notNull(),
-	dictionaryCategoryId: integer('dictionary_category_id'),
-	organization: varchar('organization').notNull(),
-	lastValidSchemaId: integer('last_valid_schema_id'),
-	originalSchemaId: integer('original_schema_id'),
 	isValid: boolean('is_valid'),
+	lastValidSchemaId: integer('last_valid_schema_id').references(() => dictionaries.id),
+	organization: varchar('organization').notNull(),
+	originalSchemaId: integer('original_schema_id').references(() => dictionaries.id),
 	createdAt: timestamp('created_at').defaultNow(),
-	udpatedAt: timestamp('updated_at').defaultNow(),
 	createdBy: varchar('created_by'),
+	updatedAt: timestamp('updated_at').defaultNow(),
+	updatedBy: varchar('updated_by'),
 });
 
 export const submittedDataRelations = relations(submittedData, ({ one }) => ({
@@ -26,10 +27,12 @@ export const submittedDataRelations = relations(submittedData, ({ one }) => ({
 	lastValidSchema: one(dictionaries, {
 		fields: [submittedData.lastValidSchemaId],
 		references: [dictionaries.id],
+		relationName: 'lastValidSchema',
 	}),
 	originalSchema: one(dictionaries, {
 		fields: [submittedData.originalSchemaId],
 		references: [dictionaries.id],
+		relationName: 'originalSchema',
 	}),
 }));
 

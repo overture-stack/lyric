@@ -1,17 +1,17 @@
 import { parallel } from '@overturebio-stack/lectern-client';
-import { and, eq, or } from 'drizzle-orm';
-import { flatten, isEmpty, toNumber } from 'lodash-es';
-
 import {
 	SchemaValidationError,
 	SchemasDictionary,
 	TypedDataRecord,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import { flatten, isEmpty, toNumber } from 'lodash-es';
+
 import { Dependencies } from '../config/config.js';
-import { NewSubmission, Submission, submissions } from '../models/submissions.js';
+import { NewSubmission, Submission } from '../models/submissions.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
 import { TsvRecordAsJsonObj, readHeaders } from './fileUtils.js';
+import { isNumber } from './formatUtils.js';
 import { BATCH_ERROR_TYPE, BatchError, SUBMISSION_STATE, SubmissionEntity } from './types.js';
 
 const utils = (dependencies: Dependencies) => {
@@ -21,7 +21,7 @@ const utils = (dependencies: Dependencies) => {
 	return {
 		/**
 		 * Creates a new Active Submission in database or update if already exists
-		 * @param {any} idActiveSubmission ID of the Active Submission if already exists
+		 * @param {number | undefined} idActiveSubmission ID of the Active Submission if already exists
 		 * @param {Record<string, SubmissionEntity>} entityMap Map of Entities with Entity Types as keys
 		 * @param {string} categoryId The category ID of the Submission
 		 * @param {Record<string, SchemaValidationError[]>} schemaErrors Array of schemaErrors
@@ -30,7 +30,7 @@ const utils = (dependencies: Dependencies) => {
 		 * @returns An Active Submission created or updated
 		 */
 		createOrUpdateActiveSubmission: async (
-			idActiveSubmission: any,
+			idActiveSubmission: number | undefined,
 			entityMap: Record<string, SubmissionEntity>,
 			categoryId: string,
 			schemaErrors: Record<string, SchemaValidationError[]>,
@@ -41,20 +41,16 @@ const utils = (dependencies: Dependencies) => {
 			let updatedSubmission: Submission;
 			const newStateSubmission =
 				Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATE.INVALID : SUBMISSION_STATE.VALID;
-			if (toNumber(idActiveSubmission)) {
+			if (isNumber(idActiveSubmission)) {
 				// Update with new data
-				const updatedRecord = await submissionRepo.update(
-					{
-						data: entityMap,
-						state: newStateSubmission,
-						organization,
-						dictionaryId,
-						updatedBy: userName,
-						errors: schemaErrors,
-					},
-					eq(submissions.id, idActiveSubmission),
-				);
-				updatedSubmission = updatedRecord[0];
+				updatedSubmission = await submissionRepo.update(toNumber(idActiveSubmission), {
+					data: entityMap,
+					state: newStateSubmission,
+					organization,
+					dictionaryId,
+					updatedBy: userName,
+					errors: schemaErrors,
+				});
 				logger.info(
 					LOG_MODULE,
 					`Updated Active submission '${updatedSubmission.id}' for category '${updatedSubmission.dictionaryCategoryId}'`,
@@ -77,6 +73,7 @@ const utils = (dependencies: Dependencies) => {
 		},
 
 		/**
+<<<<<<< HEAD
 		 * Gets the current 'open' active submission based on Category ID
 		 * @param {number} categoryId A Category ID
 		 * @returns An Active Submission
@@ -101,6 +98,8 @@ const utils = (dependencies: Dependencies) => {
 		},
 
 		/**
+=======
+>>>>>>> feat/refactor-submission
 		 * Removes invalid/duplicated files
 		 * @param {Express.Multer.File[]} files An array of files
 		 * @param {string[]} dictionarySchemaNames Schema names in the dictionary
@@ -125,7 +124,7 @@ const utils = (dependencies: Dependencies) => {
 						message: 'Multiple schemas matches this file',
 						batchName: file.originalname,
 					});
-				} else if (matchingName.length == 1) {
+				} else if (matchingName.length === 1) {
 					logger.debug(LOG_MODULE, `Mapping a valid schema name '${matchingName[0]}' for file '${file.originalname}'`);
 					validFileEntity[matchingName[0]] = file;
 				} else {

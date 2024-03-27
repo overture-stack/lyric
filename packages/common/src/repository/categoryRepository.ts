@@ -1,7 +1,6 @@
-import { SelectedFields } from 'drizzle-orm/pg-core/query-builders/select.types';
-import { SQL, eq } from 'drizzle-orm/sql';
-import { isEmpty } from 'lodash-es';
+import { eq } from 'drizzle-orm/sql';
 
+import { SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { Dependencies } from '../config/config.js';
 import { Category, NewCategory, dictionaryCategories } from '../models/dictionary_categories.js';
 import { ServiceUnavailable } from '../utils/errors.js';
@@ -27,57 +26,54 @@ const repository = (dependencies: Dependencies) => {
 		},
 
 		/**
-		 * Find a Category in Database
-		 * @param selectionFields Specific fields we want to get. Use '{}' (empty Object) to get all the fields from a Category
-		 * @param conditions SQL where clause
+		 * Find a Category matching a category name
+		 * @param {string} name Category name
 		 * @returns The Category found
 		 */
-		select: async <P extends Partial<(typeof dictionaryCategories)['_']['columns']>>(
-			selectionFields: P,
-			conditions: SQL<unknown> | ((aliases: SelectedFields) => SQL<unknown> | undefined) | undefined,
-		): Promise<Category[]> => {
+		getCategoryByName: async (name: string): Promise<Category | undefined> => {
 			try {
-				let result;
-				if (isEmpty(selectionFields)) {
-					result = await db.select().from(dictionaryCategories).where(conditions);
-				} else {
-					result = await db.select(selectionFields).from(dictionaryCategories).where(conditions);
-				}
-
-				logger.debug(LOG_MODULE, `Found Categories '${result?.map((cat) => cat?.name)}' in database`);
-				return result;
+				return await db.query.dictionaryCategories.findFirst({
+					where: eq(dictionaryCategories.name, name),
+				});
 			} catch (error: any) {
 				logger.error(LOG_MODULE, `Failed querying category`, error);
 				throw new ServiceUnavailable();
 			}
 		},
-		findFirst: async (
-			whereClause: SQL<unknown> | ((aliases: SelectedFields) => SQL<unknown> | undefined) | undefined,
-			withRelations: any,
-		): Promise<any> => {
+
+		/**
+		 * Finds the current Dictionary for a Category
+		 * @param {number} categoryId Category ID
+		 * @returns The current Dictionary for this category
+		 */
+		getActiveDictionaryByCategory: async (
+			categoryId: number,
+		): Promise<(SchemasDictionary & { id: number }) | undefined> => {
 			try {
 				const result = await db.query.dictionaryCategories.findFirst({
-					where: whereClause,
-					with: withRelations,
+					where: eq(dictionaryCategories.id, categoryId),
+					with: {
+						activeDictionary: {
+							columns: {
+								id: true,
+								name: true,
+								version: true,
+								dictionary: true,
+							},
+						},
+					},
 				});
-				logger.debug(LOG_MODULE, `Found '${result?.name}' category in database`);
-				return result;
+				if (result?.activeDictionary) {
+					return {
+						id: result.activeDictionary.id,
+						version: result?.activeDictionary.version,
+						name: result?.activeDictionary.name,
+						schemas: result?.activeDictionary.dictionary,
+					};
+				}
+				return undefined;
 			} catch (error) {
-				logger.error(LOG_MODULE, `Failed FindFirst Query on Category`, error);
-				throw new ServiceUnavailable();
-			}
-		},
-
-		updateCurrentDictionaryOnCategory: async (dictionaryId: number, categoryId: number) => {
-			try {
-				return await db
-					.update(dictionaryCategories)
-					.set({
-						activeDictionaryId: dictionaryId,
-					})
-					.where(eq(dictionaryCategories.id, categoryId));
-			} catch (error) {
-				logger.error(LOG_MODULE, `Failed update current dictionary on Category`, error);
+				logger.error(LOG_MODULE, `Failed get Active Dictionary By Category '${categoryId}'`, error);
 				throw new ServiceUnavailable();
 			}
 		},
