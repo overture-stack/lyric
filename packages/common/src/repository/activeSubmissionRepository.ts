@@ -42,6 +42,22 @@ const repository = (dependencies: Dependencies) => {
 				throw new ServiceUnavailable();
 			}
 		},
+
+		/**
+		 * Finds a Submission by ID
+		 * @param {number} submissionId Submission ID
+		 * @returns The Submission found
+		 */
+		getSubmissionById: async (submissionId: number): Promise<Submission | undefined> => {
+			try {
+				return await db.query.submissions.findFirst({
+					where: and(eq(submissions.id, submissionId)),
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed getting Submission with id '${submissionId}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
 		/**
 		 * Update a Submission record in database
 		 * @param {number} submissionId Submission ID to update

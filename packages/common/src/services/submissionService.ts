@@ -1,17 +1,20 @@
 import { SchemaValidationError, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { isEmpty } from 'lodash-es';
 
+import { Submission } from 'src/models/submissions.js';
 import { Dependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
-import { BadRequest } from '../utils/errors.js';
+import { BadRequest, StateConflict } from '../utils/errors.js';
 import { tsvToJson } from '../utils/fileUtils.js';
 import submissionUtils from '../utils/submissionUtils.js';
 import {
 	BatchError,
 	CREATE_SUBMISSION_STATE,
+	CommitSubmissionResult,
 	CreateSubmissionResult,
 	CreateSubmissionState,
+	SUBMISSION_STATE,
 	SubmissionEntity,
 	ValidateFilesParams,
 } from '../utils/types.js';
@@ -67,6 +70,20 @@ const service = (dependencies: Dependencies) => {
 				organization,
 			);
 		}
+	};
+
+	const performCommitSubmission = async (submission: Submission): Promise<CommitSubmissionResult> => {
+		// TODO: get Submitted Data by categoryId
+		// TODO: merge existing Submitted data with new submission
+		// TODO: validate consolidatted Submission vs current schema
+		// TODO: update DB
+
+		return {
+			status: '',
+			dictionary: '',
+			processedEntities: [],
+			errors: [],
+		};
 	};
 
 	return {
@@ -143,6 +160,21 @@ const service = (dependencies: Dependencies) => {
 			const { getActiveSubmissionWithRelations } = submissionRepository(dependencies);
 
 			return await getActiveSubmissionWithRelations(categoryId);
+		},
+
+		commitSubmission: async (categoryId: number, submissionId: number): Promise<CommitSubmissionResult> => {
+			const { getSubmissionById } = submissionRepository(dependencies);
+
+			const submission = await getSubmissionById(submissionId);
+			if (isEmpty(submission)) throw new BadRequest(`Submission '${submissionId}' not found`);
+
+			if (submission.dictionaryCategoryId !== categoryId)
+				throw new BadRequest(`Category ID provided does not match the category for the Submission`);
+
+			if (submission.state !== SUBMISSION_STATE.VALID)
+				throw new StateConflict('Submission does not have state VALID and cannot be committed');
+
+			return await performCommitSubmission(submission);
 		},
 	};
 };

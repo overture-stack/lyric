@@ -3,7 +3,7 @@ import { NextFunction, Request, Response } from 'express';
 import { isEmpty, isNaN } from 'lodash-es';
 import { Dependencies } from '../config/config.js';
 import submissionService from '../services/submissionService.js';
-import { BadRequest, NotFound, NotImplemented, getErrorMessage } from '../utils/errors.js';
+import { BadRequest, NotFound, getErrorMessage } from '../utils/errors.js';
 import { validateTsvExtension } from '../utils/fileUtils.js';
 import { isEmptyString } from '../utils/formatUtils.js';
 import { BATCH_ERROR_TYPE, BatchError } from '../utils/types.js';
@@ -74,8 +74,19 @@ const controller = (dependencies: Dependencies) => {
 		},
 		commit: async (req: Request, res: Response, next: NextFunction) => {
 			try {
-				// TODO: Commit active submissions
-				throw new NotImplemented();
+				const categoryId = Number(req.params.categoryId);
+				const submissionId = Number(req.params.id);
+
+				if (isNaN(categoryId)) {
+					throw new BadRequest('Invalid categoryId number format');
+				}
+				if (isNaN(submissionId)) {
+					throw new BadRequest('Invalid submissionId number format');
+				}
+
+				const commitSubmission = await service.commitSubmission(categoryId, submissionId);
+
+				return res.status(200).send(commitSubmission);
 			} catch (error) {
 				next(error);
 			}

@@ -36,6 +36,13 @@ export type CreateSubmissionResult = {
 	batchErrors: DeepReadonly<BatchError>[];
 };
 
+export type CommitSubmissionResult = {
+	status: string;
+	dictionary: {};
+	processedEntities: string[];
+	errors?: DeepReadonly<BatchError>[];
+};
+
 export type SubmissionEntity = {
 	batchName: string;
 	creator: string;
