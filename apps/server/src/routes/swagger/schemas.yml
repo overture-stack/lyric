@@ -9,6 +9,13 @@ components:
           schema:
             $ref: '#/components/responses/Error'
 
+    StateConflict:
+      description: State Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
+
     UnauthorizedError:
       description: Access token is missing or invalid
       content:
@@ -66,7 +73,35 @@ components:
           description: Entities that are being processed
           items:
             type: string
-
+    CommitSubmissionResult:
+      required:
+        - status
+        - dictionary
+      type: object
+      properties:
+        status:
+          type: string
+          description: Result of Commiting Submission
+          enum: ['SUCCESS', 'FAILED']
+        dictionary:
+          type: object
+          description: The dictionary used to commit submission
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+        processedEntities:
+          type: array
+          description: Entities that are being processed
+          items:
+            type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/ValidationError'
     ActiveSubmissionResult:
       type: object
       properties:

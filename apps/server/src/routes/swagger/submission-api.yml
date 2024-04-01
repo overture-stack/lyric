@@ -82,9 +82,17 @@
         required: true
     responses:
       200:
-        description: Submission accepted
+        description: Commit Submission
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommitSubmissionResult'
+      400:
+        $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      409:
+        $ref: '#/components/responses/StateConflict'
       500:
         $ref: '#/components/responses/ServerError'
       503:
