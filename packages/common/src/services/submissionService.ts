@@ -77,11 +77,15 @@ const service = (dependencies: Dependencies) => {
 		 * @param {string} organization Organization name
 		 * @returns The Active Submission created or Updated
 		 */
-		uploadSubmission: async (
-			files: Express.Multer.File[],
-			categoryId: number,
-			organization: string,
-		): Promise<CreateSubmissionResult> => {
+		uploadSubmission: async ({
+			files,
+			categoryId,
+			organization,
+		}: {
+			files: Express.Multer.File[];
+			categoryId: number;
+			organization: string;
+		}): Promise<CreateSubmissionResult> => {
 			logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
 			const { checkFileNames, checkEntityFieldNames } = submissionUtils(dependencies);
 			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);

@@ -21,7 +21,9 @@ const controller = (dependencies: Dependencies) => {
 
 				logger.info(
 					LOG_MODULE,
-					`Upload Submission Request categoryId '${categoryId}' organization '${organization}' files '${files?.map((f) => f.originalname)}'`,
+					`Upload Submission Request: categoryId '${categoryId}'`,
+					` organization '${organization}'`,
+					` files '${files?.map((f) => f.originalname)}'`,
 				);
 
 				if (isNaN(categoryId)) {
@@ -56,7 +58,7 @@ const controller = (dependencies: Dependencies) => {
 					}
 				}
 
-				const resultSubmission = await service.uploadSubmission(validFiles, categoryId, organization);
+				const resultSubmission = await service.uploadSubmission({ files: validFiles, categoryId, organization });
 
 				if (fileErrors.length == 0 && resultSubmission.batchErrors.length == 0) {
 					logger.info(LOG_MODULE, `Submission uploaded successfully`);
