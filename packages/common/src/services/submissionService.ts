@@ -1,10 +1,5 @@
-import { functions } from '@overturebio-stack/lectern-client';
-import {
-	SchemaData,
-	SchemaValidationError,
-	SchemasDictionary,
-} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
-import { groupBy, has, includes, isArray, isEmpty } from 'lodash-es';
+import { SchemaValidationError, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import { includes, isArray, isEmpty } from 'lodash-es';
 
 import { Dependencies } from '../config/config.js';
 import { NewSubmittedData } from '../models/submitted_data.js';
@@ -14,6 +9,7 @@ import submittedRepository from '../repository/submittedRepository.js';
 import { BadRequest, StateConflict } from '../utils/errors.js';
 import { tsvToJson } from '../utils/fileUtils.js';
 import submissionUtils from '../utils/submissionUtils.js';
+import submittedDataUtils from '../utils/submittedDataUtils.js';
 import {
 	BatchError,
 	CREATE_SUBMISSION_STATE,
@@ -82,35 +78,20 @@ const service = (dependencies: Dependencies) => {
 	const performCommitSubmissionAsync = async (params: CommitSubmissionParams) => {
 		const submissionRepo = submissionRepository(dependencies);
 		const dataSubmittedRepo = submittedRepository(dependencies);
+		const { mapSchemaDataByEntity, validateSchemas, groupErrorsByIndex, hasErrorsByIndex } =
+			submittedDataUtils(dependencies);
 
 		const { dictionary, data, submission } = params;
 
-		const schemasDictionary: SchemasDictionary = {
-			name: dictionary.name,
-			version: dictionary.version,
-			schemas: dictionary.schemas,
-		};
+		const schemasDataToValidate = mapSchemaDataByEntity(data);
 
-		const schemasDataToValidate = data.reduce(
-			(acc: { original: Record<string, NewSubmittedData[]>; schemaData: Record<string, SchemaData> }, cur) => {
-				acc.schemaData[cur.entityName] = [...(acc.schemaData[cur.entityName] || []), { ...cur.data }];
-				acc.original[cur.entityName] = [...(acc.original[cur.entityName] || []), { ...cur }];
-				return acc;
-			},
-			{ original: {}, schemaData: {} },
-		);
-
-		const resultValidation = functions.processSchemas(schemasDictionary, schemasDataToValidate.schemaData);
+		const resultValidation = validateSchemas(dictionary, schemasDataToValidate.schemaData);
 
 		Object.entries(resultValidation).forEach(([entityName, { validationErrors }]) => {
-			const hasErrorByIndex = groupBy(validationErrors, 'index');
-
-			if (Object.keys(hasErrorByIndex).length > 0) {
-				logger.info(LOG_MODULE, `Entity '${entityName}' has some errors`, JSON.stringify(hasErrorByIndex));
-			}
+			const hasErrorByIndex = groupErrorsByIndex(validationErrors, entityName);
 
 			schemasDataToValidate.original[entityName].map((data, index) => {
-				data.isValid = !has(hasErrorByIndex, index);
+				data.isValid = !hasErrorsByIndex(hasErrorByIndex, index);
 				if (data.id) {
 					logger.debug(LOG_MODULE, `Updating submittedData '${data.id}' in entity '${entityName}' index '${index}'`);
 					dataSubmittedRepo.update(data.id, {
