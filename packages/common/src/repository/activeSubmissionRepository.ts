@@ -65,8 +65,17 @@ const repository = (dependencies: Dependencies) => {
 		 * @returns An updated record
 		 */
 		update: async (submissionId: number, newData: Partial<Submission>): Promise<Submission> => {
-			const updated = await db.update(submissions).set(newData).where(eq(submissions.id, submissionId)).returning();
-			return updated[0];
+			try {
+				const updated = await db
+					.update(submissions)
+					.set({ ...newData, updatedAt: new Date() })
+					.where(eq(submissions.id, submissionId))
+					.returning();
+				return updated[0];
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed updating Active Submission`, error);
+				throw new ServiceUnavailable();
+			}
 		},
 
 		/**

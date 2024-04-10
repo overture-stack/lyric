@@ -1,16 +1,23 @@
-import { SchemaValidationError, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
-import { isEmpty } from 'lodash-es';
+import { functions } from '@overturebio-stack/lectern-client';
+import {
+	SchemaData,
+	SchemaValidationError,
+	SchemasDictionary,
+} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import { groupBy, has, includes, isArray, isEmpty } from 'lodash-es';
 
-import { Submission } from 'src/models/submissions.js';
 import { Dependencies } from '../config/config.js';
+import { NewSubmittedData } from '../models/submitted_data.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
+import submittedRepository from '../repository/submittedRepository.js';
 import { BadRequest, StateConflict } from '../utils/errors.js';
 import { tsvToJson } from '../utils/fileUtils.js';
 import submissionUtils from '../utils/submissionUtils.js';
 import {
 	BatchError,
 	CREATE_SUBMISSION_STATE,
+	CommitSubmissionParams,
 	CommitSubmissionResult,
 	CreateSubmissionResult,
 	CreateSubmissionState,
@@ -72,18 +79,57 @@ const service = (dependencies: Dependencies) => {
 		}
 	};
 
-	const performCommitSubmission = async (submission: Submission): Promise<CommitSubmissionResult> => {
-		// TODO: get Submitted Data by categoryId
-		// TODO: merge existing Submitted data with new submission
-		// TODO: validate consolidatted Submission vs current schema
-		// TODO: update DB
+	const performCommitSubmissionAsync = async (params: CommitSubmissionParams) => {
+		const submissionRepo = submissionRepository(dependencies);
+		const dataSubmittedRepo = submittedRepository(dependencies);
 
-		return {
-			status: '',
-			dictionary: '',
-			processedEntities: [],
-			errors: [],
+		const { dictionary, data, submission } = params;
+
+		const schemasDictionary: SchemasDictionary = {
+			name: dictionary.name,
+			version: dictionary.version,
+			schemas: dictionary.schemas,
 		};
+
+		const schemasDataToValidate = data.reduce(
+			(acc: { original: Record<string, NewSubmittedData[]>; schemaData: Record<string, SchemaData> }, cur) => {
+				acc.schemaData[cur.entityName] = [...(acc.schemaData[cur.entityName] || []), { ...cur.data }];
+				acc.original[cur.entityName] = [...(acc.original[cur.entityName] || []), { ...cur }];
+				return acc;
+			},
+			{ original: {}, schemaData: {} },
+		);
+
+		const resultValidation = functions.processSchemas(schemasDictionary, schemasDataToValidate.schemaData);
+
+		Object.entries(resultValidation).forEach(([entityName, { validationErrors }]) => {
+			const hasErrorByIndex = groupBy(validationErrors, 'index');
+
+			if (Object.keys(hasErrorByIndex).length > 0) {
+				logger.info(LOG_MODULE, `Entity '${entityName}' has some errors`, JSON.stringify(hasErrorByIndex));
+			}
+
+			schemasDataToValidate.original[entityName].map((data, index) => {
+				data.isValid = !has(hasErrorByIndex, index);
+				if (data.id) {
+					logger.debug(LOG_MODULE, `Updating submittedData '${data.id}' in entity '${entityName}' index '${index}'`);
+					dataSubmittedRepo.update(data.id, {
+						isValid: data.isValid,
+						lastValidSchemaId: data.lastValidSchemaId,
+						updatedBy: data.updatedBy,
+					});
+				} else {
+					logger.debug(LOG_MODULE, `Creating new submittedData in entity '${entityName}' index '${index}'`);
+					dataSubmittedRepo.save(data);
+				}
+			});
+		});
+
+		logger.info(LOG_MODULE, `Active submission '${submission.id} updated to state '${SUBMISSION_STATE.COMMITED}'`);
+		submissionRepo.update(submission.id, {
+			state: SUBMISSION_STATE.COMMITED,
+			updatedAt: new Date(),
+		});
 	};
 
 	return {
@@ -164,9 +210,12 @@ const service = (dependencies: Dependencies) => {
 
 		commitSubmission: async (categoryId: number, submissionId: number): Promise<CommitSubmissionResult> => {
 			const { getSubmissionById } = submissionRepository(dependencies);
+			const { getSubmittedDataByCategoryId } = submittedRepository(dependencies);
+			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 
 			const submission = await getSubmissionById(submissionId);
-			if (isEmpty(submission)) throw new BadRequest(`Submission '${submissionId}' not found`);
+			if (isEmpty(submission) || !submission.dictionaryId)
+				throw new BadRequest(`Submission '${submissionId}' not found`);
 
 			if (submission.dictionaryCategoryId !== categoryId)
 				throw new BadRequest(`Category ID provided does not match the category for the Submission`);
@@ -174,7 +223,55 @@ const service = (dependencies: Dependencies) => {
 			if (submission.state !== SUBMISSION_STATE.VALID)
 				throw new StateConflict('Submission does not have state VALID and cannot be committed');
 
-			return await performCommitSubmission(submission);
+			if (!categoryId) throw new BadRequest(`Active Submission does not belong to any Category`);
+
+			const currentDictionary = await getActiveDictionaryByCategory(categoryId);
+			if (isEmpty(currentDictionary)) throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+
+			const entitiesToProcess: string[] = [];
+
+			const submittedDataArray = await getSubmittedDataByCategoryId(categoryId);
+
+			const submissionsToValidate = Object.entries(submission.data).flatMap(([entityName, submissionEntity]) => {
+				entitiesToProcess.push(entityName);
+				return submissionEntity.records.map((record) => {
+					const newSubmittedData: NewSubmittedData = {
+						data: record,
+						dictionaryCategoryId: categoryId,
+						entityName,
+						organization: submission.organization,
+						originalSchemaId: submission.dictionaryId,
+						lastValidSchemaId: submission.dictionaryId,
+						createdBy: '', // TODO: get User from auth
+					};
+					return newSubmittedData;
+				});
+			}, {});
+
+			if (isArray(submittedDataArray) && submittedDataArray.length > 0) {
+				logger.info(LOG_MODULE, `Found submitted data to be revalidated`);
+				submittedDataArray.forEach((data) => {
+					submissionsToValidate.push(data);
+					if (!includes(entitiesToProcess, data.entityName)) {
+						entitiesToProcess.push(data.entityName);
+					}
+				});
+			}
+
+			performCommitSubmissionAsync({
+				data: submissionsToValidate,
+				submission,
+				dictionary: currentDictionary,
+			});
+
+			return {
+				status: CREATE_SUBMISSION_STATE.PROCESSING,
+				dictionary: {
+					name: currentDictionary.name,
+					version: currentDictionary.version,
+				},
+				processedEntities: entitiesToProcess,
+			};
 		},
 	};
 };

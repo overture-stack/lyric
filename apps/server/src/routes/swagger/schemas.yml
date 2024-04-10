@@ -96,12 +96,6 @@ components:
           description: Entities that are being processed
           items:
             type: string
-        errors:
-          type: object
-          additionalProperties:
-            type: array
-            items:
-              $ref: '#/components/schemas/ValidationError'
     ActiveSubmissionResult:
       type: object
       properties:

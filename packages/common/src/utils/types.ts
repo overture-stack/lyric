@@ -1,6 +1,11 @@
-import { SchemaValidationError, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import {
+	DataRecord,
+	SchemaValidationError,
+	SchemasDictionary,
+} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { DeepReadonly } from 'deep-freeze';
-import { TsvRecordAsJsonObj } from './fileUtils.js';
+import { Submission } from '../models/submissions.js';
+import { NewSubmittedData } from '../models/submitted_data.js';
 
 type ObjectValues<T> = T[keyof T];
 
@@ -40,13 +45,12 @@ export type CommitSubmissionResult = {
 	status: string;
 	dictionary: {};
 	processedEntities: string[];
-	errors?: DeepReadonly<BatchError>[];
 };
 
 export type SubmissionEntity = {
 	batchName: string;
 	creator: string;
-	records: ReadonlyArray<TsvRecordAsJsonObj>;
+	records: ReadonlyArray<DataRecord>;
 	dataErrors?: SchemaValidationError[];
 };
 
@@ -73,4 +77,10 @@ export interface ValidateFilesParams {
 	currentDictionaryId: number;
 	organization: string;
 	schemasDictionary: SchemasDictionary;
+}
+
+export interface CommitSubmissionParams {
+	data: Array<NewSubmittedData>;
+	dictionary: SchemasDictionary & { id: number };
+	submission: Submission;
 }

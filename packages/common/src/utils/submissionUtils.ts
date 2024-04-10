@@ -1,5 +1,6 @@
 import { parallel } from '@overturebio-stack/lectern-client';
 import {
+	DataRecord,
 	SchemaValidationError,
 	SchemasDictionary,
 	TypedDataRecord,
@@ -10,7 +11,7 @@ import { Dependencies } from '../config/config.js';
 import { NewSubmission, Submission } from '../models/submissions.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
-import { TsvRecordAsJsonObj, readHeaders } from './fileUtils.js';
+import { readHeaders } from './fileUtils.js';
 import { isNumber } from './formatUtils.js';
 import { BATCH_ERROR_TYPE, BatchError, SUBMISSION_STATE, SubmissionEntity } from './types.js';
 
@@ -124,13 +125,13 @@ const utils = (dependencies: Dependencies) => {
 		 * Run Schema Validation process
 		 * @param {SchemasDictionary} dictionary The dictionary to validate data with
 		 * @param {string} entityName The entity Name
-		 * @param {ReadonlyArray<TsvRecordAsJsonObj>} records An Array of the records to validate
+		 * @param {ReadonlyArray<DataRecord>} records An Array of the records to validate
 		 * @returns The result of the Schema validation
 		 */
 		processSchemaValidation: async (
 			dictionary: SchemasDictionary,
 			entityName: string,
-			records: ReadonlyArray<TsvRecordAsJsonObj>,
+			records: ReadonlyArray<DataRecord>,
 		): Promise<{ processedRecords: TypedDataRecord[]; schemaErrors: SchemaValidationError[] }> => {
 			const validRecords: any[] = [];
 			const schemaErrors: any[] = [];
