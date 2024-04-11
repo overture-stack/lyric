@@ -6,6 +6,12 @@ import submissionService from '../services/submissionService.js';
 import { BadRequest, NotImplemented, getErrorMessage } from '../utils/errors.js';
 import { validateTsvExtension } from '../utils/fileUtils.js';
 import { isEmptyString } from '../utils/formatUtils.js';
+import { validateRequest } from '../utils/requestValidation.js';
+import {
+	activeSubmissionRequestSchema,
+	commitSubmissionRequestSchema,
+	uploadSubmissionRequestSchema,
+} from '../utils/schemas.js';
 import { BATCH_ERROR_TYPE, BatchError } from '../utils/types.js';
 
 const controller = (dependencies: Dependencies) => {
@@ -13,12 +19,11 @@ const controller = (dependencies: Dependencies) => {
 	const { logger } = dependencies;
 	const LOG_MODULE = 'SUBMISSION_CONTROLLER';
 	return {
-		upload: async (req: Request, res: Response, next: NextFunction) => {
+		upload: validateRequest(uploadSubmissionRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const files = req.files as Express.Multer.File[];
-				const organization: string = req.body.organization;
-
+				const organization = req.body.organization;
 				logger.info(
 					LOG_MODULE,
 					`Upload Submission Request: categoryId '${categoryId}'`,
@@ -73,23 +78,26 @@ const controller = (dependencies: Dependencies) => {
 			} catch (error) {
 				next(error);
 			}
-		},
-		commit: async (req: Request, res: Response, next: NextFunction) => {
+		}),
+		commit: validateRequest(commitSubmissionRequestSchema, async (req: Request, res: Response, next: NextFunction) => {
 			try {
 				// TODO: Commit active submissions
 				throw new NotImplemented();
 			} catch (error) {
 				next(error);
 			}
-		},
-		listActive: async (req: Request, res: Response, next: NextFunction) => {
-			try {
-				// TODO: Get active submissions for a category
-				throw new NotImplemented();
-			} catch (error) {
-				next(error);
-			}
-		},
+		}),
+		listActive: validateRequest(
+			activeSubmissionRequestSchema,
+			async (req: Request, res: Response, next: NextFunction) => {
+				try {
+					// TODO: Get active submissions for a category
+					throw new NotImplemented();
+				} catch (error) {
+					next(error);
+				}
+			},
+		),
 	};
 };
 
