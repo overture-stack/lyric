@@ -4,6 +4,8 @@ import { Dependencies } from '../config/config.js';
 import dictionarySvc from '../services/dictionaryService.js';
 import { BadRequest, NotImplemented } from '../utils/errors.js';
 import { isEmptyString } from '../utils/formatUtils.js';
+import { validateRequest } from '../utils/requestValidation.js';
+import { registerDictionaryRequestSchema } from '../utils/schemas.js';
 
 const controller = (dependencies: Dependencies) => {
 	const dictionaryService = dictionarySvc(dependencies);
@@ -19,11 +21,11 @@ const controller = (dependencies: Dependencies) => {
 			}
 		},
 
-		registerDictionary: async (req: Request, res: Response, next: NextFunction) => {
+		registerDictionary: validateRequest(registerDictionaryRequestSchema, async (req, res, next) => {
 			try {
-				const categoryName: string = req.body.categoryName;
-				const dictionaryName: string = req.body.dictionaryName;
-				const dictionaryVersion: string = req.body.version;
+				const categoryName = req.body.categoryName;
+				const dictionaryName = req.body.dictionaryName;
+				const dictionaryVersion = req.body.version;
 
 				logger.info(
 					LOG_MODULE,
@@ -40,7 +42,7 @@ const controller = (dependencies: Dependencies) => {
 			} catch (error) {
 				next(error);
 			}
-		},
+		}),
 	};
 };
 

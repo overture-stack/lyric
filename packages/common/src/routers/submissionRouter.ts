@@ -5,14 +5,6 @@ import { auth } from '../middleware/auth.js';
 
 import { Dependencies } from '../config/config.js';
 import submissionControllers from '../controllers/submissionController.js';
-import { validateRequest } from '../middleware/requestValidation.js';
-import {
-	activeSubmissionRequestSchema,
-	commitSubmissionRequestSchema,
-	uploadSubmissionBodyRequestSchema,
-	uploadSubmissionFileRequestSchema,
-	uploadSubmissionPathParamsRequestSchema,
-} from '../utils/schemas.js';
 
 const router = (dependencies: Dependencies): Router => {
 	const upload = multer({ dest: '/tmp' });
@@ -21,30 +13,11 @@ const router = (dependencies: Dependencies): Router => {
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	router.get(
-		'/category/:categoryId',
-		auth,
-		validateRequest({ pathParams: activeSubmissionRequestSchema }),
-		submissionControllers(dependencies).active,
-	);
+	router.get('/category/:categoryId', auth, submissionControllers(dependencies).active);
 
-	router.post(
-		'/category/:categoryId/upload',
-		upload.array('files'),
-		validateRequest({
-			body: uploadSubmissionBodyRequestSchema,
-			files: uploadSubmissionFileRequestSchema,
-			pathParams: uploadSubmissionPathParamsRequestSchema,
-		}),
-		submissionControllers(dependencies).upload,
-	);
+	router.post('/category/:categoryId/upload', upload.array('files'), submissionControllers(dependencies).upload);
 
-	router.post(
-		'/category/:categoryId/commit/:id',
-		auth,
-		validateRequest({ pathParams: commitSubmissionRequestSchema }),
-		submissionControllers(dependencies).commit,
-	);
+	router.post('/category/:categoryId/commit/:id', auth, submissionControllers(dependencies).commit);
 	return router;
 };
 
