@@ -1,6 +1,7 @@
+import firstline from 'firstline';
 import fs from 'fs';
-import * as lodash from 'lodash-es';
 import { BadRequest } from './errors.js';
+import { notEmpty } from './formatUtils.js';
 
 const fsPromises = fs.promises;
 
@@ -18,6 +19,16 @@ export const validateTsvExtension = (file: Express.Multer.File): void => {
 	if (!file.originalname.match(/.*\.tsv$/)) {
 		throw new BadRequest('Invalid extension');
 	}
+};
+
+/**
+ * Reads only first line of the file
+ * Usefull when file is too large and we're only interested in column names
+ * @param file A file we want to read
+ * @returns a string with the content of the first line of the file
+ */
+export const readHeaders = async (file: Express.Multer.File) => {
+	return firstline(file.path);
 };
 
 /**
@@ -65,17 +76,4 @@ function formatForExcelCompatibility(data: string) {
 		.replace(/"$/, '') // excel might add a trailing double quote to indicate string
 		.replace(/""/g, '"') // excel might've used a second double quote to escape a double quote in a string
 		.trim();
-}
-
-export function notEmpty<TValue>(value: TValue | null | undefined): value is TValue {
-	// lodash 4.14 behavior note, these are all evaluated to true:
-	// _.isEmpty(null) _.isEmpty(undefined) _.isEmpty([])
-	// _.isEmpty({}) _.isEmpty('') _.isEmpty(12) & _.isEmpty(NaN)
-
-	// so check number seperately since it will evaluate to isEmpty=true
-	return (isNumber(value) && !isNaN(value)) || !lodash.isEmpty(value);
-}
-
-export function isNumber(value: any): value is number {
-	return typeof value === 'number';
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "submitted_data" ADD COLUMN "organization" varchar;
