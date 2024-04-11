@@ -7,11 +7,7 @@ import { BadRequest, NotFound, NotImplemented, getErrorMessage } from '../utils/
 import { validateTsvExtension } from '../utils/fileUtils.js';
 import { isEmptyString } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
-import {
-	activeSubmissionRequestSchema,
-	commitSubmissionRequestSchema,
-	uploadSubmissionRequestSchema,
-} from '../utils/schemas.js';
+import { uploadSubmissionRequestSchema } from '../utils/schemas.js';
 import { BATCH_ERROR_TYPE, BatchError } from '../utils/types.js';
 
 const controller = (dependencies: Dependencies) => {
@@ -79,15 +75,15 @@ const controller = (dependencies: Dependencies) => {
 				next(error);
 			}
 		}),
-		commit: validateRequest(commitSubmissionRequestSchema, async (req: Request, res: Response, next: NextFunction) => {
+		commit: async (req: Request, res: Response, next: NextFunction) => {
 			try {
 				// TODO: Commit active submissions
 				throw new NotImplemented();
 			} catch (error) {
 				next(error);
 			}
-		}),
-		active: validateRequest(activeSubmissionRequestSchema, async (req: Request, res: Response, next: NextFunction) => {
+		},
+		active: async (req: Request, res: Response, next: NextFunction) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				if (isNaN(categoryId)) {
@@ -104,7 +100,7 @@ const controller = (dependencies: Dependencies) => {
 			} catch (error) {
 				next(error);
 			}
-		}),
+		},
 	};
 };
 
