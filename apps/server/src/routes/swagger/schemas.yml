@@ -87,7 +87,7 @@ components:
             properties:
               creator:
                 type: string
-                description: User who created the submission
+                description: User name who created the submission
               records:
                 type: array
                 items:
@@ -111,13 +111,13 @@ components:
           description: Date and time of creation
         createdBy:
           type: string
-          description: User who created the submission
+          description: User name who created the submission
         udpatedAt:
           type: string
           description: Date and time of latest update
         updatedBy:
           type: string
-          description: User who last updated the submission
+          description: User name who last updated the submission
         dictionary:
           type: object
           description: Dictionary used to validate the submission

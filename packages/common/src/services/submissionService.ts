@@ -24,7 +24,7 @@ const service = (dependencies: Dependencies) => {
 		const { getActiveSubmissionByCategoryId } = submissionRepository(dependencies);
 		const { createOrUpdateActiveSubmission, processSchemaValidation } = submissionUtils(dependencies);
 
-		const { categoryId, currentDictionaryId, organization, schemasDictionary } = params;
+		const { categoryId, currentDictionaryId, organization, schemasDictionary, userName } = params;
 
 		const activeSubmission = await getActiveSubmissionByCategoryId(categoryId);
 
@@ -49,7 +49,7 @@ const service = (dependencies: Dependencies) => {
 				// To be stored in the submission data
 				updateSubmissionEntities[entityName] = {
 					batchName: file.originalname,
-					creator: '', //TODO: get user from auth
+					creator: userName,
 					records: parsedFileData,
 					dataErrors: schemaErrors,
 				};
@@ -63,7 +63,7 @@ const service = (dependencies: Dependencies) => {
 				categoryId.toString(),
 				submissionSchemaErrors,
 				currentDictionaryId,
-				'', // TODO: get User from auth.
+				userName,
 				organization,
 			);
 		}
@@ -75,16 +75,19 @@ const service = (dependencies: Dependencies) => {
 		 * @param {Express.Multer.File[]} files An array of files
 		 * @param {number} categoryId Category ID of the Submission
 		 * @param {string} organization Organization name
+		 * @param {string} userName User name creating the Submission
 		 * @returns The Active Submission created or Updated
 		 */
 		uploadSubmission: async ({
 			files,
 			categoryId,
 			organization,
+			userName,
 		}: {
 			files: Express.Multer.File[];
 			categoryId: number;
 			organization: string;
+			userName: string;
 		}): Promise<CreateSubmissionResult> => {
 			logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
 			const { checkFileNames, checkEntityFieldNames } = submissionUtils(dependencies);
@@ -121,6 +124,7 @@ const service = (dependencies: Dependencies) => {
 						currentDictionaryId: currentDictionary.id,
 						organization,
 						schemasDictionary,
+						userName,
 					});
 				}
 			}
@@ -143,10 +147,10 @@ const service = (dependencies: Dependencies) => {
 			};
 		},
 
-		activeSubmission: async (categoryId: number) => {
+		getActiveSubmission: async (categoryId: number, userName: string) => {
 			const { getActiveSubmissionWithRelations } = submissionRepository(dependencies);
 
-			return await getActiveSubmissionWithRelations(categoryId);
+			return await getActiveSubmissionWithRelations(categoryId, userName);
 		},
 	};
 };

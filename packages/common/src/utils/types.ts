@@ -65,5 +65,6 @@ export interface ValidateFilesParams {
 	categoryId: number;
 	currentDictionaryId: number;
 	organization: string;
+	userName: string;
 	schemasDictionary: SchemasDictionary;
 }

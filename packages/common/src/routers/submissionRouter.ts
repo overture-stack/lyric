@@ -13,7 +13,7 @@ const router = (dependencies: Dependencies): Router => {
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	router.get('/category/:categoryId', auth, submissionControllers(dependencies).active);
+	router.get('/category/:categoryId', auth, submissionControllers(dependencies).getActive);
 
 	router.post('/category/:categoryId/upload', upload.array('files'), submissionControllers(dependencies).upload);
 

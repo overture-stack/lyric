@@ -56,13 +56,15 @@ const repository = (dependencies: Dependencies) => {
 		/**
 		 * Get Active Submission by category
 		 * @param {number} categoryId Category ID
+		 * @param {string} userName User Name
 		 * @returns An Active Submission
 		 */
-		getActiveSubmissionWithRelations: async (categoryId: number) => {
+		getActiveSubmissionWithRelations: async (categoryId: number, userName: string) => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
+						eq(submissions.createdBy, userName),
 						or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
 					),
 					columns: {

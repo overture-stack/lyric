@@ -20,6 +20,10 @@ const controller = (dependencies: Dependencies) => {
 				const categoryId = Number(req.params.categoryId);
 				const files = req.files as Express.Multer.File[];
 				const organization = req.body.organization;
+
+				// TODO: get userName from auth
+				const userName = '';
+
 				logger.info(
 					LOG_MODULE,
 					`Upload Submission Request: categoryId '${categoryId}'`,
@@ -59,7 +63,12 @@ const controller = (dependencies: Dependencies) => {
 					}
 				}
 
-				const resultSubmission = await service.uploadSubmission({ files: validFiles, categoryId, organization });
+				const resultSubmission = await service.uploadSubmission({
+					files: validFiles,
+					categoryId,
+					organization,
+					userName,
+				});
 
 				if (fileErrors.length == 0 && resultSubmission.batchErrors.length == 0) {
 					logger.info(LOG_MODULE, `Submission uploaded successfully`);
@@ -83,7 +92,7 @@ const controller = (dependencies: Dependencies) => {
 				next(error);
 			}
 		},
-		active: async (req: Request, res: Response, next: NextFunction) => {
+		getActive: async (req: Request, res: Response, next: NextFunction) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				if (isNaN(categoryId)) {
@@ -92,7 +101,10 @@ const controller = (dependencies: Dependencies) => {
 
 				logger.info(LOG_MODULE, `Request Active Submission categoryId '${categoryId}'`);
 
-				const activeSubmission = await service.activeSubmission(categoryId);
+				// TODO: get userName from auth
+				const userName = '';
+
+				const activeSubmission = await service.getActiveSubmission(categoryId, userName);
 
 				if (isEmpty(activeSubmission)) throw new NotFound('Active Submission not found');
 
