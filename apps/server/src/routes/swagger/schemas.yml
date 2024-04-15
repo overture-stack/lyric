@@ -87,7 +87,7 @@ components:
             properties:
               creator:
                 type: string
-                description: The user who created the submission
+                description: User who created the submission
               records:
                 type: array
                 items:
