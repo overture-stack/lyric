@@ -111,16 +111,16 @@ components:
           description: Date and time of creation
         createdBy:
           type: string
-          description: The user who created the submission
+          description: User who created the submission
         udpatedAt:
           type: string
           description: Date and time of latest update
         updatedBy:
           type: string
-          description: The user who last updated the submission
+          description: User who last updated the submission
         dictionary:
           type: object
-          description: The dictionary used to validate submission
+          description: Dictionary used to validate the submission
           properties:
             name:
               type: string
@@ -128,7 +128,7 @@ components:
               type: string
         dictionaryCategory:
           type: object
-          description: The Category to which this dictionary belongs
+          description: Category this dictionary belongs in
           properties:
             id:
               type: number
@@ -156,7 +156,7 @@ components:
         index:
           type: number
           format: integer
-          description: the 0 based index of the row for this error
+          description: Index of the row for this error (starting from 0)
         errorType:
           type: string
           description: the type of error
