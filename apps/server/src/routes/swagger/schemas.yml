@@ -114,7 +114,7 @@ components:
           description: The user who created the submission
         udpatedAt:
           type: string
-          description: The date/time of the last update
+          description: Date and time of latest update
         updatedBy:
           type: string
           description: The user who last updated the submission
