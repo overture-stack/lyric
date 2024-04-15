@@ -108,7 +108,7 @@ components:
               $ref: '#/components/schemas/ValidationError'
         createdAt:
           type: string
-          description: The date/time of the creation
+          description: Date and time of creation
         createdBy:
           type: string
           description: The user who created the submission
