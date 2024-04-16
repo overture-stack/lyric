@@ -104,11 +104,13 @@ const controller = (dependencies: Dependencies) => {
 				// TODO: get userName from auth
 				const userName = '';
 
-				const activeSubmission = await service.getActiveSubmission(categoryId, userName);
+				const activeSubmissions = await service.getActiveSubmissions(categoryId, userName);
 
-				if (isEmpty(activeSubmission)) throw new NotFound('Active Submission not found');
+				if (isEmpty(activeSubmissions)) throw new NotFound('Active Submission not found');
 
-				return res.status(200).send(activeSubmission);
+				logger.info(LOG_MODULE, `Found '${activeSubmissions.length}' Active Submissions`);
+
+				return res.status(200).send(activeSubmissions);
 			} catch (error) {
 				next(error);
 			}

@@ -21,12 +21,12 @@ const service = (dependencies: Dependencies) => {
 	const { logger } = dependencies;
 
 	const validateFilesAsync = async (files: Record<string, Express.Multer.File>, params: ValidateFilesParams) => {
-		const { getActiveSubmissionByCategoryId } = submissionRepository(dependencies);
+		const { getActiveSubmission } = submissionRepository(dependencies);
 		const { createOrUpdateActiveSubmission, processSchemaValidation } = submissionUtils(dependencies);
 
 		const { categoryId, currentDictionaryId, organization, schemasDictionary, userName } = params;
 
-		const activeSubmission = await getActiveSubmissionByCategoryId(categoryId);
+		const activeSubmission = await getActiveSubmission({ categoryId, userName, organization });
 
 		const submissionSchemaErrors: Record<string, SchemaValidationError[]> = {};
 		const updateSubmissionEntities: Record<string, SubmissionEntity> = {};
@@ -147,7 +147,7 @@ const service = (dependencies: Dependencies) => {
 			};
 		},
 
-		getActiveSubmission: async (categoryId: number, userName: string) => {
+		getActiveSubmissions: async (categoryId: number, userName: string) => {
 			const { getActiveSubmissionWithRelations } = submissionRepository(dependencies);
 
 			return await getActiveSubmissionWithRelations(categoryId, userName);

@@ -25,15 +25,28 @@ const repository = (dependencies: Dependencies) => {
 		},
 
 		/**
-		 * Finds the current Active Submission by Category ID
-		 * @param {number} categoryId Category ID
-		 * @returns The Active Submission found
+		 * Finds the current Active Submission by parameters
+		 * @param {Object} params
+		 * @param {number} params.categoryId Category ID
+		 * @param {string} params.userName Name of the user
+		 * @param {string} params.organization Organization name
+		 * @returns
 		 */
-		getActiveSubmissionByCategoryId: async (categoryId: number): Promise<Submission | undefined> => {
+		getActiveSubmission: async ({
+			categoryId,
+			userName,
+			organization,
+		}: {
+			categoryId: number;
+			userName: string;
+			organization: string;
+		}): Promise<Submission | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
+						eq(submissions.createdBy, userName),
+						eq(submissions.organization, organization),
 						or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
 					),
 				});
@@ -57,11 +70,11 @@ const repository = (dependencies: Dependencies) => {
 		 * Get Active Submission by category
 		 * @param {number} categoryId Category ID
 		 * @param {string} userName User Name
-		 * @returns An Active Submission
+		 * @returns One or many Active Submissions
 		 */
 		getActiveSubmissionWithRelations: async (categoryId: number, userName: string) => {
 			try {
-				return await db.query.submissions.findFirst({
+				return await db.query.submissions.findMany({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
 						eq(submissions.createdBy, userName),
