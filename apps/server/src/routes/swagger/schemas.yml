@@ -102,13 +102,6 @@ components:
         id:
           type: number
           description: Id of the Submission
-        state:
-          type: string
-          description: State of the Submission
-          enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITED']
-        organization:
-          type: string
-          description: Organization the Submission belongs to
         data:
           type: object
           additionalProperties:
@@ -116,7 +109,7 @@ components:
             properties:
               creator:
                 type: string
-                description: The user who created the submission
+                description: User name who created the submission
               records:
                 type: array
                 items:
@@ -129,27 +122,9 @@ components:
                 type: array
                 items:
                   $ref: '#/components/schemas/ValidationError'
-        errors:
-          type: object
-          additionalProperties:
-            type: array
-            items:
-              $ref: '#/components/schemas/ValidationError'
-        createdAt:
-          type: string
-          description: The date/time of the creation
-        createdBy:
-          type: string
-          description: The user who created the submission
-        udpatedAt:
-          type: string
-          description: The date/time of the last update
-        updatedBy:
-          type: string
-          description: The user who last updated the submission
         dictionary:
           type: object
-          description: The dictionary used to validate submission
+          description: Dictionary used to validate the submission
           properties:
             name:
               type: string
@@ -157,12 +132,112 @@ components:
               type: string
         dictionaryCategory:
           type: object
-          description: The Category to which this dictionary belongs
+          description: Category this dictionary belongs in
           properties:
             id:
               type: number
             name:
               type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/ValidationError'
+        organization:
+          type: string
+          description: Organization the Submission belongs to
+        state:
+          type: string
+          description: State of the Submission
+          enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITED']
+        createdAt:
+          type: string
+          description: Date and time of creation
+        createdBy:
+          type: string
+          description: User name who created the submission
+        udpatedAt:
+          type: string
+          description: Date and time of latest update
+        updatedBy:
+          type: string
+          description: User name who last updated the submission
+
+    ActiveSubmissionSummary:
+      type: object
+      properties:
+        id:
+          type: number
+          description: Id of the Submission
+        data:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              batchName:
+                type: string
+                description: Original filename  of the submission
+              creator:
+                type: string
+                description: User name who created the submission
+              dataErrors:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationError'
+              recordsCount:
+                type: number
+                description: Number Of Records
+        dictionary:
+          type: object
+          description: Dictionary used to validate the submission
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+        dictionaryCategory:
+          type: object
+          description: Category this dictionary belongs in
+          properties:
+            id:
+              type: number
+            name:
+              type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/ValidationError'
+        organization:
+          type: string
+          description: Organization the Submission belongs to
+        state:
+          type: string
+          description: State of the Submission
+          enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITED']
+        createdAt:
+          type: string
+          description: Date and time of creation
+        createdBy:
+          type: string
+          description: User name who created the submission
+        udpatedAt:
+          type: string
+          description: Date and time of latest update
+        updatedBy:
+          type: string
+          description: User name who last updated the submission
+
+    ActiveSubmissionsSummaryResult:
+      type: array
+      items:
+        $ref: '#/components/schemas/ActiveSubmissionSummary'
+
+    ActiveSubmissionSummaryResult:
+      $ref: '#/components/schemas/ActiveSubmissionSummary'
+
     ValidationError:
       type: object
       required:
@@ -185,7 +260,7 @@ components:
         index:
           type: number
           format: integer
-          description: the 0 based index of the row for this error
+          description: Index of the row for this error (starting from 0)
         errorType:
           type: string
           description: the type of error

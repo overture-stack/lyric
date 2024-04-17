@@ -1,5 +1,5 @@
 import { SchemaValidationError, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
-import { includes, isArray, isEmpty } from 'lodash-es';
+import * as _ from 'lodash-es';
 
 import { Dependencies } from '../config/config.js';
 import { NewSubmittedData } from '../models/submitted_data.js';
@@ -11,6 +11,7 @@ import { tsvToJson } from '../utils/fileUtils.js';
 import submissionUtils from '../utils/submissionUtils.js';
 import submittedDataUtils from '../utils/submittedDataUtils.js';
 import {
+	ActiveSubmissionSummaryResponse,
 	BatchError,
 	CREATE_SUBMISSION_STATE,
 	CommitSubmissionParams,
@@ -27,12 +28,12 @@ const service = (dependencies: Dependencies) => {
 	const { logger } = dependencies;
 
 	const validateFilesAsync = async (files: Record<string, Express.Multer.File>, params: ValidateFilesParams) => {
-		const { getActiveSubmissionByCategoryId } = submissionRepository(dependencies);
+		const { getActiveSubmission } = submissionRepository(dependencies);
 		const { createOrUpdateActiveSubmission, processSchemaValidation } = submissionUtils(dependencies);
 
-		const { categoryId, currentDictionaryId, organization, schemasDictionary } = params;
+		const { categoryId, currentDictionaryId, organization, schemasDictionary, userName } = params;
 
-		const activeSubmission = await getActiveSubmissionByCategoryId(categoryId);
+		const activeSubmission = await getActiveSubmission({ categoryId, userName, organization });
 
 		const submissionSchemaErrors: Record<string, SchemaValidationError[]> = {};
 		const updateSubmissionEntities: Record<string, SubmissionEntity> = {};
@@ -55,7 +56,7 @@ const service = (dependencies: Dependencies) => {
 				// To be stored in the submission data
 				updateSubmissionEntities[entityName] = {
 					batchName: file.originalname,
-					creator: '', //TODO: get user from auth
+					creator: userName,
 					records: parsedFileData,
 					dataErrors: schemaErrors,
 				};
@@ -69,7 +70,7 @@ const service = (dependencies: Dependencies) => {
 				categoryId.toString(),
 				submissionSchemaErrors,
 				currentDictionaryId,
-				'', // TODO: get User from auth.
+				userName,
 				organization,
 			);
 		}
@@ -119,13 +120,20 @@ const service = (dependencies: Dependencies) => {
 		 * @param {Express.Multer.File[]} files An array of files
 		 * @param {number} categoryId Category ID of the Submission
 		 * @param {string} organization Organization name
+		 * @param {string} userName User name creating the Submission
 		 * @returns The Active Submission created or Updated
 		 */
-		uploadSubmission: async (
-			files: Express.Multer.File[],
-			categoryId: number,
-			organization: string,
-		): Promise<CreateSubmissionResult> => {
+		uploadSubmission: async ({
+			files,
+			categoryId,
+			organization,
+			userName,
+		}: {
+			files: Express.Multer.File[];
+			categoryId: number;
+			organization: string;
+			userName: string;
+		}): Promise<CreateSubmissionResult> => {
 			logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
 			const { checkFileNames, checkEntityFieldNames } = submissionUtils(dependencies);
 			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
@@ -135,7 +143,7 @@ const service = (dependencies: Dependencies) => {
 
 			if (files.length > 0) {
 				const currentDictionary = await getActiveDictionaryByCategory(categoryId);
-				if (isEmpty(currentDictionary)) throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+				if (_.isEmpty(currentDictionary)) throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
 
 				const schemasDictionary: SchemasDictionary = {
 					name: currentDictionary.name,
@@ -153,7 +161,7 @@ const service = (dependencies: Dependencies) => {
 				batchErrors.push(...fieldNameErrors);
 				entitiesToProcess.push(...Object.keys(checkedEntities));
 
-				if (!isEmpty(checkedEntities)) {
+				if (!_.isEmpty(checkedEntities)) {
 					// Running Schema validation in the background do not need to wait
 					// Result of validations will be stored in database
 					validateFilesAsync(checkedEntities, {
@@ -161,6 +169,7 @@ const service = (dependencies: Dependencies) => {
 						currentDictionaryId: currentDictionary.id,
 						organization,
 						schemasDictionary,
+						userName,
 					});
 				}
 			}
@@ -183,10 +192,68 @@ const service = (dependencies: Dependencies) => {
 			};
 		},
 
-		activeSubmission: async (categoryId: number) => {
-			const { getActiveSubmissionWithRelations } = submissionRepository(dependencies);
+		/**
+		 * Get an active Submission by Organization
+		 * @param {Object} params
+		 * @param {number} params.categoryId
+		 * @param {string} params.userName
+		 * @param {string} params.organization
+		 * @returns One Active Submission
+		 */
+		getActiveSubmissionByOrganization: async ({
+			categoryId,
+			userName,
+			organization,
+		}: {
+			categoryId: number;
+			userName: string;
+			organization: string;
+		}): Promise<ActiveSubmissionSummaryResponse | undefined> => {
+			const { getActiveSubmissionWithRelationsByOrganization } = submissionRepository(dependencies);
+			const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
 
-			return await getActiveSubmissionWithRelations(categoryId);
+			const submission = await getActiveSubmissionWithRelationsByOrganization({ organization, userName, categoryId });
+			if (_.isEmpty(submission)) return;
+
+			return parseActiveSubmissionSummaryResponse(submission);
+		},
+
+		/**
+		 * Get an active Submission by Category
+		 * @param {Object} params
+		 * @param {number} params.categoryId
+		 * @param {string} params.userName
+		 * @returns  One Active Submission
+		 */
+		getActiveSubmissionsByCategory: async ({
+			categoryId,
+			userName,
+		}: {
+			categoryId: number;
+			userName: string;
+		}): Promise<ActiveSubmissionSummaryResponse[] | undefined> => {
+			const { getActiveSubmissionsWithRelationsByCategory } = submissionRepository(dependencies);
+			const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
+
+			const submissions = await getActiveSubmissionsWithRelationsByCategory({ userName, categoryId });
+			if (!submissions || submissions.length === 0) return;
+
+			return submissions.map((response) => parseActiveSubmissionSummaryResponse(response));
+		},
+
+		/**
+		 * Get Active Submission by Submission ID
+		 * @param {number} submissionId A Submission ID
+		 * @returns One Active Submission
+		 */
+		getActiveSubmissionById: async (submissionId: number) => {
+			const { getActiveSubmissionWithRelationsById } = submissionRepository(dependencies);
+			const { parseActiveSubmissionResponse } = submissionUtils(dependencies);
+
+			const submission = await getActiveSubmissionWithRelationsById(submissionId);
+			if (_.isEmpty(submission)) return;
+
+			return parseActiveSubmissionResponse(submission);
 		},
 
 		commitSubmission: async (categoryId: number, submissionId: number): Promise<CommitSubmissionResult> => {
@@ -195,7 +262,7 @@ const service = (dependencies: Dependencies) => {
 			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 
 			const submission = await getSubmissionById(submissionId);
-			if (isEmpty(submission) || !submission.dictionaryId)
+			if (_.isEmpty(submission) || !submission.dictionaryId)
 				throw new BadRequest(`Submission '${submissionId}' not found`);
 
 			if (submission.dictionaryCategoryId !== categoryId)
@@ -207,7 +274,7 @@ const service = (dependencies: Dependencies) => {
 			if (!categoryId) throw new BadRequest(`Active Submission does not belong to any Category`);
 
 			const currentDictionary = await getActiveDictionaryByCategory(categoryId);
-			if (isEmpty(currentDictionary)) throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+			if (_.isEmpty(currentDictionary)) throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
 
 			const entitiesToProcess: string[] = [];
 
@@ -229,11 +296,11 @@ const service = (dependencies: Dependencies) => {
 				});
 			}, {});
 
-			if (isArray(submittedDataArray) && submittedDataArray.length > 0) {
+			if (_.isArray(submittedDataArray) && submittedDataArray.length > 0) {
 				logger.info(LOG_MODULE, `Found submitted data to be revalidated`);
 				submittedDataArray.forEach((data) => {
 					submissionsToValidate.push(data);
-					if (!includes(entitiesToProcess, data.entityName)) {
+					if (!_.includes(entitiesToProcess, data.entityName)) {
 						entitiesToProcess.push(data.entityName);
 					}
 				});

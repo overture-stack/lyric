@@ -1,12 +1,12 @@
 # Description of Submission API
 
-/submission/category/{categoryId}:
+/submission/{submissionId}:
   get:
-    summary: Get active submission for a category
+    summary: Get active submission
     tags:
       - submission
     parameters:
-      - name: categoryId
+      - name: submissionId
         in: path
         type: string
         required: true
@@ -17,6 +17,60 @@
           application/json:
             schema:
               $ref: '#/components/schemas/ActiveSubmissionResult'
+
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
+/submission/category/{categoryId}:
+  get:
+    summary: Get active submissions for a category
+    tags:
+      - submission
+    parameters:
+      - name: categoryId
+        in: path
+        type: string
+        required: true
+    responses:
+      200:
+        description: Active Submissions
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActiveSubmissionsSummaryResult'
+
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
+/submission/category/{categoryId}/organization/{organization}:
+  get:
+    summary: Get active submissions for a category and organization
+    tags:
+      - submission
+    parameters:
+      - name: categoryId
+        in: path
+        type: string
+        required: true
+      - name: organization
+        in: path
+        type: string
+        required: true
+    responses:
+      200:
+        description: Active Submissions
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActiveSubmissionSummaryResult'
 
       401:
         $ref: '#/components/responses/UnauthorizedError'
