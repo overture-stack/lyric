@@ -163,54 +163,19 @@ components:
               type: number
             name:
               type: string
-    QuerySubmittedDataRequest:
-      type: object
-      properties:
-        entitites:
-          type: array
-          items:
+    GetSubmittedDataResult:
+      type: array
+      items:
+        type: object
+        properties:
+          entityName:
             type: string
-        organization:
-          type: array
-          items:
-            type: string
-        onlyValid:
-          type: boolean
-          default: true
-        data:
-          type: array
-          items:
-            type: object
-            properties:
-              field:
-                oneOf:
-                  - type: array
-                    items:
-                      type: string
-                  - type: string
-              operator:
-                type: string
-                enum: ['eq', 'ne', 'in', 'nin']
-              value:
-                oneOf:
-                  - type: array
-                    items:
-                      type: string
-                  - type: string
+          records:
+            type: array
+            items:
+              type: object
+              description: Content of the file in JSON format
 
-    QuerySubmittedDataResult:
-      type: object
-      properties:
-        entityName:
-          type: string
-        records:
-          type: array
-          items:
-            type: object
-            properties:
-              data:
-                type: object
-                description: Content of the file in JSON format
     ValidationError:
       type: object
       required:
