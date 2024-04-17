@@ -3,8 +3,11 @@ import { connect } from '../config/db.js';
 import { getLogger } from '../config/logger.js';
 import dictionaryRouters from '../routers/dictionaryRouter.js';
 import submissionRouters from '../routers/submissionRouter.js';
+import submittedDataRouters from '../routers/submittedDataRouter.js';
 import getCategoryUtils from '../utils/categoryUtils.js';
 import getDictionaryUtils from '../utils/dictionaryUtils.js';
+import getSubmissionUtils from '../utils/submissionUtils.js';
+import getSubmittedDataUtils from '../utils/submittedDataUtils.js';
 
 /**
  * The main provider of submission resources
@@ -23,10 +26,13 @@ const provider = (configData: AppConfig) => {
 		routers: {
 			dictionary: dictionaryRouters(deps),
 			submission: submissionRouters(deps),
+			submittedData: submittedDataRouters(deps),
 		},
 		utils: {
 			dictionary: getDictionaryUtils(deps),
 			category: getCategoryUtils(deps),
+			submission: getSubmissionUtils(deps),
+			submittedData: getSubmittedDataUtils(deps),
 		},
 	};
 };

@@ -1,12 +1,20 @@
-import { eq } from 'drizzle-orm/sql';
+import { and, eq } from 'drizzle-orm/sql';
 
 import { Dependencies } from '../config/config.js';
 import { NewSubmittedData, SubmittedData, submittedData } from '../models/submitted_data.js';
 import { ServiceUnavailable } from '../utils/errors.js';
+import { BooleanTrueObject, SubmittedDataRepository, paginationOps } from '../utils/types.js';
 
 const repository = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'SUBMITTEDDATA_REPOSITORY';
 	const { db, logger } = dependencies;
+
+	const paginatedColumns = {
+		entityName: true,
+		data: true,
+		organization: true,
+		isValid: true,
+	} as BooleanTrueObject;
 	return {
 		/**
 		 * Save new SubmittedData in Database
@@ -43,6 +51,60 @@ const repository = (dependencies: Dependencies) => {
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying SubmittedData with categoryId '${categoryId}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Find SubmittedData by category ID with pagination
+		 * @param {number} categoryId Category ID
+		 * @returns The SubmittedData found
+		 */
+		getSubmittedDataByCategoryIdPaginated: async (
+			categoryId: number,
+			paginationOps: paginationOps,
+		): Promise<SubmittedDataRepository[] | undefined> => {
+			const { page, pageSize } = paginationOps;
+			try {
+				return await db.query.submittedData.findMany({
+					where: eq(submittedData.dictionaryCategoryId, categoryId),
+					columns: paginatedColumns,
+					orderBy: (submittedData, { asc }) => [asc(submittedData.entityName), asc(submittedData.id)],
+					limit: pageSize,
+					offset: (page - 1) * pageSize,
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying SubmittedData with categoryId '${categoryId}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Find SubmittedData by category ID and Organization with pagination
+		 * @param {number} categoryId Category ID
+		 * @param {string} organization Organization Name
+		 * @returns The SubmittedData found
+		 */
+		getSubmittedDataByOrganizationPaginated: async (
+			categoryId: number,
+			organization: string,
+			paginationOps: paginationOps,
+		): Promise<SubmittedDataRepository[] | undefined> => {
+			const { page, pageSize } = paginationOps;
+			try {
+				return await db.query.submittedData.findMany({
+					where: and(eq(submittedData.dictionaryCategoryId, categoryId), eq(submittedData.organization, organization)),
+					columns: paginatedColumns,
+					orderBy: (submittedData, { asc }) => [asc(submittedData.entityName), asc(submittedData.id)],
+					limit: pageSize,
+					offset: (page - 1) * pageSize,
+				});
+			} catch (error) {
+				logger.error(
+					LOG_MODULE,
+					`Failed querying SubmittedData with categoryId '${categoryId}' organization '${organization}'`,
+					error,
+				);
 				throw new ServiceUnavailable();
 			}
 		},

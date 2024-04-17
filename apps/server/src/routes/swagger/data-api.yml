@@ -33,12 +33,14 @@
         $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
       500:
         $ref: '#/components/responses/ServerError'
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
-/data/category/{categoryId}/organization{organization}:
+/data/category/{categoryId}/organization/{organization}:
   get:
     summary: Retrieve Submitted Data for a specific Category and Organization
     tags:
@@ -79,6 +81,8 @@
         $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
       500:
         $ref: '#/components/responses/ServerError'
       503:

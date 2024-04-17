@@ -7,6 +7,7 @@ import {
 import { groupBy, has } from 'lodash-es';
 import { Dependencies } from '../config/config.js';
 import { NewSubmittedData } from '../models/submitted_data.js';
+import { SubmittedDataRepository, SubmittedDataResponse } from './types.js';
 
 const utils = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_UTILS';
@@ -78,6 +79,17 @@ const utils = (dependencies: Dependencies) => {
 				logger.info(LOG_MODULE, `Data in index '${index}' is not valid`);
 			}
 			return hasErrors;
+		},
+
+		parseSubmittedData: (recordsArray: SubmittedDataRepository[]): SubmittedDataResponse[] => {
+			return recordsArray.map((record) => {
+				return {
+					entityName: record.entityName,
+					data: record.data,
+					isValid: record.isValid || false,
+					organization: record.organization,
+				};
+			});
 		},
 	};
 };

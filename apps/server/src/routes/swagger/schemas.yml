@@ -8,6 +8,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/responses/Error'
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
 
     StateConflict:
       description: State Conflict
@@ -168,13 +174,17 @@ components:
       items:
         type: object
         properties:
-          entityName:
-            type: string
-          records:
+          data:
             type: array
             items:
               type: object
               description: Content of the file in JSON format
+          entityName:
+            type: string
+          isValid:
+            type: boolean
+          organization:
+            type: string
 
     ValidationError:
       type: object

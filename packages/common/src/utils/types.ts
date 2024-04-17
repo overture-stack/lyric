@@ -6,6 +6,7 @@ import {
 import { DeepReadonly } from 'deep-freeze';
 import { Submission } from '../models/submissions.js';
 import { NewSubmittedData } from '../models/submitted_data.js';
+import { TsvRecordAsJsonObj } from './fileUtils.js';
 
 type ObjectValues<T> = T[keyof T];
 
@@ -84,3 +85,26 @@ export interface CommitSubmissionParams {
 	dictionary: SchemasDictionary & { id: number };
 	submission: Submission;
 }
+
+export type BooleanTrueObject = {
+	[key: string]: true;
+};
+
+export type paginationOps = {
+	page: number;
+	pageSize: number;
+};
+
+export type SubmittedDataRepository = {
+	data: Readonly<TsvRecordAsJsonObj>;
+	entityName: string;
+	isValid: boolean | null;
+	organization: string;
+};
+
+export type SubmittedDataResponse = {
+	data: Readonly<TsvRecordAsJsonObj>;
+	entityName: string;
+	isValid: boolean;
+	organization: string;
+};

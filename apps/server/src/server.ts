@@ -19,6 +19,7 @@ app.use(helmet());
 app.use('/ping', pingRouter);
 app.use('/dictionary', lyricProvider.routers.dictionary);
 app.use('/submission', lyricProvider.routers.submission);
+app.use('/data', lyricProvider.routers.submittedData);
 
 // Swagger route
 app.use('/api-docs', serve, setup(swaggerDoc));
