@@ -1,12 +1,42 @@
 import { and, eq, or } from 'drizzle-orm/sql';
 
+import * as _ from 'lodash-es';
 import { Dependencies } from '../config/config.js';
 import { NewSubmission, Submission, submissions } from '../models/submissions.js';
 import { ServiceUnavailable } from '../utils/errors.js';
+import { ActiveSubmissionSummaryRepository, BooleanTrueObject } from '../utils/types.js';
 
 const repository = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
 	const { db, logger } = dependencies;
+
+	const getActiveSubmissionColumns = {
+		id: true,
+		state: true,
+		organization: true,
+		data: true,
+		errors: true,
+		createdAt: true,
+		createdBy: true,
+		updatedAt: true,
+		updatedBy: true,
+	} as BooleanTrueObject;
+
+	const getActiveSubmissionRelations = {
+		dictionary: {
+			columns: {
+				name: true,
+				version: true,
+			},
+		},
+		dictionaryCategory: {
+			columns: {
+				id: true,
+				name: true,
+			},
+		},
+	};
+
 	return {
 		/**
 		 * Save a new Active Submission in Database
@@ -68,11 +98,18 @@ const repository = (dependencies: Dependencies) => {
 
 		/**
 		 * Get Active Submission by category
-		 * @param {number} categoryId Category ID
-		 * @param {string} userName User Name
+		 * @param {Object} filterParams
+		 * @param {number} filterParams.categoryId Category ID
+		 * @param {string} filterParams.userName User Name
 		 * @returns One or many Active Submissions
 		 */
-		getActiveSubmissionWithRelations: async (categoryId: number, userName: string) => {
+		getActiveSubmissionsWithRelationsByCategory: async ({
+			categoryId,
+			userName,
+		}: {
+			categoryId: number;
+			userName: string;
+		}): Promise<ActiveSubmissionSummaryRepository[] | undefined> => {
 			try {
 				return await db.query.submissions.findMany({
 					where: and(
@@ -80,31 +117,63 @@ const repository = (dependencies: Dependencies) => {
 						eq(submissions.createdBy, userName),
 						or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
 					),
-					columns: {
-						id: true,
-						state: true,
-						organization: true,
-						data: true,
-						errors: true,
-						createdAt: true,
-						createdBy: true,
-						updatedAt: true,
-						updatedBy: true,
-					},
-					with: {
-						dictionary: {
-							columns: {
-								name: true,
-								version: true,
-							},
-						},
-						dictionaryCategory: {
-							columns: {
-								id: true,
-								name: true,
-							},
-						},
-					},
+					columns: getActiveSubmissionColumns,
+					with: getActiveSubmissionRelations,
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying Active Submission with relations`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Get Active Submission by Organization
+		 * @param {Object} filterParams
+		 * @param {number} filterParams.categoryId Category ID
+		 * @param {string} filterParams.userName User Name
+		 * @param {string} filterParams.organization Organization name
+		 * @returns One Active Submission
+		 */
+		getActiveSubmissionWithRelationsByOrganization: async ({
+			categoryId,
+			userName,
+			organization,
+		}: {
+			categoryId: number;
+			userName: string;
+			organization: string;
+		}): Promise<ActiveSubmissionSummaryRepository | undefined> => {
+			try {
+				return await db.query.submissions.findFirst({
+					where: and(
+						eq(submissions.dictionaryCategoryId, categoryId),
+						eq(submissions.createdBy, userName),
+						eq(submissions.organization, organization),
+						or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
+					),
+					columns: getActiveSubmissionColumns,
+					with: getActiveSubmissionRelations,
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying Active Submission with relations`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Get Active Submission by Submission ID
+		 * @param {number} submissionId Submission ID
+		 * @returns One Active Submission
+		 */
+		getActiveSubmissionWithRelationsById: async (submissionId: number) => {
+			try {
+				return await db.query.submissions.findFirst({
+					where: and(
+						eq(submissions.id, submissionId),
+						or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
+					),
+					columns: getActiveSubmissionColumns,
+					with: getActiveSubmissionRelations,
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying Active Submission with relations`, error);

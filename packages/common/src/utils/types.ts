@@ -68,3 +68,66 @@ export interface ValidateFilesParams {
 	userName: string;
 	schemasDictionary: SchemasDictionary;
 }
+
+export type BooleanTrueObject = {
+	[key: string]: true;
+};
+
+export type DataActiveSubmissionSummary = {
+	batchName: string;
+	creator: string;
+	dataErrors?: SchemaValidationError[];
+	recordsCount: number;
+};
+
+export type DictionaryActiveSubmission = {
+	name: string;
+	version: string;
+};
+
+export type CategoryActiveSubmission = {
+	id: number;
+	name: string;
+};
+
+export type ActiveSubmissionSummaryResponse = {
+	id: number;
+	data: Record<string, DataActiveSubmissionSummary>;
+	dictionary: DictionaryActiveSubmission | null;
+	dictionaryCategory: CategoryActiveSubmission | null;
+	errors: Record<string, SchemaValidationError[]> | null;
+	organization: string;
+	state: SubmissionState | null;
+	createdAt: string | null;
+	createdBy: string;
+	updatedAt: string;
+	updatedBy: string;
+};
+
+export type ActiveSubmissionSummaryRepository = {
+	id: number;
+	data: Record<string, SubmissionEntity>;
+	dictionary: {} | null;
+	dictionaryCategory: {} | null;
+	errors: Record<string, SchemaValidationError[]> | null;
+	organization: string | null;
+	state: SubmissionState | null;
+	createdAt: Date | null;
+	createdBy: string | null;
+	updatedAt: Date | null;
+	updatedBy: string | null;
+};
+
+export type ActiveSubmissionResponse = {
+	id: number;
+	data: Record<string, SubmissionEntity>;
+	dictionary: DictionaryActiveSubmission | null;
+	dictionaryCategory: CategoryActiveSubmission | null;
+	errors: Record<string, SchemaValidationError[]> | null;
+	organization: string;
+	state: SubmissionState | null;
+	createdAt: string | null;
+	createdBy: string;
+	updatedAt: string;
+	updatedBy: string;
+};

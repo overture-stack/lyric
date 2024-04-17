@@ -92,7 +92,7 @@ const controller = (dependencies: Dependencies) => {
 				next(error);
 			}
 		},
-		getActive: async (req: Request, res: Response, next: NextFunction) => {
+		getActiveByCategory: async (req: Request, res: Response, next: NextFunction) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				if (isNaN(categoryId)) {
@@ -104,13 +104,70 @@ const controller = (dependencies: Dependencies) => {
 				// TODO: get userName from auth
 				const userName = '';
 
-				const activeSubmissions = await service.getActiveSubmissions(categoryId, userName);
+				const activeSubmissions = await service.getActiveSubmissionsByCategory({ categoryId, userName });
 
-				if (isEmpty(activeSubmissions)) throw new NotFound('Active Submission not found');
+				if (!activeSubmissions || activeSubmissions.length === 0) throw new NotFound('Active Submission not found');
 
 				logger.info(LOG_MODULE, `Found '${activeSubmissions.length}' Active Submissions`);
 
 				return res.status(200).send(activeSubmissions);
+			} catch (error) {
+				next(error);
+			}
+		},
+		getActiveByOrganization: async (req: Request, res: Response, next: NextFunction) => {
+			try {
+				const categoryId = Number(req.params.categoryId);
+				const organization = req.params.organization;
+
+				if (isNaN(categoryId)) {
+					throw new BadRequest('Invalid categoryId number format');
+				}
+
+				if (isEmptyString(organization)) {
+					throw new BadRequest('Request is missing `organization` parameter.');
+				}
+
+				logger.info(
+					LOG_MODULE,
+					`Request Active Submission categoryId '${categoryId}' and organization '${organization}'`,
+				);
+
+				// TODO: get userName from auth
+				const userName = '';
+
+				const activeSubmission = await service.getActiveSubmissionByOrganization({
+					categoryId,
+					userName,
+					organization,
+				});
+
+				if (isEmpty(activeSubmission)) throw new NotFound('Active Submission not found');
+
+				return res.status(200).send(activeSubmission);
+			} catch (error) {
+				next(error);
+			}
+		},
+
+		getActiveById: async (req: Request, res: Response, next: NextFunction) => {
+			try {
+				const submissionId = Number(req.params.submissionId);
+
+				if (isNaN(submissionId)) {
+					throw new BadRequest('Invalid submissionId number format');
+				}
+
+				logger.info(LOG_MODULE, `Request Active Submission submissionId '${submissionId}'`);
+
+				// TODO: get userName from auth
+				const userName = '';
+
+				const activeSubmission = await service.getActiveSubmissionById(submissionId);
+
+				if (isEmpty(activeSubmission)) throw new NotFound('Active Submission not found');
+
+				return res.status(200).send(activeSubmission);
 			} catch (error) {
 				next(error);
 			}

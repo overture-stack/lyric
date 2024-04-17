@@ -1,5 +1,5 @@
 import { SchemaValidationError, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
-import { isEmpty } from 'lodash-es';
+import * as _ from 'lodash-es';
 
 import { Dependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
@@ -8,6 +8,7 @@ import { BadRequest } from '../utils/errors.js';
 import { tsvToJson } from '../utils/fileUtils.js';
 import submissionUtils from '../utils/submissionUtils.js';
 import {
+	ActiveSubmissionSummaryResponse,
 	BatchError,
 	CREATE_SUBMISSION_STATE,
 	CreateSubmissionResult,
@@ -98,7 +99,7 @@ const service = (dependencies: Dependencies) => {
 
 			if (files.length > 0) {
 				const currentDictionary = await getActiveDictionaryByCategory(categoryId);
-				if (isEmpty(currentDictionary)) throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+				if (_.isEmpty(currentDictionary)) throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
 
 				const schemasDictionary: SchemasDictionary = {
 					name: currentDictionary.name,
@@ -116,7 +117,7 @@ const service = (dependencies: Dependencies) => {
 				batchErrors.push(...fieldNameErrors);
 				entitiesToProcess.push(...Object.keys(checkedEntities));
 
-				if (!isEmpty(checkedEntities)) {
+				if (!_.isEmpty(checkedEntities)) {
 					// Running Schema validation in the background do not need to wait
 					// Result of validations will be stored in database
 					validateFilesAsync(checkedEntities, {
@@ -147,10 +148,68 @@ const service = (dependencies: Dependencies) => {
 			};
 		},
 
-		getActiveSubmissions: async (categoryId: number, userName: string) => {
-			const { getActiveSubmissionWithRelations } = submissionRepository(dependencies);
+		/**
+		 * Get an active Submission by Organization
+		 * @param {Object} params
+		 * @param {number} params.categoryId
+		 * @param {string} params.userName
+		 * @param {string} params.organization
+		 * @returns One Active Submission
+		 */
+		getActiveSubmissionByOrganization: async ({
+			categoryId,
+			userName,
+			organization,
+		}: {
+			categoryId: number;
+			userName: string;
+			organization: string;
+		}): Promise<ActiveSubmissionSummaryResponse | undefined> => {
+			const { getActiveSubmissionWithRelationsByOrganization } = submissionRepository(dependencies);
+			const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
 
-			return await getActiveSubmissionWithRelations(categoryId, userName);
+			const submission = await getActiveSubmissionWithRelationsByOrganization({ organization, userName, categoryId });
+			if (_.isEmpty(submission)) return;
+
+			return parseActiveSubmissionSummaryResponse(submission);
+		},
+
+		/**
+		 * Get an active Submission by Category
+		 * @param {Object} params
+		 * @param {number} params.categoryId
+		 * @param {string} params.userName
+		 * @returns  One Active Submission
+		 */
+		getActiveSubmissionsByCategory: async ({
+			categoryId,
+			userName,
+		}: {
+			categoryId: number;
+			userName: string;
+		}): Promise<ActiveSubmissionSummaryResponse[] | undefined> => {
+			const { getActiveSubmissionsWithRelationsByCategory } = submissionRepository(dependencies);
+			const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
+
+			const submissions = await getActiveSubmissionsWithRelationsByCategory({ userName, categoryId });
+			if (!submissions || submissions.length === 0) return;
+
+			return submissions.map((response) => parseActiveSubmissionSummaryResponse(response));
+		},
+
+		/**
+		 * Get Active Submission by Submission ID
+		 * @param {number} submissionId A Submission ID
+		 * @returns One Active Submission
+		 */
+		getActiveSubmissionById: async (submissionId: number) => {
+			const { getActiveSubmissionWithRelationsById } = submissionRepository(dependencies);
+			const { parseActiveSubmissionResponse } = submissionUtils(dependencies);
+
+			const submission = await getActiveSubmissionWithRelationsById(submissionId);
+			if (_.isEmpty(submission)) return;
+
+			return parseActiveSubmissionResponse(submission);
 		},
 	};
 };
