@@ -27,7 +27,7 @@
 
 /submission/category/{categoryId}:
   get:
-    summary: Get active submissions for a category
+    summary: List active submissions for a category
     tags:
       - submission
     parameters:
@@ -52,7 +52,7 @@
 
 /submission/category/{categoryId}/organization/{organization}:
   get:
-    summary: Get active submissions for a category and organization
+    summary: List active submissions for a category and organization
     tags:
       - submission
     parameters:

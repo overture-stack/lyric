@@ -160,7 +160,6 @@ const controller = (dependencies: Dependencies) => {
 				next(error);
 			}
 		},
-
 		getActiveById: async (req: Request, res: Response, next: NextFunction) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
