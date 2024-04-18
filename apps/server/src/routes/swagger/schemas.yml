@@ -82,7 +82,7 @@ components:
         status:
           type: string
           description: Result of Commiting Submission
-          enum: ['SUCCESS', 'FAILED']
+          enum: ['PROCESSING']
         dictionary:
           type: object
           description: The dictionary used to commit submission
