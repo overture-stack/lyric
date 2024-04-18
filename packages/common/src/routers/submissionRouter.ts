@@ -13,7 +13,15 @@ const router = (dependencies: Dependencies): Router => {
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	router.get('/category/:categoryId', auth, submissionControllers(dependencies).listActive);
+	router.get('/:submissionId', auth, submissionControllers(dependencies).getActiveById);
+
+	router.get('/category/:categoryId', auth, submissionControllers(dependencies).getActiveByCategory);
+
+	router.get(
+		'/category/:categoryId/organization/:organization',
+		auth,
+		submissionControllers(dependencies).getActiveByOrganization,
+	);
 
 	router.post('/category/:categoryId/upload', upload.array('files'), submissionControllers(dependencies).upload);
 

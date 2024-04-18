@@ -1,6 +1,6 @@
 import { Dependencies } from '../config/config.js';
-
 import { Dictionary } from '../models/dictionaries.js';
+import categoryRepository from '../repository/categoryRepository.js';
 import getCategoryUtils from '../utils/categoryUtils.js';
 import getDictionaryUtils from '../utils/dictionaryUtils.js';
 import { NotImplemented } from '../utils/errors.js';
@@ -15,6 +15,8 @@ const dictionaryService = (dependencies: Dependencies) => {
 				`Register new dictionary categoryName '${categoryName}' dictionaryName '${dictionaryName}' version '${version}'`,
 			);
 			const { createCategoryIfDoesNotExist } = getCategoryUtils(dependencies);
+			const categoryRepo = categoryRepository(dependencies);
+
 			const savedCategory = await createCategoryIfDoesNotExist(categoryName);
 
 			const { createDictionaryIfDoesNotExist, fetchDictionaryByVersion } = getDictionaryUtils(dependencies);
@@ -27,7 +29,7 @@ const dictionaryService = (dependencies: Dependencies) => {
 				dictionary.schemas,
 			);
 
-			//TODO: Update the category to have this dictionary as current
+			await categoryRepo.updateCurrentDictionaryOnCategory(savedDictionary.id, savedCategory.id);
 
 			return savedDictionary;
 		},

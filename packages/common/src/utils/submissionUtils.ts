@@ -4,7 +4,7 @@ import {
 	SchemasDictionary,
 	TypedDataRecord,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
-import { flatten, isEmpty, toNumber } from 'lodash-es';
+import * as _ from 'lodash-es';
 
 import { Dependencies } from '../config/config.js';
 import { NewSubmission, Submission } from '../models/submissions.js';
@@ -12,7 +12,18 @@ import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
 import { TsvRecordAsJsonObj, readHeaders } from './fileUtils.js';
 import { isNumber } from './formatUtils.js';
-import { BATCH_ERROR_TYPE, BatchError, SUBMISSION_STATE, SubmissionEntity } from './types.js';
+import {
+	ActiveSubmissionResponse,
+	ActiveSubmissionSummaryRepository,
+	ActiveSubmissionSummaryResponse,
+	BATCH_ERROR_TYPE,
+	BatchError,
+	CategoryActiveSubmission,
+	DataActiveSubmissionSummary,
+	DictionaryActiveSubmission,
+	SUBMISSION_STATE,
+	SubmissionEntity,
+} from './types.js';
 
 const utils = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'SUBMISSION_UTILS';
@@ -43,7 +54,7 @@ const utils = (dependencies: Dependencies) => {
 				Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATE.INVALID : SUBMISSION_STATE.VALID;
 			if (isNumber(idActiveSubmission)) {
 				// Update with new data
-				updatedSubmission = await submissionRepo.update(toNumber(idActiveSubmission), {
+				updatedSubmission = await submissionRepo.update(_.toNumber(idActiveSubmission), {
 					data: entityMap,
 					state: newStateSubmission,
 					organization,
@@ -110,7 +121,7 @@ const utils = (dependencies: Dependencies) => {
 				}
 			}
 
-			if (isEmpty(validFileEntity)) {
+			if (_.isEmpty(validFileEntity)) {
 				logger.info(LOG_MODULE, `No valid files for submission`);
 			}
 
@@ -163,12 +174,12 @@ const utils = (dependencies: Dependencies) => {
 
 			logger.info(
 				LOG_MODULE,
-				`Validation completed for entity '${entityName}' with '${flatten(schemaErrors).length}' errors`,
+				`Validation completed for entity '${entityName}' with '${_.flatten(schemaErrors).length}' errors`,
 			);
 
 			return {
 				processedRecords: validRecords,
-				schemaErrors: flatten(schemaErrors),
+				schemaErrors: _.flatten(schemaErrors),
 			};
 		},
 
@@ -211,6 +222,48 @@ const utils = (dependencies: Dependencies) => {
 			return {
 				checkedEntities,
 				fieldNameErrors,
+			};
+		},
+
+		parseActiveSubmissionSummaryResponse: (
+			submission: ActiveSubmissionSummaryRepository,
+		): ActiveSubmissionSummaryResponse => {
+			let dataSummary = Object.entries(submission.data).reduce(
+				(acc, [entityName, entityData]) => {
+					acc[entityName] = { ..._.omit(entityData, 'records'), recordsCount: entityData.records.length };
+					return acc;
+				},
+				{} as Record<string, DataActiveSubmissionSummary>,
+			);
+
+			return {
+				id: submission.id,
+				data: dataSummary,
+				dictionary: submission.dictionary as DictionaryActiveSubmission,
+				dictionaryCategory: submission.dictionaryCategory as CategoryActiveSubmission,
+				errors: submission.errors,
+				organization: _.toString(submission.organization),
+				state: submission.state,
+				createdAt: _.toString(submission.createdAt?.toISOString()),
+				createdBy: _.toString(submission.createdBy),
+				updatedAt: _.toString(submission.updatedAt?.toISOString()),
+				updatedBy: _.toString(submission.updatedBy),
+			};
+		},
+
+		parseActiveSubmissionResponse: (submission: ActiveSubmissionSummaryRepository): ActiveSubmissionResponse => {
+			return {
+				id: submission.id,
+				data: submission.data,
+				dictionary: submission.dictionary as DictionaryActiveSubmission,
+				dictionaryCategory: submission.dictionaryCategory as CategoryActiveSubmission,
+				errors: submission.errors,
+				organization: _.toString(submission.organization),
+				state: submission.state,
+				createdAt: _.toString(submission.createdAt?.toISOString()),
+				createdBy: _.toString(submission.createdBy),
+				updatedAt: _.toString(submission.updatedAt?.toISOString()),
+				updatedBy: _.toString(submission.updatedBy),
 			};
 		},
 	};

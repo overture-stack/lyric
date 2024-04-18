@@ -77,6 +77,20 @@ const repository = (dependencies: Dependencies) => {
 				throw new ServiceUnavailable();
 			}
 		},
+
+		updateCurrentDictionaryOnCategory: async (dictionaryId: number, categoryId: number) => {
+			try {
+				return await db
+					.update(dictionaryCategories)
+					.set({
+						activeDictionaryId: dictionaryId,
+					})
+					.where(eq(dictionaryCategories.id, categoryId));
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed update current dictionary on Category`, error);
+				throw new ServiceUnavailable();
+			}
+		},
 	};
 };
 
