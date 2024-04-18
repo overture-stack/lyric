@@ -87,7 +87,7 @@ const controller = (dependencies: Dependencies) => {
 		commit: async (req: Request, res: Response, next: NextFunction) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				const submissionId = Number(req.params.id);
+				const submissionId = Number(req.params.submissionId);
 
 				if (isNaN(categoryId)) {
 					throw new BadRequest('Invalid categoryId number format');

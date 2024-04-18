@@ -120,7 +120,7 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
-/submission/category/{categoryId}/commit/{id}:
+/submission/category/{categoryId}/commit/{submissionId}:
   post:
     summary: Commit Active Submission
     tags:
@@ -130,7 +130,7 @@
         in: path
         type: file
         required: true
-      - name: id
+      - name: submissionId
         in: path
         type: string
         required: true
