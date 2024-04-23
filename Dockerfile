@@ -20,36 +20,39 @@ RUN npm i -g pnpm
 # create our own user to run node, don't run node in production as root
 ENV APP_UID=9999
 ENV APP_GID=9999
+ENV TEMP_PROD_DEPS=/usr/prod-deps
 RUN addgroup -S -g $APP_GID $APP_USER \
 	&& adduser -S -u $APP_UID -g $APP_GID $APP_USER \
-	&& mkdir -p ${WORKDIR} && mkdir -p /usr/pruned
+	&& mkdir -p ${WORKDIR} && mkdir -p ${TEMP_PROD_DEPS}
 
 WORKDIR ${WORKDIR}
 
 RUN chown -R ${APP_USER}:${APP_USER} ${WORKDIR}
-RUN chown -R ${APP_USER}:${APP_USER} /usr/pruned
+RUN chown -R ${APP_USER}:${APP_USER} ${TEMP_PROD_DEPS}
 
 USER ${APP_USER}:${APP_USER}
 
 ######################
-# Configure workspace image
+# Configure build image
 ######################
 
-FROM base as workspace
+FROM base as build
 
 ARG APP_USER
 ARG WORKDIR
 
-USER ${APP_USER}:${APP_USER}
+COPY --chown=${APP_USER}:${APP_USER} . ./
 
-COPY . ./
+RUN pnpm install --ignore-scripts
+
+RUN pnpm build
 
 
 ######################
-# Configure pruned image
+# Configure prod-deps image
 ######################
 
-FROM workspace AS pruned
+FROM build AS prod-deps
 
 ARG APP_USER
 ARG WORKDIR
@@ -59,7 +62,7 @@ WORKDIR ${WORKDIR}
 USER ${APP_USER}:${APP_USER}
 
 # Deploy a package from a workspace. All dependencies of the deployed package are installed inside an isolated node_modules
-RUN pnpm --filter server --prod deploy ${WORKDIR}/pruned
+RUN pnpm --filter server --prod deploy prod-deps
 
 
 ######################
@@ -69,18 +72,17 @@ FROM base AS server
 
 ARG APP_USER
 ARG WORKDIR
-ARG APPS_SERVER_DIR=${WORKDIR}/apps/server
 
 USER ${APP_USER}
 
 WORKDIR ${WORKDIR}
 
-COPY --from=pruned ${WORKDIR}/pruned/dist ./dist
-COPY --from=pruned ${WORKDIR}/pruned/node_modules ./node_modules
+COPY --from=prod-deps ${WORKDIR}/prod-deps/node_modules ./node_modules
+COPY --from=build ${WORKDIR}/apps/server/dist .
 
 EXPOSE 3000
 
 ENV COMMIT_SHA=${COMMIT}
 ENV NODE_ENV=production
 
-CMD [ "node", "./dist/src/server.js"]
+CMD [ "node", "./src/server.js"]
