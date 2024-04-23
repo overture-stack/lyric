@@ -41,7 +41,7 @@ FROM base as build
 ARG APP_USER
 ARG WORKDIR
 
-COPY --chown=${APP_USER}:${APP_USER} . ./
+COPY --chown=lyric:lyric . ./
 
 RUN pnpm install --ignore-scripts
 
