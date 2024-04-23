@@ -6,7 +6,7 @@ ARG WORKDIR=/usr/src/app
 ######################
 # Configure base image
 ######################
-FROM node:18.16.1-alpine AS base
+FROM node:20.12.2-alpine AS base
 
 ARG APP_USER
 ARG WORKDIR
