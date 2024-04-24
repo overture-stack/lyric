@@ -2,5 +2,5 @@
 	"watch": ["src"],
 	"ext": "ts",
 	"ignore": ["**/*.test.ts", "**/*.spec.ts", ".git", "node_modules"],
-	"exec": "ts-node index.ts"
+	"exec": "node --import=./register.js index.ts"
 }
