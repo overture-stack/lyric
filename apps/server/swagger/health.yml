@@ -1,0 +1,14 @@
+# Description of Health
+
+/health:
+  get:
+    summary: Check readiness of the service
+    tags:
+      - health
+    responses:
+      200:
+        description: Returns a 200 OK status code if the application is considered healthy and ready to receive traffic
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Health'
