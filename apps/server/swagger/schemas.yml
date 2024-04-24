@@ -41,6 +41,18 @@ components:
           decription: Description of the error
 
   schemas:
+    Health:
+      type: object
+      properties:
+        uptime:
+          type: string
+          description: Number of seconds the current Node.js process has been running
+        message:
+          type: string
+          description: State of the service
+        timestamp:
+          type: string
+          description: Current system's time in milliseconds since the Unix epoch
     CreateSubmissionResult:
       required:
         - state
