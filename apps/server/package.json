@@ -16,7 +16,7 @@
 	"dependencies": {
 		"common": "workspace:^",
 		"dotenv": "^16.4.1",
-		"express": "^4.18.2",
+		"express": "^4.19.2",
 		"helmet": "^7.1.0",
 		"swagger-jsdoc": "^6.2.8",
 		"swagger-ui-express": "^5.0.0",
