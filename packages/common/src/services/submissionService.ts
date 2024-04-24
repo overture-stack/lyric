@@ -296,7 +296,7 @@ const service = (dependencies: Dependencies) => {
 				});
 			}, {});
 
-			if (_.isArray(submittedDataArray) && submittedDataArray.length > 0) {
+			if (Array.isArray(submittedDataArray) && submittedDataArray.length > 0) {
 				logger.info(LOG_MODULE, `Found submitted data to be revalidated`);
 				submittedDataArray.forEach((data) => {
 					submissionsToValidate.push(data);

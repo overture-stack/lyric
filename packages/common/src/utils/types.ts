@@ -1,7 +1,7 @@
 import {
 	DataRecord,
-	SchemaValidationError,
 	SchemasDictionary,
+	SchemaValidationError,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { DeepReadonly } from 'deep-freeze';
 import { Submission } from '../models/submissions.js';
