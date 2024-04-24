@@ -190,7 +190,7 @@ const repository = (dependencies: Dependencies) => {
 		 * @param {number} submissionId Submission ID
 		 * @returns One Active Submission
 		 */
-		getActiveSubmissionWithRelationsById: async (submissionId: number) => {
+		getActiveSubmissionWithRelationsById: async (submissionId: number): Promise<ActiveSubmissionSummaryRepository | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(
