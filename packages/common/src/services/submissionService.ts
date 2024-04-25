@@ -79,19 +79,19 @@ const service = (dependencies: Dependencies) => {
 	const performCommitSubmissionAsync = async (params: CommitSubmissionParams) => {
 		const submissionRepo = submissionRepository(dependencies);
 		const dataSubmittedRepo = submittedRepository(dependencies);
-		const { mapSchemaDataByEntity, validateSchemas, groupErrorsByIndex, hasErrorsByIndex } =
+		const { groupSchemaDataByEntityName, validateSchemas, groupErrorsByIndex, hasErrorsByIndex } =
 			submittedDataUtils(dependencies);
 
 		const { dictionary, data, submission } = params;
 
-		const schemasDataToValidate = mapSchemaDataByEntity(data);
+		const schemasDataToValidate = groupSchemaDataByEntityName(data);
 
-		const resultValidation = validateSchemas(dictionary, schemasDataToValidate.schemaData);
+		const resultValidation = validateSchemas(dictionary, schemasDataToValidate.schemaDataByEntityName);
 
 		Object.entries(resultValidation).forEach(([entityName, { validationErrors }]) => {
 			const hasErrorByIndex = groupErrorsByIndex(validationErrors, entityName);
 
-			schemasDataToValidate.original[entityName].map((data, index) => {
+			schemasDataToValidate.submittedDataByEntityName[entityName].map((data, index) => {
 				data.isValid = !hasErrorsByIndex(hasErrorByIndex, index);
 				if (data.id) {
 					logger.debug(LOG_MODULE, `Updating submittedData '${data.id}' in entity '${entityName}' index '${index}'`);

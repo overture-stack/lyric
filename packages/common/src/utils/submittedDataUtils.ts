@@ -13,20 +13,35 @@ const utils = (dependencies: Dependencies) => {
 	const { logger } = dependencies;
 	return {
 		/**
-		 * Creates a map of SubmittedData grouped by entities
+		 * Creates a list of SubmittedData grouped by entities and a matching list with only schema data
 		 * @param {Array<NewSubmittedData>} data
 		 * @returns
 		 */
-		mapSchemaDataByEntity: (
+		groupSchemaDataByEntityName: (
 			data: Array<NewSubmittedData>,
-		): { original: Record<string, NewSubmittedData[]>; schemaData: Record<string, SchemaData> } => {
+		): {
+			submittedDataByEntityName: Record<string, NewSubmittedData[]>;
+			schemaDataByEntityName: Record<string, SchemaData>;
+		} => {
 			return data.reduce(
-				(acc: { original: Record<string, NewSubmittedData[]>; schemaData: Record<string, SchemaData> }, cur) => {
-					acc.schemaData[cur.entityName] = [...(acc.schemaData[cur.entityName] || []), { ...cur.data }];
-					acc.original[cur.entityName] = [...(acc.original[cur.entityName] || []), { ...cur }];
-					return acc;
+				(
+					result: {
+						submittedDataByEntityName: Record<string, NewSubmittedData[]>;
+						schemaDataByEntityName: Record<string, SchemaData>;
+					},
+					submittedDataObject,
+				) => {
+					result.schemaDataByEntityName[submittedDataObject.entityName] = [
+						...(result.schemaDataByEntityName[submittedDataObject.entityName] || []),
+						{ ...submittedDataObject.data },
+					];
+					result.submittedDataByEntityName[submittedDataObject.entityName] = [
+						...(result.submittedDataByEntityName[submittedDataObject.entityName] || []),
+						{ ...submittedDataObject },
+					];
+					return result;
 				},
-				{ original: {}, schemaData: {} },
+				{ submittedDataByEntityName: {}, schemaDataByEntityName: {} },
 			);
 		},
 

@@ -82,7 +82,7 @@ components:
             $ref: '#/components/schemas/BatchError'
         inProcessEntities:
           type: array
-          description: Entities that are being processed
+          description: Names of the entities that will be processed
           items:
             type: string
     CommitSubmissionResult:
@@ -97,7 +97,7 @@ components:
           enum: ['PROCESSING']
         dictionary:
           type: object
-          description: The dictionary used to commit submission
+          description: The dictionary used to validate the submission
           properties:
             name:
               type: string
@@ -105,7 +105,7 @@ components:
               type: string
         processedEntities:
           type: array
-          description: Entities that are being processed
+          description: Names of the entities that will be processed
           items:
             type: string
     ActiveSubmissionResult:

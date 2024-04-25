@@ -101,6 +101,7 @@ const repository = (dependencies: Dependencies) => {
 				throw new ServiceUnavailable();
 			}
 		},
+
 		/**
 		 * Update a Submission record in database
 		 * @param {number} submissionId Submission ID to update
@@ -190,7 +191,9 @@ const repository = (dependencies: Dependencies) => {
 		 * @param {number} submissionId Submission ID
 		 * @returns One Active Submission
 		 */
-		getActiveSubmissionWithRelationsById: async (submissionId: number): Promise<ActiveSubmissionSummaryRepository | undefined> => {
+		getActiveSubmissionWithRelationsById: async (
+			submissionId: number,
+		): Promise<ActiveSubmissionSummaryRepository | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(
