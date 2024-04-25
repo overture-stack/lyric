@@ -11,6 +11,7 @@ import { Dependencies } from '../config/config.js';
 import { NewSubmission, Submission } from '../models/submissions.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
+import { InternalServerError } from './errors.js';
 import { readHeaders } from './fileUtils.js';
 import { isNumber } from './formatUtils.js';
 import {
@@ -55,7 +56,7 @@ const utils = (dependencies: Dependencies) => {
 				Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATE.INVALID : SUBMISSION_STATE.VALID;
 			if (isNumber(idActiveSubmission)) {
 				// Update with new data
-				updatedSubmission = await submissionRepo.update(_.toNumber(idActiveSubmission), {
+				const resultUpdate = await submissionRepo.update(_.toNumber(idActiveSubmission), {
 					data: entityMap,
 					state: newStateSubmission,
 					organization,
@@ -63,6 +64,10 @@ const utils = (dependencies: Dependencies) => {
 					updatedBy: userName,
 					errors: schemaErrors,
 				});
+				if (!resultUpdate) throw new InternalServerError();
+
+				updatedSubmission = resultUpdate;
+
 				logger.info(
 					LOG_MODULE,
 					`Updated Active submission '${updatedSubmission.id}' for category '${updatedSubmission.dictionaryCategoryId}'`,

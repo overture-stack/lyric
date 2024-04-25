@@ -4,6 +4,7 @@ import * as _ from 'lodash-es';
 import { Dependencies } from '../config/config.js';
 import { NewSubmission, Submission, submissions } from '../models/submissions.js';
 import { ServiceUnavailable } from '../utils/errors.js';
+import { isArrayWithValues } from '../utils/formatUtils.js';
 import { ActiveSubmissionSummaryRepository, BooleanTrueObject } from '../utils/types.js';
 
 const repository = (dependencies: Dependencies) => {
@@ -108,14 +109,17 @@ const repository = (dependencies: Dependencies) => {
 		 * @param {any} newData Set fields to update
 		 * @returns An updated record
 		 */
-		update: async (submissionId: number, newData: Partial<Submission>): Promise<Submission> => {
+		update: async (submissionId: number, newData: Partial<Submission>): Promise<Submission | null> => {
 			try {
-				const updated = await db
+				const resultUpdate = await db
 					.update(submissions)
 					.set({ ...newData, updatedAt: new Date() })
 					.where(eq(submissions.id, submissionId))
 					.returning();
-				return updated[0];
+				if (isArrayWithValues(resultUpdate)) {
+					return resultUpdate[0];
+				}
+				return null;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed updating Active Submission`, error);
 				throw new ServiceUnavailable();
