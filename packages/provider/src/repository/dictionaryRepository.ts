@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm/sql';
 
+import { Dictionary, NewDictionary, dictionaries } from 'data-model';
 import { Dependencies } from '../config/config.js';
-import { Dictionary, NewDictionary, dictionaries } from '../models/dictionaries.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 
 const repository = (dependencies: Dependencies) => {

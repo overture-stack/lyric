@@ -1,7 +1,7 @@
 import { isEmpty } from 'lodash-es';
 
+import { Category, NewCategory } from 'data-model';
 import { Dependencies } from '../config/config.js';
-import { Category, NewCategory } from '../models/dictionary_categories.js';
 import categoryRepository from '../repository/categoryRepository.js';
 
 const utils = (dependencies: Dependencies) => {

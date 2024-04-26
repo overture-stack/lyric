@@ -1,5 +1,5 @@
+import * as schema from 'data-model';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import * as schema from '../models/index.js';
 import { Logger } from './logger.js';
 
 export type dbInfo = {

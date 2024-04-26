@@ -1,5 +1,5 @@
+import { Dictionary } from 'data-model';
 import { Dependencies } from '../config/config.js';
-import { Dictionary } from '../models/dictionaries.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import getCategoryUtils from '../utils/categoryUtils.js';
 import getDictionaryUtils from '../utils/dictionaryUtils.js';

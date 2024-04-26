@@ -3,11 +3,18 @@ import { relations } from 'drizzle-orm';
 import { integer, jsonb, pgEnum, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
 import { SchemaValidationError } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
-import { SubmissionEntity } from '../utils/types.js';
 import { dictionaries } from './dictionaries.js';
 import { dictionaryCategories } from './dictionary_categories.js';
 
 export const submissionStateEnum = pgEnum('submission_state', ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITTED']);
+
+export type TsvRecordAsJsonObj = { [header: string]: string | string[] };
+export type SubmissionEntity = {
+	batchName: string;
+	creator: string;
+	records: ReadonlyArray<TsvRecordAsJsonObj>;
+	dataErrors?: SchemaValidationError[];
+};
 
 export const submissions = pgTable('submissions', {
 	id: serial('id').primaryKey(),

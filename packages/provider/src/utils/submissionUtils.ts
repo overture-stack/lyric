@@ -6,8 +6,8 @@ import {
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import * as _ from 'lodash-es';
 
+import { NewSubmission, Submission } from 'data-model';
 import { Dependencies } from '../config/config.js';
-import { NewSubmission, Submission } from '../models/submissions.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
 import { TsvRecordAsJsonObj, readHeaders } from './fileUtils.js';

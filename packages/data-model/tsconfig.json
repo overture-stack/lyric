@@ -1,0 +1,15 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"baseUrl": ".",
+		"outDir": "dist",
+		"composite": true,
+		"declarationMap": true
+	},
+	"ts-node": {
+		"esm": true,
+		"logError": true
+	},
+	"include": ["."],
+	"exclude": ["dist", "node_modules", "**/*.spec.ts"]
+}

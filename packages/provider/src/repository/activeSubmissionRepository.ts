@@ -1,8 +1,8 @@
 import { and, eq, or } from 'drizzle-orm/sql';
 
+import { NewSubmission, Submission, submissions } from 'data-model';
 import * as _ from 'lodash-es';
 import { Dependencies } from '../config/config.js';
-import { NewSubmission, Submission, submissions } from '../models/submissions.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import { ActiveSubmissionSummaryRepository, BooleanTrueObject } from '../utils/types.js';
 

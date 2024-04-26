@@ -4,6 +4,13 @@ import { TsvRecordAsJsonObj } from './fileUtils.js';
 
 type ObjectValues<T> = T[keyof T];
 
+export type SubmissionEntity = {
+	batchName: string;
+	creator: string;
+	records: ReadonlyArray<TsvRecordAsJsonObj>;
+	dataErrors?: SchemaValidationError[];
+};
+
 /**
  * Enum matching Submission state in database
  */
@@ -34,13 +41,6 @@ export type CreateSubmissionResult = {
 	description: string;
 	inProcessEntities: string[];
 	batchErrors: DeepReadonly<BatchError>[];
-};
-
-export type SubmissionEntity = {
-	batchName: string;
-	creator: string;
-	records: ReadonlyArray<TsvRecordAsJsonObj>;
-	dataErrors?: SchemaValidationError[];
 };
 
 export const BATCH_ERROR_TYPE = {
