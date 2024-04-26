@@ -1,3 +1,11 @@
+enum submission_state {
+  OPEN
+  VALID
+  INVALID
+  CLOSED
+  COMMITTED
+}
+
 table dictionaries {
   id serial [pk, not null, increment]
   dictionary jsonb [not null]

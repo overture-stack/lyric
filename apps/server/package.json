@@ -2,15 +2,22 @@
 	"name": "server",
 	"version": "1.0.0",
 	"description": "",
+	"engines": {
+		"node": ">=20.0.0"
+	},
 	"scripts": {
+		"\n==================  Build  ==================": "",
 		"build:compile": "rm -rf dist && tsc",
 		"build:copy": "copyfiles swagger/**/*.yml dist/",
-		"build": "pnpm build:compile && pnpm build:copy",
-		"start": "node dist/src/server.js",
-		"dev": "nodemon"
+		"build:all": "pnpm build:compile && pnpm build:copy",
+		"\n=============  Dev environment  =============": "",
+		"start:dev": "nodemon",
+		"\n========  Prod environment (compiled) =======": "",
+		"start:prod": "node src/server.js",
+		"start:worskpace-prod": "NODE_ENV=production node dist/src/server.js"
 	},
 	"keywords": [],
-	"author": "",
+	"author": "Ontario Institute for Cancer Research",
 	"license": "ISC",
 	"type": "module",
 	"dependencies": {
