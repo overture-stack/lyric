@@ -9,7 +9,7 @@
 		"build": "rm -rf dist && tsc",
 		"db:generate": "drizzle-kit generate:pg && pnpm dbmlGen",
 		"db:migrate": "tsx scripts/migrate.ts",
-		"dbmlGen": "tsx scripts/dbmlGenerator.ts"
+		"db:dbmlGen": "tsx scripts/dbmlGenerator.ts"
 	},
 	"keywords": [],
 	"author": "",
@@ -22,6 +22,7 @@
 	},
 	"dependencies": {
 		"@overturebio-stack/lectern-client": "^1.5.0",
+		"dotenv": "^16.4.1",
 		"drizzle-orm": "^0.29.3",
 		"pg": "^8.11.3"
 	}

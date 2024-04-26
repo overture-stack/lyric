@@ -1,16 +1,27 @@
+import 'dotenv/config';
+
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import pg from 'pg';
 
+const getRequiredConfig = (name: string) => {
+	const value = process.env[name];
+	if (!value) {
+		throw new Error(`No Environment Variable provided for required configuration parameter '${name}'`);
+	}
+	return value;
+};
+
 async function main() {
 	console.log('Running your migrations...');
-	const connectionString = process.env.DB_URL;
-	if (!connectionString) {
-		throw new Error(
-			`No Database connection string is provided. To run migrations there must be an environment variable named 'DB_URL' with the database connection URL (example: postgres://user:password@localhost:5432/dbname).`,
-		);
-	}
-	const sql = new pg.Pool({ connectionString });
+
+	const sql = new pg.Pool({
+		host: getRequiredConfig('DB_HOST'),
+		database: getRequiredConfig('DB_NAME'),
+		password: getRequiredConfig('DB_PASSWORD'),
+		port: Number(getRequiredConfig('DB_PORT')),
+		user: getRequiredConfig('DB_USER'),
+	});
 	const db = drizzle(sql);
 	await migrate(db, { migrationsFolder: 'migrations' });
 	await sql.end();
