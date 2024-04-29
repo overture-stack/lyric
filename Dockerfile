@@ -20,15 +20,13 @@ RUN npm i -g pnpm
 # create our own user to run node, don't run node in production as root
 ENV APP_UID=9999
 ENV APP_GID=9999
-ENV TEMP_PROD_DEPS=/usr/prod-deps
 RUN addgroup -S -g $APP_GID $APP_USER \
 	&& adduser -S -u $APP_UID -g $APP_GID $APP_USER \
-	&& mkdir -p ${WORKDIR} && mkdir -p ${TEMP_PROD_DEPS}
+	&& mkdir -p ${WORKDIR}
 
 WORKDIR ${WORKDIR}
 
 RUN chown -R ${APP_USER}:${APP_USER} ${WORKDIR}
-RUN chown -R ${APP_USER}:${APP_USER} ${TEMP_PROD_DEPS}
 
 USER ${APP_USER}:${APP_USER}
 
@@ -45,7 +43,7 @@ COPY --chown=lyric:lyric . ./
 
 RUN pnpm install --ignore-scripts
 
-RUN pnpm build
+RUN pnpm build:all
 
 
 ######################
@@ -61,8 +59,8 @@ WORKDIR ${WORKDIR}
 
 USER ${APP_USER}:${APP_USER}
 
-# Deploy a package from a workspace. All dependencies of the deployed package are installed inside an isolated node_modules
-RUN pnpm --filter server --prod deploy prod-deps
+# pnpm will not install any package listed in devDependencies
+RUN pnpm install --prod
 
 
 ######################
@@ -77,12 +75,12 @@ USER ${APP_USER}
 
 WORKDIR ${WORKDIR}
 
-COPY --from=prod-deps ${WORKDIR}/prod-deps/node_modules ./node_modules
-COPY --from=build ${WORKDIR}/apps/server/dist .
+COPY --from=prod-deps ${WORKDIR} .
+COPY --from=build ${WORKDIR}/apps/server/dist apps/server/dist
 
 EXPOSE 3000
 
 ENV COMMIT_SHA=${COMMIT}
 ENV NODE_ENV=production
 
-CMD [ "node", "./src/server.js"]
+CMD [ "pnpm", "start:prod" ]
