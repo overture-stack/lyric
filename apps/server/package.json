@@ -24,7 +24,7 @@
 		"dotenv": "^16.4.1",
 		"express": "^4.18.2",
 		"helmet": "^7.1.0",
-		"provider": "workspace:^",
+		"data-provider": "workspace:^",
 		"swagger-jsdoc": "^6.2.8",
 		"swagger-ui-express": "^5.0.0",
 		"winston": "^3.11.0"

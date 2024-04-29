@@ -10,7 +10,7 @@ This is a monorepo project managed by [PNPM](https://pnpm.io/) package manager. 
 │   └── server
 ├── packages
 │   ├── data-model
-│   └── provider
+│   └── data-provider
 ```
 
 ## System Dependencies
@@ -28,7 +28,9 @@ This is a monorepo project managed by [PNPM](https://pnpm.io/) package manager. 
 
 ### Quickstart development
 
-To setup locally make sure to set following [environtment variables](#environment-variables). Make a copy of `.env.schema` and rename it to `.env` with local configuration.
+To setup locally make sure to set following [environtment variables](#environment-variables).
+
+Run `pnpm i` to install dependencies
 
 Use command `pnpm start:dev` described on [script commands](#script-commands-workspace) to start server in development mode running by default in port `3000`
 
@@ -36,7 +38,7 @@ Swagger URL: [http://localhost:3000/api-docs/](http://localhost:3000/api-docs/)
 
 ## Environment variables
 
-Create a `.env` file based on `.env.schema` located under `apps/server` and set the environment variables for your application.
+Create a `.env` file based on `.env.schema` located on the root folder and set the environment variables for your application.
 
 The Environment Variables used for this application are listed in the table bellow
 

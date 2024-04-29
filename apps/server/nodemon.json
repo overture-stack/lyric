@@ -1,5 +1,5 @@
 {
-	"watch": ["src", "../../packages/provider/dist/*", "../../packages/data-provider/dist/*"],
+	"watch": ["src", "../../packages/data-model/dist/*", "../../packages/data-provider/dist/*"],
 	"ext": "ts,json,js",
 	"ignore": ["**/*.test.ts", "**/*.spec.ts", ".git", "node_modules"],
 	"exec": "node --import=./register.js ./src/server.ts"
