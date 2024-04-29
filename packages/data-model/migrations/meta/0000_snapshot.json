@@ -1,5 +1,5 @@
 {
-  "id": "c6b8499f-9d1c-4fa9-b382-8c58e9e6b8b0",
+  "id": "1cb1c1c1-e1ae-48ae-a523-4cdce9926821",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "5",
   "dialect": "pg",
@@ -14,6 +14,18 @@
           "primaryKey": true,
           "notNull": true
         },
+        "dictionary": {
+          "name": "dictionary",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dictionary_category_id": {
+          "name": "dictionary_category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "name": {
           "name": "name",
           "type": "varchar",
@@ -25,18 +37,6 @@
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
-        },
-        "dictionary_category_id": {
-          "name": "dictionary_category_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "dictionary": {
-          "name": "dictionary",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -53,7 +53,21 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "dictionaries_dictionary_category_id_dictionary_categories_id_fk": {
+          "name": "dictionaries_dictionary_category_id_dictionary_categories_id_fk",
+          "tableFrom": "dictionaries",
+          "tableTo": "dictionary_categories",
+          "columnsFrom": [
+            "dictionary_category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
@@ -67,17 +81,17 @@
           "primaryKey": true,
           "notNull": true
         },
-        "name": {
-          "name": "name",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
         "active_dictionary_id": {
           "name": "active_dictionary_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
@@ -86,29 +100,27 @@
           "notNull": false,
           "default": "now()"
         },
-        "udpated_at": {
-          "name": "udpated_at",
+        "created_by": {
+          "name": "created_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "dictionary_categories_active_dictionary_id_dictionaries_id_fk": {
-          "name": "dictionary_categories_active_dictionary_id_dictionaries_id_fk",
-          "tableFrom": "dictionary_categories",
-          "tableTo": "dictionaries",
-          "columnsFrom": [
-            "active_dictionary_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "dictionary_categories_name_unique": {
@@ -130,11 +142,11 @@
           "primaryKey": true,
           "notNull": true
         },
-        "state": {
-          "name": "state",
-          "type": "submission_state",
+        "data": {
+          "name": "data",
+          "type": "jsonb",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "dictionary_category_id": {
           "name": "dictionary_category_id",
@@ -142,11 +154,11 @@
           "primaryKey": false,
           "notNull": false
         },
-        "data": {
-          "name": "data",
-          "type": "jsonb",
+        "dictionary_id": {
+          "name": "dictionary_id",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "errors": {
           "name": "errors",
@@ -154,9 +166,15 @@
           "primaryKey": false,
           "notNull": false
         },
-        "dictionary_id": {
-          "name": "dictionary_id",
-          "type": "integer",
+        "organization": {
+          "name": "organization",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "submission_state",
           "primaryKey": false,
           "notNull": false
         },
@@ -172,10 +190,50 @@
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "submissions_dictionary_category_id_dictionary_categories_id_fk": {
+          "name": "submissions_dictionary_category_id_dictionary_categories_id_fk",
+          "tableFrom": "submissions",
+          "tableTo": "dictionary_categories",
+          "columnsFrom": [
+            "dictionary_category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "submissions_dictionary_id_dictionaries_id_fk": {
+          "name": "submissions_dictionary_id_dictionaries_id_fk",
+          "tableFrom": "submissions",
+          "tableTo": "dictionaries",
+          "columnsFrom": [
+            "dictionary_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
@@ -195,15 +253,21 @@
           "primaryKey": false,
           "notNull": false
         },
+        "dictionary_category_id": {
+          "name": "dictionary_category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "entity_name": {
           "name": "entity_name",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
         },
-        "dictionary_category_id": {
-          "name": "dictionary_category_id",
-          "type": "integer",
+        "is_valid": {
+          "name": "is_valid",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false
         },
@@ -213,15 +277,15 @@
           "primaryKey": false,
           "notNull": false
         },
+        "organization": {
+          "name": "organization",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
         "original_schema_id": {
           "name": "original_schema_id",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_valid": {
-          "name": "is_valid",
-          "type": "boolean",
           "primaryKey": false,
           "notNull": false
         },
@@ -232,6 +296,12 @@
           "notNull": false,
           "default": "now()"
         },
+        "created_by": {
+          "name": "created_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp",
@@ -239,15 +309,55 @@
           "notNull": false,
           "default": "now()"
         },
-        "created_by": {
-          "name": "created_by",
+        "updated_by": {
+          "name": "updated_by",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "submitted_data_dictionary_category_id_dictionary_categories_id_fk": {
+          "name": "submitted_data_dictionary_category_id_dictionary_categories_id_fk",
+          "tableFrom": "submitted_data",
+          "tableTo": "dictionary_categories",
+          "columnsFrom": [
+            "dictionary_category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "submitted_data_last_valid_schema_id_dictionaries_id_fk": {
+          "name": "submitted_data_last_valid_schema_id_dictionaries_id_fk",
+          "tableFrom": "submitted_data",
+          "tableTo": "dictionaries",
+          "columnsFrom": [
+            "last_valid_schema_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "submitted_data_original_schema_id_dictionaries_id_fk": {
+          "name": "submitted_data_original_schema_id_dictionaries_id_fk",
+          "tableFrom": "submitted_data",
+          "tableTo": "dictionaries",
+          "columnsFrom": [
+            "original_schema_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     }
@@ -256,9 +366,11 @@
     "submission_state": {
       "name": "submission_state",
       "values": {
-        "open": "open",
-        "valid": "valid",
-        "invalid": "invalid"
+        "OPEN": "OPEN",
+        "VALID": "VALID",
+        "INVALID": "INVALID",
+        "CLOSED": "CLOSED",
+        "COMMITTED": "COMMITTED"
       }
     }
   },
