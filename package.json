@@ -3,14 +3,19 @@
 	"version": "1.0.0",
 	"description": "",
 	"scripts": {
-		"build": "pnpm -r build",
-		"dev": "pnpm --parallel dev",
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"\n=================  Build  ===============": "",
+		"build:all": "pnpm -r build:all",
+		"\n============  Dev environment  ==========": "",
+		"with-env": "dotenv -e ./.env --",
+		"start:dev": "pnpm with-env pnpm --filter data-model db:migrate:dev && pnpm with-env pnpm --parallel start:dev",
+		"\n====  Prod environment (compiled)  ======": "",
+		"start:prod": "pnpm --filter data-model db:migrate:workspace-prod && pnpm --filter server start:worskpace-prod"
 	},
-	"author": "",
+	"author": "Ontario Institute for Cancer Research",
 	"license": "ISC",
 	"devDependencies": {
 		"@types/node": "^20.11.16",
+		"dotenv-cli": "^7.4.1",
 		"prettier": "^3.2.5",
 		"prettier-plugin-organize-imports": "^3.2.4",
 		"ts-node": "^10.9.2",

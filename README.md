@@ -2,32 +2,43 @@
 
 ## Project structure
 
-This is a monorepo project managed by [PNPM](https://pnpm.io/) package manager. It's structured in `apps/` to keep deployable applications and `packages/` to keep libraries.
+This is a monorepo project managed by [PNPM](https://pnpm.io/) package manager. It's structured in `apps/` to keep deployable applications and `packages/` to keep shared libraries.
+
+```
+.
+├── apps/
+│   └── server
+├── packages
+│   ├── data-model
+│   └── data-provider
+```
+
+## System Dependencies
+
+- [Lectern](https://github.com/overture-stack/lectern) Dictionary Management and validation
+- [Postgres Database](https://www.postgresql.org/) For data storage
 
 ## Local development
 
-This projects uses:
+### Development tools
 
-- [PNPM](https://pnpm.io/) project manager
-- [Postgress](https://www.postgresql.org/) database
-- [VS Code](https://code.visualstudio.com/) as recommended code editor
-
-### Quickstart Database
-
-For quick start development use `docker-compose up -d` to start postgress database
-
-For database migration:
-
-- Set DB_URL environment variable `export DB_URL=[YOUR_DATABASE_CONNECTION_URL]`
-- Run the command `pnpm --filter common migrate`
+- [PNPM](https://pnpm.io/) Project manager
+- [Node.js](https://nodejs.org/en) Runtime environment (v20 or higher)
+- [VS Code](https://code.visualstudio.com/) As recommended code editor
 
 ### Quickstart development
 
-Use command `pnpm dev` to start server running by default in [http://localhost:3000](http://localhost:3000)
+To setup locally make sure to set following [environtment variables](#environment-variables).
+
+Run `pnpm i` to install dependencies
+
+Use command `pnpm start:dev` described on [script commands](#script-commands-workspace) to start server in development mode running by default in port `3000`
+
+Swagger URL: [http://localhost:3000/api-docs/](http://localhost:3000/api-docs/)
 
 ## Environment variables
 
-Create a `.env` file based on `.env.schema` located under `apps/server` and set the environment variables for your application.
+Create a `.env` file based on `.env.schema` located on the root folder and set the environment variables for your application.
 
 The Environment Variables used for this application are listed in the table bellow
 
@@ -43,12 +54,10 @@ The Environment Variables used for this application are listed in the table bell
 | `LECTERN_URL`  | Schema Service (Lectern) URL |         |
 | `LOG_LEVEL`    | Log Level                    | 'info'  |
 
-## Script commands
+## Script commands (Workspace)
 
-| Command                         | Description                                                                                                                              |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm dev`                      | Start server in dev mode                                                                                                                 |
-| `pnpm --filter common generate` | Generate SQL migration files on folder `./packages/common/migrations/`                                                                   |
-| `pnpm --filter common migrate`  | Run database migration. It uses DB_URL env variable to connect to the database (example: postgres://user:password@localhost:5432/dbname) |
-| `pnpm --filter common dbmlGen`  | Generate DBML file based on Models. Output file on `./packages/common/docs/schema.dbml`                                                  |
-| `pnpm build`                    | Compile typescript code                                                                                                                  |
+| Command           | Description                                                            |
+| ----------------- | ---------------------------------------------------------------------- |
+| `pnpm build:all`  | Compile typescript code in the workspace and generate database schemas |
+| `pnpm start:dev`  | Run database migration and start Server for development                |
+| `pnpm start:prod` | Run database migration and start Server for production                 |
