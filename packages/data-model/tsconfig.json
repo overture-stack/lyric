@@ -1,0 +1,14 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"baseUrl": ".",
+		"outDir": "dist",
+		"resolveJsonModule": true
+	},
+	"ts-node": {
+		"esm": true,
+		"logError": true
+	},
+	"include": [".", "./package.json"],
+	"exclude": ["dist", "node_modules", "**/*.spec.ts"]
+}
