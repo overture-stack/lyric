@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-import { AppConfig } from 'common';
+import { AppConfig } from 'data-provider';
 
 export const getServerConfig = () => {
 	return {
