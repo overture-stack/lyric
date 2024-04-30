@@ -1,5 +1,6 @@
 import { parallel } from '@overturebio-stack/lectern-client';
 import {
+	DataRecord,
 	SchemaValidationError,
 	SchemasDictionary,
 	TypedDataRecord,
@@ -10,7 +11,8 @@ import { NewSubmission, Submission } from 'data-model';
 import { Dependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
-import { TsvRecordAsJsonObj, readHeaders } from './fileUtils.js';
+import { InternalServerError } from './errors.js';
+import { readHeaders } from './fileUtils.js';
 import { isNumber } from './formatUtils.js';
 import {
 	ActiveSubmissionResponse,
@@ -21,7 +23,7 @@ import {
 	CategoryActiveSubmission,
 	DataActiveSubmissionSummary,
 	DictionaryActiveSubmission,
-	SUBMISSION_STATE,
+	SUBMISSION_STATUS,
 	SubmissionEntity,
 } from './types.js';
 
@@ -50,25 +52,31 @@ const utils = (dependencies: Dependencies) => {
 			organization: string,
 		): Promise<Submission> => {
 			let updatedSubmission: Submission;
-			const newStateSubmission =
-				Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATE.INVALID : SUBMISSION_STATE.VALID;
+			const newStatusSubmission =
+				Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
 			if (isNumber(idActiveSubmission)) {
 				// Update with new data
-				updatedSubmission = await submissionRepo.update(_.toNumber(idActiveSubmission), {
+				const resultUpdate = await submissionRepo.update(_.toNumber(idActiveSubmission), {
 					data: entityMap,
-					state: newStateSubmission,
+					status: newStatusSubmission,
 					organization,
 					dictionaryId,
 					updatedBy: userName,
 					errors: schemaErrors,
 				});
+				if (!resultUpdate) {
+					throw new InternalServerError();
+				}
+
+				updatedSubmission = resultUpdate;
+
 				logger.info(
 					LOG_MODULE,
 					`Updated Active submission '${updatedSubmission.id}' for category '${updatedSubmission.dictionaryCategoryId}'`,
 				);
 			} else {
 				const newSubmission: NewSubmission = {
-					state: newStateSubmission,
+					status: newStatusSubmission,
 					dictionaryCategoryId: Number(categoryId),
 					organization,
 					data: entityMap,
@@ -135,13 +143,13 @@ const utils = (dependencies: Dependencies) => {
 		 * Run Schema Validation process
 		 * @param {SchemasDictionary} dictionary The dictionary to validate data with
 		 * @param {string} entityName The entity Name
-		 * @param {ReadonlyArray<TsvRecordAsJsonObj>} records An Array of the records to validate
+		 * @param {ReadonlyArray<DataRecord>} records An Array of the records to validate
 		 * @returns The result of the Schema validation
 		 */
 		processSchemaValidation: async (
 			dictionary: SchemasDictionary,
 			entityName: string,
-			records: ReadonlyArray<TsvRecordAsJsonObj>,
+			records: ReadonlyArray<DataRecord>,
 		): Promise<{ processedRecords: TypedDataRecord[]; schemaErrors: SchemaValidationError[] }> => {
 			const validRecords: any[] = [];
 			const schemaErrors: any[] = [];
@@ -243,7 +251,7 @@ const utils = (dependencies: Dependencies) => {
 				dictionaryCategory: submission.dictionaryCategory as CategoryActiveSubmission,
 				errors: submission.errors,
 				organization: _.toString(submission.organization),
-				state: submission.state,
+				status: submission.status,
 				createdAt: _.toString(submission.createdAt?.toISOString()),
 				createdBy: _.toString(submission.createdBy),
 				updatedAt: _.toString(submission.updatedAt?.toISOString()),
@@ -259,7 +267,7 @@ const utils = (dependencies: Dependencies) => {
 				dictionaryCategory: submission.dictionaryCategory as CategoryActiveSubmission,
 				errors: submission.errors,
 				organization: _.toString(submission.organization),
-				state: submission.state,
+				status: submission.status,
 				createdAt: _.toString(submission.createdAt?.toISOString()),
 				createdBy: _.toString(submission.createdBy),
 				updatedAt: _.toString(submission.updatedAt?.toISOString()),

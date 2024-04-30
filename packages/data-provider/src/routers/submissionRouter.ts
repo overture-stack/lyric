@@ -25,7 +25,7 @@ const router = (dependencies: Dependencies): Router => {
 
 	router.post('/category/:categoryId/upload', upload.array('files'), submissionControllers(dependencies).upload);
 
-	router.post('/category/:categoryId/commit/:id', auth, submissionControllers(dependencies).commit);
+	router.post('/category/:categoryId/commit/:submissionId', auth, submissionControllers(dependencies).commit);
 	return router;
 };
 

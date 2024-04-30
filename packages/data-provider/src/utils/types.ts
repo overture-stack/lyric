@@ -1,46 +1,56 @@
-import { SchemaValidationError, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import {
+	DataRecord,
+	SchemasDictionary,
+	SchemaValidationError,
+} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import { NewSubmittedData, Submission } from 'data-model';
 import { DeepReadonly } from 'deep-freeze';
-import { TsvRecordAsJsonObj } from './fileUtils.js';
 
 type ObjectValues<T> = T[keyof T];
 
-export type SubmissionEntity = {
-	batchName: string;
-	creator: string;
-	records: ReadonlyArray<TsvRecordAsJsonObj>;
-	dataErrors?: SchemaValidationError[];
-};
-
 /**
- * Enum matching Submission state in database
+ * Enum matching Submission status in database
  */
-export const SUBMISSION_STATE = {
+export const SUBMISSION_STATUS = {
 	OPEN: 'OPEN',
 	VALID: 'VALID',
 	INVALID: 'INVALID',
 	CLOSED: 'CLOSED',
 	COMMITED: 'COMMITTED',
 } as const;
-export type SubmissionState = ObjectValues<typeof SUBMISSION_STATE>;
+export type SubmissionStatus = ObjectValues<typeof SUBMISSION_STATUS>;
 
 /**
  * Enum used in the Reponse on Create new Submissions
  */
-export const CREATE_SUBMISSION_STATE = {
+export const CREATE_SUBMISSION_STATUS = {
 	PROCESSING: 'PROCESSING',
 	INVALID_SUBMISSION: 'INVALID_SUBMISSION',
 	PARTIAL_SUBMISSION: 'PARTIAL_SUBMISSION',
 } as const;
-export type CreateSubmissionState = ObjectValues<typeof CREATE_SUBMISSION_STATE>;
+export type CreateSubmissionStatus = ObjectValues<typeof CREATE_SUBMISSION_STATUS>;
 
 /**
  * Used as a Response type on a Create new Active Submission
  */
 export type CreateSubmissionResult = {
-	state: CreateSubmissionState;
+	status: CreateSubmissionStatus;
 	description: string;
 	inProcessEntities: string[];
 	batchErrors: DeepReadonly<BatchError>[];
+};
+
+export type CommitSubmissionResult = {
+	status: string;
+	dictionary: {};
+	processedEntities: string[];
+};
+
+export type SubmissionEntity = {
+	batchName: string;
+	creator: string;
+	records: ReadonlyArray<DataRecord>;
+	dataErrors?: SchemaValidationError[];
 };
 
 export const BATCH_ERROR_TYPE = {
@@ -67,6 +77,12 @@ export interface ValidateFilesParams {
 	organization: string;
 	userName: string;
 	schemasDictionary: SchemasDictionary;
+}
+
+export interface CommitSubmissionParams {
+	data: Array<NewSubmittedData>;
+	dictionary: SchemasDictionary & { id: number };
+	submission: Submission;
 }
 
 export type BooleanTrueObject = {
@@ -97,7 +113,7 @@ export type ActiveSubmissionSummaryResponse = {
 	dictionaryCategory: CategoryActiveSubmission | null;
 	errors: Record<string, SchemaValidationError[]> | null;
 	organization: string;
-	state: SubmissionState | null;
+	status: SubmissionStatus | null;
 	createdAt: string | null;
 	createdBy: string;
 	updatedAt: string;
@@ -111,7 +127,7 @@ export type ActiveSubmissionSummaryRepository = {
 	dictionaryCategory: {} | null;
 	errors: Record<string, SchemaValidationError[]> | null;
 	organization: string | null;
-	state: SubmissionState | null;
+	status: SubmissionStatus | null;
 	createdAt: Date | null;
 	createdBy: string | null;
 	updatedAt: Date | null;
@@ -125,7 +141,7 @@ export type ActiveSubmissionResponse = {
 	dictionaryCategory: CategoryActiveSubmission | null;
 	errors: Record<string, SchemaValidationError[]> | null;
 	organization: string;
-	state: SubmissionState | null;
+	status: SubmissionStatus | null;
 	createdAt: string | null;
 	createdBy: string;
 	updatedAt: string;

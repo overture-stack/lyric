@@ -6,7 +6,7 @@ const swaggerDefinition = {
 	failOnErrors: true, // Whether or not to throw when parsing errors. Defaults to false.
 	openapi: '3.0.0',
 	info: {
-		title: 'Submission service',
+		title: 'Lyric',
 		version,
 	},
 };

@@ -71,7 +71,7 @@ importers:
     dependencies:
       '@overturebio-stack/lectern-client':
         specifier: ^1.5.0
-        version: 1.5.0(typescript@5.3.3)
+        version: 1.5.0(typescript@5.4.5)
       dotenv:
         specifier: ^16.4.1
         version: 16.4.1
@@ -89,8 +89,8 @@ importers:
         specifier: ^0.6.1
         version: 0.6.1(@types/pg@8.11.0)(pg@8.11.3)
       drizzle-kit:
-        specifier: ^0.20.14
-        version: 0.20.14
+        specifier: ^0.20.17
+        version: 0.20.17
       tsx:
         specifier: ^4.7.1
         version: 4.7.1
@@ -99,7 +99,7 @@ importers:
     dependencies:
       '@overturebio-stack/lectern-client':
         specifier: ^1.5.0
-        version: 1.5.0(typescript@5.3.3)
+        version: 1.5.0(typescript@5.4.5)
       data-model:
         specifier: workspace:^
         version: link:../data-model
@@ -212,12 +212,6 @@ packages:
       enabled: 2.0.0
       kuler: 2.0.0
     dev: false
-
-  /@drizzle-team/studio@0.0.39:
-    resolution: {integrity: sha512-c5Hkm7MmQC2n5qAsKShjQrHoqlfGslB8+qWzsGGZ+2dHMRTNG60UuzalF0h0rvBax5uzPXuGkYLGaQ+TUX3yMw==}
-    dependencies:
-      superjson: 2.2.1
-    dev: true
 
   /@esbuild-kit/core-utils@3.3.2:
     resolution: {integrity: sha512-sPRAnw9CdSsRmEtnsl2WXWdyquogVpB3yZ3dgwJfe8zrOzTsV7cJvmwrKVa+0ma5BoiGJ+BoqkMvawbayKUsqQ==}
@@ -638,6 +632,21 @@ packages:
     dev: true
     optional: true
 
+  /@hono/node-server@1.11.1:
+    resolution: {integrity: sha512-GW1Iomhmm1o4Z+X57xGby8A35Cu9UZLL7pSMdqDBkD99U5cywff8F+8hLk5aBTzNubnsFAvWQ/fZjNwPsEn9lA==}
+    engines: {node: '>=18.14.1'}
+    dev: true
+
+  /@hono/zod-validator@0.2.1(hono@4.2.9)(zod@3.22.4):
+    resolution: {integrity: sha512-HFoxln7Q6JsE64qz2WBS28SD33UB2alp3aRKmcWnNLDzEL1BLsWfbdX6e1HIiUprHYTIXf5y7ax8eYidKUwyaA==}
+    peerDependencies:
+      hono: '>=3.9.0'
+      zod: ^3.19.1
+    dependencies:
+      hono: 4.2.9
+      zod: 3.22.4
+    dev: true
+
   /@jridgewell/resolve-uri@3.1.1:
     resolution: {integrity: sha512-dSYZh7HhCDtCKm4QakX0xFpsRDqjjtZf/kjI/v3T3Nwt5r8/qz/M19F9ySyOqU94SXBmeG9ttTul+YnR4LOxFA==}
     engines: {node: '>=6.0.0'}
@@ -658,7 +667,7 @@ packages:
     resolution: {integrity: sha512-4JQNk+3mVzK3xh2rqd6RB4J46qUR19azEHBneZyTZM+c456qOrbbM/5xcR8huNCCcbVt7+UmizG6GuUvPvKUYg==}
     dev: false
 
-  /@overturebio-stack/lectern-client@1.5.0(typescript@5.3.3):
+  /@overturebio-stack/lectern-client@1.5.0(typescript@5.4.5):
     resolution: {integrity: sha512-WYLwlWE09yR/SG6FqhAbbFynY3+ViclVbGJO0PO6Uspe5Pe7YKOfzWO9udlO4f40y+ZnwDlzkaJgMsk/AocyhQ==}
     dependencies:
       cd: 0.3.3
@@ -667,7 +676,7 @@ packages:
       node-fetch: 2.7.0
       node-worker-threads-pool: 1.5.1
       promise-tools: 2.1.0
-      ts-node: 9.1.1(typescript@5.3.3)
+      ts-node: 9.1.1(typescript@5.4.5)
       winston: 3.11.0
     transitivePeerDependencies:
       - encoding
@@ -1250,12 +1259,13 @@ packages:
       - sqlite3
     dev: true
 
-  /drizzle-kit@0.20.14:
-    resolution: {integrity: sha512-0fHv3YIEaUcSVPSGyaaBfOi9bmpajjhbJNdPsRMIUvYdLVxBu9eGjH8mRc3Qk7HVmEidFc/lhG1YyJhoXrn5yA==}
+  /drizzle-kit@0.20.17:
+    resolution: {integrity: sha512-mLVDS4nXmO09wFVlzGrdshWnAL+U9eQGC5zRs6hTN6Q9arwQGWU2XnZ17I8BM8Quau8CQRx3Ms6VPgRWJFVp7Q==}
     hasBin: true
     dependencies:
-      '@drizzle-team/studio': 0.0.39
       '@esbuild-kit/esm-loader': 2.6.5
+      '@hono/node-server': 1.11.1
+      '@hono/zod-validator': 0.2.1(hono@4.2.9)(zod@3.22.4)
       camelcase: 7.0.1
       chalk: 5.3.0
       commander: 9.5.0
@@ -1264,9 +1274,11 @@ packages:
       esbuild-register: 3.5.0(esbuild@0.19.12)
       glob: 8.1.0
       hanji: 0.0.5
+      hono: 4.2.9
       json-diff: 0.9.0
       minimatch: 7.4.6
       semver: 7.6.0
+      superjson: 2.2.1
       zod: 3.22.4
     transitivePeerDependencies:
       - supports-color
@@ -1709,6 +1721,11 @@ packages:
     resolution: {integrity: sha512-g+HZqgfbpXdCkme/Cd/mZkV0aV3BZZZSugecH03kl38m/Kmdx8jKjBikpDj2cr+Iynv4KpYEviojNdTJActJAg==}
     engines: {node: '>=16.0.0'}
     dev: false
+
+  /hono@4.2.9:
+    resolution: {integrity: sha512-59FAv52UxDWUt/NlC0NzrRCjeVCThUnVlqlrKYm+k80XujBu6uJwBIa5gACKKZWobjA0MJ6Vds0I3URKf383Cw==}
+    engines: {node: '>=16.0.0'}
+    dev: true
 
   /http-errors@2.0.0:
     resolution: {integrity: sha512-FtwrG/euBzaEjYeRqOgly7G0qviiXoJWnvEH2Z1plBdXgbyjv34pHTSb9zoeHMyDy33+DWy5Wt9Wo+TURtOYSQ==}
@@ -2622,7 +2639,7 @@ packages:
       yn: 3.1.1
     dev: true
 
-  /ts-node@9.1.1(typescript@5.3.3):
+  /ts-node@9.1.1(typescript@5.4.5):
     resolution: {integrity: sha512-hPlt7ZACERQGf03M253ytLY3dHbGNGrAq9qIHWUY9XHYl1z7wYngSr3OQ5xmui8o2AaxsONxIzjafLUiWBo1Fg==}
     engines: {node: '>=10.0.0'}
     hasBin: true
@@ -2634,7 +2651,7 @@ packages:
       diff: 4.0.2
       make-error: 1.3.6
       source-map-support: 0.5.21
-      typescript: 5.3.3
+      typescript: 5.4.5
       yn: 3.1.1
     dev: false
 
@@ -2673,6 +2690,13 @@ packages:
     resolution: {integrity: sha512-pXWcraxM0uxAS+tN0AG/BF2TyqmHO014Z070UsJ+pFvYuRSq8KH8DmWpnbXe0pEPDHXZV3FcAbJkijJ5oNEnWw==}
     engines: {node: '>=14.17'}
     hasBin: true
+    dev: true
+
+  /typescript@5.4.5:
+    resolution: {integrity: sha512-vcI4UpRgg81oIRUFwR0WSIHKt11nJ7SAVlYNIu+QpqeyXP+gpQJy/Z4+F0aGxSE4MqwjyXvW/TzgkLAx2AGHwQ==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+    dev: false
 
   /undefsafe@2.0.5:
     resolution: {integrity: sha512-WxONCrssBM8TSPRqN5EmsjVrsv4A8X12J4ArBiiayv3DyyG3ZlIg6yysuuSYdZsVz3TKcTg2fd//Ujd4CHV1iA==}

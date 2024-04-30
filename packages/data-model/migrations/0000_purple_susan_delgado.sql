@@ -1,5 +1,5 @@
 DO $$ BEGIN
- CREATE TYPE "submission_state" AS ENUM('OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITTED');
+ CREATE TYPE "submission_status" AS ENUM('OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITTED');
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS "submissions" (
 	"dictionary_id" integer,
 	"errors" jsonb,
 	"organization" varchar NOT NULL,
-	"state" "submission_state",
+	"status" "submission_status",
 	"created_at" timestamp DEFAULT now(),
 	"created_by" varchar,
 	"updated_at" timestamp DEFAULT now(),
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS "submissions" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "submitted_data" (
 	"id" serial PRIMARY KEY NOT NULL,
-	"data" jsonb,
+	"data" jsonb NOT NULL,
 	"dictionary_category_id" integer,
 	"entity_name" varchar NOT NULL,
 	"is_valid" boolean,

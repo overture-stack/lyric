@@ -3,7 +3,14 @@
 components:
   responses:
     BadRequest:
-      description: Bad request
+      description: Error response indicating that the client's request is malformed or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
+
+    StatusConflict:
+      description: Error response indicating a conflict in a Submission Status
       content:
         application/json:
           schema:
@@ -24,7 +31,7 @@ components:
             $ref: '#/components/responses/Error'
 
     ServiceUnavailableError:
-      description: Service Unavailable Error
+      description: Error message indicating the server is currently unable to handle the request, often due to maintenance, overload, or temporary issues
       content:
         application/json:
           schema:
@@ -49,19 +56,19 @@ components:
           description: Number of seconds the current Node.js process has been running
         message:
           type: string
-          description: State of the service
+          description: Status of the service
         timestamp:
           type: string
           description: Current system's time in milliseconds since the Unix epoch
     CreateSubmissionResult:
       required:
-        - state
+        - status
         - description
         - batchErrors
         - inProcessEntities
       type: object
       properties:
-        state:
+        status:
           type: string
           description: Result of uploading Submission files
           enum: ['PROCESSING', 'INVALID_SUBMISSION', 'PARTIAL_SUBMISSION']
@@ -75,10 +82,32 @@ components:
             $ref: '#/components/schemas/BatchError'
         inProcessEntities:
           type: array
-          description: Entities that are being processed
+          description: Names of the entities that will be processed
           items:
             type: string
-
+    CommitSubmissionResult:
+      required:
+        - status
+        - dictionary
+      type: object
+      properties:
+        status:
+          type: string
+          description: Result of Commiting Submission
+          enum: ['PROCESSING']
+        dictionary:
+          type: object
+          description: The dictionary used to validate the submission
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+        processedEntities:
+          type: array
+          description: Names of the entities that will be processed
+          items:
+            type: string
     ActiveSubmissionResult:
       type: object
       properties:
@@ -130,9 +159,9 @@ components:
         organization:
           type: string
           description: Organization the Submission belongs to
-        state:
+        status:
           type: string
-          description: State of the Submission
+          description: Status of the Submission
           enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITED']
         createdAt:
           type: string
@@ -196,9 +225,9 @@ components:
         organization:
           type: string
           description: Organization the Submission belongs to
-        state:
+        status:
           type: string
-          description: State of the Submission
+          description: Status of the Submission
           enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITED']
         createdAt:
           type: string

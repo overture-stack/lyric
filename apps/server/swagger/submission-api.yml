@@ -120,7 +120,7 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
-/submission/category/{categoryId}/commit/{id}:
+/submission/category/{categoryId}/commit/{submissionId}:
   post:
     summary: Commit Active Submission
     tags:
@@ -130,15 +130,23 @@
         in: path
         type: file
         required: true
-      - name: id
+      - name: submissionId
         in: path
         type: string
         required: true
     responses:
       200:
-        description: Submission accepted
+        description: Commit Submission
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommitSubmissionResult'
+      400:
+        $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      409:
+        $ref: '#/components/responses/StatusConflict'
       500:
         $ref: '#/components/responses/ServerError'
       503:

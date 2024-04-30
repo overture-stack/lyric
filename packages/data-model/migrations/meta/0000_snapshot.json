@@ -1,5 +1,5 @@
 {
-  "id": "1cb1c1c1-e1ae-48ae-a523-4cdce9926821",
+  "id": "7741e060-643a-4431-8655-2eb10089e295",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "5",
   "dialect": "pg",
@@ -172,9 +172,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "state": {
-          "name": "state",
-          "type": "submission_state",
+        "status": {
+          "name": "status",
+          "type": "submission_status",
           "primaryKey": false,
           "notNull": false
         },
@@ -251,7 +251,7 @@
           "name": "data",
           "type": "jsonb",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "dictionary_category_id": {
           "name": "dictionary_category_id",
@@ -363,8 +363,8 @@
     }
   },
   "enums": {
-    "submission_state": {
-      "name": "submission_state",
+    "submission_status": {
+      "name": "submission_status",
       "values": {
         "OPEN": "OPEN",
         "VALID": "VALID",

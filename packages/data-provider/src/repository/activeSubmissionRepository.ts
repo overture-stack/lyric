@@ -12,7 +12,7 @@ const repository = (dependencies: Dependencies) => {
 
 	const getActiveSubmissionColumns = {
 		id: true,
-		state: true,
+		status: true,
 		organization: true,
 		data: true,
 		errors: true,
@@ -77,7 +77,7 @@ const repository = (dependencies: Dependencies) => {
 						eq(submissions.dictionaryCategoryId, categoryId),
 						eq(submissions.createdBy, userName),
 						eq(submissions.organization, organization),
-						or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
+						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
 					),
 				});
 			} catch (error) {
@@ -85,15 +85,41 @@ const repository = (dependencies: Dependencies) => {
 				throw new ServiceUnavailable();
 			}
 		},
+
+		/**
+		 * Finds a Submission by ID
+		 * @param {number} submissionId Submission ID
+		 * @returns The Submission found
+		 */
+		getSubmissionById: async (submissionId: number): Promise<Submission | undefined> => {
+			try {
+				return await db.query.submissions.findFirst({
+					where: and(eq(submissions.id, submissionId)),
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed getting Submission with id '${submissionId}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
 		/**
 		 * Update a Submission record in database
 		 * @param {number} submissionId Submission ID to update
 		 * @param {any} newData Set fields to update
 		 * @returns An updated record
 		 */
-		update: async (submissionId: number, newData: Partial<Submission>): Promise<Submission> => {
-			const updated = await db.update(submissions).set(newData).where(eq(submissions.id, submissionId)).returning();
-			return updated[0];
+		update: async (submissionId: number, newData: Partial<Submission>): Promise<Submission | undefined> => {
+			try {
+				const resultUpdate = await db
+					.update(submissions)
+					.set({ ...newData, updatedAt: new Date() })
+					.where(eq(submissions.id, submissionId))
+					.returning();
+				return resultUpdate[0];
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed updating Active Submission`, error);
+				throw new ServiceUnavailable();
+			}
 		},
 
 		/**
@@ -109,13 +135,13 @@ const repository = (dependencies: Dependencies) => {
 		}: {
 			categoryId: number;
 			userName: string;
-		}): Promise<ActiveSubmissionSummaryRepository[]> => {
+		}): Promise<ActiveSubmissionSummaryRepository[] | undefined> => {
 			try {
 				return await db.query.submissions.findMany({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
 						eq(submissions.createdBy, userName),
-						or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
+						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
 					),
 					columns: getActiveSubmissionColumns,
 					with: getActiveSubmissionRelations,
@@ -149,7 +175,7 @@ const repository = (dependencies: Dependencies) => {
 						eq(submissions.dictionaryCategoryId, categoryId),
 						eq(submissions.createdBy, userName),
 						eq(submissions.organization, organization),
-						or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
+						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
 					),
 					columns: getActiveSubmissionColumns,
 					with: getActiveSubmissionRelations,
@@ -172,7 +198,7 @@ const repository = (dependencies: Dependencies) => {
 				return await db.query.submissions.findFirst({
 					where: and(
 						eq(submissions.id, submissionId),
-						or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
+						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
 					),
 					columns: getActiveSubmissionColumns,
 					with: getActiveSubmissionRelations,
