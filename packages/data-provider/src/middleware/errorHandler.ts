@@ -5,7 +5,7 @@ import {
 	NotFound,
 	NotImplemented,
 	ServiceUnavailable,
-	StateConflict,
+	StatusConflict,
 	TSVParseError,
 } from '../utils/errors.js';
 
@@ -28,7 +28,7 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
 		case err instanceof NotFound:
 			status = 404;
 			break;
-		case err instanceof StateConflict:
+		case err instanceof StatusConflict:
 			status = 409;
 			break;
 		case err instanceof TSVParseError:

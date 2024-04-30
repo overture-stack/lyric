@@ -9,8 +9,8 @@ components:
           schema:
             $ref: '#/components/responses/Error'
 
-    StateConflict:
-      description: State Conflict
+    StatusConflict:
+      description: Status Conflict
       content:
         application/json:
           schema:
@@ -56,19 +56,19 @@ components:
           description: Number of seconds the current Node.js process has been running
         message:
           type: string
-          description: State of the service
+          description: Status of the service
         timestamp:
           type: string
           description: Current system's time in milliseconds since the Unix epoch
     CreateSubmissionResult:
       required:
-        - state
+        - status
         - description
         - batchErrors
         - inProcessEntities
       type: object
       properties:
-        state:
+        status:
           type: string
           description: Result of uploading Submission files
           enum: ['PROCESSING', 'INVALID_SUBMISSION', 'PARTIAL_SUBMISSION']
@@ -159,9 +159,9 @@ components:
         organization:
           type: string
           description: Organization the Submission belongs to
-        state:
+        status:
           type: string
-          description: State of the Submission
+          description: Status of the Submission
           enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITED']
         createdAt:
           type: string
@@ -225,9 +225,9 @@ components:
         organization:
           type: string
           description: Organization the Submission belongs to
-        state:
+        status:
           type: string
-          description: State of the Submission
+          description: Status of the Submission
           enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITED']
         createdAt:
           type: string

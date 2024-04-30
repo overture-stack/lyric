@@ -1,4 +1,4 @@
-enum submission_state {
+enum submission_status {
   OPEN
   VALID
   INVALID
@@ -33,7 +33,7 @@ table submissions {
   dictionary_id integer
   errors jsonb
   organization varchar [not null]
-  state submission_state
+  status submission_status
   created_at timestamp [default: `now()`]
   created_by varchar
   updated_at timestamp [default: `now()`]

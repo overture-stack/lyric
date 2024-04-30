@@ -13,7 +13,7 @@ const repository = (dependencies: Dependencies) => {
 
 	const getActiveSubmissionColumns = {
 		id: true,
-		state: true,
+		status: true,
 		organization: true,
 		data: true,
 		errors: true,
@@ -78,7 +78,7 @@ const repository = (dependencies: Dependencies) => {
 						eq(submissions.dictionaryCategoryId, categoryId),
 						eq(submissions.createdBy, userName),
 						eq(submissions.organization, organization),
-						or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
+						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
 					),
 				});
 			} catch (error) {
@@ -145,7 +145,7 @@ const repository = (dependencies: Dependencies) => {
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
 						eq(submissions.createdBy, userName),
-						or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
+						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
 					),
 					columns: getActiveSubmissionColumns,
 					with: getActiveSubmissionRelations,
@@ -179,7 +179,7 @@ const repository = (dependencies: Dependencies) => {
 						eq(submissions.dictionaryCategoryId, categoryId),
 						eq(submissions.createdBy, userName),
 						eq(submissions.organization, organization),
-						or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
+						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
 					),
 					columns: getActiveSubmissionColumns,
 					with: getActiveSubmissionRelations,
@@ -202,7 +202,7 @@ const repository = (dependencies: Dependencies) => {
 				return await db.query.submissions.findFirst({
 					where: and(
 						eq(submissions.id, submissionId),
-						or(eq(submissions.state, 'OPEN'), eq(submissions.state, 'VALID'), eq(submissions.state, 'INVALID')),
+						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
 					),
 					columns: getActiveSubmissionColumns,
 					with: getActiveSubmissionRelations,

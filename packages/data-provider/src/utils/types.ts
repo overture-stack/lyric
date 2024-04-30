@@ -9,32 +9,32 @@ import { DeepReadonly } from 'deep-freeze';
 type ObjectValues<T> = T[keyof T];
 
 /**
- * Enum matching Submission state in database
+ * Enum matching Submission status in database
  */
-export const SUBMISSION_STATE = {
+export const SUBMISSION_STATUS = {
 	OPEN: 'OPEN',
 	VALID: 'VALID',
 	INVALID: 'INVALID',
 	CLOSED: 'CLOSED',
 	COMMITED: 'COMMITTED',
 } as const;
-export type SubmissionState = ObjectValues<typeof SUBMISSION_STATE>;
+export type SubmissionStatus = ObjectValues<typeof SUBMISSION_STATUS>;
 
 /**
  * Enum used in the Reponse on Create new Submissions
  */
-export const CREATE_SUBMISSION_STATE = {
+export const CREATE_SUBMISSION_STATUS = {
 	PROCESSING: 'PROCESSING',
 	INVALID_SUBMISSION: 'INVALID_SUBMISSION',
 	PARTIAL_SUBMISSION: 'PARTIAL_SUBMISSION',
 } as const;
-export type CreateSubmissionState = ObjectValues<typeof CREATE_SUBMISSION_STATE>;
+export type CreateSubmissionStatus = ObjectValues<typeof CREATE_SUBMISSION_STATUS>;
 
 /**
  * Used as a Response type on a Create new Active Submission
  */
 export type CreateSubmissionResult = {
-	state: CreateSubmissionState;
+	status: CreateSubmissionStatus;
 	description: string;
 	inProcessEntities: string[];
 	batchErrors: DeepReadonly<BatchError>[];
@@ -113,7 +113,7 @@ export type ActiveSubmissionSummaryResponse = {
 	dictionaryCategory: CategoryActiveSubmission | null;
 	errors: Record<string, SchemaValidationError[]> | null;
 	organization: string;
-	state: SubmissionState | null;
+	status: SubmissionStatus | null;
 	createdAt: string | null;
 	createdBy: string;
 	updatedAt: string;
@@ -127,7 +127,7 @@ export type ActiveSubmissionSummaryRepository = {
 	dictionaryCategory: {} | null;
 	errors: Record<string, SchemaValidationError[]> | null;
 	organization: string | null;
-	state: SubmissionState | null;
+	status: SubmissionStatus | null;
 	createdAt: Date | null;
 	createdBy: string | null;
 	updatedAt: Date | null;
@@ -141,7 +141,7 @@ export type ActiveSubmissionResponse = {
 	dictionaryCategory: CategoryActiveSubmission | null;
 	errors: Record<string, SchemaValidationError[]> | null;
 	organization: string;
-	state: SubmissionState | null;
+	status: SubmissionStatus | null;
 	createdAt: string | null;
 	createdBy: string;
 	updatedAt: string;

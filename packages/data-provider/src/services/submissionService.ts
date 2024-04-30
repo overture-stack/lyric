@@ -6,19 +6,19 @@ import { Dependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
-import { BadRequest, StateConflict } from '../utils/errors.js';
+import { BadRequest, StatusConflict } from '../utils/errors.js';
 import { tsvToJson } from '../utils/fileUtils.js';
 import submissionUtils from '../utils/submissionUtils.js';
 import submittedDataUtils from '../utils/submittedDataUtils.js';
 import {
 	ActiveSubmissionSummaryResponse,
 	BatchError,
-	CREATE_SUBMISSION_STATE,
+	CREATE_SUBMISSION_STATUS,
 	CommitSubmissionParams,
 	CommitSubmissionResult,
 	CreateSubmissionResult,
-	CreateSubmissionState,
-	SUBMISSION_STATE,
+	CreateSubmissionStatus,
+	SUBMISSION_STATUS,
 	SubmissionEntity,
 	ValidateFilesParams,
 } from '../utils/types.js';
@@ -107,9 +107,9 @@ const service = (dependencies: Dependencies) => {
 			});
 		});
 
-		logger.info(LOG_MODULE, `Active submission '${submission.id} updated to state '${SUBMISSION_STATE.COMMITED}'`);
+		logger.info(LOG_MODULE, `Active submission '${submission.id} updated to status '${SUBMISSION_STATUS.COMMITED}'`);
 		submissionRepo.update(submission.id, {
-			state: SUBMISSION_STATE.COMMITED,
+			status: SUBMISSION_STATUS.COMMITED,
 			updatedAt: new Date(),
 		});
 	};
@@ -174,18 +174,18 @@ const service = (dependencies: Dependencies) => {
 				}
 			}
 
-			let state: CreateSubmissionState = CREATE_SUBMISSION_STATE.INVALID_SUBMISSION;
+			let status: CreateSubmissionStatus = CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION;
 			let description: string = 'No valid files for submission';
 			if (batchErrors.length === 0 && entitiesToProcess.length > 0) {
-				state = CREATE_SUBMISSION_STATE.PROCESSING;
+				status = CREATE_SUBMISSION_STATUS.PROCESSING;
 				description = 'Submission files are being processed';
 			} else if (batchErrors.length > 0 && entitiesToProcess.length > 0) {
-				state = CREATE_SUBMISSION_STATE.PARTIAL_SUBMISSION;
+				status = CREATE_SUBMISSION_STATUS.PARTIAL_SUBMISSION;
 				description = 'Some Submission files are being processed while others were unable to process';
 			}
 
 			return {
-				state,
+				status,
 				description,
 				batchErrors,
 				inProcessEntities: entitiesToProcess,
@@ -268,8 +268,8 @@ const service = (dependencies: Dependencies) => {
 			if (submission.dictionaryCategoryId !== categoryId)
 				throw new BadRequest(`Category ID provided does not match the category for the Submission`);
 
-			if (submission.state !== SUBMISSION_STATE.VALID)
-				throw new StateConflict('Submission does not have state VALID and cannot be committed');
+			if (submission.status !== SUBMISSION_STATUS.VALID)
+				throw new StatusConflict('Submission does not have status VALID and cannot be committed');
 
 			if (!categoryId) throw new BadRequest(`Active Submission does not belong to any Category`);
 
@@ -313,7 +313,7 @@ const service = (dependencies: Dependencies) => {
 			});
 
 			return {
-				status: CREATE_SUBMISSION_STATE.PROCESSING,
+				status: CREATE_SUBMISSION_STATUS.PROCESSING,
 				dictionary: {
 					name: currentDictionary.name,
 					version: currentDictionary.version,

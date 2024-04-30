@@ -1,5 +1,5 @@
 {
-  "id": "84085a6f-67a6-4927-8bf8-157e9d1afd36",
+  "id": "7741e060-643a-4431-8655-2eb10089e295",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "5",
   "dialect": "pg",
@@ -172,9 +172,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "state": {
-          "name": "state",
-          "type": "submission_state",
+        "status": {
+          "name": "status",
+          "type": "submission_status",
           "primaryKey": false,
           "notNull": false
         },
@@ -363,8 +363,8 @@
     }
   },
   "enums": {
-    "submission_state": {
-      "name": "submission_state",
+    "submission_status": {
+      "name": "submission_status",
       "values": {
         "OPEN": "OPEN",
         "VALID": "VALID",

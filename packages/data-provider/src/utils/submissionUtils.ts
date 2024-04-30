@@ -23,7 +23,7 @@ import {
 	CategoryActiveSubmission,
 	DataActiveSubmissionSummary,
 	DictionaryActiveSubmission,
-	SUBMISSION_STATE,
+	SUBMISSION_STATUS,
 	SubmissionEntity,
 } from './types.js';
 
@@ -52,13 +52,13 @@ const utils = (dependencies: Dependencies) => {
 			organization: string,
 		): Promise<Submission> => {
 			let updatedSubmission: Submission;
-			const newStateSubmission =
-				Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATE.INVALID : SUBMISSION_STATE.VALID;
+			const newStatusSubmission =
+				Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
 			if (isNumber(idActiveSubmission)) {
 				// Update with new data
 				const resultUpdate = await submissionRepo.update(_.toNumber(idActiveSubmission), {
 					data: entityMap,
-					state: newStateSubmission,
+					status: newStatusSubmission,
 					organization,
 					dictionaryId,
 					updatedBy: userName,
@@ -74,7 +74,7 @@ const utils = (dependencies: Dependencies) => {
 				);
 			} else {
 				const newSubmission: NewSubmission = {
-					state: newStateSubmission,
+					status: newStatusSubmission,
 					dictionaryCategoryId: Number(categoryId),
 					organization,
 					data: entityMap,
@@ -249,7 +249,7 @@ const utils = (dependencies: Dependencies) => {
 				dictionaryCategory: submission.dictionaryCategory as CategoryActiveSubmission,
 				errors: submission.errors,
 				organization: _.toString(submission.organization),
-				state: submission.state,
+				status: submission.status,
 				createdAt: _.toString(submission.createdAt?.toISOString()),
 				createdBy: _.toString(submission.createdBy),
 				updatedAt: _.toString(submission.updatedAt?.toISOString()),
@@ -265,7 +265,7 @@ const utils = (dependencies: Dependencies) => {
 				dictionaryCategory: submission.dictionaryCategory as CategoryActiveSubmission,
 				errors: submission.errors,
 				organization: _.toString(submission.organization),
-				state: submission.state,
+				status: submission.status,
 				createdAt: _.toString(submission.createdAt?.toISOString()),
 				createdBy: _.toString(submission.createdBy),
 				updatedAt: _.toString(submission.updatedAt?.toISOString()),

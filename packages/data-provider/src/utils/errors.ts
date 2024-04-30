@@ -12,7 +12,7 @@ export class NotFound extends Error {
 	}
 }
 
-export class StateConflict extends Error {
+export class StatusConflict extends Error {
 	constructor(msg: string) {
 		super(msg);
 		this.name = 'Conflict';

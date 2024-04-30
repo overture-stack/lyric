@@ -6,7 +6,7 @@ import { SchemaValidationError } from '@overturebio-stack/lectern-client/lib/sch
 import { dictionaries } from './dictionaries.js';
 import { dictionaryCategories } from './dictionary_categories.js';
 
-export const submissionStateEnum = pgEnum('submission_state', ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITTED']);
+export const submissionStatusEnum = pgEnum('submission_status', ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITTED']);
 
 type TsvRecordAsJsonObj = { [header: string]: string | string[] };
 export type SubmissionEntity = {
@@ -23,7 +23,7 @@ export const submissions = pgTable('submissions', {
 	dictionaryId: integer('dictionary_id').references(() => dictionaries.id),
 	errors: jsonb('errors').$type<Record<string, SchemaValidationError[]>>(),
 	organization: varchar('organization').notNull(),
-	state: submissionStateEnum('state'),
+	status: submissionStatusEnum('status'),
 	createdAt: timestamp('created_at').defaultNow(),
 	createdBy: varchar('created_by'),
 	updatedAt: timestamp('updated_at').defaultNow(),
