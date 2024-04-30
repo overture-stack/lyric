@@ -64,7 +64,9 @@ const utils = (dependencies: Dependencies) => {
 					updatedBy: userName,
 					errors: schemaErrors,
 				});
-				if (!resultUpdate) throw new InternalServerError();
+				if (!resultUpdate) {
+					throw new InternalServerError();
+				}
 
 				updatedSubmission = resultUpdate;
 

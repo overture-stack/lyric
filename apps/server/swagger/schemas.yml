@@ -3,14 +3,14 @@
 components:
   responses:
     BadRequest:
-      description: Bad request
+      description: Error response indicating that the client's request is malformed or invalid
       content:
         application/json:
           schema:
             $ref: '#/components/responses/Error'
 
     StatusConflict:
-      description: Status Conflict
+      description: Error response indicating a conflict in a Submission Status
       content:
         application/json:
           schema:
@@ -31,7 +31,7 @@ components:
             $ref: '#/components/responses/Error'
 
     ServiceUnavailableError:
-      description: Service Unavailable Error
+      description: Error message indicating the server is currently unable to handle the request, often due to maintenance, overload, or temporary issues
       content:
         application/json:
           schema:
