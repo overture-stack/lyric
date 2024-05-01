@@ -36,7 +36,9 @@ const service = (dependencies: Dependencies) => {
 		const activeSubmission = await getActiveSubmission({ categoryId, userName, organization });
 
 		const submissionSchemaErrors: Record<string, SchemaValidationError[]> = {};
-		const updateSubmissionEntities: Record<string, SubmissionEntity> = {};
+
+		// initialize new Submission with existing data
+		const updateSubmissionEntities: Record<string, SubmissionEntity> = activeSubmission ? activeSubmission.data : {};
 
 		await Promise.all(
 			Object.entries(files).map(async ([entityName, file]) => {
