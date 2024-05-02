@@ -167,3 +167,15 @@ export type SubmittedDataResponse = {
 	isValid: boolean;
 	organization: string;
 };
+
+export type PaginationMetadata = {
+	currentPage: number;
+	pageSize: number;
+	totalPages: number;
+	totalRecords: number;
+};
+
+export type SubmittedDataPaginatedResponse = {
+	pagination: PaginationMetadata;
+	records: SubmittedDataResponse[];
+};

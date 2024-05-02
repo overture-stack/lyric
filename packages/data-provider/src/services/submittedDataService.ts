@@ -1,39 +1,108 @@
 import { Dependencies } from '../config/config.js';
+import categoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
 import submittedUtils from '../utils/submittedDataUtils.js';
-import { paginationOps } from '../utils/types.js';
+import { SubmittedDataResponse, paginationOps } from '../utils/types.js';
 
 const service = (dependencies: Dependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_SERVICE';
 	const submittedDataRepo = submittedRepository(dependencies);
 	const { logger } = dependencies;
 	return {
-		getSubmittedDataByCategory: async (categoryId: number, paginationOps: paginationOps) => {
-			const { getSubmittedDataByCategoryIdPaginated } = submittedDataRepo;
+		getSubmittedDataByCategory: async (
+			categoryId: number,
+			paginationOps: paginationOps,
+		): Promise<{
+			data: SubmittedDataResponse[];
+			metadata: { totalRecords: number; errorMessage?: string };
+		}> => {
+			const { getSubmittedDataByCategoryIdPaginated, getTotalRecordsByCategoryId } = submittedDataRepo;
+
+			const { categoryIdExists } = categoryRepository(dependencies);
 			const { parseSubmittedData } = submittedUtils(dependencies);
 
-			const data = await getSubmittedDataByCategoryIdPaginated(categoryId, paginationOps);
+			const isValidCategory = await categoryIdExists(categoryId);
+			if (!isValidCategory) {
+				return {
+					data: [],
+					metadata: {
+						totalRecords: 0,
+						errorMessage: 'Invalid Category ID',
+					},
+				};
+			}
 
-			logger.debug(LOG_MODULE, `Retrieved '${data?.length}' Submitted data on categoryId '${categoryId}'`);
+			const recordsPaginated = await getSubmittedDataByCategoryIdPaginated(categoryId, paginationOps);
+			const totalRecords = await getTotalRecordsByCategoryId(categoryId);
 
-			if (!data || data.length === 0) return;
+			if (!recordsPaginated) {
+				return {
+					data: [],
+					metadata: {
+						totalRecords: totalRecords,
+						errorMessage: `No Submitted data found on categoryId '${categoryId}'`,
+					},
+				};
+			}
 
-			return parseSubmittedData(data);
+			logger.info(LOG_MODULE, `Retrieved '${recordsPaginated?.length}' Submitted data on categoryId '${categoryId}'`);
+
+			return {
+				data: parseSubmittedData(recordsPaginated),
+				metadata: {
+					totalRecords,
+				},
+			};
 		},
-		getSubmittedDataByOrganization: async (categoryId: number, organization: string, paginationOps: paginationOps) => {
-			const { getSubmittedDataByOrganizationPaginated } = submittedDataRepo;
+		getSubmittedDataByOrganization: async (
+			categoryId: number,
+			organization: string,
+			paginationOps: paginationOps,
+		): Promise<{ data: SubmittedDataResponse[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
+			const { getSubmittedDataByCategoryIdAndOrganizationPaginated, getTotalRecordsByCategoryIdAndOrganization } =
+				submittedDataRepo;
+			const { categoryIdExists } = categoryRepository(dependencies);
 			const { parseSubmittedData } = submittedUtils(dependencies);
 
-			const data = await getSubmittedDataByOrganizationPaginated(categoryId, organization, paginationOps);
+			const isValidCategory = await categoryIdExists(categoryId);
+			if (!isValidCategory) {
+				return {
+					data: [],
+					metadata: {
+						totalRecords: 0,
+						errorMessage: 'Invalid Category ID',
+					},
+				};
+			}
 
-			logger.debug(
+			const recordsPaginated = await getSubmittedDataByCategoryIdAndOrganizationPaginated(
+				categoryId,
+				organization,
+				paginationOps,
+			);
+			const totalRecords = await getTotalRecordsByCategoryIdAndOrganization(categoryId, organization);
+
+			if (!recordsPaginated) {
+				return {
+					data: [],
+					metadata: {
+						totalRecords,
+						errorMessage: `No Submitted data found on categoryId '${categoryId}' and organization '${organization}'`,
+					},
+				};
+			}
+
+			logger.info(
 				LOG_MODULE,
-				`Retrieved '${data?.length}' Submitted data on categoryId '${categoryId}' organization '${organization}'`,
+				`Retrieved '${recordsPaginated?.length}' Submitted data on categoryId '${categoryId}' organization '${organization}'`,
 			);
 
-			if (!data || data.length === 0) return;
-
-			return parseSubmittedData(data);
+			return {
+				data: parseSubmittedData(recordsPaginated),
+				metadata: {
+					totalRecords,
+				},
+			};
 		},
 	};
 };

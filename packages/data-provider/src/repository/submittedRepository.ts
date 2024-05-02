@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm/sql';
+import { and, count, eq } from 'drizzle-orm/sql';
 
 import { NewSubmittedData, SubmittedData, submittedData } from 'data-model';
 import { Dependencies } from '../config/config.js';
@@ -85,7 +85,7 @@ const repository = (dependencies: Dependencies) => {
 		 * @param {string} organization Organization Name
 		 * @returns The SubmittedData found
 		 */
-		getSubmittedDataByOrganizationPaginated: async (
+		getSubmittedDataByCategoryIdAndOrganizationPaginated: async (
 			categoryId: number,
 			organization: string,
 			paginationOps: paginationOps,
@@ -105,6 +105,47 @@ const repository = (dependencies: Dependencies) => {
 					`Failed querying SubmittedData with categoryId '${categoryId}' organization '${organization}'`,
 					error,
 				);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Counts the total of records found by Category and Organization
+		 * @param {number} categoryId Category ID
+		 * @param {string} organization Organization Name
+		 * @returns Total number of recourds
+		 */
+		getTotalRecordsByCategoryIdAndOrganization: async (categoryId: number, organization: string): Promise<number> => {
+			try {
+				const resultCount = await db
+					.select({ total: count() })
+					.from(submittedData)
+					.where(and(eq(submittedData.dictionaryCategoryId, categoryId), eq(submittedData.organization, organization)));
+				return resultCount[0].total;
+			} catch (error) {
+				logger.error(
+					LOG_MODULE,
+					`Failed counting SubmittedData with categoryId '${categoryId}' organization '${organization}'`,
+					error,
+				);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Counts the total of records found by Category
+		 * @param {number} categoryId Category ID
+		 * @returns Total number of recourds
+		 */
+		getTotalRecordsByCategoryId: async (categoryId: number): Promise<number> => {
+			try {
+				const resultCount = await db
+					.select({ total: count() })
+					.from(submittedData)
+					.where(eq(submittedData.dictionaryCategoryId, categoryId));
+				return resultCount[0].total;
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed counting SubmittedData with categoryId '${categoryId}'`, error);
 				throw new ServiceUnavailable();
 			}
 		},

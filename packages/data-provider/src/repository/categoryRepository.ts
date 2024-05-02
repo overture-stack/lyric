@@ -25,6 +25,26 @@ const repository = (dependencies: Dependencies) => {
 			}
 		},
 
+		categoryIdExists: async (categoryId: number): Promise<boolean> => {
+			try {
+				const categoryFound = await db
+					.selectDistinct()
+					.from(dictionaryCategories)
+					.where(eq(dictionaryCategories.id, categoryId));
+				let isValid = false;
+				if (categoryFound && categoryFound.length === 1) {
+					isValid = true;
+				} else {
+					logger.debug(LOG_MODULE, `Category ID'${categoryId}' doesn't exists`);
+				}
+
+				return isValid;
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying category with id ${categoryId}`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
 		/**
 		 * Find a Category matching a category name
 		 * @param {string} name Category name

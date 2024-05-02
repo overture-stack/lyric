@@ -257,21 +257,35 @@ components:
       $ref: '#/components/schemas/ActiveSubmissionSummary'
 
     GetSubmittedDataResult:
-      type: array
-      items:
-        type: object
-        properties:
-          data:
-            type: array
-            items:
-              type: object
-              description: Content of the file in JSON format
-          entityName:
-            type: string
-          isValid:
-            type: boolean
-          organization:
-            type: string
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            currentPage:
+              type: number
+            pageSize:
+              type: number
+            totalPages:
+              type: number
+            totalRecords:
+              type: number
+        records:
+          type: array
+          items:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  type: object
+                  description: Content of the file in JSON format
+              entityName:
+                type: string
+              isValid:
+                type: boolean
+              organization:
+                type: string
 
     ValidationError:
       type: object
