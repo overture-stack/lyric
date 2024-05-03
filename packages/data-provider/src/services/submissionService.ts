@@ -78,7 +78,15 @@ const service = (dependencies: BaseDependencies) => {
 		}
 	};
 
-	const performCommitSubmissionAsync = async (params: CommitSubmissionParams) => {
+	/**
+	 * This function validates whole data together against a dictionary
+	 * @param {object} params
+	 * @param {Array<NewSubmittedData>} data Data to be validated
+	 * @param {SchemasDictionary & { id: number }} dictionary Dictionary to validata data
+	 * @param {Submission} submission Active Submission object
+	 * @returns void
+	 */
+	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<void> => {
 		const submissionRepo = submissionRepository(dependencies);
 		const dataSubmittedRepo = submittedRepository(dependencies);
 		const { groupSchemaDataByEntityName, validateSchemas, groupErrorsByIndex, hasErrorsByIndex } =
@@ -260,7 +268,7 @@ const service = (dependencies: BaseDependencies) => {
 
 		commitSubmission: async (categoryId: number, submissionId: number): Promise<CommitSubmissionResult> => {
 			const { getSubmissionById } = submissionRepository(dependencies);
-			const { getSubmittedDataByCategoryId } = submittedRepository(dependencies);
+			const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
 			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 
 			const submission = await getSubmissionById(submissionId);
@@ -280,7 +288,10 @@ const service = (dependencies: BaseDependencies) => {
 
 			const entitiesToProcess: string[] = [];
 
-			const submittedDataArray = await getSubmittedDataByCategoryId(categoryId);
+			const submittedDataArray = await getSubmittedDataByCategoryIdAndOrganization(
+				categoryId,
+				submission?.organization,
+			);
 
 			const submissionsToValidate = Object.entries(submission.data).flatMap(([entityName, submissionEntity]) => {
 				entitiesToProcess.push(entityName);
@@ -308,6 +319,7 @@ const service = (dependencies: BaseDependencies) => {
 				});
 			}
 
+			// To Commit Active Submission we need to validate SubmittedData + Active Submission
 			performCommitSubmissionAsync({
 				data: submissionsToValidate,
 				submission,

@@ -40,14 +40,18 @@ const repository = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Find SubmittedData by category ID
+		 * Find SubmittedData by category ID and organization
 		 * @param {number} categoryId Category ID
+		 * @param {string} organization Organization Name
 		 * @returns The SubmittedData found
 		 */
-		getSubmittedDataByCategoryId: async (categoryId: number): Promise<SubmittedData[] | undefined> => {
+		getSubmittedDataByCategoryIdAndOrganization: async (
+			categoryId: number,
+			organization: string,
+		): Promise<SubmittedData[] | undefined> => {
 			try {
 				return await db.query.submittedData.findMany({
-					where: eq(submittedData.dictionaryCategoryId, categoryId),
+					where: and(eq(submittedData.dictionaryCategoryId, categoryId), eq(submittedData.organization, organization)),
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying SubmittedData with categoryId '${categoryId}'`, error);
