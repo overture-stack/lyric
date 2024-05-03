@@ -6,10 +6,10 @@ import {
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { NewSubmittedData } from 'data-model';
 import { groupBy, has } from 'lodash-es';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import { SubmittedDataRepository, SubmittedDataResponse } from './types.js';
 
-const utils = (dependencies: Dependencies) => {
+const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_UTILS';
 	const { logger } = dependencies;
 	return {

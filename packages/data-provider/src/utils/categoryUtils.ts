@@ -1,10 +1,10 @@
 import { isEmpty } from 'lodash-es';
 
 import { Category, NewCategory } from 'data-model';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
 
-const utils = (dependencies: Dependencies) => {
+const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'CATEGORY_UTILS';
 	const { logger } = dependencies;
 	const categoryRepo = categoryRepository(dependencies);

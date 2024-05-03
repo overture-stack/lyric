@@ -55,6 +55,7 @@ const utils = (dependencies: Dependencies) => {
 		 */
 		fetchDictionaryByVersion: async (dictionaryName: string, version: string): Promise<SchemasDictionary> => {
 			try {
+				if (!dependencies?.config?.schemaService?.url) throw new Error(`'schemaService' is not configured`);
 				const client = lecternClient(dependencies.config.schemaService.url, logger);
 				const dictionaryResponse = await client.fetchDictionaryByVersion(dictionaryName, version);
 				logger.debug(LOG_MODULE, `dictionary fetched from Lectern`, JSON.stringify(dictionaryResponse));

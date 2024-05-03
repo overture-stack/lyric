@@ -1,3 +1,4 @@
+import * as _ from 'lodash-es';
 import { AppConfig, Dependencies } from '../config/config.js';
 import { connect } from '../config/db.js';
 import { getLogger } from '../config/logger.js';
@@ -25,14 +26,14 @@ const provider = (configData: AppConfig) => {
 		configs: deps,
 		routers: {
 			dictionary: dictionaryRouters(deps),
-			submission: submissionRouters(deps),
-			submittedData: submittedDataRouters(deps),
+			submission: submissionRouters(_.omit(deps, ['config'])),
+			submittedData: submittedDataRouters(_.omit(deps, ['config'])),
 		},
 		utils: {
 			dictionary: getDictionaryUtils(deps),
-			category: getCategoryUtils(deps),
-			submission: getSubmissionUtils(deps),
-			submittedData: getSubmittedDataUtils(deps),
+			category: getCategoryUtils(_.omit(deps, ['config'])),
+			submission: getSubmissionUtils(_.omit(deps, ['config'])),
+			submittedData: getSubmittedDataUtils(_.omit(deps, ['config'])),
 		},
 	};
 };

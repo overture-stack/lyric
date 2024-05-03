@@ -2,7 +2,7 @@ import { SchemaValidationError, SchemasDictionary } from '@overturebio-stack/lec
 import * as _ from 'lodash-es';
 
 import { NewSubmittedData } from 'data-model';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
@@ -23,7 +23,7 @@ import {
 	ValidateFilesParams,
 } from '../utils/types.js';
 
-const service = (dependencies: Dependencies) => {
+const service = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_SERVICE';
 	const { logger } = dependencies;
 

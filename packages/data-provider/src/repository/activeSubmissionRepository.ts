@@ -1,11 +1,11 @@
 import { and, eq, or } from 'drizzle-orm/sql';
 
 import { NewSubmission, Submission, submissions } from 'data-model';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import { ActiveSubmissionSummaryRepository, BooleanTrueObject } from '../utils/types.js';
 
-const repository = (dependencies: Dependencies) => {
+const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
 	const { db, logger } = dependencies;
 

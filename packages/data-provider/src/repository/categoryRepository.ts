@@ -2,10 +2,10 @@ import { eq } from 'drizzle-orm/sql';
 
 import { SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { Category, NewCategory, dictionaryCategories } from 'data-model';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 
-const repository = (dependencies: Dependencies) => {
+const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'CATEGORY_REPOSITORY';
 	const { db, logger } = dependencies;
 	return {

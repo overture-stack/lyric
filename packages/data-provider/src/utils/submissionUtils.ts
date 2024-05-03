@@ -8,7 +8,7 @@ import {
 import * as _ from 'lodash-es';
 
 import { NewSubmission, Submission } from 'data-model';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
 import { InternalServerError } from './errors.js';
@@ -27,7 +27,7 @@ import {
 	SubmissionEntity,
 } from './types.js';
 
-const utils = (dependencies: Dependencies) => {
+const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_UTILS';
 	const { logger } = dependencies;
 	const submissionRepo = submissionRepository(dependencies);

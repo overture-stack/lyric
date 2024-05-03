@@ -1,10 +1,10 @@
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
 import submittedUtils from '../utils/submittedDataUtils.js';
 import { SubmittedDataResponse, paginationOps } from '../utils/types.js';
 
-const service = (dependencies: Dependencies) => {
+const service = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_SERVICE';
 	const submittedDataRepo = submittedRepository(dependencies);
 	const { logger } = dependencies;

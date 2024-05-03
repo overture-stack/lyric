@@ -1,13 +1,13 @@
 import { NextFunction, Request, Response } from 'express';
 import * as _ from 'lodash-es';
 
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import submittedDataService from '../services/submittedDataService.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
 import { isEmptyString } from '../utils/formatUtils.js';
 import { SubmittedDataPaginatedResponse } from '../utils/types.js';
 
-const controller = (dependencies: Dependencies) => {
+const controller = (dependencies: BaseDependencies) => {
 	const service = submittedDataService(dependencies);
 	const { logger } = dependencies;
 	const LOG_MODULE = 'SUBMITTED_DATA_CONTROLLER';

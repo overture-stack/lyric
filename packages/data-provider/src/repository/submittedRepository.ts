@@ -1,11 +1,11 @@
 import { and, count, eq } from 'drizzle-orm/sql';
 
 import { NewSubmittedData, SubmittedData, submittedData } from 'data-model';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import { BooleanTrueObject, SubmittedDataRepository, paginationOps } from '../utils/types.js';
 
-const repository = (dependencies: Dependencies) => {
+const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTEDDATA_REPOSITORY';
 	const { db, logger } = dependencies;
 

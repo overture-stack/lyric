@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 
 import { isEmpty, isNaN } from 'lodash-es';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import submissionService from '../services/submissionService.js';
 import { BadRequest, NotFound, getErrorMessage } from '../utils/errors.js';
 import { validateTsvExtension } from '../utils/fileUtils.js';
@@ -10,7 +10,7 @@ import { validateRequest } from '../utils/requestValidation.js';
 import { uploadSubmissionRequestSchema } from '../utils/schemas.js';
 import { BATCH_ERROR_TYPE, BatchError } from '../utils/types.js';
 
-const controller = (dependencies: Dependencies) => {
+const controller = (dependencies: BaseDependencies) => {
 	const service = submissionService(dependencies);
 	const { logger } = dependencies;
 	const LOG_MODULE = 'SUBMISSION_CONTROLLER';
