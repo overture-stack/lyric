@@ -14,7 +14,11 @@ const controller = (dependencies: Dependencies) => {
 	const defaultPage = 1;
 	const defaultPageSize = 20;
 	return {
-		getSubmittedDataByCategory: async (req: Request, res: Response, next: NextFunction) => {
+		getSubmittedDataByCategory: async (
+			req: Request<{ categoryId: string }, {}, {}, { pageSize: string; page: string }>,
+			res: Response,
+			next: NextFunction,
+		) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				let page = parseInt(req.query.page as string) || defaultPage;
@@ -55,7 +59,11 @@ const controller = (dependencies: Dependencies) => {
 				next(error);
 			}
 		},
-		getSubmittedDataByOrganization: async (req: Request, res: Response, next: NextFunction) => {
+		getSubmittedDataByOrganization: async (
+			req: Request<{ categoryId: string; organization: string }, {}, {}, { page: string; pageSize: string }>,
+			res: Response,
+			next: NextFunction,
+		) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
