@@ -1,11 +1,10 @@
+import { DataRecord, SchemaData } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import firstline from 'firstline';
 import fs from 'fs';
 import { BadRequest } from './errors.js';
 import { notEmpty } from './formatUtils.js';
 
 const fsPromises = fs.promises;
-
-export type TsvRecordAsJsonObj = { [header: string]: string | string[] };
 
 export const ARRAY_DELIMITER_CHAR = '|';
 
@@ -36,13 +35,13 @@ export const readHeaders = async (file: Express.Multer.File) => {
  * @param {string} fileName
  * @returns a JSON format objet
  */
-export const tsvToJson = async (fileName: string): Promise<ReadonlyArray<TsvRecordAsJsonObj>> => {
+export const tsvToJson = async (fileName: string): Promise<SchemaData> => {
 	const contents = await fsPromises.readFile(fileName, 'utf-8');
 	const arr = parseTsvToJson(contents);
 	return arr;
 };
 
-const parseTsvToJson = (content: string): ReadonlyArray<TsvRecordAsJsonObj> => {
+const parseTsvToJson = (content: string): SchemaData => {
 	const lines = content.split('\n');
 	const headers = lines.slice(0, 1)[0].trim().split('\t');
 	const rows = lines.slice(1, lines.length).map((line) => {
@@ -51,7 +50,7 @@ const parseTsvToJson = (content: string): ReadonlyArray<TsvRecordAsJsonObj> => {
 			return undefined;
 		}
 		const data = line.split('\t');
-		return headers.reduce<TsvRecordAsJsonObj>((obj, nextKey, index) => {
+		return headers.reduce((obj: any, nextKey, index) => {
 			const dataStr = data[index] || '';
 			const formattedData = formatForExcelCompatibility(dataStr);
 			const dataAsArray: string[] = formattedData
@@ -60,7 +59,7 @@ const parseTsvToJson = (content: string): ReadonlyArray<TsvRecordAsJsonObj> => {
 				.map((s) => s.trim());
 
 			obj[nextKey] = dataAsArray.length === 1 ? dataAsArray[0] : dataAsArray;
-			return obj;
+			return obj as DataRecord;
 		}, {});
 	});
 	return rows.filter(notEmpty);

@@ -5,7 +5,6 @@ import {
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { NewSubmittedData, Submission } from 'data-model';
 import { DeepReadonly } from 'deep-freeze';
-import { TsvRecordAsJsonObj } from './fileUtils.js';
 
 type ObjectValues<T> = T[keyof T];
 
@@ -74,10 +73,9 @@ export type BatchError = {
 
 export interface ValidateFilesParams {
 	categoryId: number;
-	currentDictionaryId: number;
+	dictionary: SchemasDictionary & { id: number };
 	organization: string;
 	userName: string;
-	schemasDictionary: SchemasDictionary;
 }
 
 export interface CommitSubmissionParams {
@@ -155,14 +153,14 @@ export type ActiveSubmissionResponse = {
 };
 
 export type SubmittedDataRepository = {
-	data: Readonly<TsvRecordAsJsonObj>;
+	data: DataRecord;
 	entityName: string;
 	isValid: boolean | null;
 	organization: string;
 };
 
 export type SubmittedDataResponse = {
-	data: Readonly<TsvRecordAsJsonObj>;
+	data: DataRecord;
 	entityName: string;
 	isValid: boolean;
 	organization: string;
@@ -178,4 +176,29 @@ export type PaginationMetadata = {
 export type SubmittedDataPaginatedResponse = {
 	pagination: PaginationMetadata;
 	records: SubmittedDataResponse[];
+};
+
+/**
+ * Enum used to merge SubmittedData and Submissions
+ */
+export const MERGE_REFERENCE_TYPE = {
+	SUBMITTED_DATA: 'submittedData',
+	SUBMISSION: 'submission',
+} as const;
+export type MergeReferenceType = ObjectValues<typeof MERGE_REFERENCE_TYPE>;
+
+export interface SubmittedDataReference {
+	type: typeof MERGE_REFERENCE_TYPE.SUBMITTED_DATA;
+	submittedDataId: number;
+}
+
+export interface SubmissionReference {
+	type: typeof MERGE_REFERENCE_TYPE.SUBMISSION;
+	submissionId: number | undefined;
+	index: number;
+}
+
+export type DataRecordReference = {
+	dataRecord: DataRecord;
+	reference: SubmittedDataReference | SubmissionReference;
 };

@@ -4,15 +4,45 @@ import {
 	SchemaValidationError,
 	SchemasDictionary,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
-import { NewSubmittedData } from 'data-model';
+import { NewSubmittedData, SubmittedData } from 'data-model';
 import { groupBy, has } from 'lodash-es';
 import { BaseDependencies } from '../config/config.js';
-import { SubmittedDataRepository, SubmittedDataResponse } from './types.js';
+import {
+	DataRecordReference,
+	MERGE_REFERENCE_TYPE,
+	SubmittedDataReference,
+	SubmittedDataRepository,
+	SubmittedDataResponse,
+} from './types.js';
 
 const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_UTILS';
 	const { logger } = dependencies;
 	return {
+		mapSubmittedDataSchemaByEntityName: (
+			submittedData: SubmittedData[] | undefined,
+		): Record<string, DataRecordReference[]> => {
+			if (!submittedData) return {};
+
+			const mappingDataRecords: Record<string, DataRecordReference[]> = {};
+
+			const dataRecordGroupedByEntityName = groupBy(submittedData, 'entityName');
+
+			Object.entries(dataRecordGroupedByEntityName).map(([entityName, submittedDataEntities]) => {
+				logger.info(LOG_MODULE, `found submittedData for entity: ${entityName}`);
+				submittedDataEntities.map((entity) => {
+					mappingDataRecords[entityName] = mappingDataRecords[entityName] || [];
+					mappingDataRecords[entityName].push({
+						dataRecord: entity.data,
+						reference: {
+							submittedDataId: entity.id,
+							type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
+						} as SubmittedDataReference,
+					});
+				});
+			});
+			return mappingDataRecords;
+		},
 		/**
 		 * Creates a list of SubmittedData grouped by entities and a matching list with only schema data
 		 * @param {Array<NewSubmittedData>} data
@@ -56,7 +86,7 @@ const utils = (dependencies: BaseDependencies) => {
 			dictionary: SchemasDictionary & {
 				id: number;
 			},
-			schemaData: Record<string, SchemaData>,
+			schemasData: Record<string, SchemaData>,
 		) => {
 			const schemasDictionary: SchemasDictionary = {
 				name: dictionary.name,
@@ -64,7 +94,7 @@ const utils = (dependencies: BaseDependencies) => {
 				schemas: dictionary.schemas,
 			};
 
-			return functions.processSchemas(schemasDictionary, schemaData);
+			return functions.processSchemas(schemasDictionary, schemasData);
 		},
 
 		/**
