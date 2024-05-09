@@ -1,10 +1,10 @@
 import { and, eq } from 'drizzle-orm/sql';
 
 import { Dictionary, NewDictionary, dictionaries } from 'data-model';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 
-const repository = (dependencies: Dependencies) => {
+const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'DICTIONARY_REPOSITORY';
 	const { db, logger } = dependencies;
 	return {

@@ -34,6 +34,14 @@ export type AppConfig = {
  */
 export interface Dependencies {
 	db: NodePgDatabase<typeof schema>;
-	config: AppConfig;
+	config?: AppConfig;
+	logger: Logger;
+}
+
+/**
+ * Base Dependencies required for utils/services
+ */
+export interface BaseDependencies {
+	db: NodePgDatabase<typeof schema>;
 	logger: Logger;
 }

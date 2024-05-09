@@ -4,14 +4,66 @@ import {
 	SchemaValidationError,
 	SchemasDictionary,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
-import { NewSubmittedData } from 'data-model';
+import { NewSubmittedData, SubmittedData } from 'data-model';
 import { groupBy, has } from 'lodash-es';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
+import {
+	DataRecordReference,
+	MERGE_REFERENCE_TYPE,
+	SubmittedDataReference,
+	SubmittedDataRepository,
+	SubmittedDataResponse,
+} from './types.js';
 
-const utils = (dependencies: Dependencies) => {
+const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_UTILS';
 	const { logger } = dependencies;
 	return {
+		mapSubmittedDataSchemaByEntityName: (
+			submittedData: SubmittedData[] | undefined,
+		): Record<string, DataRecordReference[]> => {
+			if (!submittedData) return {};
+
+			const mappingDataRecords: Record<string, DataRecordReference[]> = {};
+
+			const dataRecordGroupedByEntityName = groupBy(submittedData, 'entityName');
+
+			Object.entries(dataRecordGroupedByEntityName).map(([entityName, submittedDataEntities]) => {
+				logger.info(LOG_MODULE, `found submittedData for entity: ${entityName}`);
+				submittedDataEntities.map((entity) => {
+					mappingDataRecords[entityName] = mappingDataRecords[entityName] || [];
+					mappingDataRecords[entityName].push({
+						dataRecord: entity.data,
+						reference: {
+							submittedDataId: entity.id,
+							type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
+						} as SubmittedDataReference,
+					});
+				});
+			});
+
+			return mappingDataRecords;
+		},
+
+		/**
+		 * Abstract Error response
+		 * @param error
+		 * @returns
+		 */
+		fetchDataErrorResponse: (
+			error: string,
+		): {
+			data: [];
+			metadata: { totalRecords: number; errorMessage?: string };
+		} => {
+			return {
+				data: [],
+				metadata: {
+					totalRecords: 0,
+					errorMessage: error,
+				},
+			};
+		},
 		/**
 		 * Creates a list of SubmittedData grouped by entities and a matching list with only schema data
 		 * @param {Array<NewSubmittedData>} data
@@ -55,7 +107,7 @@ const utils = (dependencies: Dependencies) => {
 			dictionary: SchemasDictionary & {
 				id: number;
 			},
-			schemaData: Record<string, SchemaData>,
+			schemasData: Record<string, SchemaData>,
 		) => {
 			const schemasDictionary: SchemasDictionary = {
 				name: dictionary.name,
@@ -63,7 +115,7 @@ const utils = (dependencies: Dependencies) => {
 				schemas: dictionary.schemas,
 			};
 
-			return functions.processSchemas(schemasDictionary, schemaData);
+			return functions.processSchemas(schemasDictionary, schemasData);
 		},
 
 		/**
@@ -93,6 +145,17 @@ const utils = (dependencies: Dependencies) => {
 				logger.info(LOG_MODULE, `Data in index '${index}' is not valid`);
 			}
 			return hasErrors;
+		},
+
+		parseSubmittedData: (recordsArray: SubmittedDataRepository[]): SubmittedDataResponse[] => {
+			return recordsArray.map((record) => {
+				return {
+					entityName: record.entityName,
+					data: record.data,
+					isValid: record.isValid || false,
+					organization: record.organization,
+				};
+			});
 		},
 	};
 };

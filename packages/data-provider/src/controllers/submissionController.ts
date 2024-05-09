@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 
 import { isEmpty, isNaN } from 'lodash-es';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import submissionService from '../services/submissionService.js';
 import { BadRequest, NotFound, getErrorMessage } from '../utils/errors.js';
 import { validateTsvExtension } from '../utils/fileUtils.js';
@@ -10,7 +10,7 @@ import { validateRequest } from '../utils/requestValidation.js';
 import { uploadSubmissionRequestSchema } from '../utils/schemas.js';
 import { BATCH_ERROR_TYPE, BatchError } from '../utils/types.js';
 
-const controller = (dependencies: Dependencies) => {
+const controller = (dependencies: BaseDependencies) => {
 	const service = submissionService(dependencies);
 	const { logger } = dependencies;
 	const LOG_MODULE = 'SUBMISSION_CONTROLLER';
@@ -84,7 +84,7 @@ const controller = (dependencies: Dependencies) => {
 				next(error);
 			}
 		}),
-		commit: async (req: Request, res: Response, next: NextFunction) => {
+		commit: async (req: Request<{ categoryId: string; submissionId: string }>, res: Response, next: NextFunction) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const submissionId = Number(req.params.submissionId);
@@ -103,7 +103,7 @@ const controller = (dependencies: Dependencies) => {
 				next(error);
 			}
 		},
-		getActiveByCategory: async (req: Request, res: Response, next: NextFunction) => {
+		getActiveByCategory: async (req: Request<{ categoryId: string }>, res: Response, next: NextFunction) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				if (isNaN(categoryId)) {
@@ -126,7 +126,11 @@ const controller = (dependencies: Dependencies) => {
 				next(error);
 			}
 		},
-		getActiveByOrganization: async (req: Request, res: Response, next: NextFunction) => {
+		getActiveByOrganization: async (
+			req: Request<{ categoryId: string; organization: string }>,
+			res: Response,
+			next: NextFunction,
+		) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
@@ -160,7 +164,7 @@ const controller = (dependencies: Dependencies) => {
 				next(error);
 			}
 		},
-		getActiveById: async (req: Request, res: Response, next: NextFunction) => {
+		getActiveById: async (req: Request<{ submissionId: string }>, res: Response, next: NextFunction) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
 

@@ -2,10 +2,10 @@ import { eq } from 'drizzle-orm/sql';
 
 import { SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { Category, NewCategory, dictionaryCategories } from 'data-model';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 
-const repository = (dependencies: Dependencies) => {
+const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'CATEGORY_REPOSITORY';
 	const { db, logger } = dependencies;
 	return {
@@ -21,6 +21,26 @@ const repository = (dependencies: Dependencies) => {
 				return savedCategory[0];
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed saving category '${data.name}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		categoryIdExists: async (categoryId: number): Promise<boolean> => {
+			try {
+				const categoryFound = await db
+					.selectDistinct()
+					.from(dictionaryCategories)
+					.where(eq(dictionaryCategories.id, categoryId));
+				let isValid = false;
+				if (categoryFound && categoryFound.length === 1) {
+					isValid = true;
+				} else {
+					logger.debug(LOG_MODULE, `Category ID'${categoryId}' doesn't exists`);
+				}
+
+				return isValid;
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying category with id ${categoryId}`, error);
 				throw new ServiceUnavailable();
 			}
 		},

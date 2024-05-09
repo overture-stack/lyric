@@ -8,6 +8,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/responses/Error'
+    NotFound:
+      description: Requested resource could not be found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
 
     StatusConflict:
       description: Error response indicating a conflict in a Submission Status
@@ -250,11 +256,42 @@ components:
     ActiveSubmissionSummaryResult:
       $ref: '#/components/schemas/ActiveSubmissionSummary'
 
+    GetSubmittedDataResult:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            currentPage:
+              type: number
+            pageSize:
+              type: number
+            totalPages:
+              type: number
+            totalRecords:
+              type: number
+        records:
+          type: array
+          items:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  type: object
+                  description: Content of the file in JSON format
+              entityName:
+                type: string
+              isValid:
+                type: boolean
+              organization:
+                type: string
+
     ValidationError:
       type: object
       required:
         - index
-        - type
+        - errorType
         - fieldName
       properties:
         fieldName:

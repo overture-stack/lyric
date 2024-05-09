@@ -3,10 +3,10 @@ import multer from 'multer';
 
 import { auth } from '../middleware/auth.js';
 
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import submissionControllers from '../controllers/submissionController.js';
 
-const router = (dependencies: Dependencies): Router => {
+const router = (dependencies: BaseDependencies): Router => {
 	const upload = multer({ dest: '/tmp' });
 
 	const router = Router();

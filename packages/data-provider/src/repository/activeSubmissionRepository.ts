@@ -1,16 +1,15 @@
 import { and, eq, or } from 'drizzle-orm/sql';
 
 import { NewSubmission, Submission, submissions } from 'data-model';
-import * as _ from 'lodash-es';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import { ActiveSubmissionSummaryRepository, BooleanTrueObject } from '../utils/types.js';
 
-const repository = (dependencies: Dependencies) => {
+const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
 	const { db, logger } = dependencies;
 
-	const getActiveSubmissionColumns = {
+	const getActiveSubmissionColumns: BooleanTrueObject = {
 		id: true,
 		status: true,
 		organization: true,
@@ -20,7 +19,7 @@ const repository = (dependencies: Dependencies) => {
 		createdBy: true,
 		updatedAt: true,
 		updatedBy: true,
-	} as BooleanTrueObject;
+	};
 
 	const getActiveSubmissionRelations = {
 		dictionary: {

@@ -1,12 +1,20 @@
-import { eq } from 'drizzle-orm/sql';
+import { and, count, eq } from 'drizzle-orm/sql';
 
 import { NewSubmittedData, SubmittedData, submittedData } from 'data-model';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
+import { BooleanTrueObject, SubmittedDataRepository, paginationOps } from '../utils/types.js';
 
-const repository = (dependencies: Dependencies) => {
+const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTEDDATA_REPOSITORY';
 	const { db, logger } = dependencies;
+
+	const paginatedColumns: BooleanTrueObject = {
+		entityName: true,
+		data: true,
+		organization: true,
+		isValid: true,
+	};
 	return {
 		/**
 		 * Save new SubmittedData in Database
@@ -32,17 +40,116 @@ const repository = (dependencies: Dependencies) => {
 		},
 
 		/**
-		 * Find SubmittedData by category ID
+		 * Find SubmittedData by category ID and organization
 		 * @param {number} categoryId Category ID
+		 * @param {string} organization Organization Name
 		 * @returns The SubmittedData found
 		 */
-		getSubmittedDataByCategoryId: async (categoryId: number): Promise<SubmittedData[] | undefined> => {
+		getSubmittedDataByCategoryIdAndOrganization: async (
+			categoryId: number,
+			organization: string,
+		): Promise<SubmittedData[] | undefined> => {
 			try {
 				return await db.query.submittedData.findMany({
-					where: eq(submittedData.dictionaryCategoryId, categoryId),
+					where: and(eq(submittedData.dictionaryCategoryId, categoryId), eq(submittedData.organization, organization)),
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying SubmittedData with categoryId '${categoryId}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Find SubmittedData by category ID with pagination
+		 * @param {number} categoryId Category ID
+		 * @returns The SubmittedData found
+		 */
+		getSubmittedDataByCategoryIdPaginated: async (
+			categoryId: number,
+			paginationOps: paginationOps,
+		): Promise<SubmittedDataRepository[] | undefined> => {
+			const { page, pageSize } = paginationOps;
+			try {
+				return await db.query.submittedData.findMany({
+					where: eq(submittedData.dictionaryCategoryId, categoryId),
+					columns: paginatedColumns,
+					orderBy: (submittedData, { asc }) => [asc(submittedData.entityName), asc(submittedData.id)],
+					limit: pageSize,
+					offset: (page - 1) * pageSize,
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying SubmittedData with categoryId '${categoryId}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Find SubmittedData by category ID and Organization with pagination
+		 * @param {number} categoryId Category ID
+		 * @param {string} organization Organization Name
+		 * @returns The SubmittedData found
+		 */
+		getSubmittedDataByCategoryIdAndOrganizationPaginated: async (
+			categoryId: number,
+			organization: string,
+			paginationOps: paginationOps,
+		): Promise<SubmittedDataRepository[] | undefined> => {
+			const { page, pageSize } = paginationOps;
+			try {
+				return await db.query.submittedData.findMany({
+					where: and(eq(submittedData.dictionaryCategoryId, categoryId), eq(submittedData.organization, organization)),
+					columns: paginatedColumns,
+					orderBy: (submittedData, { asc }) => [asc(submittedData.entityName), asc(submittedData.id)],
+					limit: pageSize,
+					offset: (page - 1) * pageSize,
+				});
+			} catch (error) {
+				logger.error(
+					LOG_MODULE,
+					`Failed querying SubmittedData with categoryId '${categoryId}' organization '${organization}'`,
+					error,
+				);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Counts the total of records found by Category and Organization
+		 * @param {number} categoryId Category ID
+		 * @param {string} organization Organization Name
+		 * @returns Total number of recourds
+		 */
+		getTotalRecordsByCategoryIdAndOrganization: async (categoryId: number, organization: string): Promise<number> => {
+			try {
+				const resultCount = await db
+					.select({ total: count() })
+					.from(submittedData)
+					.where(and(eq(submittedData.dictionaryCategoryId, categoryId), eq(submittedData.organization, organization)));
+				return resultCount[0].total;
+			} catch (error) {
+				logger.error(
+					LOG_MODULE,
+					`Failed counting SubmittedData with categoryId '${categoryId}' organization '${organization}'`,
+					error,
+				);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Counts the total of records found by Category
+		 * @param {number} categoryId Category ID
+		 * @returns Total number of recourds
+		 */
+		getTotalRecordsByCategoryId: async (categoryId: number): Promise<number> => {
+			try {
+				const resultCount = await db
+					.select({ total: count() })
+					.from(submittedData)
+					.where(eq(submittedData.dictionaryCategoryId, categoryId));
+				return resultCount[0].total;
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed counting SubmittedData with categoryId '${categoryId}'`, error);
 				throw new ServiceUnavailable();
 			}
 		},
