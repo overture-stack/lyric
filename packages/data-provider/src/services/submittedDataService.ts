@@ -4,6 +4,11 @@ import submittedRepository from '../repository/submittedRepository.js';
 import submittedUtils from '../utils/submittedDataUtils.js';
 import { SubmittedDataResponse, paginationOps } from '../utils/types.js';
 
+const PAGINATION_ERROR_MESSAGES = {
+	INVALID_CATEGORY_ID: 'Invalid Category ID',
+	NO_DATA_FOUND: 'No Submitted data found',
+} as const;
+
 const service = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_SERVICE';
 	const submittedDataRepo = submittedRepository(dependencies);
@@ -19,31 +24,19 @@ const service = (dependencies: BaseDependencies) => {
 			const { getSubmittedDataByCategoryIdPaginated, getTotalRecordsByCategoryId } = submittedDataRepo;
 
 			const { categoryIdExists } = categoryRepository(dependencies);
-			const { parseSubmittedData } = submittedUtils(dependencies);
+			const { parseSubmittedData, fetchDataErrorResponse } = submittedUtils(dependencies);
 
 			const isValidCategory = await categoryIdExists(categoryId);
 			if (!isValidCategory) {
-				return {
-					data: [],
-					metadata: {
-						totalRecords: 0,
-						errorMessage: 'Invalid Category ID',
-					},
-				};
+				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.INVALID_CATEGORY_ID);
 			}
 
 			const recordsPaginated = await getSubmittedDataByCategoryIdPaginated(categoryId, paginationOps);
-			const totalRecords = await getTotalRecordsByCategoryId(categoryId);
-
 			if (!recordsPaginated) {
-				return {
-					data: [],
-					metadata: {
-						totalRecords: totalRecords,
-						errorMessage: `No Submitted data found on categoryId '${categoryId}'`,
-					},
-				};
+				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.NO_DATA_FOUND);
 			}
+
+			const totalRecords = await getTotalRecordsByCategoryId(categoryId);
 
 			logger.info(LOG_MODULE, `Retrieved '${recordsPaginated?.length}' Submitted data on categoryId '${categoryId}'`);
 
@@ -62,17 +55,11 @@ const service = (dependencies: BaseDependencies) => {
 			const { getSubmittedDataByCategoryIdAndOrganizationPaginated, getTotalRecordsByCategoryIdAndOrganization } =
 				submittedDataRepo;
 			const { categoryIdExists } = categoryRepository(dependencies);
-			const { parseSubmittedData } = submittedUtils(dependencies);
+			const { parseSubmittedData, fetchDataErrorResponse } = submittedUtils(dependencies);
 
 			const isValidCategory = await categoryIdExists(categoryId);
 			if (!isValidCategory) {
-				return {
-					data: [],
-					metadata: {
-						totalRecords: 0,
-						errorMessage: 'Invalid Category ID',
-					},
-				};
+				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.INVALID_CATEGORY_ID);
 			}
 
 			const recordsPaginated = await getSubmittedDataByCategoryIdAndOrganizationPaginated(
@@ -80,17 +67,11 @@ const service = (dependencies: BaseDependencies) => {
 				organization,
 				paginationOps,
 			);
-			const totalRecords = await getTotalRecordsByCategoryIdAndOrganization(categoryId, organization);
-
 			if (!recordsPaginated) {
-				return {
-					data: [],
-					metadata: {
-						totalRecords,
-						errorMessage: `No Submitted data found on categoryId '${categoryId}' and organization '${organization}'`,
-					},
-				};
+				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.NO_DATA_FOUND);
 			}
+
+			const totalRecords = await getTotalRecordsByCategoryIdAndOrganization(categoryId, organization);
 
 			logger.info(
 				LOG_MODULE,

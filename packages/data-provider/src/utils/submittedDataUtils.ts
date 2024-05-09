@@ -44,6 +44,26 @@ const utils = (dependencies: BaseDependencies) => {
 
 			return mappingDataRecords;
 		},
+
+		/**
+		 * Abstract Error response
+		 * @param error
+		 * @returns
+		 */
+		fetchDataErrorResponse: (
+			error: string,
+		): {
+			data: [];
+			metadata: { totalRecords: number; errorMessage?: string };
+		} => {
+			return {
+				data: [],
+				metadata: {
+					totalRecords: 0,
+					errorMessage: error,
+				},
+			};
+		},
 		/**
 		 * Creates a list of SubmittedData grouped by entities and a matching list with only schema data
 		 * @param {Array<NewSubmittedData>} data
