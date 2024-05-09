@@ -1,0 +1,348 @@
+# Descriptions of common components
+
+components:
+  responses:
+    BadRequest:
+      description: Error response indicating that the client's request is malformed or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
+    NotFound:
+      description: Requested resource could not be found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
+
+    StatusConflict:
+      description: Error response indicating a conflict in a Submission Status
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
+
+    UnauthorizedError:
+      description: Access token is missing or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
+
+    ServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
+
+    ServiceUnavailableError:
+      description: Error message indicating the server is currently unable to handle the request, often due to maintenance, overload, or temporary issues
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          decription: Description of the error
+
+  schemas:
+    Health:
+      type: object
+      properties:
+        uptime:
+          type: string
+          description: Number of seconds the current Node.js process has been running
+        message:
+          type: string
+          description: Status of the service
+        timestamp:
+          type: string
+          description: Current system's time in milliseconds since the Unix epoch
+    CreateSubmissionResult:
+      required:
+        - status
+        - description
+        - batchErrors
+        - inProcessEntities
+      type: object
+      properties:
+        status:
+          type: string
+          description: Result of uploading Submission files
+          enum: ['PROCESSING', 'INVALID_SUBMISSION', 'PARTIAL_SUBMISSION']
+        description:
+          type: string
+          description: Description of uploading Submission files
+        batchErrors:
+          type: array
+          description: list of all batch related errors, should be empty on success
+          items:
+            $ref: '#/components/schemas/BatchError'
+        inProcessEntities:
+          type: array
+          description: Names of the entities that will be processed
+          items:
+            type: string
+    CommitSubmissionResult:
+      required:
+        - status
+        - dictionary
+      type: object
+      properties:
+        status:
+          type: string
+          description: Result of Commiting Submission
+          enum: ['PROCESSING']
+        dictionary:
+          type: object
+          description: The dictionary used to validate the submission
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+        processedEntities:
+          type: array
+          description: Names of the entities that will be processed
+          items:
+            type: string
+    ActiveSubmissionResult:
+      type: object
+      properties:
+        id:
+          type: number
+          description: Id of the Submission
+        data:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              creator:
+                type: string
+                description: User name who created the submission
+              records:
+                type: array
+                items:
+                  type: object
+                  description: Content of the file in JSON format
+              batchName:
+                type: string
+                description: Original filename  of the submission
+              dataErrors:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationError'
+        dictionary:
+          type: object
+          description: Dictionary used to validate the submission
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+        dictionaryCategory:
+          type: object
+          description: Category this dictionary belongs in
+          properties:
+            id:
+              type: number
+            name:
+              type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/ValidationError'
+        organization:
+          type: string
+          description: Organization the Submission belongs to
+        status:
+          type: string
+          description: Status of the Submission
+          enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITED']
+        createdAt:
+          type: string
+          description: Date and time of creation
+        createdBy:
+          type: string
+          description: User name who created the submission
+        udpatedAt:
+          type: string
+          description: Date and time of latest update
+        updatedBy:
+          type: string
+          description: User name who last updated the submission
+
+    ActiveSubmissionSummary:
+      type: object
+      properties:
+        id:
+          type: number
+          description: Id of the Submission
+        data:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              batchName:
+                type: string
+                description: Original filename  of the submission
+              creator:
+                type: string
+                description: User name who created the submission
+              dataErrors:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationError'
+              recordsCount:
+                type: number
+                description: Number Of Records
+        dictionary:
+          type: object
+          description: Dictionary used to validate the submission
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+        dictionaryCategory:
+          type: object
+          description: Category this dictionary belongs in
+          properties:
+            id:
+              type: number
+            name:
+              type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/ValidationError'
+        organization:
+          type: string
+          description: Organization the Submission belongs to
+        status:
+          type: string
+          description: Status of the Submission
+          enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITED']
+        createdAt:
+          type: string
+          description: Date and time of creation
+        createdBy:
+          type: string
+          description: User name who created the submission
+        udpatedAt:
+          type: string
+          description: Date and time of latest update
+        updatedBy:
+          type: string
+          description: User name who last updated the submission
+
+    ActiveSubmissionsSummaryResult:
+      type: array
+      items:
+        $ref: '#/components/schemas/ActiveSubmissionSummary'
+
+    ActiveSubmissionSummaryResult:
+      $ref: '#/components/schemas/ActiveSubmissionSummary'
+
+    GetSubmittedDataResult:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            currentPage:
+              type: number
+            pageSize:
+              type: number
+            totalPages:
+              type: number
+            totalRecords:
+              type: number
+        records:
+          type: array
+          items:
+            type: object
+            properties:
+              data:
+                type: array
+                items:
+                  type: object
+                  description: Content of the file in JSON format
+              entityName:
+                type: string
+              isValid:
+                type: boolean
+              organization:
+                type: string
+
+    ValidationError:
+      type: object
+      required:
+        - index
+        - errorType
+        - fieldName
+      properties:
+        fieldName:
+          type: string
+          description: the field name that the error is related to
+        info:
+          type: object
+          description: contains context information related to the error
+          properties:
+            value:
+              type: array
+              description: the faulty value
+              items:
+                type: string
+        index:
+          type: number
+          format: integer
+          description: Index of the row for this error (starting from 0)
+        errorType:
+          type: string
+          description: the type of error
+          enum:
+            - INVALID_BY_RANGE
+            - INVALID_BY_REGEX
+            - INVALID_BY_SCRIPT
+            - INVALID_ENUM_VALUE
+            - INVALID_FIELD_VALUE_TYPE
+            - MISSING_REQUIRED_FIELD
+            - UNRECOGNIZED_FIELD
+        message:
+          type: string
+          description: Details of the error
+    BatchError:
+      type: object
+      properties:
+        message:
+          type: string
+          description: a message describing the error
+        type:
+          type: string
+          description: the type of error
+          enum:
+            - INCORRECT_SECTION
+            - INVALID_FILE_EXTENSION
+            - INVALID_FILE_NAME
+            - MISSING_REQUIRED_HEADER
+            - MULTIPLE_TYPED_FILES
+            - TSV_PARSING_FAILED
+            - UNRECOGNIZED_HEADER
+        batchName:
+          type: array
+          description: list of batch names causing error
+          items:
+            type: string

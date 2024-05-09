@@ -1,0 +1,34 @@
+{
+	"name": "data-model",
+	"version": "1.0.0",
+	"description": "",
+	"main": "dist/index.js",
+	"type": "module",
+	"scripts": {
+		"\n=====================  Build  =================": "",
+		"build:compile": "rm -rf dist && tsc",
+		"build:migration": "drizzle-kit generate:pg",
+		"build:dbml": "tsx scripts/dbmlGenerator.ts",
+		"build:all": "pnpm build:compile && pnpm build:migration && pnpm build:dbml",
+		"\n==============  Dev environment  ==============": "",
+		"db:migrate:dev": "tsx scripts/migrate.ts",
+		"\n====  Production environtment (compiled)  =====": "",
+		"db:migrate:prod": "node scripts/migrate.js",
+		"db:migrate:workspace-prod": "node dist/scripts/migrate.js"
+	},
+	"keywords": [],
+	"author": "Ontario Institute for Cancer Research",
+	"license": "ISC",
+	"devDependencies": {
+		"@types/pg": "^8.11.0",
+		"drizzle-dbml-generator": "^0.6.1",
+		"drizzle-kit": "^0.20.17",
+		"tsx": "^4.7.1"
+	},
+	"dependencies": {
+		"@overturebio-stack/lectern-client": "^1.5.0",
+		"dotenv": "^16.4.1",
+		"drizzle-orm": "^0.29.3",
+		"pg": "^8.11.3"
+	}
+}
