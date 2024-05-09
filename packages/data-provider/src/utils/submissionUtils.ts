@@ -1,9 +1,7 @@
-import { parallel } from '@overturebio-stack/lectern-client';
 import {
-	DataRecord,
+	SchemaData,
 	SchemaValidationError,
 	SchemasDictionary,
-	TypedDataRecord,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import * as _ from 'lodash-es';
 
@@ -12,7 +10,7 @@ import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
 import { InternalServerError } from './errors.js';
-import { readHeaders } from './fileUtils.js';
+import { readHeaders, tsvToJson } from './fileUtils.js';
 import { isNumber } from './formatUtils.js';
 import {
 	ActiveSubmissionResponse,
@@ -22,9 +20,13 @@ import {
 	BatchError,
 	CategoryActiveSubmission,
 	DataActiveSubmissionSummary,
+	DataRecordReference,
 	DictionaryActiveSubmission,
+	MERGE_REFERENCE_TYPE,
 	SUBMISSION_STATUS,
 	SubmissionEntity,
+	SubmissionReference,
+	SubmittedDataReference,
 } from './types.js';
 
 const utils = (dependencies: BaseDependencies) => {
@@ -140,55 +142,67 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Run Schema Validation process
-		 * @param {SchemasDictionary} dictionary The dictionary to validate data with
-		 * @param {string} entityName The entity Name
-		 * @param {ReadonlyArray<DataRecord>} records An Array of the records to validate
-		 * @returns The result of the Schema validation
+		 * Checks if object is a Submission or a SubmittedData
+		 * @param {SubmittedDataReference | SubmissionReference} toBeDetermined
+		 * @returns {boolean}
 		 */
-		processSchemaValidation: async (
-			dictionary: SchemasDictionary,
-			entityName: string,
-			records: ReadonlyArray<DataRecord>,
-		): Promise<{ processedRecords: TypedDataRecord[]; schemaErrors: SchemaValidationError[] }> => {
-			const validRecords: any[] = [];
-			const schemaErrors: any[] = [];
+		determineIfIsSubmission: (
+			toBeDetermined: SubmittedDataReference | SubmissionReference,
+		): toBeDetermined is SubmissionReference => {
+			return (toBeDetermined as SubmissionReference).type === MERGE_REFERENCE_TYPE.SUBMISSION;
+		},
 
-			logger.debug(LOG_MODULE, `Initiate validation for entity '${entityName}' with '${records.length}' records`);
+		/**
+		 * Creates a Record type of SchemaData grouped by Entity names
+		 * @param {Record<string, DataRecordReference[]>} mergeDataRecordsByEntityName
+		 * @returns {Record<string, SchemaData>}
+		 */
+		extractSchemaDataFromMergedDataRecords: (
+			mergeDataRecordsByEntityName: Record<string, DataRecordReference[]>,
+		): Record<string, SchemaData> => {
+			return _.mapValues(mergeDataRecordsByEntityName, (mappingArray) => mappingArray.map((o) => o.dataRecord));
+		},
 
-			// Process all records async and wait for all of them to finish
+		/**
+		 * Construct a SubmissionEntity object per each file returning a Record type based on entityName
+		 * @param {Record<string, Express.Multer.File>} files
+		 * @param {string} userName
+		 * @returns {Promise<Record<string, SubmissionEntity>>}
+		 */
+		submissionEntitiesFromFiles: async (
+			files: Record<string, Express.Multer.File>,
+			userName: string,
+		): Promise<Record<string, SubmissionEntity>> => {
+			const filesDataProcessed: Record<string, SubmissionEntity> = {};
 			await Promise.all(
-				records.map(async (record, index) => {
-					logger.debug(LOG_MODULE, `Parallel processing record index '${index}' of entity '${entityName}'`);
-					const { processedRecord, validationErrors } = await parallel.processRecord(
-						dictionary,
-						entityName,
-						record,
-						index,
-					);
-
-					// Respect the order of the records
-					validRecords[index] = processedRecord;
-					schemaErrors[index] = validationErrors;
-
-					if (validationErrors.length > 0) {
-						logger.error(
-							LOG_MODULE,
-							`Found '${validationErrors.length}' errors on record index '${index}' of entity '${entityName}'`,
-						);
-					}
+				Object.entries(files).map(async ([entityName, file]) => {
+					const parsedFileData = await tsvToJson(file.path);
+					filesDataProcessed[entityName] = {
+						batchName: file.originalname,
+						creator: userName,
+						records: parsedFileData,
+					} as SubmissionEntity;
 				}),
 			);
+			return filesDataProcessed;
+		},
 
-			logger.info(
-				LOG_MODULE,
-				`Validation completed for entity '${entityName}' with '${_.flatten(schemaErrors).length}' errors`,
+		mapSubmissionSchemaDataByEntityName: (
+			activeSubmissionId: number | undefined,
+			activeSubmissionDataEntities: Record<string, SubmissionEntity>,
+		): Record<string, DataRecordReference[]> => {
+			return _.mapValues(activeSubmissionDataEntities, (submissionEntity) =>
+				submissionEntity.records.map((record, index) => {
+					return {
+						dataRecord: record,
+						reference: {
+							submissionId: activeSubmissionId,
+							type: MERGE_REFERENCE_TYPE.SUBMISSION,
+							index: index,
+						} as SubmissionReference,
+					};
+				}),
 			);
-
-			return {
-				processedRecords: validRecords,
-				schemaErrors: _.flatten(schemaErrors),
-			};
 		},
 
 		/**

@@ -1,5 +1,5 @@
 import * as _ from 'lodash-es';
-import { AppConfig, Dependencies } from '../config/config.js';
+import { AppConfig, BaseDependencies, Dependencies } from '../config/config.js';
 import { connect } from '../config/db.js';
 import { getLogger } from '../config/logger.js';
 import dictionaryRouters from '../routers/dictionaryRouter.js';
@@ -22,18 +22,20 @@ const provider = (configData: AppConfig) => {
 		config: configData,
 	};
 
+	const baseDeps: BaseDependencies = _.omit(deps, ['config']);
+
 	return {
 		configs: deps,
 		routers: {
 			dictionary: dictionaryRouters(deps),
-			submission: submissionRouters(_.omit(deps, ['config'])),
-			submittedData: submittedDataRouters(_.omit(deps, ['config'])),
+			submission: submissionRouters(baseDeps),
+			submittedData: submittedDataRouters(baseDeps),
 		},
 		utils: {
 			dictionary: getDictionaryUtils(deps),
-			category: getCategoryUtils(_.omit(deps, ['config'])),
-			submission: getSubmissionUtils(_.omit(deps, ['config'])),
-			submittedData: getSubmittedDataUtils(_.omit(deps, ['config'])),
+			category: getCategoryUtils(baseDeps),
+			submission: getSubmissionUtils(baseDeps),
+			submittedData: getSubmittedDataUtils(baseDeps),
 		},
 	};
 };

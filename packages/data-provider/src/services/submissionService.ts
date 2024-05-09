@@ -7,7 +7,6 @@ import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
 import { BadRequest, StatusConflict } from '../utils/errors.js';
-import { tsvToJson } from '../utils/fileUtils.js';
 import submissionUtils from '../utils/submissionUtils.js';
 import submittedDataUtils from '../utils/submittedDataUtils.js';
 import {
@@ -29,56 +28,103 @@ const service = (dependencies: BaseDependencies) => {
 
 	const validateFilesAsync = async (files: Record<string, Express.Multer.File>, params: ValidateFilesParams) => {
 		const { getActiveSubmission } = submissionRepository(dependencies);
-		const { createOrUpdateActiveSubmission, processSchemaValidation } = submissionUtils(dependencies);
+		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
+		const {
+			createOrUpdateActiveSubmission,
+			determineIfIsSubmission,
+			extractSchemaDataFromMergedDataRecords,
+			submissionEntitiesFromFiles,
+			mapSubmissionSchemaDataByEntityName,
+		} = submissionUtils(dependencies);
+		const { validateSchemas, groupErrorsByIndex, mapSubmittedDataSchemaByEntityName } =
+			submittedDataUtils(dependencies);
 
-		const { categoryId, currentDictionaryId, organization, schemasDictionary, userName } = params;
+		const { categoryId, dictionary, organization, userName } = params;
 
+		// get Submitted Data from database
+		const submittedData = await getSubmittedDataByCategoryIdAndOrganization(categoryId, organization);
+
+		// parse file data
+		const filesDataProcessed = await submissionEntitiesFromFiles(files, params.userName);
+
+		// get Active Submission from database
 		const activeSubmission = await getActiveSubmission({ categoryId, userName, organization });
 
-		const submissionSchemaErrors: Record<string, SchemaValidationError[]> = {};
+		// merge Active Submission data with incoming TSV file data processed
+		const updatedActiveSubmissionData: Record<string, SubmissionEntity> = {
+			...activeSubmission?.data,
+			...filesDataProcessed,
+		};
 
-		// initialize new Submission with existing data
-		const updateSubmissionEntities: Record<string, SubmissionEntity> = activeSubmission ? activeSubmission.data : {};
-
-		await Promise.all(
-			Object.entries(files).map(async ([entityName, file]) => {
-				logger.debug(LOG_MODULE, `Running validation for file '${file.originalname}' on entity '${entityName}'`);
-
-				const parsedFileData = await tsvToJson(file.path);
-
-				// TODO: merge existing data + new data for validation (Submitted data + active Submission +  tsv parsed Data)
-				// Validating new data only! as we haven't found a reason yet to validate entire merged data set
-
-				// step 3 Validation. Validate schema data (lectern-client processParallel)
-				const { schemaErrors } = await processSchemaValidation(schemasDictionary, entityName, parsedFileData);
-				if (schemaErrors.length > 0) {
-					submissionSchemaErrors[entityName] = schemaErrors;
+		// This object will merge existing data + new data for validation (Submitted data + active Submission +  tsv parsed Data)
+		const mergeDataRecordsByEntityName = _.mergeWith(
+			mapSubmittedDataSchemaByEntityName(submittedData),
+			mapSubmissionSchemaDataByEntityName(activeSubmission?.id, updatedActiveSubmissionData),
+			(objValue, srcValue) => {
+				if (Array.isArray(objValue)) {
+					// If both values are arrays, concatenate them
+					return objValue.concat(srcValue);
 				}
-
-				// To be stored in the submission data
-				updateSubmissionEntities[entityName] = {
-					batchName: file.originalname,
-					creator: userName,
-					records: parsedFileData,
-					dataErrors: schemaErrors,
-				};
-			}),
+			},
 		);
 
-		if (Object.keys(updateSubmissionEntities).length > 0) {
-			await createOrUpdateActiveSubmission(
-				activeSubmission?.id,
-				updateSubmissionEntities,
-				categoryId.toString(),
-				submissionSchemaErrors,
-				currentDictionaryId,
-				userName,
-				organization,
-			);
+		// get schemaData array to validate
+		const crossSchemasDataToValidate = extractSchemaDataFromMergedDataRecords(mergeDataRecordsByEntityName);
+
+		// run validation
+		const resultValidation = validateSchemas(dictionary, crossSchemasDataToValidate);
+
+		// collect all errors from all schemas
+		const submissionSchemaErrors: Record<string, SchemaValidationError[]> = {};
+
+		Object.entries(resultValidation).forEach(([entityName, { validationErrors }]) => {
+			const hasErrorByIndex = groupErrorsByIndex(validationErrors, entityName);
+
+			if (!_.isEmpty(hasErrorByIndex)) {
+				Object.entries(hasErrorByIndex).map(([indexBasedOnCrossSchemas, schemaValidationErrors]) => {
+					const mapping = mergeDataRecordsByEntityName[entityName][Number(indexBasedOnCrossSchemas)];
+					if (determineIfIsSubmission(mapping.reference)) {
+						const submissionIndex = mapping.reference.index;
+						logger.debug(LOG_MODULE, `Error on submission entity: ${entityName} index: ${submissionIndex}`);
+
+						const mutableSchemaValidationErrors: SchemaValidationError[] = schemaValidationErrors.map((errors) => {
+							return {
+								...errors,
+								index: submissionIndex,
+							};
+						});
+						updatedActiveSubmissionData[entityName].dataErrors = mutableSchemaValidationErrors;
+						submissionSchemaErrors[entityName] = mutableSchemaValidationErrors;
+					}
+				});
+			}
+		});
+
+		if (_.isEmpty(submissionSchemaErrors)) {
+			logger.info(LOG_MODULE, `No error found on data submission`);
 		}
+
+		// save new or updated Active Submission
+		await createOrUpdateActiveSubmission(
+			activeSubmission?.id,
+			updatedActiveSubmissionData,
+			categoryId.toString(),
+			submissionSchemaErrors,
+			dictionary.id,
+			userName,
+			organization,
+		);
 	};
 
-	const performCommitSubmissionAsync = async (params: CommitSubmissionParams) => {
+	/**
+	 * This function validates whole data together against a dictionary
+	 * @param {object} params
+	 * @param {Array<NewSubmittedData>} data Data to be validated
+	 * @param {SchemasDictionary & { id: number }} dictionary Dictionary to validata data
+	 * @param {Submission} submission Active Submission object
+	 * @returns void
+	 */
+	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<void> => {
 		const submissionRepo = submissionRepository(dependencies);
 		const dataSubmittedRepo = submittedRepository(dependencies);
 		const { groupSchemaDataByEntityName, validateSchemas, groupErrorsByIndex, hasErrorsByIndex } =
@@ -168,9 +214,8 @@ const service = (dependencies: BaseDependencies) => {
 					// Result of validations will be stored in database
 					validateFilesAsync(checkedEntities, {
 						categoryId,
-						currentDictionaryId: currentDictionary.id,
+						dictionary: currentDictionary,
 						organization,
-						schemasDictionary,
 						userName,
 					});
 				}
@@ -260,7 +305,7 @@ const service = (dependencies: BaseDependencies) => {
 
 		commitSubmission: async (categoryId: number, submissionId: number): Promise<CommitSubmissionResult> => {
 			const { getSubmissionById } = submissionRepository(dependencies);
-			const { getSubmittedDataByCategoryId } = submittedRepository(dependencies);
+			const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
 			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 
 			const submission = await getSubmissionById(submissionId);
@@ -280,7 +325,10 @@ const service = (dependencies: BaseDependencies) => {
 
 			const entitiesToProcess: string[] = [];
 
-			const submittedDataArray = await getSubmittedDataByCategoryId(categoryId);
+			const submittedDataArray = await getSubmittedDataByCategoryIdAndOrganization(
+				categoryId,
+				submission?.organization,
+			);
 
 			const submissionsToValidate = Object.entries(submission.data).flatMap(([entityName, submissionEntity]) => {
 				entitiesToProcess.push(entityName);
@@ -308,6 +356,7 @@ const service = (dependencies: BaseDependencies) => {
 				});
 			}
 
+			// To Commit Active Submission we need to validate SubmittedData + Active Submission
 			performCommitSubmissionAsync({
 				data: submissionsToValidate,
 				submission,
