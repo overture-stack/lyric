@@ -9,12 +9,12 @@ const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTEDDATA_REPOSITORY';
 	const { db, logger } = dependencies;
 
-	const paginatedColumns = {
+	const paginatedColumns: BooleanTrueObject = {
 		entityName: true,
 		data: true,
 		organization: true,
 		isValid: true,
-	} as BooleanTrueObject;
+	};
 	return {
 		/**
 		 * Save new SubmittedData in Database

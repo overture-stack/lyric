@@ -21,8 +21,8 @@ const controller = (dependencies: BaseDependencies) => {
 		) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				let page = parseInt(req.query.page as string) || defaultPage;
-				let pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
+				const page = parseInt(req.query.page as string) || defaultPage;
+				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 
 				logger.info(
 					LOG_MODULE,
@@ -46,7 +46,7 @@ const controller = (dependencies: BaseDependencies) => {
 
 				if (_.isEmpty(submittedDataResult.data)) throw new NotFound('No Submitted Data found');
 
-				return res.status(200).send({
+				const response: SubmittedDataPaginatedResponse = {
 					pagination: {
 						currentPage: page,
 						pageSize: pageSize,
@@ -54,7 +54,9 @@ const controller = (dependencies: BaseDependencies) => {
 						totalRecords: submittedDataResult.metadata.totalRecords,
 					},
 					records: submittedDataResult.data,
-				} as SubmittedDataPaginatedResponse);
+				};
+
+				return res.status(200).send(response);
 			} catch (error) {
 				next(error);
 			}
@@ -101,7 +103,7 @@ const controller = (dependencies: BaseDependencies) => {
 					throw new NotFound(submittedDataResult.metadata.errorMessage);
 				}
 
-				return res.status(200).send({
+				const responsePaginated: SubmittedDataPaginatedResponse = {
 					pagination: {
 						currentPage: page,
 						pageSize: pageSize,
@@ -109,7 +111,9 @@ const controller = (dependencies: BaseDependencies) => {
 						totalRecords: submittedDataResult.metadata.totalRecords,
 					},
 					records: submittedDataResult.data,
-				} as SubmittedDataPaginatedResponse);
+				};
+
+				return res.status(200).send(responsePaginated);
 			} catch (error) {
 				next(error);
 			}

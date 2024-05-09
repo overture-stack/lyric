@@ -61,7 +61,7 @@ const service = (dependencies: BaseDependencies) => {
 			mapSubmittedDataSchemaByEntityName(submittedData),
 			mapSubmissionSchemaDataByEntityName(activeSubmission?.id, updatedActiveSubmissionData),
 			(objValue, srcValue) => {
-				if (_.isArray(objValue)) {
+				if (Array.isArray(objValue)) {
 					// If both values are arrays, concatenate them
 					return objValue.concat(srcValue);
 				}

@@ -149,10 +149,7 @@ const utils = (dependencies: BaseDependencies) => {
 		determineIfIsSubmission: (
 			toBeDetermined: SubmittedDataReference | SubmissionReference,
 		): toBeDetermined is SubmissionReference => {
-			if ((toBeDetermined as SubmissionReference).type === MERGE_REFERENCE_TYPE.SUBMISSION) {
-				return true;
-			}
-			return false;
+			return (toBeDetermined as SubmissionReference).type === MERGE_REFERENCE_TYPE.SUBMISSION;
 		},
 
 		/**

@@ -41,6 +41,7 @@ const utils = (dependencies: BaseDependencies) => {
 					});
 				});
 			});
+
 			return mappingDataRecords;
 		},
 		/**

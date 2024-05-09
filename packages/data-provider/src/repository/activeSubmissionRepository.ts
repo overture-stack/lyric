@@ -9,7 +9,7 @@ const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
 	const { db, logger } = dependencies;
 
-	const getActiveSubmissionColumns = {
+	const getActiveSubmissionColumns: BooleanTrueObject = {
 		id: true,
 		status: true,
 		organization: true,
@@ -19,7 +19,7 @@ const repository = (dependencies: BaseDependencies) => {
 		createdBy: true,
 		updatedAt: true,
 		updatedBy: true,
-	} as BooleanTrueObject;
+	};
 
 	const getActiveSubmissionRelations = {
 		dictionary: {
