@@ -1,4 +1,4 @@
-import { and, count, eq } from 'drizzle-orm/sql';
+import { SQL, and, count, eq } from 'drizzle-orm/sql';
 
 import { NewSubmittedData, SubmittedData, submittedData } from 'data-model';
 import { BaseDependencies } from '../config/config.js';
@@ -87,17 +87,24 @@ const repository = (dependencies: BaseDependencies) => {
 		 * Find SubmittedData by category ID and Organization with pagination
 		 * @param {number} categoryId Category ID
 		 * @param {string} organization Organization Name
+		 * @param {SQL} filter Optional filter
+		 * @param {paginationOps} paginationOps Pagination properties
 		 * @returns The SubmittedData found
 		 */
 		getSubmittedDataByCategoryIdAndOrganizationPaginated: async (
 			categoryId: number,
 			organization: string,
 			paginationOps: paginationOps,
+			filter?: SQL,
 		): Promise<SubmittedDataRepository[] | undefined> => {
 			const { page, pageSize } = paginationOps;
 			try {
 				return await db.query.submittedData.findMany({
-					where: and(eq(submittedData.dictionaryCategoryId, categoryId), eq(submittedData.organization, organization)),
+					where: and(
+						eq(submittedData.dictionaryCategoryId, categoryId),
+						eq(submittedData.organization, organization),
+						filter || undefined,
+					),
 					columns: paginatedColumns,
 					orderBy: (submittedData, { asc }) => [asc(submittedData.entityName), asc(submittedData.id)],
 					limit: pageSize,
@@ -119,12 +126,22 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {string} organization Organization Name
 		 * @returns Total number of recourds
 		 */
-		getTotalRecordsByCategoryIdAndOrganization: async (categoryId: number, organization: string): Promise<number> => {
+		getTotalRecordsByCategoryIdAndOrganization: async (
+			categoryId: number,
+			organization: string,
+			filter?: SQL,
+		): Promise<number> => {
 			try {
 				const resultCount = await db
 					.select({ total: count() })
 					.from(submittedData)
-					.where(and(eq(submittedData.dictionaryCategoryId, categoryId), eq(submittedData.organization, organization)));
+					.where(
+						and(
+							eq(submittedData.dictionaryCategoryId, categoryId),
+							eq(submittedData.organization, organization),
+							filter,
+						),
+					);
 				return resultCount[0].total;
 			} catch (error) {
 				logger.error(

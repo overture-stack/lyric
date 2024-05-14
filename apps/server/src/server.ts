@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { json } from 'express';
 import helmet from 'helmet';
 import { serve, setup } from 'swagger-ui-express';
 
@@ -16,6 +16,7 @@ const lyricProvider = provider(defaultAppConfig);
 const app = express();
 
 app.use(helmet());
+app.use(json());
 
 app.use('/ping', pingRouter);
 app.use('/dictionary', lyricProvider.routers.dictionary);

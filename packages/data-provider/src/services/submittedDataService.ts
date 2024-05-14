@@ -1,6 +1,8 @@
 import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
+import { convertSqonToQuery } from '../utils/buildQuery.js';
+import { SQON } from '../utils/sqonTypes.js';
 import submittedUtils from '../utils/submittedDataUtils.js';
 import { SubmittedDataResponse, paginationOps } from '../utils/types.js';
 
@@ -51,6 +53,7 @@ const service = (dependencies: BaseDependencies) => {
 			categoryId: number,
 			organization: string,
 			paginationOps: paginationOps,
+			sqon?: SQON,
 		): Promise<{ data: SubmittedDataResponse[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
 			const { getSubmittedDataByCategoryIdAndOrganizationPaginated, getTotalRecordsByCategoryIdAndOrganization } =
 				submittedDataRepo;
@@ -62,16 +65,19 @@ const service = (dependencies: BaseDependencies) => {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.INVALID_CATEGORY_ID);
 			}
 
+			const filterSql = convertSqonToQuery(sqon);
+
 			const recordsPaginated = await getSubmittedDataByCategoryIdAndOrganizationPaginated(
 				categoryId,
 				organization,
 				paginationOps,
+				filterSql,
 			);
 			if (!recordsPaginated) {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.NO_DATA_FOUND);
 			}
 
-			const totalRecords = await getTotalRecordsByCategoryIdAndOrganization(categoryId, organization);
+			const totalRecords = await getTotalRecordsByCategoryIdAndOrganization(categoryId, organization, filterSql);
 
 			logger.info(
 				LOG_MODULE,

@@ -18,6 +18,12 @@ const router = (dependencies: BaseDependencies): Router => {
 		submittedDataController(dependencies).getSubmittedDataByOrganization,
 	);
 
+	router.post(
+		'/category/:categoryId/organization/:organization/query',
+		auth,
+		submittedDataController(dependencies).getSubmittedDataByQuery,
+	);
+
 	return router;
 };
 

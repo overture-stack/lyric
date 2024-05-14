@@ -88,9 +88,9 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
-/data/category/{categoryId}/query:
+/data/category/{categoryId}/organization/{organization}/query:
   post:
-    summary: Retrieve Submitted Data filtered by search parameters provided in the request body. The request is paginated and sorted based on query parameters in the URL
+    summary: Retrieve Submitted Data filtered by search parameters provided in the request body
     tags:
       - data
     parameters:
@@ -100,6 +100,12 @@
         schema:
           type: string
         description: ID of the category
+      - name: organization
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Category name
       - name: page
         in: query
         required: false
@@ -119,17 +125,19 @@
             type: object
             description: A SQON object
             example:
-              op: 'in'
+              op: 'and'
               content:
-                fieldName: 'id'
-                values: ['123']
+                - op: 'in'
+                  content:
+                    fieldName: 'id'
+                    value: ['123']
     responses:
       200:
         description: Submitted Data
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/QuerySubmittedDataResult'
+              $ref: '#/components/schemas/GetSubmittedDataResult'
       400:
         $ref: '#/components/responses/BadRequest'
       401:
