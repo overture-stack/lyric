@@ -6,15 +6,21 @@ import {
 	CombinationKeys,
 	CombinationOperator,
 	FilterOperator,
+	GreaterThanFilter,
+	LesserThanFilter,
 	Operator,
 	isArrayFilter,
 	isCombination,
 	isFilter,
-	isGreaterThanFilter,
-	isLesserThanFilter,
-} from './sqonTypes.js';
+} from '@overture-stack/sqon-builder';
 
 const jsonbColumnName = 'data';
+
+export const isGreaterThanFilter = (operator: Operator): operator is GreaterThanFilter =>
+	GreaterThanFilter.safeParse(operator).success;
+
+export const isLesserThanFilter = (operator: Operator): operator is LesserThanFilter =>
+	LesserThanFilter.safeParse(operator).success;
 
 // Map the array and format each element based on its type
 const formatForSQL = (value: ArrayFilterValue) => {

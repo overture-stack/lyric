@@ -5,7 +5,7 @@ import { BaseDependencies } from '../config/config.js';
 import submittedDataService from '../services/submittedDataService.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
 import { isEmptyString } from '../utils/formatUtils.js';
-import { isCombination } from '../utils/sqonTypes.js';
+import { isCombination } from '@overture-stack/sqon-builder';
 import { SubmittedDataPaginatedResponse } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
