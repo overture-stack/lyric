@@ -44,9 +44,9 @@ const formatForSQL = (value: ArrayFilterValue) => {
 	} else if (typeof value === 'number') {
 		// Handle single number
 		return value;
-	} else {
-		throw new BadRequest(`Invalid SQON. Unsupported data type: ${typeof value}`);
 	}
+
+	throw new BadRequest(`Invalid SQON. Unsupported data type: ${typeof value}`);
 };
 
 const processFilterOperator = (operator: FilterOperator): SQL<unknown> => {
@@ -74,6 +74,7 @@ const iterateOperator = (operator: Operator): SQL<unknown> => {
 		// op in [and, or, not]
 		return processCombinationOperator(operator);
 	}
+
 	throw new BadRequest(`Invalid SQON format. Unsupported SQON Operator`);
 };
 
@@ -89,6 +90,7 @@ const processCombinationOperator = (sqon: CombinationOperator): SQL<unknown> => 
 	} else if (sqon.op === CombinationKeys.Not) {
 		return notOperator(sqon.content);
 	}
+
 	throw new BadRequest(`Invalid SQON format. Unsupported SQON combination operator: ${sqon}`);
 };
 
@@ -97,6 +99,7 @@ const andOperator = (operations: Operator[]): SQL<unknown> => {
 	if (!andSql) {
 		throw new BadRequest(`Invalid SQON format. Invalid 'and' operator`);
 	}
+
 	return andSql;
 };
 
@@ -105,6 +108,7 @@ const orOperator = (operations: Operator[]): SQL<unknown> => {
 	if (!orSql) {
 		throw new BadRequest(`Invalid SQON format. Invalid 'or' operator`);
 	}
+
 	return orSql;
 };
 
@@ -115,10 +119,10 @@ const notOperator = (operations: Operator[]): SQL<unknown> => {
 export const convertSqonToQuery = (sqon: Operator | undefined): SQL<unknown> | undefined => {
 	if (!sqon || _.isEmpty(sqon)) {
 		return undefined;
-	}
-	if (isCombination(sqon)) {
+	} else if (isCombination(sqon)) {
 		// top level SQON must have op in [and, or, not]
 		return processCombinationOperator(sqon);
 	}
+
 	throw new BadRequest('Invalid SQON format. Top level SQON must be a combination operator (and, or, not');
 };
