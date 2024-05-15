@@ -1,6 +1,3 @@
-import { SQL, and, not, or, sql } from 'drizzle-orm';
-import * as _ from 'lodash-es';
-import { BadRequest } from './errors.js';
 import {
 	ArrayFilterValue,
 	CombinationKeys,
@@ -13,13 +10,17 @@ import {
 	isCombination,
 	isFilter,
 } from '@overture-stack/sqon-builder';
+import { SQL, and, not, or, sql } from 'drizzle-orm';
+import * as _ from 'lodash-es';
+import { BadRequest } from './errors.js';
 
+// Column name on the database used to build JSONB query
 const jsonbColumnName = 'data';
 
-export const isGreaterThanFilter = (operator: Operator): operator is GreaterThanFilter =>
+const isGreaterThanFilter = (operator: Operator): operator is GreaterThanFilter =>
 	GreaterThanFilter.safeParse(operator).success;
 
-export const isLesserThanFilter = (operator: Operator): operator is LesserThanFilter =>
+const isLesserThanFilter = (operator: Operator): operator is LesserThanFilter =>
 	LesserThanFilter.safeParse(operator).success;
 
 // Map the array and format each element based on its type

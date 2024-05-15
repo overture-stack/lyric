@@ -1,8 +1,8 @@
+import { SQON } from '@overture-stack/sqon-builder';
 import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
-import { convertSqonToQuery } from '../utils/buildQuery.js';
-import { SQON } from '@overture-stack/sqon-builder';
+import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
 import submittedUtils from '../utils/submittedDataUtils.js';
 import { SubmittedDataResponse, paginationOps } from '../utils/types.js';
 
