@@ -1,13 +1,13 @@
 import { NextFunction, Request, Response } from 'express';
 
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import dictionarySvc from '../services/dictionaryService.js';
 import { BadRequest, NotImplemented } from '../utils/errors.js';
 import { isEmptyString } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import { registerDictionaryRequestSchema } from '../utils/schemas.js';
 
-const controller = (dependencies: Dependencies) => {
+const controller = (dependencies: BaseDependencies) => {
 	const dictionaryService = dictionarySvc(dependencies);
 	const { logger } = dependencies;
 	const LOG_MODULE = 'DICTIONARY_CONTROLLER';

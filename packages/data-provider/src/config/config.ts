@@ -19,24 +19,20 @@ export type LoggerConfig = {
 	file?: boolean;
 };
 
+export type LimitsConfig = {
+	fileSize: string;
+};
+
 /**
  * Environment variables to configure internal and external resources
  * (database, external services, logger, etc)
  */
 export type AppConfig = {
 	db: dbInfo;
-	schemaService: schemaServiceInfo;
+	limits: LimitsConfig;
 	logger: LoggerConfig;
+	schemaService: schemaServiceInfo;
 };
-
-/**
- * Dependencies required for utils/services
- */
-export interface Dependencies {
-	db: NodePgDatabase<typeof schema>;
-	config?: AppConfig;
-	logger: Logger;
-}
 
 /**
  * Base Dependencies required for utils/services
@@ -44,4 +40,6 @@ export interface Dependencies {
 export interface BaseDependencies {
 	db: NodePgDatabase<typeof schema>;
 	logger: Logger;
+	limits: LimitsConfig;
+	schemaService: schemaServiceInfo;
 }

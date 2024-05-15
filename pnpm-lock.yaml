@@ -103,6 +103,9 @@ importers:
       '@overturebio-stack/lectern-client':
         specifier: ^1.5.0
         version: 1.5.0(typescript@5.4.5)
+      bytes:
+        specifier: ^3.1.2
+        version: 3.1.2
       data-model:
         specifier: workspace:^
         version: link:../data-model
@@ -137,6 +140,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      '@types/bytes':
+        specifier: ^3.1.4
+        version: 3.1.4
       '@types/deep-freeze':
         specifier: ^0.1.5
         version: 0.1.5
@@ -714,6 +720,10 @@ packages:
     dependencies:
       '@types/connect': 3.4.38
       '@types/node': 20.11.16
+    dev: true
+
+  /@types/bytes@3.1.4:
+    resolution: {integrity: sha512-A0uYgOj3zNc4hNjHc5lYUfJQ/HVyBXiUMKdXd7ysclaE6k9oJdavQzODHuwjpUu2/boCP8afjQYi8z/GtvNCWA==}
     dev: true
 
   /@types/connect@3.4.38:

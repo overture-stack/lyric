@@ -45,7 +45,7 @@ The Environment Variables used for this application are listed in the table bell
 | Name           | Description                  | Default |
 | -------------- | ---------------------------- | ------- |
 | `PORT`         | Server Port.                 | 3030    |
-| `UPLOAD_LIMIT` | Limit upload file size       | '50mb'  |
+| `UPLOAD_LIMIT` | Limit upload file size       | '10mb'  |
 | `DB_HOST`      | Database Hostname            |         |
 | `DB_PORT`      | Database Port                |         |
 | `DB_NAME`      | Database Name                |         |

@@ -1,4 +1,5 @@
 import { DataRecord, SchemaData } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import bytes from 'bytes';
 import firstline from 'firstline';
 import fs from 'fs';
 import { BadRequest } from './errors.js';
@@ -75,4 +76,10 @@ function formatForExcelCompatibility(data: string) {
 		.replace(/"$/, '') // excel might add a trailing double quote to indicate string
 		.replace(/""/g, '"') // excel might've used a second double quote to escape a double quote in a string
 		.trim();
+}
+
+export function getSizeInBytes(size: string | number): number {
+	// Parse the string value into an integer in bytes.
+	// If value is a number it is assumed is in bytes.
+	return bytes.parse(size);
 }
