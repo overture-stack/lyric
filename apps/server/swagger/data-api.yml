@@ -57,7 +57,7 @@
         required: true
         schema:
           type: string
-        description: Category name
+        description: Organization name
       - name: page
         in: query
         required: false
@@ -105,7 +105,7 @@
         required: true
         schema:
           type: string
-        description: Category name
+        description: Organization name
       - name: page
         in: query
         required: false
