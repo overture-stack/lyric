@@ -1,11 +1,11 @@
 import { NextFunction, Request, Response } from 'express';
 import * as _ from 'lodash-es';
 
+import { isCombination } from '@overture-stack/sqon-builder';
 import { BaseDependencies } from '../config/config.js';
 import submittedDataService from '../services/submittedDataService.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
 import { isEmptyString } from '../utils/formatUtils.js';
-import { isCombination } from '@overture-stack/sqon-builder';
 import { SubmittedDataPaginatedResponse } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
@@ -70,8 +70,8 @@ const controller = (dependencies: BaseDependencies) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
-				let page = parseInt(req.query.page as string) || defaultPage;
-				let pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
+				const page = parseInt(req.query.page as string) || defaultPage;
+				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 
 				logger.info(
 					LOG_MODULE,
@@ -129,8 +129,8 @@ const controller = (dependencies: BaseDependencies) => {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
 				const sqon = req.body;
-				let page = parseInt(req.query.page as string) || defaultPage;
-				let pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
+				const page = parseInt(req.query.page as string) || defaultPage;
+				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 
 				logger.info(
 					LOG_MODULE,
