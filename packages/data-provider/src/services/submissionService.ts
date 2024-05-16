@@ -1,7 +1,7 @@
 import { SchemaValidationError, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import * as _ from 'lodash-es';
 
-import { NewSubmittedData } from 'data-model';
+import { NewSubmittedData, Submission } from 'data-model';
 import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
@@ -371,6 +371,27 @@ const service = (dependencies: BaseDependencies) => {
 				},
 				processedEntities: entitiesToProcess,
 			};
+		},
+
+		deleteActiveSubmissionById: async (submissionId: number): Promise<Submission | undefined> => {
+			const { getSubmissionById, update } = submissionRepository(dependencies);
+
+			const submission = await getSubmissionById(submissionId);
+			if (_.isEmpty(submission) || !submission.dictionaryId)
+				throw new BadRequest(`Submission '${submissionId}' not found`);
+
+			// list of considered Open statuses of a submission able to be closed
+			const openStatuses = [SUBMISSION_STATUS.OPEN, SUBMISSION_STATUS.VALID, SUBMISSION_STATUS.INVALID];
+
+			if (!_.includes(openStatuses, submission.status)) {
+				throw new StatusConflict('Submission does not have a valid status to be deleted');
+			}
+			const updatedRecord = await update(submission.id, {
+				status: SUBMISSION_STATUS.CLOSED,
+				updatedAt: new Date(),
+			});
+
+			return updatedRecord;
 		},
 	};
 };

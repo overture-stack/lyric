@@ -8,14 +8,16 @@ import submissionControllers from '../controllers/submissionController.js';
 import { getSizeInBytes } from '../utils/fileUtils.js';
 
 const router = (dependencies: BaseDependencies): Router => {
-	const fileSizeLimit = getSizeInBytes(dependencies.limits.fileSize)
-	const upload = multer({ dest: '/tmp', limits: {fileSize: fileSizeLimit} });
+	const fileSizeLimit = getSizeInBytes(dependencies.limits.fileSize);
+	const upload = multer({ dest: '/tmp', limits: { fileSize: fileSizeLimit } });
 
 	const router = Router();
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
 	router.get('/:submissionId', auth, submissionControllers(dependencies).getActiveById);
+
+	router.delete('/:submissionId', auth, submissionControllers(dependencies).delete);
 
 	router.get('/category/:categoryId', auth, submissionControllers(dependencies).getActiveByCategory);
 
@@ -28,6 +30,7 @@ const router = (dependencies: BaseDependencies): Router => {
 	router.post('/category/:categoryId/upload', upload.array('files'), submissionControllers(dependencies).upload);
 
 	router.post('/category/:categoryId/commit/:submissionId', auth, submissionControllers(dependencies).commit);
+
 	return router;
 };
 

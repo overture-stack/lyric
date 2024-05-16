@@ -186,6 +186,28 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		},
+		delete: async (req: Request<{ submissionId: string }>, res: Response, next: NextFunction) => {
+			try {
+				const submissionId = Number(req.params.submissionId);
+
+				if (isNaN(submissionId)) {
+					throw new BadRequest('Invalid submissionId number format');
+				}
+
+				logger.info(LOG_MODULE, `Request Delete Active Submission '${submissionId}'`);
+
+				// TODO: get userName from auth
+				const userName = '';
+
+				const activeSubmissionDelete = await service.deleteActiveSubmissionById(submissionId);
+
+				if (isEmpty(activeSubmissionDelete)) throw new NotFound('Active Submission not found');
+
+				return res.status(200).send(activeSubmissionDelete);
+			} catch (error) {
+				next(error);
+			}
+		},
 	};
 };
 
