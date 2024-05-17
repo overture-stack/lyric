@@ -1,7 +1,8 @@
 export class BadRequest extends Error {
-	constructor(msg: string) {
+	constructor(msg: string, details?: any) {
 		super(msg);
 		this.name = 'Bad Request';
+		this.cause = details;
 	}
 }
 

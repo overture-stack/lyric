@@ -20,7 +20,8 @@ import {
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction): any => {
 	console.error('error handler received error: ', err);
 	let status: number;
-	let customizableMsg = err.message;
+	const customizableMsg = err.message;
+	const details = err.cause;
 	switch (true) {
 		case err instanceof BadRequest:
 			status = 400;
@@ -47,5 +48,5 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
 			status = 500;
 	}
 
-	return res.status(status).send({ error: err.name, message: customizableMsg });
+	return res.status(status).send({ error: err.name, message: customizableMsg, details: details });
 };

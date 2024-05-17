@@ -1,9 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
 import * as _ from 'lodash-es';
-
-import { isCombination } from '@overture-stack/sqon-builder';
 import { BaseDependencies } from '../config/config.js';
 import submittedDataService from '../services/submittedDataService.js';
+import { parseSQON } from '../utils/convertSqonToQuery.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
 import { isEmptyString } from '../utils/formatUtils.js';
 import { SubmittedDataPaginatedResponse } from '../utils/types.js';
@@ -128,7 +127,7 @@ const controller = (dependencies: BaseDependencies) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
-				const sqon = req.body;
+				const sqon = parseSQON(req.body);
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 
@@ -153,12 +152,6 @@ const controller = (dependencies: BaseDependencies) => {
 
 				if (pageSize < 0) {
 					throw new BadRequest('Invalid `pageSize` parameter');
-				}
-
-				// The top level of a SQON must always be a Combination Operation, even if only a single filter is being applied.
-				// https://www.overture.bio/documentation/arranger/reference/sqon/
-				if (!isCombination(sqon)) {
-					throw new BadRequest('Invalid SQON format');
 				}
 
 				const submittedDataResult = await service.getSubmittedDataByOrganization(
