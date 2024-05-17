@@ -1,4 +1,4 @@
-import {
+import SQONBuilder, {
 	ArrayFilterValue,
 	CombinationKeys,
 	CombinationOperator,
@@ -12,6 +12,7 @@ import {
 } from '@overture-stack/sqon-builder';
 import { SQL, and, not, or, sql } from 'drizzle-orm';
 import * as _ from 'lodash-es';
+import { ZodError } from 'zod';
 import { BadRequest } from './errors.js';
 
 // Column name on the database used to build JSONB query
@@ -51,15 +52,15 @@ const formatForSQL = (value: ArrayFilterValue) => {
 
 const processFilterOperator = (operator: FilterOperator): SQL<unknown> => {
 	const { fieldName, value } = operator.content;
+
 	if (isArrayFilter(operator)) {
 		// op is in
 		return sql.raw(`${jsonbColumnName} ->> '${formatForSQL(fieldName)}' IN (${formatForSQL(value)})`);
-	}
-
-	// is an scalar filter op is lt or gt
-	if (isGreaterThanFilter(operator)) {
+	} else if (isGreaterThanFilter(operator)) {
+		// is an scalar filter op is gt
 		return sql.raw(`${jsonbColumnName} ->> '${formatForSQL(fieldName)}' > '${formatForSQL(value)}'`);
 	} else if (isLesserThanFilter(operator)) {
+		// is an scalar filter op is lt
 		return sql.raw(`${jsonbColumnName} ->> '${formatForSQL(fieldName)}' < '${formatForSQL(value)}'`);
 	}
 
@@ -83,15 +84,14 @@ const iterateOperators = (operators: Operator[]) => {
 };
 
 const processCombinationOperator = (sqon: CombinationOperator): SQL<unknown> => {
-	if (sqon.op === CombinationKeys.And) {
-		return andOperator(sqon.content);
-	} else if (sqon.op === CombinationKeys.Or) {
-		return orOperator(sqon.content);
-	} else if (sqon.op === CombinationKeys.Not) {
-		return notOperator(sqon.content);
+	switch (sqon.op) {
+		case CombinationKeys.And:
+			return andOperator(sqon.content);
+		case CombinationKeys.Or:
+			return orOperator(sqon.content);
+		case CombinationKeys.Not:
+			return notOperator(sqon.content);
 	}
-
-	throw new BadRequest(`Invalid SQON format. Unsupported SQON combination operator: ${sqon}`);
 };
 
 const andOperator = (operations: Operator[]): SQL<unknown> => {
@@ -116,13 +116,46 @@ const notOperator = (operations: Operator[]): SQL<unknown> => {
 	return not(iterateOperator(operations[0]));
 };
 
+/**
+ * Main function to converts any SQON object to a partial SQL to query a JSONB column
+ * The result query uses the operator ->> to get a JSON object field as text
+ *
+ * Example input:
+ *  { "op": "in", "content": { "fieldName": "country", "value": [ "Canada" ] } }
+ * Output:
+ *  metadata ->> 'country' IN ('Canada')
+ *
+ * @param {Operator | undefined} sqon SQON input
+ * @returns {SQL<unknown>}
+ */
 export const convertSqonToQuery = (sqon: Operator | undefined): SQL<unknown> | undefined => {
 	if (!sqon || _.isEmpty(sqon)) {
 		return undefined;
-	} else if (isCombination(sqon)) {
-		// top level SQON must have op in [and, or, not]
-		return processCombinationOperator(sqon);
 	}
 
-	throw new BadRequest('Invalid SQON format. Top level SQON must be a combination operator (and, or, not');
+	return iterateOperator(sqon);
+};
+
+/**
+ * Given any input, attempt to parse it as a SQON.
+ * An error will be thrown if the provided input is invalid.
+ * @param {unknown} input
+ * @returns SQONBuilder
+ */
+export const parseSQON = (input: unknown) => {
+	try {
+		// Given any input, attempt to parse it as a SQON.
+		// An error will be thrown if the provided input is invalid.
+		return SQONBuilder.default.from(input);
+
+		// TODO: SQL sanitization (https://github.com/overture-stack/lyric/issues/43)
+	} catch (error: unknown) {
+		if (isZodError(error)) {
+			throw new BadRequest('Invalid SQON format', (error as ZodError).issues);
+		}
+	}
+};
+
+const isZodError = (error: unknown) => {
+	return error && typeof error === 'object' && 'name' in error && error.name === 'ZodError';
 };
