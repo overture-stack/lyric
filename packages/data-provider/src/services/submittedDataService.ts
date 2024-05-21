@@ -4,7 +4,7 @@ import categoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
 import submittedUtils from '../utils/submittedDataUtils.js';
-import { SubmittedDataResponse, paginationOps } from '../utils/types.js';
+import { PaginationOps, SubmittedDataResponse } from '../utils/types.js';
 
 const PAGINATION_ERROR_MESSAGES = {
 	INVALID_CATEGORY_ID: 'Invalid Category ID',
@@ -18,7 +18,7 @@ const service = (dependencies: BaseDependencies) => {
 	return {
 		getSubmittedDataByCategory: async (
 			categoryId: number,
-			paginationOps: paginationOps,
+			paginationOps: PaginationOps,
 		): Promise<{
 			data: SubmittedDataResponse[];
 			metadata: { totalRecords: number; errorMessage?: string };
@@ -52,7 +52,7 @@ const service = (dependencies: BaseDependencies) => {
 		getSubmittedDataByOrganization: async (
 			categoryId: number,
 			organization: string,
-			paginationOps: paginationOps,
+			paginationOps: PaginationOps,
 			sqon?: SQON,
 		): Promise<{ data: SubmittedDataResponse[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
 			const { getSubmittedDataByCategoryIdAndOrganizationPaginated, getTotalRecordsByCategoryIdAndOrganization } =

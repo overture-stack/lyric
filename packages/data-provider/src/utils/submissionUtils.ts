@@ -5,7 +5,7 @@ import {
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import * as _ from 'lodash-es';
 
-import { NewSubmission, Submission } from 'data-model';
+import { NewSubmission, Submission, SubmissionEntity } from 'data-model';
 import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
@@ -24,7 +24,6 @@ import {
 	DictionaryActiveSubmission,
 	MERGE_REFERENCE_TYPE,
 	SUBMISSION_STATUS,
-	SubmissionEntity,
 	SubmissionReference,
 	SubmittedDataReference,
 } from './types.js';
@@ -187,6 +186,14 @@ const utils = (dependencies: BaseDependencies) => {
 			return filesDataProcessed;
 		},
 
+		/**
+		 * This function extracts the Schema Data from the Active Submission
+		 * and maps it to it's original reference Id
+		 * The result mapping is used to perform the cross schema validation
+		 * @param {number | undefined} activeSubmissionId
+		 * @param {Record<string, SubmissionEntity>} activeSubmissionDataEntities
+		 * @returns {Record<string, DataRecordReference[]>}
+		 */
 		mapSubmissionSchemaDataByEntityName: (
 			activeSubmissionId: number | undefined,
 			activeSubmissionDataEntities: Record<string, SubmissionEntity>,
@@ -247,6 +254,11 @@ const utils = (dependencies: BaseDependencies) => {
 			};
 		},
 
+		/**
+		 * Utility to parse a raw Active Submission to a Summary of the Active Submission
+		 * @param {ActiveSubmissionSummaryRepository} submission
+		 * @returns {ActiveSubmissionSummaryResponse}
+		 */
 		parseActiveSubmissionSummaryResponse: (
 			submission: ActiveSubmissionSummaryRepository,
 		): ActiveSubmissionSummaryResponse => {
@@ -273,6 +285,11 @@ const utils = (dependencies: BaseDependencies) => {
 			};
 		},
 
+		/**
+		 * Utility to parse a raw Active Submission to a Response type
+		 * @param {ActiveSubmissionSummaryRepository} submission
+		 * @returns {ActiveSubmissionResponse}
+		 */
 		parseActiveSubmissionResponse: (submission: ActiveSubmissionSummaryRepository): ActiveSubmissionResponse => {
 			return {
 				id: submission.id,

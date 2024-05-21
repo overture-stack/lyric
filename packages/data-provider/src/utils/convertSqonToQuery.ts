@@ -120,7 +120,8 @@ const notOperator = (operations: Operator[]): SQL<unknown> => {
  * Main function to converts any SQON object to a partial SQL to query a JSONB column
  * The result query uses the operator ->> to get a JSON object field as text
  *
- * Example input:
+ * @example
+ * Input:
  *  { "op": "in", "content": { "fieldName": "country", "value": [ "Canada" ] } }
  * Output:
  *  metadata ->> 'country' IN ('Canada')
