@@ -1,7 +1,7 @@
 import { SchemaValidationError, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import * as _ from 'lodash-es';
 
-import { NewSubmittedData, Submission } from 'data-model';
+import { NewSubmittedData, Submission, SubmissionEntity } from 'data-model';
 import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
@@ -18,7 +18,6 @@ import {
 	CreateSubmissionResult,
 	CreateSubmissionStatus,
 	SUBMISSION_STATUS,
-	SubmissionEntity,
 	ValidateFilesParams,
 } from '../utils/types.js';
 

@@ -147,6 +147,12 @@ const utils = (dependencies: BaseDependencies) => {
 			return hasErrors;
 		},
 
+		/**
+		 * Utility to parse Raw Submitted Data into a REST Response format
+		 * Iterates each Submitted Data record and returns a formatted object
+		 * @param {SubmittedDataRepository[]} recordsArray
+		 * @returns {SubmittedDataResponse[]}
+		 */
 		parseSubmittedData: (recordsArray: SubmittedDataRepository[]): SubmittedDataResponse[] => {
 			return recordsArray.map((record) => {
 				return {
