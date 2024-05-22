@@ -379,11 +379,11 @@ const service = (dependencies: BaseDependencies) => {
 			if (_.isEmpty(submission) || !submission.dictionaryId)
 				throw new BadRequest(`Submission '${submissionId}' not found`);
 
-			// list of considered Open statuses of a submission able to be closed
+			// Only "open", "valid", and "invalid" statuses are considered Active Submission
 			const openStatuses = [SUBMISSION_STATUS.OPEN, SUBMISSION_STATUS.VALID, SUBMISSION_STATUS.INVALID];
 
 			if (!_.includes(openStatuses, submission.status)) {
-				throw new StatusConflict('Submission does not have a valid status to be deleted');
+				throw new StatusConflict('Only Submissions with statuses "Open", "Valid", "Invalid" can be deleted');
 			}
 			const updatedRecord = await update(submission.id, {
 				status: SUBMISSION_STATUS.CLOSED,
