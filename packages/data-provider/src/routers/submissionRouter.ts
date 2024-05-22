@@ -8,8 +8,8 @@ import submissionControllers from '../controllers/submissionController.js';
 import { getSizeInBytes } from '../utils/fileUtils.js';
 
 const router = (dependencies: BaseDependencies): Router => {
-	const fileSizeLimit = getSizeInBytes(dependencies.limits.fileSize)
-	const upload = multer({ dest: '/tmp', limits: {fileSize: fileSizeLimit} });
+	const fileSizeLimit = getSizeInBytes(dependencies.limits.fileSize);
+	const upload = multer({ dest: '/tmp', limits: { fileSize: fileSizeLimit } });
 
 	const router = Router();
 	router.use(urlencoded({ extended: false }));

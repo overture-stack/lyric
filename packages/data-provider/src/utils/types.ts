@@ -90,7 +90,7 @@ export type BooleanTrueObject = {
 /**
  * Pagination Query Params
  */
-export type PaginationOps = {
+export type PaginationOptions = {
 	page: number;
 	pageSize: number;
 };
