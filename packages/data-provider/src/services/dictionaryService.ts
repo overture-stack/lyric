@@ -1,11 +1,11 @@
 import { Dictionary } from 'data-model';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import getCategoryUtils from '../utils/categoryUtils.js';
 import getDictionaryUtils from '../utils/dictionaryUtils.js';
 import { NotImplemented } from '../utils/errors.js';
 
-const dictionaryService = (dependencies: Dependencies) => {
+const dictionaryService = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'DICTIONARY_SERVICE';
 	const { logger } = dependencies;
 	return {

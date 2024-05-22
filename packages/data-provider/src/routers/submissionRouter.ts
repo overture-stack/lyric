@@ -5,9 +5,11 @@ import { auth } from '../middleware/auth.js';
 
 import { BaseDependencies } from '../config/config.js';
 import submissionControllers from '../controllers/submissionController.js';
+import { getSizeInBytes } from '../utils/fileUtils.js';
 
 const router = (dependencies: BaseDependencies): Router => {
-	const upload = multer({ dest: '/tmp' });
+	const fileSizeLimit = getSizeInBytes(dependencies.limits.fileSize);
+	const upload = multer({ dest: '/tmp', limits: { fileSize: fileSizeLimit } });
 
 	const router = Router();
 	router.use(urlencoded({ extended: false }));

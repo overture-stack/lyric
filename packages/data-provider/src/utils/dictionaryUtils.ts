@@ -3,11 +3,11 @@ import { SchemaDefinition, SchemasDictionary } from '@overturebio-stack/lectern-
 import { isEmpty } from 'lodash-es';
 
 import { Dictionary, NewDictionary } from 'data-model';
-import { Dependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import lecternClient from '../external/lecternClient.js';
 import dictionaryRepository from '../repository/dictionaryRepository.js';
 
-const utils = (dependencies: Dependencies) => {
+const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'DICTIONARY_UTILS';
 	const { logger } = dependencies;
 	const dictionaryRepo = dictionaryRepository(dependencies);
@@ -55,8 +55,11 @@ const utils = (dependencies: Dependencies) => {
 		 */
 		fetchDictionaryByVersion: async (dictionaryName: string, version: string): Promise<SchemasDictionary> => {
 			try {
-				if (!dependencies?.config?.schemaService?.url) throw new Error(`'schemaService' is not configured`);
-				const client = lecternClient(dependencies.config.schemaService.url, logger);
+				if (!dependencies?.schemaService?.url) {
+					throw new Error(`'schemaService' is not configured`);
+				}
+
+				const client = lecternClient(dependencies.schemaService.url, logger);
 				const dictionaryResponse = await client.fetchDictionaryByVersion(dictionaryName, version);
 				logger.debug(LOG_MODULE, `dictionary fetched from Lectern`, JSON.stringify(dictionaryResponse));
 				return dictionaryResponse;

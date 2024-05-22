@@ -1,5 +1,5 @@
 import * as _ from 'lodash-es';
-import { AppConfig, BaseDependencies, Dependencies } from '../config/config.js';
+import { AppConfig, BaseDependencies } from '../config/config.js';
 import { connect } from '../config/db.js';
 import { getLogger } from '../config/logger.js';
 import dictionaryRouters from '../routers/dictionaryRouter.js';
@@ -16,23 +16,22 @@ import getSubmittedDataUtils from '../utils/submittedDataUtils.js';
  * @returns A provider to get access to resources
  */
 const provider = (configData: AppConfig) => {
-	const deps: Dependencies = {
+	const baseDeps: BaseDependencies = {
 		db: connect(configData.db),
 		logger: getLogger(configData.logger),
-		config: configData,
+		limits: configData.limits,
+		schemaService: configData.schemaService,
 	};
 
-	const baseDeps: BaseDependencies = _.omit(deps, ['config']);
-
 	return {
-		configs: deps,
+		configs: baseDeps,
 		routers: {
-			dictionary: dictionaryRouters(deps),
+			dictionary: dictionaryRouters(baseDeps),
 			submission: submissionRouters(baseDeps),
 			submittedData: submittedDataRouters(baseDeps),
 		},
 		utils: {
-			dictionary: getDictionaryUtils(deps),
+			dictionary: getDictionaryUtils(baseDeps),
 			category: getCategoryUtils(baseDeps),
 			submission: getSubmissionUtils(baseDeps),
 			submittedData: getSubmittedDataUtils(baseDeps),

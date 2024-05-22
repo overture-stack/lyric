@@ -97,9 +97,15 @@ importers:
 
   packages/data-provider:
     dependencies:
+      '@overture-stack/sqon-builder':
+        specifier: ^1.1.0
+        version: 1.1.0
       '@overturebio-stack/lectern-client':
         specifier: ^1.5.0
         version: 1.5.0(typescript@5.4.5)
+      bytes:
+        specifier: ^3.1.2
+        version: 3.1.2
       data-model:
         specifier: workspace:^
         version: link:../data-model
@@ -134,6 +140,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      '@types/bytes':
+        specifier: ^3.1.4
+        version: 3.1.4
       '@types/deep-freeze':
         specifier: ^0.1.5
         version: 0.1.5
@@ -667,6 +676,13 @@ packages:
     resolution: {integrity: sha512-4JQNk+3mVzK3xh2rqd6RB4J46qUR19azEHBneZyTZM+c456qOrbbM/5xcR8huNCCcbVt7+UmizG6GuUvPvKUYg==}
     dev: false
 
+  /@overture-stack/sqon-builder@1.1.0:
+    resolution: {integrity: sha512-HpxJBbhN2FIIpSKOHoezua7/2by9S7qpnuaG5qgpm69nLUX0KnW2fwGVELJ3PMW1DpU8qg74kASozUnST0F+cQ==}
+    dependencies:
+      lodash.clonedeep: 4.5.0
+      zod: 3.22.4
+    dev: false
+
   /@overturebio-stack/lectern-client@1.5.0(typescript@5.4.5):
     resolution: {integrity: sha512-WYLwlWE09yR/SG6FqhAbbFynY3+ViclVbGJO0PO6Uspe5Pe7YKOfzWO9udlO4f40y+ZnwDlzkaJgMsk/AocyhQ==}
     dependencies:
@@ -704,6 +720,10 @@ packages:
     dependencies:
       '@types/connect': 3.4.38
       '@types/node': 20.11.16
+    dev: true
+
+  /@types/bytes@3.1.4:
+    resolution: {integrity: sha512-A0uYgOj3zNc4hNjHc5lYUfJQ/HVyBXiUMKdXd7ysclaE6k9oJdavQzODHuwjpUu2/boCP8afjQYi8z/GtvNCWA==}
     dev: true
 
   /@types/connect@3.4.38:
@@ -1843,6 +1863,10 @@ packages:
 
   /lodash-es@4.17.21:
     resolution: {integrity: sha512-mKnC+QJ9pWVzv+C4/U3rRsHapFfHvQFoFB92e52xeyGMcX6/OlIl78je1u8vePzYZSkkogMPJ2yjxxsb89cxyw==}
+    dev: false
+
+  /lodash.clonedeep@4.5.0:
+    resolution: {integrity: sha512-H5ZhCF25riFd9uB5UCkVKo61m3S/xZk1x4wA6yp/L3RFP6Z/eHH1ymQcGLo7J3GMPfm0V/7m1tryHuGVxpqEBQ==}
     dev: false
 
   /lodash.get@4.4.2:
