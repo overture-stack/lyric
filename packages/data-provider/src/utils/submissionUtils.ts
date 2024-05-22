@@ -288,6 +288,26 @@ const utils = (dependencies: BaseDependencies) => {
 				updatedBy: _.toString(submission.updatedBy),
 			};
 		},
+
+		/**
+		 * Clean up all dataErrors from Submission
+		 * @param {Record<string, SubmissionEntity> | undefined} submissionData
+		 * @returns {Record<string, SubmissionEntity>}
+		 */
+		cleanErrorsFromSubmission: (
+			submissionData: Record<string, SubmissionEntity> | undefined,
+		): Record<string, SubmissionEntity> => {
+			if (submissionData) {
+				return Object.entries(submissionData).reduce(
+					(acc, [entityNameSubmission, entityData]) => {
+						acc[entityNameSubmission] = { ..._.omit(entityData, 'dataErrors') };
+						return acc;
+					},
+					{} as Record<string, SubmissionEntity>,
+				);
+			}
+			return {};
+		},
 	};
 };
 

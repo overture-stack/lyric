@@ -199,11 +199,42 @@ const controller = (dependencies: BaseDependencies) => {
 				// TODO: get userName from auth
 				const userName = '';
 
-				const activeSubmissionDelete = await service.deleteActiveSubmissionById(submissionId);
+				const activeSubmissionDelete = await service.deleteActiveSubmissionById(submissionId, userName);
 
 				if (isEmpty(activeSubmissionDelete)) throw new NotFound('Active Submission not found');
 
 				return res.status(200).send(activeSubmissionDelete);
+			} catch (error) {
+				next(error);
+			}
+		},
+		deleteEntityName: async (
+			req: Request<{ submissionId: string; entityName: string }>,
+			res: Response,
+			next: NextFunction,
+		) => {
+			try {
+				const submissionId = Number(req.params.submissionId);
+				const entityName = req.params.entityName;
+
+				if (isNaN(submissionId)) {
+					throw new BadRequest('Invalid submissionId number format');
+				}
+
+				if (isEmptyString(entityName)) {
+					throw new BadRequest('Request is missing `entityName` parameter.');
+				}
+
+				logger.info(LOG_MODULE, `Request Delete entity '${entityName}' on Active Submission '${submissionId}'`);
+
+				// TODO: get userName from auth
+				const userName = '';
+
+				const activeSubmission = await service.deleteActiveSubmissionEntity(submissionId, entityName, userName);
+
+				if (isEmpty(activeSubmission)) throw new NotFound('Active Submission not found');
+
+				return res.status(200).send(activeSubmission);
 			} catch (error) {
 				next(error);
 			}
