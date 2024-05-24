@@ -25,12 +25,18 @@ import {
 	MERGE_REFERENCE_TYPE,
 	SUBMISSION_STATUS,
 	SubmissionReference,
+	SubmissionStatus,
 	SubmittedDataReference,
 } from './types.js';
 
 const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_UTILS';
 	const { logger } = dependencies;
+
+	// Only "open", "valid", and "invalid" statuses are considered Active Submission
+	const statusesAllowedToClose = [SUBMISSION_STATUS.OPEN, SUBMISSION_STATUS.VALID, SUBMISSION_STATUS.INVALID];
+	type StatusesAllowedToClose = typeof statusesAllowedToClose extends Array<infer T> ? T : never;
+
 	const submissionRepo = submissionRepository(dependencies);
 	return {
 		/**
@@ -304,6 +310,16 @@ const utils = (dependencies: BaseDependencies) => {
 				updatedAt: _.toString(submission.updatedAt?.toISOString()),
 				updatedBy: _.toString(submission.updatedBy),
 			};
+		},
+
+		/**
+		 * Determines if a Submission can be closed based on it's current status
+		 * @param {SubmissionStatus} status Status of a Submission
+		 * @returns {boolean}
+		 */
+		canTransitionToClosed: (status: SubmissionStatus): status is StatusesAllowedToClose => {
+			const openStatuses: SubmissionStatus[] = statusesAllowedToClose;
+			return openStatuses.includes(status);
 		},
 	};
 };

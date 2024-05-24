@@ -22,7 +22,7 @@ export const submissions = pgTable('submissions', {
 	dictionaryId: integer('dictionary_id').references(() => dictionaries.id),
 	errors: jsonb('errors').$type<Record<string, SchemaValidationError[]>>(),
 	organization: varchar('organization').notNull(),
-	status: submissionStatusEnum('status'),
+	status: submissionStatusEnum('status').notNull(),
 	createdAt: timestamp('created_at').defaultNow(),
 	createdBy: varchar('created_by'),
 	updatedAt: timestamp('updated_at').defaultNow(),

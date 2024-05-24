@@ -374,15 +374,13 @@ const service = (dependencies: BaseDependencies) => {
 
 		deleteActiveSubmissionById: async (submissionId: number): Promise<Submission | undefined> => {
 			const { getSubmissionById, update } = submissionRepository(dependencies);
+			const { canTransitionToClosed } = submissionUtils(dependencies);
 
 			const submission = await getSubmissionById(submissionId);
 			if (_.isEmpty(submission) || !submission.dictionaryId)
 				throw new BadRequest(`Submission '${submissionId}' not found`);
 
-			// Only "open", "valid", and "invalid" statuses are considered Active Submission
-			const openStatuses = [SUBMISSION_STATUS.OPEN, SUBMISSION_STATUS.VALID, SUBMISSION_STATUS.INVALID];
-
-			if (!_.includes(openStatuses, submission.status)) {
+			if (canTransitionToClosed(submission.status)) {
 				throw new StatusConflict('Only Submissions with statuses "Open", "Valid", "Invalid" can be deleted');
 			}
 			const updatedRecord = await update(submission.id, {
