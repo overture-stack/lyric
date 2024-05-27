@@ -3,6 +3,7 @@ import * as _ from 'lodash-es';
 
 import { NewSubmittedData, Submission } from 'data-model';
 import { BaseDependencies } from '../config/config.js';
+import systemIdGenerator from '../external/systemIdGenerator.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
@@ -152,14 +153,17 @@ const service = (dependencies: BaseDependencies) => {
 			schemasDataToValidate.submittedDataByEntityName[entityName].map((data, index) => {
 				data.isValid = !hasErrorsByIndex(hasErrorByIndex, index);
 				if (data.id) {
-					logger.debug(LOG_MODULE, `Updating submittedData '${data.id}' in entity '${entityName}' index '${index}'`);
+					logger.info(LOG_MODULE, `Updating submittedData system ID '${data.systemId}' in entity '${entityName}'`);
 					dataSubmittedRepo.update(data.id, {
 						isValid: data.isValid,
 						lastValidSchemaId: data.lastValidSchemaId,
 						updatedBy: data.updatedBy,
 					});
 				} else {
-					logger.debug(LOG_MODULE, `Creating new submittedData in entity '${entityName}' index '${index}'`);
+					logger.info(
+						LOG_MODULE,
+						`Creating new submittedData in entity '${entityName}' with system ID '${data.systemId}'`,
+					);
 					dataSubmittedRepo.save(data);
 				}
 			});
@@ -317,6 +321,7 @@ const service = (dependencies: BaseDependencies) => {
 			const { getSubmissionById } = submissionRepository(dependencies);
 			const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
 			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
+			const { generateIdentifier } = systemIdGenerator(dependencies);
 
 			const submission = await getSubmissionById(submissionId);
 			if (_.isEmpty(submission) || !submission.dictionaryId)
@@ -350,6 +355,7 @@ const service = (dependencies: BaseDependencies) => {
 						organization: submission.organization,
 						originalSchemaId: submission.dictionaryId,
 						lastValidSchemaId: submission.dictionaryId,
+						systemId: generateIdentifier(entityName, record),
 						createdBy: '', // TODO: get User from auth
 					};
 					return newSubmittedData;

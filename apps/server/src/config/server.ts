@@ -24,6 +24,11 @@ export const defaultAppConfig: AppConfig = {
 		user: getRequiredConfig('DB_USER'),
 		password: getRequiredConfig('DB_PASSWORD'),
 	},
+	idService: {
+		useLocal: Boolean(process.env.ID_USELOCAL) || true,
+		customAlphabet: process.env.ID_CUSTOM_ALPHABET || 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+		customSize: Number(process.env.ID_CUSTOM_SIZE) || 21,
+	},
 	schemaService: {
 		url: getRequiredConfig('LECTERN_URL'),
 	},

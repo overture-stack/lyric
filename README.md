@@ -42,17 +42,20 @@ Create a `.env` file based on `.env.schema` located on the root folder and set t
 
 The Environment Variables used for this application are listed in the table bellow
 
-| Name           | Description                  | Default |
-| -------------- | ---------------------------- | ------- |
-| `PORT`         | Server Port.                 | 3030    |
-| `UPLOAD_LIMIT` | Limit upload file size       | '10mb'  |
-| `DB_HOST`      | Database Hostname            |         |
-| `DB_PORT`      | Database Port                |         |
-| `DB_NAME`      | Database Name                |         |
-| `DB_USER`      | Database User                |         |
-| `DB_PASSWORD`  | Database Password            |         |
-| `LECTERN_URL`  | Schema Service (Lectern) URL |         |
-| `LOG_LEVEL`    | Log Level                    | 'info'  |
+| Name                 | Description                               | Default                      |
+| -------------------- | ----------------------------------------- | ---------------------------- |
+| `PORT`               | Server Port.                              | 3030                         |
+| `UPLOAD_LIMIT`       | Limit upload file size                    | '10mb'                       |
+| `DB_HOST`            | Database Hostname                         |                              |
+| `DB_PORT`            | Database Port                             |                              |
+| `DB_NAME`            | Database Name                             |                              |
+| `DB_USER`            | Database User                             |                              |
+| `DB_PASSWORD`        | Database Password                         |                              |
+| `LECTERN_URL`        | Schema Service (Lectern) URL              |                              |
+| `ID_USELOCAL`        | Generate ID locally                       | true                         |
+| `ID_CUSTOM_ALPHABET` | Custom Alphabet for local ID generation   | 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' |
+| `ID_CUSTOM_SIZE`     | Custom size of ID for local ID generation | 21                           |
+| `LOG_LEVEL`          | Log Level                                 | 'info'                       |
 
 ## Script commands (Workspace)
 

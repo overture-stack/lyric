@@ -1,9 +1,9 @@
 import * as schema from 'data-model';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
-import { dbInfo } from './config.js';
+import { DbInfo } from './config.js';
 
-export const connect = (info: dbInfo): NodePgDatabase<typeof schema> => {
+export const connect = (info: DbInfo): NodePgDatabase<typeof schema> => {
 	const pool = new pg.Pool({
 		host: info.host,
 		port: info.port,

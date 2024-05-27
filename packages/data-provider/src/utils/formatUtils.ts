@@ -20,3 +20,15 @@ export function notEmpty<TValue>(value: TValue | null | undefined): value is TVa
 export function isNumber(value: any): value is number {
 	return typeof value === 'number';
 }
+
+export function uniqueCharacters(value: string): string {
+	if (isEmptyString(value)) return '';
+	// Split the string to make array
+	const splitted = value.split('');
+
+	// Create a new array using set
+	const arrayCharacters = [...new Set(splitted)];
+
+	// join array to make it string
+	return arrayCharacters.join('');
+}

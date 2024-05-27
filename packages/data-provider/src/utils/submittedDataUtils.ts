@@ -154,6 +154,7 @@ const utils = (dependencies: BaseDependencies) => {
 					data: record.data,
 					isValid: record.isValid || false,
 					organization: record.organization,
+					systemId: record.systemId,
 				};
 			});
 		},
