@@ -1,7 +1,7 @@
 import { SchemaValidationError, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import * as _ from 'lodash-es';
 
-import { NewSubmittedData, Submission, SubmissionEntity } from 'data-model';
+import { NewSubmittedData, Submission, SubmissionData } from 'data-model';
 import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
@@ -50,7 +50,7 @@ const service = (dependencies: BaseDependencies) => {
 		const activeSubmission = await getActiveSubmission({ categoryId, userName, organization });
 
 		// merge Active Submission data with incoming TSV file data processed
-		const updatedActiveSubmissionData: Record<string, SubmissionEntity> = {
+		const updatedActiveSubmissionData: Record<string, SubmissionData> = {
 			...activeSubmission?.data,
 			...filesDataProcessed,
 		};
@@ -344,9 +344,9 @@ const service = (dependencies: BaseDependencies) => {
 				submission?.organization,
 			);
 
-			const submissionsToValidate = Object.entries(submission.data).flatMap(([entityName, submissionEntity]) => {
+			const submissionsToValidate = Object.entries(submission.data).flatMap(([entityName, submissionData]) => {
 				entitiesToProcess.push(entityName);
-				return submissionEntity.records.map((record) => {
+				return submissionData.records.map((record) => {
 					const newSubmittedData: NewSubmittedData = {
 						data: record,
 						dictionaryCategoryId: categoryId,

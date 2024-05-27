@@ -3,7 +3,7 @@ import {
 	SchemasDictionary,
 	SchemaValidationError,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
-import { NewSubmittedData, Submission, SubmissionEntity } from 'data-model';
+import { NewSubmittedData, Submission, SubmissionData } from 'data-model';
 import { DeepReadonly } from 'deep-freeze';
 
 type ObjectValues<T> = T[keyof T];
@@ -117,7 +117,7 @@ export type CategoryActiveSubmission = {
  */
 export type ActiveSubmissionResponse = {
 	id: number;
-	data: Record<string, SubmissionEntity>;
+	data: Record<string, SubmissionData>;
 	dictionary: DictionaryActiveSubmission | null;
 	dictionaryCategory: CategoryActiveSubmission | null;
 	errors: Record<string, SchemaValidationError[]> | null;
@@ -142,7 +142,7 @@ export type ActiveSubmissionSummaryResponse = Omit<ActiveSubmissionResponse, 'da
  */
 export type ActiveSubmissionSummaryRepository = {
 	id: number;
-	data: Record<string, SubmissionEntity>;
+	data: Record<string, SubmissionData>;
 	dictionary: {} | null;
 	dictionaryCategory: {} | null;
 	errors: Record<string, SchemaValidationError[]> | null;
