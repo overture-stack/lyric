@@ -259,7 +259,9 @@ const service = (dependencies: BaseDependencies) => {
 			const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
 
 			const submission = await getActiveSubmissionWithRelationsByOrganization({ organization, userName, categoryId });
-			if (_.isEmpty(submission)) return;
+			if (_.isEmpty(submission)) {
+				return;
+			}
 
 			return parseActiveSubmissionSummaryResponse(submission);
 		},
@@ -282,7 +284,9 @@ const service = (dependencies: BaseDependencies) => {
 			const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
 
 			const submissions = await getActiveSubmissionsWithRelationsByCategory({ userName, categoryId });
-			if (!submissions || submissions.length === 0) return;
+			if (!submissions || submissions.length === 0) {
+				return;
+			}
 
 			return submissions.map((response) => parseActiveSubmissionSummaryResponse(response));
 		},
@@ -297,7 +301,9 @@ const service = (dependencies: BaseDependencies) => {
 			const { parseActiveSubmissionResponse } = submissionUtils(dependencies);
 
 			const submission = await getActiveSubmissionWithRelationsById(submissionId);
-			if (_.isEmpty(submission)) return;
+			if (_.isEmpty(submission)) {
+				return;
+			}
 
 			return parseActiveSubmissionResponse(submission);
 		},
@@ -317,10 +323,14 @@ const service = (dependencies: BaseDependencies) => {
 			if (submission.status !== SUBMISSION_STATUS.VALID)
 				throw new StatusConflict('Submission does not have status VALID and cannot be committed');
 
-			if (!categoryId) throw new BadRequest(`Active Submission does not belong to any Category`);
+			if (!categoryId) {
+				throw new BadRequest(`Active Submission does not belong to any Category`);
+			}
 
 			const currentDictionary = await getActiveDictionaryByCategory(categoryId);
-			if (_.isEmpty(currentDictionary)) throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+			if (_.isEmpty(currentDictionary)) {
+				throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+			}
 
 			const entitiesToProcess: string[] = [];
 
@@ -383,10 +393,12 @@ const service = (dependencies: BaseDependencies) => {
 			if (canTransitionToClosed(submission.status)) {
 				throw new StatusConflict('Only Submissions with statuses "Open", "Valid", "Invalid" can be deleted');
 			}
+
 			const updatedRecord = await update(submission.id, {
 				status: SUBMISSION_STATUS.CLOSED,
 				updatedAt: new Date(),
 			});
+			logger.info(LOG_MODULE, `Submission '${submissionId}' updated with new status '${SUBMISSION_STATUS.CLOSED}'`);
 
 			return updatedRecord;
 		},

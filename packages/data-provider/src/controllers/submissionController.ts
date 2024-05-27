@@ -179,7 +179,9 @@ const controller = (dependencies: BaseDependencies) => {
 
 				const activeSubmission = await service.getActiveSubmissionById(submissionId);
 
-				if (isEmpty(activeSubmission)) throw new NotFound('Active Submission not found');
+				if (isEmpty(activeSubmission)) {
+					throw new NotFound('Active Submission not found');
+				}
 
 				return res.status(200).send(activeSubmission);
 			} catch (error) {
@@ -201,7 +203,9 @@ const controller = (dependencies: BaseDependencies) => {
 
 				const activeSubmissionDelete = await service.deleteActiveSubmissionById(submissionId);
 
-				if (isEmpty(activeSubmissionDelete)) throw new NotFound('Active Submission not found');
+				if (isEmpty(activeSubmissionDelete)) {
+					throw new NotFound('Active Submission not found');
+				}
 
 				return res.status(200).send(activeSubmissionDelete);
 			} catch (error) {
