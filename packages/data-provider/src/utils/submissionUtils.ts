@@ -34,7 +34,7 @@ const utils = (dependencies: BaseDependencies) => {
 	const { logger } = dependencies;
 
 	// Only "open", "valid", and "invalid" statuses are considered Active Submission
-	const statusesAllowedToClose = [SUBMISSION_STATUS.OPEN, SUBMISSION_STATUS.VALID, SUBMISSION_STATUS.INVALID];
+	const statusesAllowedToClose = [SUBMISSION_STATUS.OPEN, SUBMISSION_STATUS.VALID, SUBMISSION_STATUS.INVALID] as const;
 	type StatusesAllowedToClose = typeof statusesAllowedToClose extends Array<infer T> ? T : never;
 
 	const submissionRepo = submissionRepository(dependencies);
@@ -318,7 +318,7 @@ const utils = (dependencies: BaseDependencies) => {
 		 * @returns {boolean}
 		 */
 		canTransitionToClosed: (status: SubmissionStatus): status is StatusesAllowedToClose => {
-			const openStatuses: SubmissionStatus[] = statusesAllowedToClose;
+			const openStatuses: SubmissionStatus[] = [...statusesAllowedToClose];
 			return openStatuses.includes(status);
 		},
 	};

@@ -190,7 +190,9 @@ const service = (dependencies: BaseDependencies) => {
 
 			if (files.length > 0) {
 				const currentDictionary = await getActiveDictionaryByCategory(categoryId);
-				if (_.isEmpty(currentDictionary)) throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+				if (_.isEmpty(currentDictionary)) {
+					throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+				}
 
 				const schemasDictionary: SchemasDictionary = {
 					name: currentDictionary.name,
@@ -314,14 +316,17 @@ const service = (dependencies: BaseDependencies) => {
 			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 
 			const submission = await getSubmissionById(submissionId);
-			if (_.isEmpty(submission) || !submission.dictionaryId)
+			if (!submission) {
 				throw new BadRequest(`Submission '${submissionId}' not found`);
+			}
 
-			if (submission.dictionaryCategoryId !== categoryId)
+			if (submission.dictionaryCategoryId !== categoryId) {
 				throw new BadRequest(`Category ID provided does not match the category for the Submission`);
+			}
 
-			if (submission.status !== SUBMISSION_STATUS.VALID)
+			if (submission.status !== SUBMISSION_STATUS.VALID) {
 				throw new StatusConflict('Submission does not have status VALID and cannot be committed');
+			}
 
 			if (!categoryId) {
 				throw new BadRequest(`Active Submission does not belong to any Category`);
@@ -387,11 +392,12 @@ const service = (dependencies: BaseDependencies) => {
 			const { canTransitionToClosed } = submissionUtils(dependencies);
 
 			const submission = await getSubmissionById(submissionId);
-			if (_.isEmpty(submission) || !submission.dictionaryId)
+			if (!submission) {
 				throw new BadRequest(`Submission '${submissionId}' not found`);
+			}
 
-			if (canTransitionToClosed(submission.status)) {
-				throw new StatusConflict('Only Submissions with statuses "Open", "Valid", "Invalid" can be deleted');
+			if (!canTransitionToClosed(submission.status)) {
+				throw new StatusConflict('Only Submissions with statuses "OPEN", "VALID", "INVALID" can be deleted');
 			}
 
 			const updatedRecord = await update(submission.id, {
