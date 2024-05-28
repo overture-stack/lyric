@@ -6,7 +6,7 @@ import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
-import { BadRequest, InternalServerError, StatusConflict } from '../utils/errors.js';
+import { BadRequest, StatusConflict } from '../utils/errors.js';
 import submissionUtils from '../utils/submissionUtils.js';
 import submittedDataUtils from '../utils/submittedDataUtils.js';
 import {
@@ -397,6 +397,14 @@ const service = (dependencies: BaseDependencies) => {
 			};
 		},
 
+		/**
+		 * Updates Submission status to CLOSED
+		 * This action is allowed only if current Submission Status as OPEN, VALID or INVALID
+		 * Returns the resulting Active Submission with its status
+		 * @param {number} submissionId
+		 * @param {string} userName
+		 * @returns {Promise<Submission | undefined>}
+		 */
 		deleteActiveSubmissionById: async (submissionId: number, userName: string): Promise<Submission | undefined> => {
 			const { getSubmissionById, update } = submissionRepository(dependencies);
 			const { canTransitionToClosed } = submissionUtils(dependencies);
@@ -420,6 +428,15 @@ const service = (dependencies: BaseDependencies) => {
 			return updatedRecord;
 		},
 
+		/**
+		 * Function to remove an entity from an Active Submission by given Submission ID
+		 * It validates resulting Active Submission running cross schema validation along with the existing Submitted Data
+		 * Returns the resulting Active Submission with its status
+		 * @param {number} submissionId
+		 * @param {string} entityName
+		 * @param {string} userName
+		 * @returns { Promise<Submission | undefined>} Resulting Active Submittion
+		 */
 		deleteActiveSubmissionEntity: async (
 			submissionId: number,
 			entityName: string,
@@ -439,94 +456,96 @@ const service = (dependencies: BaseDependencies) => {
 				submittedDataUtils(dependencies);
 
 			const submission = await getSubmissionById(submissionId);
-			if (_.isEmpty(submission) || !submission.dictionaryId)
+			if (!submission) {
 				throw new BadRequest(`Submission '${submissionId}' not found`);
-
-			if (_.has(submission.data, entityName)) {
-				// get current Dictionary
-				if (!submission.dictionaryCategoryId) throw new InternalServerError('Invalid dictionary category ID');
-				const currentDictionary = await getActiveDictionaryByCategory(submission.dictionaryCategoryId);
-				if (_.isEmpty(currentDictionary))
-					throw new BadRequest(`Dictionary in category '${submission.dictionaryCategoryId}' not found`);
-
-				// get Submitted Data from database
-				const submittedData = await getSubmittedDataByCategoryIdAndOrganization(
-					submission.dictionaryCategoryId,
-					submission.organization,
-				);
-
-				// Filter out entityName from the Submission
-				// Need to clean up Schema errors before running validation
-				const updatedActiveSubmissionData = cleanErrorsFromSubmission(_.omit(submission.data, entityName));
-
-				// This object will merge existing data + new data for validation (Submitted data + active Submission)
-				const mergeDataRecordsByEntityName = _.mergeWith(
-					mapSubmittedDataSchemaByEntityName(submittedData),
-					mapSubmissionSchemaDataByEntityName(submission.id, updatedActiveSubmissionData),
-					(objValue, srcValue) => {
-						if (Array.isArray(objValue)) {
-							// If both values are arrays, concatenate them
-							return objValue.concat(srcValue);
-						}
-					},
-				);
-
-				// Prepare data to validate. Extract schema data from merged data
-				const crossSchemasDataToValidate = extractSchemaDataFromMergedDataRecords(mergeDataRecordsByEntityName);
-
-				// run validation
-				const resultValidation = validateSchemas(currentDictionary, crossSchemasDataToValidate);
-
-				// collect all errors from all schemas
-				const submissionSchemaErrors: Record<string, SchemaValidationError[]> = {};
-
-				Object.entries(resultValidation).forEach(([entityName, { validationErrors }]) => {
-					const hasErrorByIndex = groupErrorsByIndex(validationErrors, entityName);
-
-					if (!_.isEmpty(hasErrorByIndex)) {
-						Object.entries(hasErrorByIndex).map(([indexBasedOnCrossSchemas, schemaValidationErrors]) => {
-							const mapping = mergeDataRecordsByEntityName[entityName][Number(indexBasedOnCrossSchemas)];
-							if (determineIfIsSubmission(mapping.reference)) {
-								const submissionIndex = mapping.reference.index;
-								logger.debug(LOG_MODULE, `Error on submission entity: ${entityName} index: ${submissionIndex}`);
-
-								const mutableSchemaValidationErrors: SchemaValidationError[] = schemaValidationErrors.map((errors) => {
-									return {
-										...errors,
-										index: submissionIndex,
-									};
-								});
-								updatedActiveSubmissionData[entityName].dataErrors = (
-									updatedActiveSubmissionData[entityName].dataErrors || []
-								).concat(mutableSchemaValidationErrors);
-
-								submissionSchemaErrors[entityName] = (submissionSchemaErrors[entityName] || []).concat(
-									mutableSchemaValidationErrors,
-								);
-							}
-						});
-					}
-				});
-
-				if (_.isEmpty(submissionSchemaErrors)) {
-					logger.info(LOG_MODULE, `No error found on data submission`);
-				}
-
-				// Update Active Submission
-				const updatedRecord = await createOrUpdateActiveSubmission(
-					submission.id,
-					updatedActiveSubmissionData,
-					submission.dictionaryCategoryId.toString(),
-					submissionSchemaErrors,
-					currentDictionary.id,
-					userName,
-					submission.organization,
-				);
-
-				return updatedRecord;
 			}
 
-			throw new BadRequest(`Entity '${entityName}' not found on Submission`);
+			if (!_.has(submission.data, entityName)) {
+				throw new BadRequest(`Entity '${entityName}' not found on Submission`);
+			}
+
+			const currentDictionary = await getActiveDictionaryByCategory(submission.dictionaryCategoryId);
+			if (!currentDictionary) {
+				throw new BadRequest(`Dictionary in category '${submission.dictionaryCategoryId}' not found`);
+			}
+
+			// get Submitted Data from database
+			const submittedData = await getSubmittedDataByCategoryIdAndOrganization(
+				submission.dictionaryCategoryId,
+				submission.organization,
+			);
+
+			// Filter out entityName from the Submission
+			// Need to clean up Schema errors before running validation
+			const updatedActiveSubmissionData = cleanErrorsFromSubmission(_.omit(submission.data, entityName));
+
+			// This object will merge existing data + new data for validation (Submitted data + active Submission)
+			const mergeDataRecordsByEntityName = _.mergeWith(
+				mapSubmittedDataSchemaByEntityName(submittedData),
+				mapSubmissionSchemaDataByEntityName(submission.id, updatedActiveSubmissionData),
+				(objValue, srcValue) => {
+					if (Array.isArray(objValue)) {
+						// If both values are arrays, concatenate them
+						return objValue.concat(srcValue);
+					}
+				},
+			);
+
+			// Prepare data to validate. Extract schema data from merged data
+			const crossSchemasDataToValidate = extractSchemaDataFromMergedDataRecords(mergeDataRecordsByEntityName);
+
+			// run validation
+			const resultValidation = validateSchemas(currentDictionary, crossSchemasDataToValidate);
+
+			// collect all errors from all schemas
+			const submissionSchemaErrors: Record<string, SchemaValidationError[]> = {};
+
+			Object.entries(resultValidation).forEach(([entityName, { validationErrors }]) => {
+				const hasErrorByIndex = groupErrorsByIndex(validationErrors, entityName);
+
+				if (!_.isEmpty(hasErrorByIndex)) {
+					Object.entries(hasErrorByIndex).map(([indexBasedOnCrossSchemas, schemaValidationErrors]) => {
+						const mapping = mergeDataRecordsByEntityName[entityName][Number(indexBasedOnCrossSchemas)];
+						if (determineIfIsSubmission(mapping.reference)) {
+							const submissionIndex = mapping.reference.index;
+							logger.debug(LOG_MODULE, `Error on submission entity: ${entityName} index: ${submissionIndex}`);
+
+							const mutableSchemaValidationErrors: SchemaValidationError[] = schemaValidationErrors.map((errors) => {
+								return {
+									...errors,
+									index: submissionIndex,
+								};
+							});
+							updatedActiveSubmissionData[entityName].dataErrors = (
+								updatedActiveSubmissionData[entityName].dataErrors || []
+							).concat(mutableSchemaValidationErrors);
+
+							submissionSchemaErrors[entityName] = (submissionSchemaErrors[entityName] || []).concat(
+								mutableSchemaValidationErrors,
+							);
+						}
+					});
+				}
+			});
+
+			if (_.isEmpty(submissionSchemaErrors)) {
+				logger.info(LOG_MODULE, `No error found on data submission`);
+			}
+
+			// Update Active Submission
+			const updatedRecord = await createOrUpdateActiveSubmission(
+				submission.id,
+				updatedActiveSubmissionData,
+				submission.dictionaryCategoryId.toString(),
+				submissionSchemaErrors,
+				currentDictionary.id,
+				userName,
+				submission.organization,
+			);
+
+			logger.info(LOG_MODULE, `Submission '${updatedRecord.id}' updated with new status '${updatedRecord.status}'`);
+
+			return updatedRecord;
 		},
 	};
 };
