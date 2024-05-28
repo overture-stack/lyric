@@ -117,7 +117,9 @@ const controller = (dependencies: BaseDependencies) => {
 
 				const activeSubmissions = await service.getActiveSubmissionsByCategory({ categoryId, userName });
 
-				if (!activeSubmissions || activeSubmissions.length === 0) throw new NotFound('Active Submission not found');
+				if (!activeSubmissions || activeSubmissions.length === 0) {
+					throw new NotFound('Active Submission not found');
+				}
 
 				logger.info(LOG_MODULE, `Found '${activeSubmissions.length}' Active Submissions`);
 
@@ -236,7 +238,9 @@ const controller = (dependencies: BaseDependencies) => {
 
 				const activeSubmission = await service.deleteActiveSubmissionEntity(submissionId, entityName, userName);
 
-				if (isEmpty(activeSubmission)) throw new NotFound('Active Submission not found');
+				if (isEmpty(activeSubmission)) {
+					throw new NotFound('Active Submission not found');
+				}
 
 				return res.status(200).send(activeSubmission);
 			} catch (error) {
