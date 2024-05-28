@@ -42,17 +42,17 @@ Create a `.env` file based on `.env.schema` located on the root folder and set t
 
 The Environment Variables used for this application are listed in the table bellow
 
-| Name           | Description                  | Default |
-| -------------- | ---------------------------- | ------- |
-| `PORT`         | Server Port.                 | 3030    |
-| `UPLOAD_LIMIT` | Limit upload file size       | '10mb'  |
-| `DB_HOST`      | Database Hostname            |         |
-| `DB_PORT`      | Database Port                |         |
-| `DB_NAME`      | Database Name                |         |
-| `DB_USER`      | Database User                |         |
-| `DB_PASSWORD`  | Database Password            |         |
-| `LECTERN_URL`  | Schema Service (Lectern) URL |         |
-| `LOG_LEVEL`    | Log Level                    | 'info'  |
+| Name           | Description                                                                                                                                                                                                                                                                                          | Default |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `PORT`         | Server Port.                                                                                                                                                                                                                                                                                         | 3030    |
+| `UPLOAD_LIMIT` | Limit upload file size in string or number. <br>Supported units and abbreviations are as follows and are case-insensitive: <br> - b for bytes<br> - kb for kilobytes<br>- mb for megabytes<br>- gb for gigabytes<br>- tb for terabytes<br>- pb for petabytes<br>Any other text is considered as byte | '10mb'  |
+| `DB_HOST`      | Database Hostname                                                                                                                                                                                                                                                                                    |         |
+| `DB_PORT`      | Database Port                                                                                                                                                                                                                                                                                        |         |
+| `DB_NAME`      | Database Name                                                                                                                                                                                                                                                                                        |         |
+| `DB_USER`      | Database User                                                                                                                                                                                                                                                                                        |         |
+| `DB_PASSWORD`  | Database Password                                                                                                                                                                                                                                                                                    |         |
+| `LECTERN_URL`  | Schema Service (Lectern) URL                                                                                                                                                                                                                                                                         |         |
+| `LOG_LEVEL`    | Log Level                                                                                                                                                                                                                                                                                            | 'info'  |
 
 ## Script commands (Workspace)
 

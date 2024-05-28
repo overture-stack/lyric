@@ -3,7 +3,7 @@ import {
 	SchemasDictionary,
 	SchemaValidationError,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
-import { NewSubmittedData, Submission } from 'data-model';
+import { NewSubmittedData, Submission, SubmissionData } from 'data-model';
 import { DeepReadonly } from 'deep-freeze';
 
 type ObjectValues<T> = T[keyof T];
@@ -31,7 +31,7 @@ export const CREATE_SUBMISSION_STATUS = {
 export type CreateSubmissionStatus = ObjectValues<typeof CREATE_SUBMISSION_STATUS>;
 
 /**
- * Used as a Response type on a Create new Active Submission
+ * Used as a Response type on a Create new Active Submission (Upload endpoint)
  */
 export type CreateSubmissionResult = {
 	status: CreateSubmissionStatus;
@@ -40,19 +40,18 @@ export type CreateSubmissionResult = {
 	batchErrors: DeepReadonly<BatchError>[];
 };
 
+/**
+ * Response type on Commit Active Submission (Commit endpoint)
+ */
 export type CommitSubmissionResult = {
 	status: string;
 	dictionary: {};
 	processedEntities: string[];
 };
 
-export type SubmissionEntity = {
-	batchName: string;
-	creator: string;
-	records: ReadonlyArray<DataRecord>;
-	dataErrors?: SchemaValidationError[];
-};
-
+/**
+ * File upload validation error types
+ */
 export const BATCH_ERROR_TYPE = {
 	INVALID_FILE_EXTENSION: 'INVALID_FILE_EXTENSION',
 	TSV_PARSING_FAILED: 'TSV_PARSING_FAILED',
@@ -88,7 +87,10 @@ export type BooleanTrueObject = {
 	[key: string]: true;
 };
 
-export type paginationOps = {
+/**
+ * Pagination Query Params
+ */
+export type PaginationOptions = {
 	page: number;
 	pageSize: number;
 };
@@ -110,9 +112,12 @@ export type CategoryActiveSubmission = {
 	name: string;
 };
 
-export type ActiveSubmissionSummaryResponse = {
+/**
+ * Response type for Get Active Submission by Submission ID endpoint
+ */
+export type ActiveSubmissionResponse = {
 	id: number;
-	data: Record<string, DataActiveSubmissionSummary>;
+	data: Record<string, SubmissionData>;
 	dictionary: DictionaryActiveSubmission | null;
 	dictionaryCategory: CategoryActiveSubmission | null;
 	errors: Record<string, SchemaValidationError[]> | null;
@@ -124,9 +129,20 @@ export type ActiveSubmissionSummaryResponse = {
 	updatedBy: string;
 };
 
+/**
+ * Response type of Get Active Submission by Organization Endpoint
+ * override 'data' object to contain a summary of records
+ */
+export type ActiveSubmissionSummaryResponse = Omit<ActiveSubmissionResponse, 'data'> & {
+	data: Record<string, DataActiveSubmissionSummary>;
+};
+
+/**
+ * Retrieve Active Submission object from repository
+ */
 export type ActiveSubmissionSummaryRepository = {
 	id: number;
-	data: Record<string, SubmissionEntity>;
+	data: Record<string, SubmissionData>;
 	dictionary: {} | null;
 	dictionaryCategory: {} | null;
 	errors: Record<string, SchemaValidationError[]> | null;
@@ -138,20 +154,9 @@ export type ActiveSubmissionSummaryRepository = {
 	updatedBy: string | null;
 };
 
-export type ActiveSubmissionResponse = {
-	id: number;
-	data: Record<string, SubmissionEntity>;
-	dictionary: DictionaryActiveSubmission | null;
-	dictionaryCategory: CategoryActiveSubmission | null;
-	errors: Record<string, SchemaValidationError[]> | null;
-	organization: string;
-	status: SubmissionStatus | null;
-	createdAt: string | null;
-	createdBy: string;
-	updatedAt: string;
-	updatedBy: string;
-};
-
+/**
+ * Rerieve Submitted Data object from repository
+ */
 export type SubmittedDataRepository = {
 	data: DataRecord;
 	entityName: string;
@@ -159,6 +164,9 @@ export type SubmittedDataRepository = {
 	organization: string;
 };
 
+/**
+ * Submitted Raw Data information
+ */
 export type SubmittedDataResponse = {
 	data: DataRecord;
 	entityName: string;
@@ -166,6 +174,10 @@ export type SubmittedDataResponse = {
 	organization: string;
 };
 
+/**
+ * Pagination Summary Information
+ * Provides details about the result of pagination
+ */
 export type PaginationMetadata = {
 	currentPage: number;
 	pageSize: number;
@@ -173,6 +185,10 @@ export type PaginationMetadata = {
 	totalRecords: number;
 };
 
+/**
+ * Include an array of the filtered records and a summary of the pagination
+ * Response type used to query submitted data endpoint
+ */
 export type SubmittedDataPaginatedResponse = {
 	pagination: PaginationMetadata;
 	records: SubmittedDataResponse[];

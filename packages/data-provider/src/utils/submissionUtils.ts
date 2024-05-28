@@ -5,7 +5,7 @@ import {
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import * as _ from 'lodash-es';
 
-import { NewSubmission, Submission } from 'data-model';
+import { NewSubmission, Submission, SubmissionData } from 'data-model';
 import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
@@ -24,20 +24,25 @@ import {
 	DictionaryActiveSubmission,
 	MERGE_REFERENCE_TYPE,
 	SUBMISSION_STATUS,
-	SubmissionEntity,
 	SubmissionReference,
+	SubmissionStatus,
 	SubmittedDataReference,
 } from './types.js';
 
 const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_UTILS';
 	const { logger } = dependencies;
+
+	// Only "open", "valid", and "invalid" statuses are considered Active Submission
+	const statusesAllowedToClose = [SUBMISSION_STATUS.OPEN, SUBMISSION_STATUS.VALID, SUBMISSION_STATUS.INVALID] as const;
+	type StatusesAllowedToClose = typeof statusesAllowedToClose extends Array<infer T> ? T : never;
+
 	const submissionRepo = submissionRepository(dependencies);
 	return {
 		/**
 		 * Creates a new Active Submission in database or update if already exists
 		 * @param {number | undefined} idActiveSubmission ID of the Active Submission if already exists
-		 * @param {Record<string, SubmissionEntity>} entityMap Map of Entities with Entity Types as keys
+		 * @param {Record<string, SubmissionData>} entityMap Map of Entities with Entity Types as keys
 		 * @param {string} categoryId The category ID of the Submission
 		 * @param {Record<string, SchemaValidationError[]>} schemaErrors Array of schemaErrors
 		 * @param {number} dictionaryId The Dictionary ID of the Submission
@@ -46,7 +51,7 @@ const utils = (dependencies: BaseDependencies) => {
 		 */
 		createOrUpdateActiveSubmission: async (
 			idActiveSubmission: number | undefined,
-			entityMap: Record<string, SubmissionEntity>,
+			entityMap: Record<string, SubmissionData>,
 			categoryId: string,
 			schemaErrors: Record<string, SchemaValidationError[]>,
 			dictionaryId: number,
@@ -164,16 +169,16 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Construct a SubmissionEntity object per each file returning a Record type based on entityName
+		 * Construct a SubmissionData object per each file returning a Record type based on entityName
 		 * @param {Record<string, Express.Multer.File>} files
 		 * @param {string} userName
-		 * @returns {Promise<Record<string, SubmissionEntity>>}
+		 * @returns {Promise<Record<string, SubmissionData>>}
 		 */
 		submissionEntitiesFromFiles: async (
 			files: Record<string, Express.Multer.File>,
 			userName: string,
-		): Promise<Record<string, SubmissionEntity>> => {
-			const filesDataProcessed: Record<string, SubmissionEntity> = {};
+		): Promise<Record<string, SubmissionData>> => {
+			const filesDataProcessed: Record<string, SubmissionData> = {};
 			await Promise.all(
 				Object.entries(files).map(async ([entityName, file]) => {
 					const parsedFileData = await tsvToJson(file.path);
@@ -181,18 +186,26 @@ const utils = (dependencies: BaseDependencies) => {
 						batchName: file.originalname,
 						creator: userName,
 						records: parsedFileData,
-					} as SubmissionEntity;
+					} as SubmissionData;
 				}),
 			);
 			return filesDataProcessed;
 		},
 
+		/**
+		 * This function extracts the Schema Data from the Active Submission
+		 * and maps it to it's original reference Id
+		 * The result mapping is used to perform the cross schema validation
+		 * @param {number | undefined} activeSubmissionId
+		 * @param {Record<string, SubmissionData>} activeSubmissionDataEntities
+		 * @returns {Record<string, DataRecordReference[]>}
+		 */
 		mapSubmissionSchemaDataByEntityName: (
 			activeSubmissionId: number | undefined,
-			activeSubmissionDataEntities: Record<string, SubmissionEntity>,
+			activeSubmissionDataEntities: Record<string, SubmissionData>,
 		): Record<string, DataRecordReference[]> => {
-			return _.mapValues(activeSubmissionDataEntities, (submissionEntity) =>
-				submissionEntity.records.map((record, index) => {
+			return _.mapValues(activeSubmissionDataEntities, (submissionData) =>
+				submissionData.records.map((record, index) => {
 					return {
 						dataRecord: record,
 						reference: {
@@ -247,6 +260,11 @@ const utils = (dependencies: BaseDependencies) => {
 			};
 		},
 
+		/**
+		 * Utility to parse a raw Active Submission to a Summary of the Active Submission
+		 * @param {ActiveSubmissionSummaryRepository} submission
+		 * @returns {ActiveSubmissionSummaryResponse}
+		 */
 		parseActiveSubmissionSummaryResponse: (
 			submission: ActiveSubmissionSummaryRepository,
 		): ActiveSubmissionSummaryResponse => {
@@ -273,6 +291,11 @@ const utils = (dependencies: BaseDependencies) => {
 			};
 		},
 
+		/**
+		 * Utility to parse a raw Active Submission to a Response type
+		 * @param {ActiveSubmissionSummaryRepository} submission
+		 * @returns {ActiveSubmissionResponse}
+		 */
 		parseActiveSubmissionResponse: (submission: ActiveSubmissionSummaryRepository): ActiveSubmissionResponse => {
 			return {
 				id: submission.id,
@@ -291,22 +314,30 @@ const utils = (dependencies: BaseDependencies) => {
 
 		/**
 		 * Clean up all dataErrors from Submission
-		 * @param {Record<string, SubmissionEntity> | undefined} submissionData
-		 * @returns {Record<string, SubmissionEntity>}
+		 * @param {Record<string, SubmissionData> | undefined} submissionData
+		 * @returns {Record<string, SubmissionData>}
 		 */
 		cleanErrorsFromSubmission: (
-			submissionData: Record<string, SubmissionEntity> | undefined,
-		): Record<string, SubmissionEntity> => {
+			submissionData: Record<string, SubmissionData> | undefined,
+		): Record<string, SubmissionData> => {
 			if (submissionData) {
 				return Object.entries(submissionData).reduce(
 					(acc, [entityNameSubmission, entityData]) => {
 						acc[entityNameSubmission] = { ..._.omit(entityData, 'dataErrors') };
 						return acc;
 					},
-					{} as Record<string, SubmissionEntity>,
+					{} as Record<string, SubmissionData>,
 				);
 			}
 			return {};
+		},
+		/** Determines if a Submission can be closed based on it's current status
+		 * @param {SubmissionStatus} status Status of a Submission
+		 * @returns {boolean}
+		 */
+		canTransitionToClosed: (status: SubmissionStatus): status is StatusesAllowedToClose => {
+			const openStatuses: SubmissionStatus[] = [...statusesAllowedToClose];
+			return openStatuses.includes(status);
 		},
 	};
 };

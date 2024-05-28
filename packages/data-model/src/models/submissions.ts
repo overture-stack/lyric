@@ -8,7 +8,7 @@ import { dictionaryCategories } from './dictionary_categories.js';
 
 export const submissionStatusEnum = pgEnum('submission_status', ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITTED']);
 
-export type SubmissionEntity = {
+export type SubmissionData = {
 	batchName: string;
 	creator: string;
 	records: SchemaData;
@@ -17,12 +17,12 @@ export type SubmissionEntity = {
 
 export const submissions = pgTable('submissions', {
 	id: serial('id').primaryKey(),
-	data: jsonb('data').$type<Record<string, SubmissionEntity>>().notNull(),
+	data: jsonb('data').$type<Record<string, SubmissionData>>().notNull(),
 	dictionaryCategoryId: integer('dictionary_category_id').references(() => dictionaryCategories.id),
 	dictionaryId: integer('dictionary_id').references(() => dictionaries.id),
 	errors: jsonb('errors').$type<Record<string, SchemaValidationError[]>>(),
 	organization: varchar('organization').notNull(),
-	status: submissionStatusEnum('status'),
+	status: submissionStatusEnum('status').notNull(),
 	createdAt: timestamp('created_at').defaultNow(),
 	createdBy: varchar('created_by'),
 	updatedAt: timestamp('updated_at').defaultNow(),
