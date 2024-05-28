@@ -44,7 +44,9 @@ const controller = (dependencies: BaseDependencies) => {
 
 				const submittedDataResult = await service.getSubmittedDataByCategory(categoryId, { page, pageSize });
 
-				if (_.isEmpty(submittedDataResult.data)) throw new NotFound('No Submitted Data found');
+				if (_.isEmpty(submittedDataResult.data)) {
+					throw new NotFound('No Submitted Data found');
+				}
 
 				const response: SubmittedDataPaginatedResponse = {
 					pagination: {

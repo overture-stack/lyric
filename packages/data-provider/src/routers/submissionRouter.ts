@@ -17,6 +17,8 @@ const router = (dependencies: BaseDependencies): Router => {
 
 	router.get('/:submissionId', auth, submissionControllers(dependencies).getActiveById);
 
+	router.delete('/:submissionId', auth, submissionControllers(dependencies).delete);
+
 	router.get('/category/:categoryId', auth, submissionControllers(dependencies).getActiveByCategory);
 
 	router.get(
@@ -28,6 +30,7 @@ const router = (dependencies: BaseDependencies): Router => {
 	router.post('/category/:categoryId/upload', upload.array('files'), submissionControllers(dependencies).upload);
 
 	router.post('/category/:categoryId/commit/:submissionId', auth, submissionControllers(dependencies).commit);
+
 	return router;
 };
 

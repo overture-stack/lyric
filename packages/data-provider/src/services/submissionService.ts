@@ -1,7 +1,7 @@
 import { SchemaValidationError, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import * as _ from 'lodash-es';
 
-import { NewSubmittedData, SubmissionEntity } from 'data-model';
+import { NewSubmittedData, Submission, SubmissionData } from 'data-model';
 import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
@@ -50,7 +50,7 @@ const service = (dependencies: BaseDependencies) => {
 		const activeSubmission = await getActiveSubmission({ categoryId, userName, organization });
 
 		// merge Active Submission data with incoming TSV file data processed
-		const updatedActiveSubmissionData: Record<string, SubmissionEntity> = {
+		const updatedActiveSubmissionData: Record<string, SubmissionData> = {
 			...activeSubmission?.data,
 			...filesDataProcessed,
 		};
@@ -190,7 +190,9 @@ const service = (dependencies: BaseDependencies) => {
 
 			if (files.length > 0) {
 				const currentDictionary = await getActiveDictionaryByCategory(categoryId);
-				if (_.isEmpty(currentDictionary)) throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+				if (_.isEmpty(currentDictionary)) {
+					throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+				}
 
 				const schemasDictionary: SchemasDictionary = {
 					name: currentDictionary.name,
@@ -259,7 +261,9 @@ const service = (dependencies: BaseDependencies) => {
 			const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
 
 			const submission = await getActiveSubmissionWithRelationsByOrganization({ organization, userName, categoryId });
-			if (_.isEmpty(submission)) return;
+			if (_.isEmpty(submission)) {
+				return;
+			}
 
 			return parseActiveSubmissionSummaryResponse(submission);
 		},
@@ -282,7 +286,9 @@ const service = (dependencies: BaseDependencies) => {
 			const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
 
 			const submissions = await getActiveSubmissionsWithRelationsByCategory({ userName, categoryId });
-			if (!submissions || submissions.length === 0) return;
+			if (!submissions || submissions.length === 0) {
+				return;
+			}
 
 			return submissions.map((response) => parseActiveSubmissionSummaryResponse(response));
 		},
@@ -297,7 +303,9 @@ const service = (dependencies: BaseDependencies) => {
 			const { parseActiveSubmissionResponse } = submissionUtils(dependencies);
 
 			const submission = await getActiveSubmissionWithRelationsById(submissionId);
-			if (_.isEmpty(submission)) return;
+			if (_.isEmpty(submission)) {
+				return;
+			}
 
 			return parseActiveSubmissionResponse(submission);
 		},
@@ -308,19 +316,26 @@ const service = (dependencies: BaseDependencies) => {
 			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 
 			const submission = await getSubmissionById(submissionId);
-			if (_.isEmpty(submission) || !submission.dictionaryId)
+			if (!submission) {
 				throw new BadRequest(`Submission '${submissionId}' not found`);
+			}
 
-			if (submission.dictionaryCategoryId !== categoryId)
+			if (submission.dictionaryCategoryId !== categoryId) {
 				throw new BadRequest(`Category ID provided does not match the category for the Submission`);
+			}
 
-			if (submission.status !== SUBMISSION_STATUS.VALID)
+			if (submission.status !== SUBMISSION_STATUS.VALID) {
 				throw new StatusConflict('Submission does not have status VALID and cannot be committed');
+			}
 
-			if (!categoryId) throw new BadRequest(`Active Submission does not belong to any Category`);
+			if (!categoryId) {
+				throw new BadRequest(`Active Submission does not belong to any Category`);
+			}
 
 			const currentDictionary = await getActiveDictionaryByCategory(categoryId);
-			if (_.isEmpty(currentDictionary)) throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+			if (_.isEmpty(currentDictionary)) {
+				throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+			}
 
 			const entitiesToProcess: string[] = [];
 
@@ -329,9 +344,9 @@ const service = (dependencies: BaseDependencies) => {
 				submission?.organization,
 			);
 
-			const submissionsToValidate = Object.entries(submission.data).flatMap(([entityName, submissionEntity]) => {
+			const submissionsToValidate = Object.entries(submission.data).flatMap(([entityName, submissionData]) => {
 				entitiesToProcess.push(entityName);
-				return submissionEntity.records.map((record) => {
+				return submissionData.records.map((record) => {
 					const newSubmittedData: NewSubmittedData = {
 						data: record,
 						dictionaryCategoryId: categoryId,
@@ -370,6 +385,28 @@ const service = (dependencies: BaseDependencies) => {
 				},
 				processedEntities: entitiesToProcess,
 			};
+		},
+
+		deleteActiveSubmissionById: async (submissionId: number): Promise<Submission | undefined> => {
+			const { getSubmissionById, update } = submissionRepository(dependencies);
+			const { canTransitionToClosed } = submissionUtils(dependencies);
+
+			const submission = await getSubmissionById(submissionId);
+			if (!submission) {
+				throw new BadRequest(`Submission '${submissionId}' not found`);
+			}
+
+			if (!canTransitionToClosed(submission.status)) {
+				throw new StatusConflict('Only Submissions with statuses "OPEN", "VALID", "INVALID" can be deleted');
+			}
+
+			const updatedRecord = await update(submission.id, {
+				status: SUBMISSION_STATUS.CLOSED,
+				updatedAt: new Date(),
+			});
+			logger.info(LOG_MODULE, `Submission '${submissionId}' updated with new status '${SUBMISSION_STATUS.CLOSED}'`);
+
+			return updatedRecord;
 		},
 	};
 };
