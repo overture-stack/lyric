@@ -10,7 +10,7 @@ export const submittedData = pgTable('submitted_data', {
 	data: jsonb('data').$type<DataRecord>().notNull(),
 	dictionaryCategoryId: integer('dictionary_category_id').references(() => dictionaryCategories.id),
 	entityName: varchar('entity_name').notNull(),
-	isValid: boolean('is_valid'),
+	isValid: boolean('is_valid').notNull(),
 	lastValidSchemaId: integer('last_valid_schema_id').references(() => dictionaries.id),
 	organization: varchar('organization').notNull(),
 	originalSchemaId: integer('original_schema_id').references(() => dictionaries.id),

@@ -3,6 +3,8 @@ import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
+import { BadRequest } from '../utils/errors.js';
+import { notEmpty } from '../utils/formatUtils.js';
 import submittedUtils from '../utils/submittedDataUtils.js';
 import { SubmittedDataResponse, paginationOps } from '../utils/types.js';
 
@@ -26,7 +28,7 @@ const service = (dependencies: BaseDependencies) => {
 			const { getSubmittedDataByCategoryIdPaginated, getTotalRecordsByCategoryId } = submittedDataRepo;
 
 			const { categoryIdExists } = categoryRepository(dependencies);
-			const { parseSubmittedData, fetchDataErrorResponse } = submittedUtils(dependencies);
+			const { fetchDataErrorResponse } = submittedUtils(dependencies);
 
 			const isValidCategory = await categoryIdExists(categoryId);
 			if (!isValidCategory) {
@@ -43,7 +45,7 @@ const service = (dependencies: BaseDependencies) => {
 			logger.info(LOG_MODULE, `Retrieved '${recordsPaginated?.length}' Submitted data on categoryId '${categoryId}'`);
 
 			return {
-				data: parseSubmittedData(recordsPaginated),
+				data: recordsPaginated,
 				metadata: {
 					totalRecords,
 				},
@@ -58,7 +60,7 @@ const service = (dependencies: BaseDependencies) => {
 			const { getSubmittedDataByCategoryIdAndOrganizationPaginated, getTotalRecordsByCategoryIdAndOrganization } =
 				submittedDataRepo;
 			const { categoryIdExists } = categoryRepository(dependencies);
-			const { parseSubmittedData, fetchDataErrorResponse } = submittedUtils(dependencies);
+			const { fetchDataErrorResponse } = submittedUtils(dependencies);
 
 			const isValidCategory = await categoryIdExists(categoryId);
 			if (!isValidCategory) {
@@ -73,7 +75,7 @@ const service = (dependencies: BaseDependencies) => {
 				paginationOps,
 				filterSql,
 			);
-			if (!recordsPaginated) {
+			if (!notEmpty(recordsPaginated)) {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.NO_DATA_FOUND);
 			}
 
@@ -85,7 +87,7 @@ const service = (dependencies: BaseDependencies) => {
 			);
 
 			return {
-				data: parseSubmittedData(recordsPaginated),
+				data: recordsPaginated,
 				metadata: {
 					totalRecords,
 				},
@@ -96,27 +98,26 @@ const service = (dependencies: BaseDependencies) => {
 			dryRun: boolean,
 			userName: string,
 		): Promise<{ data: SubmittedDataResponse[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
-			// TODO: get SubmittedData by SystemId
-			// TODO: return 404 if systemId not found
+			const { getSubmittedDataBySystemId } = submittedDataRepo;
+
+			// get SubmittedData by SystemId
+			const submittedData = await getSubmittedDataBySystemId(systemId);
+			if (!notEmpty(submittedData)) {
+				throw new BadRequest(`No Submitted data found with systemId '${systemId}'`);
+			}
 
 			// TODO: get dictionary relations
 			// TODO: get SubmittedData related to systemId
+			// combine records to update
+			const recordsToUpdate: SubmittedDataResponse[] = [submittedData];
 
 			// TODO: if dryRun is True return Records
 			// TODO: else execute deletion
 
 			return {
-				data: [
-					{
-						data: {},
-						entityName: '',
-						isValid: false,
-						organization: '',
-						systemId: '',
-					},
-				],
+				data: recordsToUpdate,
 				metadata: {
-					totalRecords: 0,
+					totalRecords: recordsToUpdate.length,
 				},
 			};
 		},

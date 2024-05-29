@@ -352,6 +352,7 @@ const service = (dependencies: BaseDependencies) => {
 						data: record,
 						dictionaryCategoryId: categoryId,
 						entityName,
+						isValid: false, // default as false
 						organization: submission.organization,
 						originalSchemaId: submission.dictionaryId,
 						lastValidSchemaId: submission.dictionaryId,

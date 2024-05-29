@@ -3,7 +3,7 @@ import { SQL, and, count, eq } from 'drizzle-orm/sql';
 import { NewSubmittedData, SubmittedData, submittedData } from 'data-model';
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
-import { BooleanTrueObject, SubmittedDataRepository, paginationOps } from '../utils/types.js';
+import { BooleanTrueObject, SubmittedDataResponse, paginationOps } from '../utils/types.js';
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTEDDATA_REPOSITORY';
@@ -68,7 +68,7 @@ const repository = (dependencies: BaseDependencies) => {
 		getSubmittedDataByCategoryIdPaginated: async (
 			categoryId: number,
 			paginationOps: paginationOps,
-		): Promise<SubmittedDataRepository[] | undefined> => {
+		): Promise<SubmittedDataResponse[] | undefined> => {
 			const { page, pageSize } = paginationOps;
 			try {
 				return await db.query.submittedData.findMany({
@@ -97,7 +97,7 @@ const repository = (dependencies: BaseDependencies) => {
 			organization: string,
 			paginationOps: paginationOps,
 			filter?: SQL,
-		): Promise<SubmittedDataRepository[] | undefined> => {
+		): Promise<SubmittedDataResponse[] | undefined> => {
 			const { page, pageSize } = paginationOps;
 			try {
 				return await db.query.submittedData.findMany({
@@ -188,6 +188,18 @@ const repository = (dependencies: BaseDependencies) => {
 				return updated[0];
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed updating SubmittedData`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		getSubmittedDataBySystemId: async (systemId: string): Promise<SubmittedDataResponse | undefined> => {
+			try {
+				return await db.query.submittedData.findFirst({
+					where: eq(submittedData.systemId, systemId),
+					columns: paginatedColumns,
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying SubmittedData by systemId '${systemId}'`, error);
 				throw new ServiceUnavailable();
 			}
 		},

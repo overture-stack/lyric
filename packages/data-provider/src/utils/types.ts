@@ -152,14 +152,6 @@ export type ActiveSubmissionResponse = {
 	updatedBy: string;
 };
 
-export type SubmittedDataRepository = {
-	data: DataRecord;
-	entityName: string;
-	isValid: boolean | null;
-	organization: string;
-	systemId: string;
-};
-
 export type SubmittedDataResponse = {
 	data: DataRecord;
 	entityName: string;
