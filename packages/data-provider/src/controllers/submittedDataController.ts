@@ -183,6 +183,37 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		},
+		deleteSubmittedDataBySystemId: async (
+			req: Request<{ systemId: string }, {}, any, { dryRun: string }>,
+			res: any,
+			next: any,
+		) => {
+			try {
+				const systemId = req.params.systemId;
+
+				// Gives true value except when query param is explicitly false
+				const dryRun = req.query.dryRun === 'false' ? false : true;
+
+				logger.info(LOG_MODULE, `Request Delete Submitted Data systemId '${systemId}' dryRun '${dryRun}'`);
+
+				if (isEmptyString(systemId)) {
+					throw new BadRequest('Request is missing `systemId` parameter.');
+				}
+
+				// TODO: get userName from auth
+				const userName = '';
+
+				const deletedRecord = await service.deleteSubmittedDataBySystemId(systemId, dryRun, userName);
+
+				if (deletedRecord.metadata.errorMessage) {
+					throw new NotFound(deletedRecord.metadata.errorMessage);
+				}
+
+				return res.status(200).send(deletedRecord);
+			} catch (error) {
+				next(error);
+			}
+		},
 	};
 };
 

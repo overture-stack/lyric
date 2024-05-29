@@ -91,6 +91,35 @@ const service = (dependencies: BaseDependencies) => {
 				},
 			};
 		},
+		deleteSubmittedDataBySystemId: async (
+			systemId: string,
+			dryRun: boolean,
+			userName: string,
+		): Promise<{ data: SubmittedDataResponse[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
+			// TODO: get SubmittedData by SystemId
+			// TODO: return 404 if systemId not found
+
+			// TODO: get dictionary relations
+			// TODO: get SubmittedData related to systemId
+
+			// TODO: if dryRun is True return Records
+			// TODO: else execute deletion
+
+			return {
+				data: [
+					{
+						data: {},
+						entityName: '',
+						isValid: false,
+						organization: '',
+						systemId: '',
+					},
+				],
+				metadata: {
+					totalRecords: 0,
+				},
+			};
+		},
 	};
 };
 

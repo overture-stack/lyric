@@ -148,3 +148,41 @@
         $ref: '#/components/responses/ServerError'
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
+
+/data/{systemId}:
+  delete:
+    summary: Clear Submitted Data by System ID
+    tags:
+      - data
+    parameters:
+      - name: systemId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: dryRun
+        description: If true won't execute the deletion, but will return what will be deleted, default is true, set to false to execute.
+        in: query
+        required: false
+        schema:
+          default: true
+          type: boolean
+    responses:
+      200:
+        description: Submitted Data cleared successfully. Returns the delete Submitted Data
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetSubmittedDataResult'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
+      409:
+        $ref: '#/components/responses/StatusConflict'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
