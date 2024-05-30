@@ -329,6 +329,7 @@ const utils = (dependencies: BaseDependencies) => {
 					{} as Record<string, SubmissionData>,
 				);
 			}
+
 			return {};
 		},
 		/** Determines if a Submission can be closed based on it's current status
