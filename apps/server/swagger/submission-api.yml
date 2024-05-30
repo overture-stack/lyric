@@ -58,7 +58,7 @@
 
 /submission/{submissionId}/{entityName}:
   delete:
-    summary: Clear Active Submission by entity
+    summary: Clear Active Submission by entity name
     tags:
       - submission
     parameters:

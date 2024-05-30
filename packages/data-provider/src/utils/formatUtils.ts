@@ -20,3 +20,7 @@ export function notEmpty<TValue>(value: TValue | null | undefined): value is TVa
 export function isNumber(value: any): value is number {
 	return typeof value === 'number';
 }
+
+export function isValidIdNumber(value: any) {
+	return isNumber(value) && !isNaN(value) && value > 0;
+}

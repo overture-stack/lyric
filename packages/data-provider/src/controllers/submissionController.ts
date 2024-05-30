@@ -1,11 +1,11 @@
 import { NextFunction, Request, Response } from 'express';
 
-import { isEmpty, isNaN } from 'lodash-es';
+import { isEmpty } from 'lodash-es';
 import { BaseDependencies } from '../config/config.js';
 import submissionService from '../services/submissionService.js';
 import { BadRequest, NotFound, getErrorMessage } from '../utils/errors.js';
 import { validateTsvExtension } from '../utils/fileUtils.js';
-import { isEmptyString } from '../utils/formatUtils.js';
+import { isEmptyString, isValidIdNumber } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import { uploadSubmissionRequestSchema } from '../utils/schemas.js';
 import { BATCH_ERROR_TYPE, BatchError } from '../utils/types.js';
@@ -31,8 +31,8 @@ const controller = (dependencies: BaseDependencies) => {
 					` files '${files?.map((f) => f.originalname)}'`,
 				);
 
-				if (isNaN(categoryId)) {
-					throw new BadRequest('Invalid categoryId number format');
+				if (!isValidIdNumber(categoryId)) {
+					throw new BadRequest('Request provided an invalid category ID');
 				}
 
 				if (isEmptyString(organization)) {
@@ -89,11 +89,11 @@ const controller = (dependencies: BaseDependencies) => {
 				const categoryId = Number(req.params.categoryId);
 				const submissionId = Number(req.params.submissionId);
 
-				if (isNaN(categoryId)) {
-					throw new BadRequest('Invalid categoryId number format');
+				if (!isValidIdNumber(categoryId)) {
+					throw new BadRequest('Request provided an invalid category ID');
 				}
-				if (isNaN(submissionId)) {
-					throw new BadRequest('Invalid submissionId number format');
+				if (!isValidIdNumber(submissionId)) {
+					throw new BadRequest('Request provided an invalid submission ID');
 				}
 
 				const commitSubmission = await service.commitSubmission(categoryId, submissionId);
@@ -106,8 +106,8 @@ const controller = (dependencies: BaseDependencies) => {
 		getActiveByCategory: async (req: Request<{ categoryId: string }>, res: Response, next: NextFunction) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				if (isNaN(categoryId)) {
-					throw new BadRequest('Invalid categoryId number format');
+				if (!isValidIdNumber(categoryId)) {
+					throw new BadRequest('Request provided an invalid category ID');
 				}
 
 				logger.info(LOG_MODULE, `Request Active Submission categoryId '${categoryId}'`);
@@ -137,8 +137,8 @@ const controller = (dependencies: BaseDependencies) => {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
 
-				if (isNaN(categoryId)) {
-					throw new BadRequest('Invalid categoryId number format');
+				if (!isValidIdNumber(categoryId)) {
+					throw new BadRequest('Request provided an invalid category ID');
 				}
 
 				if (isEmptyString(organization)) {
@@ -170,8 +170,8 @@ const controller = (dependencies: BaseDependencies) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
 
-				if (isNaN(submissionId)) {
-					throw new BadRequest('Invalid submissionId number format');
+				if (!isValidIdNumber(submissionId)) {
+					throw new BadRequest('Request provided an invalid submission ID');
 				}
 
 				logger.info(LOG_MODULE, `Request Active Submission submissionId '${submissionId}'`);
@@ -194,8 +194,8 @@ const controller = (dependencies: BaseDependencies) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
 
-				if (isNaN(submissionId)) {
-					throw new BadRequest('Invalid submissionId number format');
+				if (!isValidIdNumber(submissionId)) {
+					throw new BadRequest('Request provided an invalid submission ID');
 				}
 
 				logger.info(LOG_MODULE, `Request Delete Active Submission '${submissionId}'`);
@@ -223,8 +223,8 @@ const controller = (dependencies: BaseDependencies) => {
 				const submissionId = Number(req.params.submissionId);
 				const entityName = req.params.entityName;
 
-				if (isNaN(submissionId)) {
-					throw new BadRequest('Invalid submissionId number format');
+				if (!isValidIdNumber(submissionId)) {
+					throw new BadRequest('Request provided an invalid submission ID');
 				}
 
 				if (isEmptyString(entityName)) {

@@ -4,7 +4,7 @@ import { BaseDependencies } from '../config/config.js';
 import submittedDataService from '../services/submittedDataService.js';
 import { parseSQON } from '../utils/convertSqonToQuery.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
-import { isEmptyString } from '../utils/formatUtils.js';
+import { isEmptyString, isValidIdNumber } from '../utils/formatUtils.js';
 import { SubmittedDataPaginatedResponse } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
@@ -38,8 +38,8 @@ const controller = (dependencies: BaseDependencies) => {
 					throw new BadRequest('Invalid `pageSize` parameter. Expecting a numeric value greater than 0');
 				}
 
-				if (_.isNaN(categoryId)) {
-					throw new BadRequest('Invalid categoryId number format');
+				if (!isValidIdNumber(categoryId)) {
+					throw new BadRequest('Request provided an invalid category ID');
 				}
 
 				const submittedDataResult = await service.getSubmittedDataByCategory(categoryId, { page, pageSize });
@@ -88,8 +88,8 @@ const controller = (dependencies: BaseDependencies) => {
 					throw new BadRequest('Invalid `pageSize` parameter');
 				}
 
-				if (_.isNaN(categoryId)) {
-					throw new BadRequest('Invalid categoryId number format');
+				if (!isValidIdNumber(categoryId)) {
+					throw new BadRequest('Request provided an invalid category ID');
 				}
 
 				if (isEmptyString(organization)) {
@@ -142,8 +142,8 @@ const controller = (dependencies: BaseDependencies) => {
 					`pagination params: page '${page}' pageSize '${pageSize}'`,
 				);
 
-				if (_.isNaN(categoryId)) {
-					throw new BadRequest('Invalid categoryId number format');
+				if (!isValidIdNumber(categoryId)) {
+					throw new BadRequest('Request provided an invalid category ID');
 				}
 				if (isEmptyString(organization)) {
 					throw new BadRequest('Request is missing `organization` parameter.');
