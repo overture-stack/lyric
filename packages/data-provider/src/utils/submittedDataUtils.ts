@@ -7,7 +7,7 @@ import {
 import { NewSubmittedData, SubmittedData } from 'data-model';
 import { groupBy, has } from 'lodash-es';
 import { BaseDependencies } from '../config/config.js';
-import { DataRecordReference, MERGE_REFERENCE_TYPE, SubmittedDataReference } from './types.js';
+import { DataRecordReference, MERGE_REFERENCE_TYPE, SubmittedDataReference, SubmittedDataResponse } from './types.js';
 
 const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_UTILS';
@@ -139,6 +139,23 @@ const utils = (dependencies: BaseDependencies) => {
 				logger.info(LOG_MODULE, `Data in index '${index}' is not valid`);
 			}
 			return hasErrors;
+		},
+
+		/**
+		 * Parses an array of SubmittedData objects into a more compact form used as a respone
+		 * @param {SubmittedData[]} submittedData
+		 * @returns {SubmittedDataResponse[]}
+		 */
+		mapRecordsSubmittedDataResponse: (submittedData: SubmittedData[]): SubmittedDataResponse[] => {
+			return submittedData.map((data) => {
+				return {
+					data: data.data,
+					entityName: data.entityName,
+					isValid: data.isValid,
+					organization: data.organization,
+					systemId: data.systemId,
+				};
+			});
 		},
 	};
 };

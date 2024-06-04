@@ -151,7 +151,7 @@
 
 /data/{systemId}:
   delete:
-    summary: Clear Submitted Data by System ID
+    summary: Soft delete Submitted Data by System ID
     tags:
       - data
     parameters:
@@ -167,6 +167,12 @@
         schema:
           default: true
           type: boolean
+      - name: reason
+        description: Reason why the record is deleted
+        in: query
+        required: true
+        schema:
+          type: string
     responses:
       200:
         description: Submitted Data cleared successfully. Returns the delete Submitted Data

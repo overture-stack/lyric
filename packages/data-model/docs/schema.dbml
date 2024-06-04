@@ -29,8 +29,8 @@ table dictionary_categories {
 table submissions {
   id serial [pk, not null, increment]
   data jsonb [not null]
-  dictionary_category_id integer
-  dictionary_id integer
+  dictionary_category_id integer [not null]
+  dictionary_id integer [not null]
   errors jsonb
   organization varchar [not null]
   status submission_status
@@ -42,18 +42,21 @@ table submissions {
 
 table submitted_data {
   id serial [pk, not null, increment]
+  comment varchar
   data jsonb [not null]
-  dictionary_category_id integer
+  dictionary_category_id integer [not null]
   entity_name varchar [not null]
-  is_valid boolean
-  last_valid_schema_id integer
+  is_valid boolean [not null]
+  last_valid_schema_id integer [not null]
   organization varchar [not null]
-  original_schema_id integer
+  original_schema_id integer [not null]
   system_id varchar [not null, unique]
   created_at timestamp [default: `now()`]
   created_by varchar
   updated_at timestamp [default: `now()`]
   updated_by varchar
+  deleted_at timestamp
+  deleted_by varchar
 }
 
 ref: dictionary_categories.active_dictionary_id - dictionaries.id

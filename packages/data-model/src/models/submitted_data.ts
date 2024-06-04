@@ -7,18 +7,27 @@ import { dictionaryCategories } from './dictionary_categories.js';
 
 export const submittedData = pgTable('submitted_data', {
 	id: serial('id').primaryKey(),
+	comment: varchar('comment'),
 	data: jsonb('data').$type<DataRecord>().notNull(),
-	dictionaryCategoryId: integer('dictionary_category_id').references(() => dictionaryCategories.id),
+	dictionaryCategoryId: integer('dictionary_category_id')
+		.references(() => dictionaryCategories.id)
+		.notNull(),
 	entityName: varchar('entity_name').notNull(),
 	isValid: boolean('is_valid').notNull(),
-	lastValidSchemaId: integer('last_valid_schema_id').references(() => dictionaries.id),
+	lastValidSchemaId: integer('last_valid_schema_id')
+		.references(() => dictionaries.id)
+		.notNull(),
 	organization: varchar('organization').notNull(),
-	originalSchemaId: integer('original_schema_id').references(() => dictionaries.id),
+	originalSchemaId: integer('original_schema_id')
+		.references(() => dictionaries.id)
+		.notNull(),
 	systemId: varchar('system_id').unique().notNull(),
 	createdAt: timestamp('created_at').defaultNow(),
 	createdBy: varchar('created_by'),
 	updatedAt: timestamp('updated_at').defaultNow(),
 	updatedBy: varchar('updated_by'),
+	deletedAt: timestamp('deleted_at'),
+	deletedBy: varchar('deleted_by'),
 });
 
 export const submittedDataRelations = relations(submittedData, ({ one }) => ({

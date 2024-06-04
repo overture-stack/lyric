@@ -18,8 +18,12 @@ export type SubmissionEntity = {
 export const submissions = pgTable('submissions', {
 	id: serial('id').primaryKey(),
 	data: jsonb('data').$type<Record<string, SubmissionEntity>>().notNull(),
-	dictionaryCategoryId: integer('dictionary_category_id').references(() => dictionaryCategories.id),
-	dictionaryId: integer('dictionary_id').references(() => dictionaries.id),
+	dictionaryCategoryId: integer('dictionary_category_id')
+		.references(() => dictionaryCategories.id)
+		.notNull(),
+	dictionaryId: integer('dictionary_id')
+		.references(() => dictionaries.id)
+		.notNull(),
 	errors: jsonb('errors').$type<Record<string, SchemaValidationError[]>>(),
 	organization: varchar('organization').notNull(),
 	status: submissionStatusEnum('status'),

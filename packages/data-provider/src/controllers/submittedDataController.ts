@@ -184,7 +184,7 @@ const controller = (dependencies: BaseDependencies) => {
 			}
 		},
 		deleteSubmittedDataBySystemId: async (
-			req: Request<{ systemId: string }, {}, any, { dryRun: string }>,
+			req: Request<{ systemId: string }, {}, any, { dryRun: string; reason: string }>,
 			res: any,
 			next: any,
 		) => {
@@ -194,22 +194,32 @@ const controller = (dependencies: BaseDependencies) => {
 				// Gives true value except when query param is explicitly false
 				const dryRun = req.query.dryRun === 'false' ? false : true;
 
+				const reason = req.query.reason;
+
 				logger.info(LOG_MODULE, `Request Delete Submitted Data systemId '${systemId}' dryRun '${dryRun}'`);
 
 				if (isEmptyString(systemId)) {
 					throw new BadRequest('Request is missing `systemId` parameter.');
 				}
 
+				if (isEmptyString(reason)) {
+					throw new BadRequest('Request is missing `reason` parameter.');
+				}
+
 				// TODO: get userName from auth
 				const userName = '';
 
-				const deletedRecord = await service.deleteSubmittedDataBySystemId(systemId, dryRun, userName);
+				const deletedRecords = await service.deleteSubmittedDataBySystemId(systemId, dryRun, reason, userName);
 
-				if (deletedRecord.metadata.errorMessage) {
-					throw new NotFound(deletedRecord.metadata.errorMessage);
-				}
+				const response = {
+					data: deletedRecords,
+					metadata: {
+						totalRecords: deletedRecords.length,
+						dryRun,
+					},
+				};
 
-				return res.status(200).send(deletedRecord);
+				return res.status(200).send(response);
 			} catch (error) {
 				next(error);
 			}

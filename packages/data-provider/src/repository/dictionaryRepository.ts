@@ -48,6 +48,22 @@ const repository = (dependencies: BaseDependencies) => {
 				throw new ServiceUnavailable();
 			}
 		},
+
+		/**
+		 * Finds a Dictionary by internal ID
+		 * @param {number} dictionaryId
+		 * @returns {Promise<Dictionary | undefined>}
+		 */
+		getDictionaryById: async (dictionaryId: number): Promise<Dictionary | undefined> => {
+			try {
+				return await db.query.dictionaries.findFirst({
+					where: eq(dictionaries.id, dictionaryId),
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying Dictionary with id '${dictionaryId}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
 	};
 };
 
