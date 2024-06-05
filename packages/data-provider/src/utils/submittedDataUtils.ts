@@ -19,32 +19,6 @@ const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_UTILS';
 	const { logger } = dependencies;
 	return {
-		mapSubmittedDataSchemaByEntityName: (
-			submittedData: SubmittedData[] | undefined,
-		): Record<string, DataRecordReference[]> => {
-			if (!submittedData) return {};
-
-			const mappingDataRecords: Record<string, DataRecordReference[]> = {};
-
-			const dataRecordGroupedByEntityName = groupBy(submittedData, 'entityName');
-
-			Object.entries(dataRecordGroupedByEntityName).map(([entityName, submittedDataEntities]) => {
-				logger.info(LOG_MODULE, `found submittedData for entity: ${entityName}`);
-				submittedDataEntities.map((entity) => {
-					mappingDataRecords[entityName] = mappingDataRecords[entityName] || [];
-					mappingDataRecords[entityName].push({
-						dataRecord: entity.data,
-						reference: {
-							submittedDataId: entity.id,
-							type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
-						} as SubmittedDataReference,
-					});
-				});
-			});
-
-			return mappingDataRecords;
-		},
-
 		/**
 		 * Abstract Error response
 		 * @param error
@@ -64,6 +38,22 @@ const utils = (dependencies: BaseDependencies) => {
 				},
 			};
 		},
+
+		/**
+		 * Get all the schema errors grouped by the index of the record
+		 * @param {SchemaValidationError[]} schemaValidationErrors
+		 * @param {string} entityName
+		 * @returns
+		 */
+		groupErrorsByIndex: (schemaValidationErrors: readonly SchemaValidationError[], entityName: string) => {
+			const groupedBy = groupBy(schemaValidationErrors, 'index');
+
+			if (Object.keys(groupedBy).length > 0) {
+				logger.info(LOG_MODULE, `Entity '${entityName}' has some errors`, JSON.stringify(groupedBy));
+			}
+			return groupedBy;
+		},
+
 		/**
 		 * Creates a list of SubmittedData grouped by entities and a matching list with only schema data
 		 * @param {Array<NewSubmittedData>} data
@@ -98,6 +88,68 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
+		 * Received any object and finds if it contains an specific key
+		 * @param {object} hasErrorByIndex An object to evaluate
+		 * @param index An object key
+		 * @returns
+		 */
+		hasErrorsByIndex: (hasErrorByIndex: object, index: number): boolean => {
+			const hasErrors = has(hasErrorByIndex, index);
+			if (hasErrors) {
+				logger.info(LOG_MODULE, `Data in index '${index}' is not valid`);
+			}
+			return hasErrors;
+		},
+
+		/**
+		 * Organize any array of Submitted Data by entityName.
+		 * @param {SubmittedData[] | undefined} submittedData
+		 * @returns {Record<string, DataRecordReference[]>}
+		 */
+		mapSubmittedDataSchemaByEntityName: (
+			submittedData: SubmittedData[] | undefined,
+		): Record<string, DataRecordReference[]> => {
+			if (!submittedData) return {};
+
+			const mappingDataRecords: Record<string, DataRecordReference[]> = {};
+
+			const dataRecordGroupedByEntityName = groupBy(submittedData, 'entityName');
+
+			Object.entries(dataRecordGroupedByEntityName).map(([entityName, submittedDataEntities]) => {
+				logger.info(LOG_MODULE, `found submittedData for entity: ${entityName}`);
+				submittedDataEntities.map((entity) => {
+					mappingDataRecords[entityName] = mappingDataRecords[entityName] || [];
+					mappingDataRecords[entityName].push({
+						dataRecord: entity.data,
+						reference: {
+							submittedDataId: entity.id,
+							type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
+						} as SubmittedDataReference,
+					});
+				});
+			});
+
+			return mappingDataRecords;
+		},
+
+		/**
+		 * Utility to parse Raw Submitted Data into a REST Response format
+		 * Iterates each Submitted Data record and returns a formatted object
+		 * @param {SubmittedDataRepository[]} recordsArray
+		 * @returns {SubmittedDataResponse[]}
+		 */
+		parseSubmittedData: (recordsArray: SubmittedDataRepository[]): SubmittedDataResponse[] => {
+			return recordsArray.map((record) => {
+				return {
+					entityName: record.entityName,
+					data: record.data,
+					isValid: record.isValid || false,
+					organization: record.organization,
+				};
+			});
+		},
+
+		/**
 		 * Validate a full set of Schema Data using a Dictionary
 		 * @param {SchemasDictionary & {id: number }} dictionary
 		 * @param {Record<string, SchemaData>} schemaData
@@ -116,52 +168,6 @@ const utils = (dependencies: BaseDependencies) => {
 			};
 
 			return functions.processSchemas(schemasDictionary, schemasData);
-		},
-
-		/**
-		 * Get all the schema errors grouped by the index of the record
-		 * @param {SchemaValidationError[]} schemaValidationErrors
-		 * @param {string} entityName
-		 * @returns
-		 */
-		groupErrorsByIndex: (schemaValidationErrors: readonly SchemaValidationError[], entityName: string) => {
-			const groupedBy = groupBy(schemaValidationErrors, 'index');
-
-			if (Object.keys(groupedBy).length > 0) {
-				logger.info(LOG_MODULE, `Entity '${entityName}' has some errors`, JSON.stringify(groupedBy));
-			}
-			return groupedBy;
-		},
-
-		/**
-		 * Received any object and finds if it contains an specific key
-		 * @param {object} hasErrorByIndex An object to evaluate
-		 * @param index An object key
-		 * @returns
-		 */
-		hasErrorsByIndex: (hasErrorByIndex: object, index: number): boolean => {
-			const hasErrors = has(hasErrorByIndex, index);
-			if (hasErrors) {
-				logger.info(LOG_MODULE, `Data in index '${index}' is not valid`);
-			}
-			return hasErrors;
-		},
-
-		/**
-		 * Utility to parse Raw Submitted Data into a REST Response format
-		 * Iterates each Submitted Data record and returns a formatted object
-		 * @param {SubmittedDataRepository[]} recordsArray
-		 * @returns {SubmittedDataResponse[]}
-		 */
-		parseSubmittedData: (recordsArray: SubmittedDataRepository[]): SubmittedDataResponse[] => {
-			return recordsArray.map((record) => {
-				return {
-					entityName: record.entityName,
-					data: record.data,
-					isValid: record.isValid || false,
-					organization: record.organization,
-				};
-			});
 		},
 	};
 };

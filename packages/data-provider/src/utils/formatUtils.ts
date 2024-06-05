@@ -21,6 +21,12 @@ export function isNumber(value: any): value is number {
 	return typeof value === 'number';
 }
 
-export function isValidIdNumber(value: any) {
+/**
+ * Function that returns true if input is a valid number greater than zero.
+ * Otherwise it returns false
+ * @param {any} value
+ * @returns {boolean}
+ */
+export function isValidIdNumber(value: any): boolean {
 	return isNumber(value) && !isNaN(value) && value > 0;
 }

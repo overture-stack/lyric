@@ -34,7 +34,7 @@ const service = (dependencies: BaseDependencies) => {
 			extractSchemaDataFromMergedDataRecords,
 			submissionEntitiesFromFiles,
 			mapSubmissionSchemaDataByEntityName,
-			cleanErrorsFromSubmission,
+			removeSubmissionErrors,
 		} = submissionUtils(dependencies);
 		const { validateSchemas, groupErrorsByIndex, mapSubmittedDataSchemaByEntityName } =
 			submittedDataUtils(dependencies);
@@ -51,7 +51,10 @@ const service = (dependencies: BaseDependencies) => {
 		const activeSubmission = await getActiveSubmission({ categoryId, userName, organization });
 
 		// Need to clean up Schema errors before running validation
-		const cleanedSubmissionData = cleanErrorsFromSubmission(activeSubmission?.data);
+		let cleanedSubmissionData: Record<string, SubmissionData> = {};
+		if (activeSubmission?.data) {
+			cleanedSubmissionData = removeSubmissionErrors(activeSubmission.data);
+		}
 
 		// merge Active Submission data with incoming TSV file data processed
 		const updatedActiveSubmissionData: Record<string, SubmissionData> = {
@@ -114,15 +117,15 @@ const service = (dependencies: BaseDependencies) => {
 		}
 
 		// save new or updated Active Submission
-		await createOrUpdateActiveSubmission(
-			activeSubmission?.id,
-			updatedActiveSubmissionData,
-			categoryId.toString(),
-			submissionSchemaErrors,
-			dictionary.id,
+		await createOrUpdateActiveSubmission({
+			idActiveSubmission: activeSubmission?.id,
+			entityMap: updatedActiveSubmissionData,
+			categoryId: categoryId.toString(),
+			schemaErrors: submissionSchemaErrors,
+			dictionaryId: dictionary.id,
 			userName,
 			organization,
-		);
+		});
 	};
 
 	/**
@@ -450,7 +453,7 @@ const service = (dependencies: BaseDependencies) => {
 				extractSchemaDataFromMergedDataRecords,
 				determineIfIsSubmission,
 				createOrUpdateActiveSubmission,
-				cleanErrorsFromSubmission,
+				removeSubmissionErrors,
 			} = submissionUtils(dependencies);
 			const { mapSubmittedDataSchemaByEntityName, validateSchemas, groupErrorsByIndex } =
 				submittedDataUtils(dependencies);
@@ -477,7 +480,7 @@ const service = (dependencies: BaseDependencies) => {
 
 			// Filter out entityName from the Submission
 			// Need to clean up Schema errors before running validation
-			const updatedActiveSubmissionData = cleanErrorsFromSubmission(_.omit(submission.data, entityName));
+			const updatedActiveSubmissionData = removeSubmissionErrors(_.omit(submission.data, entityName));
 
 			// This object will merge existing data + new data for validation (Submitted data + active Submission)
 			const mergeDataRecordsByEntityName = _.mergeWith(
@@ -533,15 +536,15 @@ const service = (dependencies: BaseDependencies) => {
 			}
 
 			// Update Active Submission
-			const updatedRecord = await createOrUpdateActiveSubmission(
-				submission.id,
-				updatedActiveSubmissionData,
-				submission.dictionaryCategoryId.toString(),
-				submissionSchemaErrors,
-				currentDictionary.id,
+			const updatedRecord = await createOrUpdateActiveSubmission({
+				idActiveSubmission: submission.id,
+				entityMap: updatedActiveSubmissionData,
+				categoryId: submission.dictionaryCategoryId.toString(),
+				schemaErrors: submissionSchemaErrors,
+				dictionaryId: currentDictionary.id,
 				userName,
-				submission.organization,
-			);
+				organization: submission.organization,
+			});
 
 			logger.info(LOG_MODULE, `Submission '${updatedRecord.id}' updated with new status '${updatedRecord.status}'`);
 
