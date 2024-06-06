@@ -152,7 +152,7 @@ const service = (dependencies: BaseDependencies) => {
 
 	/**
 	 * Validates an Active Submission combined with all Submitted Data.
-	 * Active Submission is updated after validation is compplete.
+	 * Active Submission is updated after validation is complete.
 	 * Returns the Active Submission updated
 	 * @param {Object} input
 	 * @param {Submission} input.originalSubmission Active Submission
