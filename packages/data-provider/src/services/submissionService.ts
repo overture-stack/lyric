@@ -76,13 +76,14 @@ const service = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Merge the Active Submission data with Submitted Data keeping reference of the record id
-	 * @param {SubmittedData[]} submittedData
+	 * Combines **Active Submission** and the **Submitted Data** recevied as arguments.
+	 * Then, the Schema Data is extracted and mapped with its internal reference ID.
+	 * The returned Object is a collection of the raw Schema Data with it's reference ID grouped by entity name.
+	 * @param {SubmittedData[]} submittedData An array of Submitted Data
 	 * @param {Object} activeSubmission
-	 * @param {Record<string, SubmissionData>} activeSubmission.data
-	 * @param {number} activeSubmission.id
-	 * @param activeSubmission
-	 * @returns
+	 * @param {Record<string, SubmissionData>} activeSubmission.data Collection of Data records of the Active Submission
+	 * @param {number} activeSubmission.id ID of the Active Submission
+	 * @returns {Record<string, DataRecordReference[]>}
 	 */
 	const mergeActiveSubmissionAndSubmittedData = (
 		submittedData: SubmittedData[],
