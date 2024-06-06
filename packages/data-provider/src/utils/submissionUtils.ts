@@ -5,7 +5,7 @@ import {
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import * as _ from 'lodash-es';
 
-import { NewSubmission, Submission } from 'data-model';
+import { NewSubmission, Submission, SubmissionData } from 'data-model';
 import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
@@ -24,73 +24,70 @@ import {
 	DictionaryActiveSubmission,
 	MERGE_REFERENCE_TYPE,
 	SUBMISSION_STATUS,
-	SubmissionEntity,
 	SubmissionReference,
+	SubmissionStatus,
 	SubmittedDataReference,
 } from './types.js';
 
 const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_UTILS';
 	const { logger } = dependencies;
+
+	// Only "open", "valid", and "invalid" statuses are considered Active Submission
+	const statusesAllowedToClose = [SUBMISSION_STATUS.OPEN, SUBMISSION_STATUS.VALID, SUBMISSION_STATUS.INVALID] as const;
+	type StatusesAllowedToClose = typeof statusesAllowedToClose extends Array<infer T> ? T : never;
+
 	const submissionRepo = submissionRepository(dependencies);
 	return {
-		/**
-		 * Creates a new Active Submission in database or update if already exists
-		 * @param {number | undefined} idActiveSubmission ID of the Active Submission if already exists
-		 * @param {Record<string, SubmissionEntity>} entityMap Map of Entities with Entity Types as keys
-		 * @param {string} categoryId The category ID of the Submission
-		 * @param {Record<string, SchemaValidationError[]>} schemaErrors Array of schemaErrors
-		 * @param {number} dictionaryId The Dictionary ID of the Submission
-		 * @param {string} userName User creating/updating the active submission
-		 * @returns An Active Submission created or updated
+		/** Determines if a Submission can be closed based on it's current status
+		 * @param {SubmissionStatus} status Status of a Submission
+		 * @returns {boolean}
 		 */
-		createOrUpdateActiveSubmission: async (
-			idActiveSubmission: number | undefined,
-			entityMap: Record<string, SubmissionEntity>,
-			categoryId: string,
-			schemaErrors: Record<string, SchemaValidationError[]>,
-			dictionaryId: number,
-			userName: string,
-			organization: string,
-		): Promise<Submission> => {
-			let updatedSubmission: Submission;
-			const newStatusSubmission =
-				Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
-			if (isNumber(idActiveSubmission)) {
-				// Update with new data
-				const resultUpdate = await submissionRepo.update(_.toNumber(idActiveSubmission), {
-					data: entityMap,
-					status: newStatusSubmission,
-					organization,
-					dictionaryId,
-					updatedBy: userName,
-					errors: schemaErrors,
-				});
-				if (!resultUpdate) {
-					throw new InternalServerError();
-				}
+		canTransitionToClosed: (status: SubmissionStatus): status is StatusesAllowedToClose => {
+			const openStatuses: SubmissionStatus[] = [...statusesAllowedToClose];
+			return openStatuses.includes(status);
+		},
 
-				updatedSubmission = resultUpdate;
+		/**
+		 * Checks if file contains required fields based on schema
+		 * @param {SchemasDictionary} dictionary A dictionary to validate with
+		 * @param {Record<string, Express.Multer.File>} entityFileMap A Record to map a file with a entityName as a key
+		 * @returns a list of valid files and a list of errors
+		 */
+		checkEntityFieldNames: async (
+			dictionary: SchemasDictionary,
+			entityFileMap: Record<string, Express.Multer.File>,
+		) => {
+			const { getSchemaFieldNames } = dictionaryUtils(dependencies);
+			const checkedEntities: Record<string, Express.Multer.File> = {};
+			const fieldNameErrors: BatchError[] = [];
 
-				logger.info(
-					LOG_MODULE,
-					`Updated Active submission '${updatedSubmission.id}' for category '${updatedSubmission.dictionaryCategoryId}'`,
+			for (const [entityName, file] of Object.entries(entityFileMap)) {
+				const fileHeaders = await readHeaders(file);
+
+				const schemaFieldNames = await getSchemaFieldNames(dictionary, entityName);
+
+				const missingRequiredFields = schemaFieldNames.required.filter(
+					(requiredField) => !fileHeaders.includes(requiredField),
 				);
-			} else {
-				const newSubmission: NewSubmission = {
-					status: newStatusSubmission,
-					dictionaryCategoryId: Number(categoryId),
-					organization,
-					data: entityMap,
-					errors: schemaErrors,
-					dictionaryId: dictionaryId,
-					createdBy: userName,
-				};
-
-				updatedSubmission = await submissionRepo.save(newSubmission);
-				logger.info(LOG_MODULE, `Created a new Active submission for category '${categoryId}'`);
+				if (missingRequiredFields.length > 0) {
+					logger.error(
+						LOG_MODULE,
+						`Missing required fields '${JSON.stringify(missingRequiredFields)}' on batch named '${file.originalname}'`,
+					);
+					fieldNameErrors.push({
+						type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
+						message: `Missing required fields '${JSON.stringify(missingRequiredFields)}'`,
+						batchName: file.originalname,
+					});
+				} else {
+					checkedEntities[entityName] = file;
+				}
 			}
-			return updatedSubmission;
+			return {
+				checkedEntities,
+				fieldNameErrors,
+			};
 		},
 
 		/**
@@ -142,6 +139,67 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
+		 * Creates a new Active Submission in database or update if already exists
+		 * @param {number | undefined} idActiveSubmission ID of the Active Submission if already exists
+		 * @param {Record<string, SubmissionData>} entityMap Map of Entities with Entity Types as keys
+		 * @param {string} categoryId The category ID of the Submission
+		 * @param {Record<string, SchemaValidationError[]>} schemaErrors Array of schemaErrors
+		 * @param {number} dictionaryId The Dictionary ID of the Submission
+		 * @param {string} userName User creating/updating the active submission
+		 * @returns An Active Submission created or updated
+		 */
+		createOrUpdateActiveSubmission: async (inputActiveSubmission: {
+			idActiveSubmission: number | undefined;
+			entityMap: Record<string, SubmissionData>;
+			categoryId: string;
+			schemaErrors: Record<string, SchemaValidationError[]>;
+			dictionaryId: number;
+			userName: string;
+			organization: string;
+		}): Promise<Submission> => {
+			let updatedSubmission: Submission;
+			const newStatusSubmission =
+				Object.keys(inputActiveSubmission.schemaErrors).length > 0
+					? SUBMISSION_STATUS.INVALID
+					: SUBMISSION_STATUS.VALID;
+			if (isNumber(inputActiveSubmission.idActiveSubmission)) {
+				// Update with new data
+				const resultUpdate = await submissionRepo.update(_.toNumber(inputActiveSubmission.idActiveSubmission), {
+					data: inputActiveSubmission.entityMap,
+					status: newStatusSubmission,
+					organization: inputActiveSubmission.organization,
+					dictionaryId: inputActiveSubmission.dictionaryId,
+					updatedBy: inputActiveSubmission.userName,
+					errors: inputActiveSubmission.schemaErrors,
+				});
+				if (!resultUpdate) {
+					throw new InternalServerError();
+				}
+
+				updatedSubmission = resultUpdate;
+
+				logger.info(
+					LOG_MODULE,
+					`Updated Active submission '${updatedSubmission.id}' for category '${updatedSubmission.dictionaryCategoryId}'`,
+				);
+			} else {
+				const newSubmission: NewSubmission = {
+					status: newStatusSubmission,
+					dictionaryCategoryId: Number(inputActiveSubmission.categoryId),
+					organization: inputActiveSubmission.organization,
+					data: inputActiveSubmission.entityMap,
+					errors: inputActiveSubmission.schemaErrors,
+					dictionaryId: inputActiveSubmission.dictionaryId,
+					createdBy: inputActiveSubmission.userName,
+				};
+
+				updatedSubmission = await submissionRepo.save(newSubmission);
+				logger.info(LOG_MODULE, `Created a new Active submission for category '${inputActiveSubmission.categoryId}'`);
+			}
+			return updatedSubmission;
+		},
+
+		/**
 		 * Checks if object is a Submission or a SubmittedData
 		 * @param {SubmittedDataReference | SubmissionReference} toBeDetermined
 		 * @returns {boolean}
@@ -164,35 +222,19 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Construct a SubmissionEntity object per each file returning a Record type based on entityName
-		 * @param {Record<string, Express.Multer.File>} files
-		 * @param {string} userName
-		 * @returns {Promise<Record<string, SubmissionEntity>>}
+		 * This function extracts the Schema Data from the Active Submission
+		 * and maps it to it's original reference Id
+		 * The result mapping is used to perform the cross schema validation
+		 * @param {number | undefined} activeSubmissionId
+		 * @param {Record<string, SubmissionData>} activeSubmissionDataEntities
+		 * @returns {Record<string, DataRecordReference[]>}
 		 */
-		submissionEntitiesFromFiles: async (
-			files: Record<string, Express.Multer.File>,
-			userName: string,
-		): Promise<Record<string, SubmissionEntity>> => {
-			const filesDataProcessed: Record<string, SubmissionEntity> = {};
-			await Promise.all(
-				Object.entries(files).map(async ([entityName, file]) => {
-					const parsedFileData = await tsvToJson(file.path);
-					filesDataProcessed[entityName] = {
-						batchName: file.originalname,
-						creator: userName,
-						records: parsedFileData,
-					} as SubmissionEntity;
-				}),
-			);
-			return filesDataProcessed;
-		},
-
 		mapSubmissionSchemaDataByEntityName: (
 			activeSubmissionId: number | undefined,
-			activeSubmissionDataEntities: Record<string, SubmissionEntity>,
+			activeSubmissionDataEntities: Record<string, SubmissionData>,
 		): Record<string, DataRecordReference[]> => {
-			return _.mapValues(activeSubmissionDataEntities, (submissionEntity) =>
-				submissionEntity.records.map((record, index) => {
+			return _.mapValues(activeSubmissionDataEntities, (submissionData) =>
+				submissionData.records.map((record, index) => {
 					return {
 						dataRecord: record,
 						reference: {
@@ -206,47 +248,31 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Checks if file contains required fields based on schema
-		 * @param {SchemasDictionary} dictionary A dictionary to validate with
-		 * @param {Record<string, Express.Multer.File>} entityFileMap A Record to map a file with a entityName as a key
-		 * @returns a list of valid files and a list of errors
+		 * Utility to parse a raw Active Submission to a Response type
+		 * @param {ActiveSubmissionSummaryRepository} submission
+		 * @returns {ActiveSubmissionResponse}
 		 */
-		checkEntityFieldNames: async (
-			dictionary: SchemasDictionary,
-			entityFileMap: Record<string, Express.Multer.File>,
-		) => {
-			const { getSchemaFieldNames } = dictionaryUtils(dependencies);
-			const checkedEntities: Record<string, Express.Multer.File> = {};
-			const fieldNameErrors: BatchError[] = [];
-
-			for (const [entityName, file] of Object.entries(entityFileMap)) {
-				const fileHeaders = await readHeaders(file);
-
-				const schemaFieldNames = await getSchemaFieldNames(dictionary, entityName);
-
-				const missingRequiredFields = schemaFieldNames.required.filter(
-					(requiredField) => !fileHeaders.includes(requiredField),
-				);
-				if (missingRequiredFields.length > 0) {
-					logger.error(
-						LOG_MODULE,
-						`Missing required fields '${JSON.stringify(missingRequiredFields)}' on batch named '${file.originalname}'`,
-					);
-					fieldNameErrors.push({
-						type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
-						message: `Missing required fields '${JSON.stringify(missingRequiredFields)}'`,
-						batchName: file.originalname,
-					});
-				} else {
-					checkedEntities[entityName] = file;
-				}
-			}
+		parseActiveSubmissionResponse: (submission: ActiveSubmissionSummaryRepository): ActiveSubmissionResponse => {
 			return {
-				checkedEntities,
-				fieldNameErrors,
+				id: submission.id,
+				data: submission.data,
+				dictionary: submission.dictionary as DictionaryActiveSubmission,
+				dictionaryCategory: submission.dictionaryCategory as CategoryActiveSubmission,
+				errors: submission.errors,
+				organization: _.toString(submission.organization),
+				status: submission.status,
+				createdAt: _.toString(submission.createdAt?.toISOString()),
+				createdBy: _.toString(submission.createdBy),
+				updatedAt: _.toString(submission.updatedAt?.toISOString()),
+				updatedBy: _.toString(submission.updatedBy),
 			};
 		},
 
+		/**
+		 * Utility to parse a raw Active Submission to a Summary of the Active Submission
+		 * @param {ActiveSubmissionSummaryRepository} submission
+		 * @returns {ActiveSubmissionSummaryResponse}
+		 */
 		parseActiveSubmissionSummaryResponse: (
 			submission: ActiveSubmissionSummaryRepository,
 		): ActiveSubmissionSummaryResponse => {
@@ -273,40 +299,32 @@ const utils = (dependencies: BaseDependencies) => {
 			};
 		},
 
-		parseActiveSubmissionResponse: (submission: ActiveSubmissionSummaryRepository): ActiveSubmissionResponse => {
-			return {
-				id: submission.id,
-				data: submission.data,
-				dictionary: submission.dictionary as DictionaryActiveSubmission,
-				dictionaryCategory: submission.dictionaryCategory as CategoryActiveSubmission,
-				errors: submission.errors,
-				organization: _.toString(submission.organization),
-				status: submission.status,
-				createdAt: _.toString(submission.createdAt?.toISOString()),
-				createdBy: _.toString(submission.createdBy),
-				updatedAt: _.toString(submission.updatedAt?.toISOString()),
-				updatedBy: _.toString(submission.updatedBy),
-			};
+		removeEntityFromSubmission: (submissionData: Record<string, SubmissionData>, entityName: string) => {
+			return _.omit(submissionData, entityName);
 		},
 
 		/**
-		 * Clean up all dataErrors from Submission
-		 * @param {Record<string, SubmissionEntity> | undefined} submissionData
-		 * @returns {Record<string, SubmissionEntity>}
+		 * Construct a SubmissionData object per each file returning a Record type based on entityName
+		 * @param {Record<string, Express.Multer.File>} files
+		 * @param {string} userName
+		 * @returns {Promise<Record<string, SubmissionData>>}
 		 */
-		cleanErrorsFromSubmission: (
-			submissionData: Record<string, SubmissionEntity> | undefined,
-		): Record<string, SubmissionEntity> => {
-			if (submissionData) {
-				return Object.entries(submissionData).reduce(
-					(acc, [entityNameSubmission, entityData]) => {
-						acc[entityNameSubmission] = { ..._.omit(entityData, 'dataErrors') };
-						return acc;
-					},
-					{} as Record<string, SubmissionEntity>,
-				);
-			}
-			return {};
+		submissionEntitiesFromFiles: async (
+			files: Record<string, Express.Multer.File>,
+			userName: string,
+		): Promise<Record<string, SubmissionData>> => {
+			const filesDataProcessed: Record<string, SubmissionData> = {};
+			await Promise.all(
+				Object.entries(files).map(async ([entityName, file]) => {
+					const parsedFileData = await tsvToJson(file.path);
+					filesDataProcessed[entityName] = {
+						batchName: file.originalname,
+						creator: userName,
+						records: parsedFileData,
+					} as SubmissionData;
+				}),
+			);
+			return filesDataProcessed;
 		},
 	};
 };

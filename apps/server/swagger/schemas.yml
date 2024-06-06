@@ -136,10 +136,6 @@ components:
               batchName:
                 type: string
                 description: Original filename  of the submission
-              dataErrors:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ValidationError'
         dictionary:
           type: object
           description: Dictionary used to validate the submission
@@ -199,10 +195,6 @@ components:
               creator:
                 type: string
                 description: User name who created the submission
-              dataErrors:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ValidationError'
               recordsCount:
                 type: number
                 description: Number Of Records

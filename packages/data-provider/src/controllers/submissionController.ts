@@ -1,11 +1,11 @@
 import { NextFunction, Request, Response } from 'express';
 
-import { isEmpty, isNaN } from 'lodash-es';
+import { isEmpty } from 'lodash-es';
 import { BaseDependencies } from '../config/config.js';
 import submissionService from '../services/submissionService.js';
 import { BadRequest, NotFound, getErrorMessage } from '../utils/errors.js';
 import { validateTsvExtension } from '../utils/fileUtils.js';
-import { isEmptyString } from '../utils/formatUtils.js';
+import { isEmptyString, isValidIdNumber } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import { uploadSubmissionRequestSchema } from '../utils/schemas.js';
 import { BATCH_ERROR_TYPE, BatchError } from '../utils/types.js';
@@ -15,6 +15,169 @@ const controller = (dependencies: BaseDependencies) => {
 	const { logger } = dependencies;
 	const LOG_MODULE = 'SUBMISSION_CONTROLLER';
 	return {
+		commit: async (req: Request<{ categoryId: string; submissionId: string }>, res: Response, next: NextFunction) => {
+			try {
+				const categoryId = Number(req.params.categoryId);
+				const submissionId = Number(req.params.submissionId);
+
+				if (!isValidIdNumber(categoryId)) {
+					throw new BadRequest('Request provided an invalid category ID');
+				}
+				if (!isValidIdNumber(submissionId)) {
+					throw new BadRequest('Request provided an invalid submission ID');
+				}
+
+				const commitSubmission = await service.commitSubmission(categoryId, submissionId);
+
+				return res.status(200).send(commitSubmission);
+			} catch (error) {
+				next(error);
+			}
+		},
+		delete: async (req: Request<{ submissionId: string }>, res: Response, next: NextFunction) => {
+			try {
+				const submissionId = Number(req.params.submissionId);
+
+				if (!isValidIdNumber(submissionId)) {
+					throw new BadRequest('Request provided an invalid submission ID');
+				}
+
+				logger.info(LOG_MODULE, `Request Delete Active Submission '${submissionId}'`);
+
+				// TODO: get userName from auth
+				const userName = '';
+
+				const activeSubmissionDelete = await service.deleteActiveSubmissionById(submissionId, userName);
+
+				if (isEmpty(activeSubmissionDelete)) {
+					throw new NotFound('Active Submission not found');
+				}
+
+				return res.status(200).send(activeSubmissionDelete);
+			} catch (error) {
+				next(error);
+			}
+		},
+		deleteEntityName: async (
+			req: Request<{ submissionId: string; entityName: string }>,
+			res: Response,
+			next: NextFunction,
+		) => {
+			try {
+				const submissionId = Number(req.params.submissionId);
+				const entityName = req.params.entityName;
+
+				if (!isValidIdNumber(submissionId)) {
+					throw new BadRequest('Request provided an invalid submission ID');
+				}
+
+				if (isEmptyString(entityName)) {
+					throw new BadRequest('Request is missing `entityName` parameter.');
+				}
+
+				logger.info(LOG_MODULE, `Request Delete entity '${entityName}' on Active Submission '${submissionId}'`);
+
+				// TODO: get userName from auth
+				const userName = '';
+
+				const activeSubmission = await service.deleteActiveSubmissionEntity(submissionId, entityName, userName);
+
+				if (isEmpty(activeSubmission)) {
+					throw new NotFound('Active Submission not found');
+				}
+
+				return res.status(200).send(activeSubmission);
+			} catch (error) {
+				next(error);
+			}
+		},
+		getActiveByCategory: async (req: Request<{ categoryId: string }>, res: Response, next: NextFunction) => {
+			try {
+				const categoryId = Number(req.params.categoryId);
+				if (!isValidIdNumber(categoryId)) {
+					throw new BadRequest('Request provided an invalid category ID');
+				}
+
+				logger.info(LOG_MODULE, `Request Active Submission categoryId '${categoryId}'`);
+
+				// TODO: get userName from auth
+				const userName = '';
+
+				const activeSubmissions = await service.getActiveSubmissionsByCategory({ categoryId, userName });
+
+				if (!activeSubmissions || activeSubmissions.length === 0) {
+					throw new NotFound('Active Submission not found');
+				}
+
+				logger.info(LOG_MODULE, `Found '${activeSubmissions.length}' Active Submissions`);
+
+				return res.status(200).send(activeSubmissions);
+			} catch (error) {
+				next(error);
+			}
+		},
+		getActiveById: async (req: Request<{ submissionId: string }>, res: Response, next: NextFunction) => {
+			try {
+				const submissionId = Number(req.params.submissionId);
+
+				if (!isValidIdNumber(submissionId)) {
+					throw new BadRequest('Request provided an invalid submission ID');
+				}
+
+				logger.info(LOG_MODULE, `Request Active Submission submissionId '${submissionId}'`);
+
+				// TODO: get userName from auth
+				const userName = '';
+
+				const activeSubmission = await service.getActiveSubmissionById(submissionId);
+
+				if (isEmpty(activeSubmission)) {
+					throw new NotFound('Active Submission not found');
+				}
+
+				return res.status(200).send(activeSubmission);
+			} catch (error) {
+				next(error);
+			}
+		},
+		getActiveByOrganization: async (
+			req: Request<{ categoryId: string; organization: string }>,
+			res: Response,
+			next: NextFunction,
+		) => {
+			try {
+				const categoryId = Number(req.params.categoryId);
+				const organization = req.params.organization;
+
+				if (!isValidIdNumber(categoryId)) {
+					throw new BadRequest('Request provided an invalid category ID');
+				}
+
+				if (isEmptyString(organization)) {
+					throw new BadRequest('Request is missing `organization` parameter.');
+				}
+
+				logger.info(
+					LOG_MODULE,
+					`Request Active Submission categoryId '${categoryId}' and organization '${organization}'`,
+				);
+
+				// TODO: get userName from auth
+				const userName = '';
+
+				const activeSubmission = await service.getActiveSubmissionByOrganization({
+					categoryId,
+					userName,
+					organization,
+				});
+
+				if (isEmpty(activeSubmission)) throw new NotFound('Active Submission not found');
+
+				return res.status(200).send(activeSubmission);
+			} catch (error) {
+				next(error);
+			}
+		},
 		upload: validateRequest(uploadSubmissionRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
@@ -31,8 +194,8 @@ const controller = (dependencies: BaseDependencies) => {
 					` files '${files?.map((f) => f.originalname)}'`,
 				);
 
-				if (isNaN(categoryId)) {
-					throw new BadRequest('Invalid categoryId number format');
+				if (!isValidIdNumber(categoryId)) {
+					throw new BadRequest('Request provided an invalid category ID');
 				}
 
 				if (isEmptyString(organization)) {
@@ -84,161 +247,6 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		}),
-		commit: async (req: Request<{ categoryId: string; submissionId: string }>, res: Response, next: NextFunction) => {
-			try {
-				const categoryId = Number(req.params.categoryId);
-				const submissionId = Number(req.params.submissionId);
-
-				if (isNaN(categoryId)) {
-					throw new BadRequest('Invalid categoryId number format');
-				}
-				if (isNaN(submissionId)) {
-					throw new BadRequest('Invalid submissionId number format');
-				}
-
-				const commitSubmission = await service.commitSubmission(categoryId, submissionId);
-
-				return res.status(200).send(commitSubmission);
-			} catch (error) {
-				next(error);
-			}
-		},
-		getActiveByCategory: async (req: Request<{ categoryId: string }>, res: Response, next: NextFunction) => {
-			try {
-				const categoryId = Number(req.params.categoryId);
-				if (isNaN(categoryId)) {
-					throw new BadRequest('Invalid categoryId number format');
-				}
-
-				logger.info(LOG_MODULE, `Request Active Submission categoryId '${categoryId}'`);
-
-				// TODO: get userName from auth
-				const userName = '';
-
-				const activeSubmissions = await service.getActiveSubmissionsByCategory({ categoryId, userName });
-
-				if (!activeSubmissions || activeSubmissions.length === 0) throw new NotFound('Active Submission not found');
-
-				logger.info(LOG_MODULE, `Found '${activeSubmissions.length}' Active Submissions`);
-
-				return res.status(200).send(activeSubmissions);
-			} catch (error) {
-				next(error);
-			}
-		},
-		getActiveByOrganization: async (
-			req: Request<{ categoryId: string; organization: string }>,
-			res: Response,
-			next: NextFunction,
-		) => {
-			try {
-				const categoryId = Number(req.params.categoryId);
-				const organization = req.params.organization;
-
-				if (isNaN(categoryId)) {
-					throw new BadRequest('Invalid categoryId number format');
-				}
-
-				if (isEmptyString(organization)) {
-					throw new BadRequest('Request is missing `organization` parameter.');
-				}
-
-				logger.info(
-					LOG_MODULE,
-					`Request Active Submission categoryId '${categoryId}' and organization '${organization}'`,
-				);
-
-				// TODO: get userName from auth
-				const userName = '';
-
-				const activeSubmission = await service.getActiveSubmissionByOrganization({
-					categoryId,
-					userName,
-					organization,
-				});
-
-				if (isEmpty(activeSubmission)) throw new NotFound('Active Submission not found');
-
-				return res.status(200).send(activeSubmission);
-			} catch (error) {
-				next(error);
-			}
-		},
-		getActiveById: async (req: Request<{ submissionId: string }>, res: Response, next: NextFunction) => {
-			try {
-				const submissionId = Number(req.params.submissionId);
-
-				if (isNaN(submissionId)) {
-					throw new BadRequest('Invalid submissionId number format');
-				}
-
-				logger.info(LOG_MODULE, `Request Active Submission submissionId '${submissionId}'`);
-
-				// TODO: get userName from auth
-				const userName = '';
-
-				const activeSubmission = await service.getActiveSubmissionById(submissionId);
-
-				if (isEmpty(activeSubmission)) throw new NotFound('Active Submission not found');
-
-				return res.status(200).send(activeSubmission);
-			} catch (error) {
-				next(error);
-			}
-		},
-		delete: async (req: Request<{ submissionId: string }>, res: Response, next: NextFunction) => {
-			try {
-				const submissionId = Number(req.params.submissionId);
-
-				if (isNaN(submissionId)) {
-					throw new BadRequest('Invalid submissionId number format');
-				}
-
-				logger.info(LOG_MODULE, `Request Delete Active Submission '${submissionId}'`);
-
-				// TODO: get userName from auth
-				const userName = '';
-
-				const activeSubmissionDelete = await service.deleteActiveSubmissionById(submissionId, userName);
-
-				if (isEmpty(activeSubmissionDelete)) throw new NotFound('Active Submission not found');
-
-				return res.status(200).send(activeSubmissionDelete);
-			} catch (error) {
-				next(error);
-			}
-		},
-		deleteEntityName: async (
-			req: Request<{ submissionId: string; entityName: string }>,
-			res: Response,
-			next: NextFunction,
-		) => {
-			try {
-				const submissionId = Number(req.params.submissionId);
-				const entityName = req.params.entityName;
-
-				if (isNaN(submissionId)) {
-					throw new BadRequest('Invalid submissionId number format');
-				}
-
-				if (isEmptyString(entityName)) {
-					throw new BadRequest('Request is missing `entityName` parameter.');
-				}
-
-				logger.info(LOG_MODULE, `Request Delete entity '${entityName}' on Active Submission '${submissionId}'`);
-
-				// TODO: get userName from auth
-				const userName = '';
-
-				const activeSubmission = await service.deleteActiveSubmissionEntity(submissionId, entityName, userName);
-
-				if (isEmpty(activeSubmission)) throw new NotFound('Active Submission not found');
-
-				return res.status(200).send(activeSubmission);
-			} catch (error) {
-				next(error);
-			}
-		},
 	};
 };
 

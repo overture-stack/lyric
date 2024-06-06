@@ -28,7 +28,7 @@
         $ref: '#/components/responses/ServiceUnavailableError'
 
   delete:
-    summary: Clear Active Submission by ID
+    summary: Clear an Active Submission by ID
     tags:
       - submission
     parameters:
@@ -58,7 +58,7 @@
 
 /submission/{submissionId}/{entityName}:
   delete:
-    summary: Clear Active Submission by entity
+    summary: Clear Active Submission by entity name
     tags:
       - submission
     parameters:

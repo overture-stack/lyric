@@ -29,11 +29,11 @@ table dictionary_categories {
 table submissions {
   id serial [pk, not null, increment]
   data jsonb [not null]
-  dictionary_category_id integer
+  dictionary_category_id integer [not null]
   dictionary_id integer
   errors jsonb
   organization varchar [not null]
-  status submission_status
+  status submission_status [not null]
   created_at timestamp [default: `now()`]
   created_by varchar
   updated_at timestamp [default: `now()`]
