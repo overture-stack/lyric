@@ -15,6 +15,13 @@
       "when": 1716835188695,
       "tag": "0001_oval_malice",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1717705153555,
+      "tag": "0002_broad_nebula",
+      "breakpoints": true
     }
   ]
 }
