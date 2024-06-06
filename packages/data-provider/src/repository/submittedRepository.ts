@@ -48,7 +48,7 @@ const repository = (dependencies: BaseDependencies) => {
 		getSubmittedDataByCategoryIdAndOrganization: async (
 			categoryId: number,
 			organization: string,
-		): Promise<SubmittedData[] | undefined> => {
+		): Promise<SubmittedData[]> => {
 			try {
 				return await db.query.submittedData.findMany({
 					where: and(eq(submittedData.dictionaryCategoryId, categoryId), eq(submittedData.organization, organization)),

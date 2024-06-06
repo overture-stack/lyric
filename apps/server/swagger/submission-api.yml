@@ -56,6 +56,40 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
+/submission/{submissionId}/{entityName}:
+  delete:
+    summary: Clear Active Submission by entity name
+    tags:
+      - submission
+    parameters:
+      - name: submissionId
+        in: path
+        type: string
+        required: true
+      - name: entityName
+        in: path
+        type: string
+        required: true
+    responses:
+      200:
+        description: Submission cleared successfully. Returns the current active submission
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActiveSubmissionResult'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
+      409:
+        $ref: '#/components/responses/StatusConflict'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
 /submission/category/{categoryId}:
   get:
     summary: List active submissions for a category

@@ -12,13 +12,14 @@ export type SubmissionData = {
 	batchName: string;
 	creator: string;
 	records: SchemaData;
-	dataErrors?: SchemaValidationError[];
 };
 
 export const submissions = pgTable('submissions', {
 	id: serial('id').primaryKey(),
 	data: jsonb('data').$type<Record<string, SubmissionData>>().notNull(),
-	dictionaryCategoryId: integer('dictionary_category_id').references(() => dictionaryCategories.id),
+	dictionaryCategoryId: integer('dictionary_category_id')
+		.references(() => dictionaryCategories.id)
+		.notNull(),
 	dictionaryId: integer('dictionary_id').references(() => dictionaries.id),
 	errors: jsonb('errors').$type<Record<string, SchemaValidationError[]>>(),
 	organization: varchar('organization').notNull(),

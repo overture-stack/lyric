@@ -19,6 +19,8 @@ const router = (dependencies: BaseDependencies): Router => {
 
 	router.delete('/:submissionId', auth, submissionControllers(dependencies).delete);
 
+	router.delete('/:submissionId/:entityName', auth, submissionControllers(dependencies).deleteEntityName);
+
 	router.get('/category/:categoryId', auth, submissionControllers(dependencies).getActiveByCategory);
 
 	router.get(
