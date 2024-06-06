@@ -299,19 +299,8 @@ const utils = (dependencies: BaseDependencies) => {
 			};
 		},
 
-		/**
-		 * Remove dataErrors property from every SubmissionData object
-		 * @param {Record<string, SubmissionData> | undefined} submissionData
-		 * @returns {Record<string, SubmissionData>}
-		 */
-		removeSubmissionErrors: (submissionData: Record<string, SubmissionData>): Record<string, SubmissionData> => {
-			return Object.entries(submissionData).reduce<Record<string, SubmissionData>>(
-				(acc, [entityNameSubmission, entityData]) => {
-					acc[entityNameSubmission] = { ..._.omit(entityData, 'dataErrors') };
-					return acc;
-				},
-				{},
-			);
+		removeEntityFromSubmission: (submissionData: Record<string, SubmissionData>, entityName: string) => {
+			return _.omit(submissionData, entityName);
 		},
 
 		/**

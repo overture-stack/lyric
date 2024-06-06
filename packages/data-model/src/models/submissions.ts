@@ -12,7 +12,6 @@ export type SubmissionData = {
 	batchName: string;
 	creator: string;
 	records: SchemaData;
-	dataErrors?: SchemaValidationError[];
 };
 
 export const submissions = pgTable('submissions', {

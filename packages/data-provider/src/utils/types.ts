@@ -72,7 +72,6 @@ export type BatchError = {
 
 export interface ValidateFilesParams {
 	categoryId: number;
-	dictionary: SchemasDictionary & { id: number };
 	organization: string;
 	userName: string;
 }
@@ -98,7 +97,6 @@ export type PaginationOptions = {
 export type DataActiveSubmissionSummary = {
 	batchName: string;
 	creator: string;
-	dataErrors?: SchemaValidationError[];
 	recordsCount: number;
 };
 
