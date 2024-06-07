@@ -26,7 +26,7 @@ export const defaultAppConfig: AppConfig = {
 	},
 	idService: {
 		useLocal: Boolean(process.env.ID_USELOCAL) || true,
-		customAlphabet: process.env.ID_CUSTOM_ALPHABET || 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+		customAlphabet: process.env.ID_CUSTOM_ALPHABET || '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
 		customSize: Number(process.env.ID_CUSTOM_SIZE) || 21,
 	},
 	schemaService: {
