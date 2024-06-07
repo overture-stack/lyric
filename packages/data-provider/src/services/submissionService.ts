@@ -132,12 +132,23 @@ const service = (dependencies: BaseDependencies) => {
 			schemasDataToValidate.submittedDataByEntityName[entityName].map((data, index) => {
 				data.isValid = !hasErrorsByIndex(hasErrorByIndex, index);
 				if (data.id) {
-					logger.info(LOG_MODULE, `Updating submittedData system ID '${data.systemId}' in entity '${entityName}'`);
-					dataSubmittedRepo.update(data.id, {
-						isValid: data.isValid,
-						lastValidSchemaId: data.lastValidSchemaId,
-						updatedBy: data.updatedBy,
-					});
+					if (data.isValid) {
+						logger.debug(LOG_MODULE, `Updating submittedData system ID '${data.systemId}' in entity '${entityName}'`);
+						dataSubmittedRepo.update(data.id, {
+							isValid: data.isValid,
+							lastValidSchemaId: data.lastValidSchemaId,
+							updatedBy: data.updatedBy,
+						});
+					} else {
+						logger.error(
+							LOG_MODULE,
+							`Updating submittedData system ID '${data.systemId}' as Invalid in entity '${entityName}'`,
+						);
+						dataSubmittedRepo.update(data.id, {
+							isValid: data.isValid,
+							updatedBy: data.updatedBy,
+						});
+					}
 				} else {
 					logger.info(
 						LOG_MODULE,
@@ -172,7 +183,7 @@ const service = (dependencies: BaseDependencies) => {
 	}): Promise<Submission> => {
 		const { originalSubmission, newSubmissionData, userName } = input;
 
-		const { extractSchemaDataFromMergedDataRecords, createOrUpdateActiveSubmission } = submissionUtils(dependencies);
+		const { extractSchemaDataFromMergedDataRecords, updateActiveSubmission } = submissionUtils(dependencies);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { validateSchemas } = submittedDataUtils(dependencies);
 		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
@@ -211,7 +222,7 @@ const service = (dependencies: BaseDependencies) => {
 		}
 
 		// Update Active Submission
-		return await createOrUpdateActiveSubmission({
+		return await updateActiveSubmission({
 			idActiveSubmission: originalSubmission.id,
 			entityMap: newSubmissionData,
 			categoryId: originalSubmission.dictionaryCategoryId.toString(),
@@ -508,7 +519,7 @@ const service = (dependencies: BaseDependencies) => {
 			userName: string;
 		}): Promise<CreateSubmissionResult> => {
 			logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
-			const { checkFileNames, checkEntityFieldNames } = submissionUtils(dependencies);
+			const { checkFileNames, checkEntityFieldNames, createOpenActiveSubmission } = submissionUtils(dependencies);
 			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 
 			const entitiesToProcess: string[] = [];
@@ -535,6 +546,14 @@ const service = (dependencies: BaseDependencies) => {
 				const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
 				batchErrors.push(...fieldNameErrors);
 				entitiesToProcess.push(...Object.keys(checkedEntities));
+
+				// create Open Active Submission
+				await createOpenActiveSubmission({
+					categoryId,
+					createdBy: userName,
+					dictionaryId: currentDictionary.id,
+					organization,
+				});
 
 				if (!_.isEmpty(checkedEntities)) {
 					// Running Schema validation in the background do not need to wait
