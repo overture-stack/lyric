@@ -1,7 +1,7 @@
 {
-	"name": "data-provider",
-	"version": "1.0.0",
-	"description": "",
+	"name": "@overture-stack/lyric-data-provider",
+	"version": "0.1.0",
+	"description": "Data Submission system",
 	"main": "dist/index.js",
 	"engines": {
 		"node": ">=20.0.0"
@@ -12,9 +12,20 @@
 		"\n===========  Dev environment  =========": "",
 		"start:dev": "nodemon"
 	},
-	"keywords": [],
+	"keywords": [
+		"overture",
+		"lyric"
+	],
 	"author": "Ontario Institute for Cancer Research",
-	"license": "ISC",
+	"license": "AGPL-3.0-or-later",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/overture-stack/lyric.git"
+	},
+	"bugs": {
+		"url": "https://github.com/overture-stack/lyric/issues"
+	},
+	"homepage": "https://github.com/overture-stack/lyric#readme",
 	"type": "module",
 	"dependencies": {
 		"@overture-stack/sqon-builder": "^1.1.0",
