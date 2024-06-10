@@ -1,27 +1,27 @@
 {
-  "version": "5",
-  "dialect": "pg",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "5",
-      "when": 1714500467099,
-      "tag": "0000_purple_susan_delgado",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1716835188695,
-      "tag": "0001_oval_malice",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "5",
-      "when": 1717705153555,
-      "tag": "0002_broad_nebula",
-      "breakpoints": true
-    }
-  ]
+	"version": "5",
+	"dialect": "pg",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "5",
+			"when": 1714500467099,
+			"tag": "0000_init_db",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "5",
+			"when": 1716835188695,
+			"tag": "0001_add_system_id_to_submitted_data",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "5",
+			"when": 1717705153555,
+			"tag": "0002_set_not_null_columns_submissions",
+			"breakpoints": true
+		}
+	]
 }
