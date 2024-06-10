@@ -27,6 +27,8 @@ const controller = (dependencies: BaseDependencies) => {
 					throw new BadRequest('Request provided an invalid submission ID');
 				}
 
+				logger.info(LOG_MODULE, `Request Commit Active Submission '${submissionId}' on category '${categoryId}'`);
+
 				const commitSubmission = await service.commitSubmission(categoryId, submissionId);
 
 				return res.status(200).send(commitSubmission);
