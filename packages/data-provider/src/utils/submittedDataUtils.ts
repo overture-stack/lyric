@@ -88,9 +88,9 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Received any object and finds if it contains an specific key
+		 * Receives any object and finds if it contains an specific key
 		 * @param {object} hasErrorByIndex An object to evaluate
-		 * @param index An object key
+		 * @param {number} index An object key
 		 * @returns
 		 */
 		hasErrorsByIndex: (hasErrorByIndex: object, index: number): boolean => {
@@ -145,6 +145,7 @@ const utils = (dependencies: BaseDependencies) => {
 					data: record.data,
 					isValid: record.isValid || false,
 					organization: record.organization,
+					systemId: record.systemId,
 				};
 			});
 		},

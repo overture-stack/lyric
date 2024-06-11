@@ -21,6 +21,7 @@ const provider = (configData: AppConfig) => {
 		logger: getLogger(configData.logger),
 		limits: configData.limits,
 		schemaService: configData.schemaService,
+		idService: configData.idService,
 	};
 
 	return {

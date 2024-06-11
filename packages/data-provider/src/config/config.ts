@@ -2,7 +2,7 @@ import * as schema from 'data-model';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Logger } from './logger.js';
 
-export type dbInfo = {
+export type DbConfig = {
 	host: string;
 	port: number;
 	database: string;
@@ -10,7 +10,7 @@ export type dbInfo = {
 	password: string;
 };
 
-export type schemaServiceInfo = {
+export type SchemaServiceConfig = {
 	url: string;
 };
 
@@ -23,15 +23,22 @@ export type LimitsConfig = {
 	fileSize: string;
 };
 
+export type IdServiceConfig = {
+	useLocal: boolean;
+	customAlphabet: string;
+	customSize: number;
+};
+
 /**
  * Environment variables to configure internal and external resources
  * (database, external services, logger, etc)
  */
 export type AppConfig = {
-	db: dbInfo;
+	db: DbConfig;
 	limits: LimitsConfig;
 	logger: LoggerConfig;
-	schemaService: schemaServiceInfo;
+	schemaService: SchemaServiceConfig;
+	idService: IdServiceConfig;
 };
 
 /**
@@ -41,5 +48,6 @@ export interface BaseDependencies {
 	db: NodePgDatabase<typeof schema>;
 	logger: Logger;
 	limits: LimitsConfig;
-	schemaService: schemaServiceInfo;
+	schemaService: SchemaServiceConfig;
+	idService: IdServiceConfig;
 }

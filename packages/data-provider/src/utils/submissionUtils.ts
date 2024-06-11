@@ -9,9 +9,7 @@ import { NewSubmission, Submission, SubmissionData } from 'data-model';
 import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
-import { InternalServerError } from './errors.js';
 import { readHeaders, tsvToJson } from './fileUtils.js';
-import { isNumber } from './formatUtils.js';
 import {
 	ActiveSubmissionResponse,
 	ActiveSubmissionSummaryRepository,
@@ -139,64 +137,34 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Creates a new Active Submission in database or update if already exists
-		 * @param {number | undefined} idActiveSubmission ID of the Active Submission if already exists
-		 * @param {Record<string, SubmissionData>} entityMap Map of Entities with Entity Types as keys
-		 * @param {string} categoryId The category ID of the Submission
-		 * @param {Record<string, SchemaValidationError[]>} schemaErrors Array of schemaErrors
-		 * @param {number} dictionaryId The Dictionary ID of the Submission
-		 * @param {string} userName User creating/updating the active submission
-		 * @returns An Active Submission created or updated
+		 * Create an Open Active Submission with initial values and no schema data.
+		 * Returns the created database record.
+		 * @param {Object} input
+		 * @param {string} input.createdBy User who creates the Active Submission
+		 * @param {number} input.categoryId Category ID
+		 * @param {number} input.dictionaryId Dictionary ID
+		 * @param {string} input.organization Organization name
+		 * @returns {Promise<Submission>}
 		 */
-		createOrUpdateActiveSubmission: async (inputActiveSubmission: {
-			idActiveSubmission: number | undefined;
-			entityMap: Record<string, SubmissionData>;
-			categoryId: string;
-			schemaErrors: Record<string, SchemaValidationError[]>;
+		createOpenActiveSubmission: async (input: {
+			createdBy: string;
+			categoryId: number;
 			dictionaryId: number;
-			userName: string;
 			organization: string;
 		}): Promise<Submission> => {
-			let updatedSubmission: Submission;
-			const newStatusSubmission =
-				Object.keys(inputActiveSubmission.schemaErrors).length > 0
-					? SUBMISSION_STATUS.INVALID
-					: SUBMISSION_STATUS.VALID;
-			if (isNumber(inputActiveSubmission.idActiveSubmission)) {
-				// Update with new data
-				const resultUpdate = await submissionRepo.update(_.toNumber(inputActiveSubmission.idActiveSubmission), {
-					data: inputActiveSubmission.entityMap,
-					status: newStatusSubmission,
-					organization: inputActiveSubmission.organization,
-					dictionaryId: inputActiveSubmission.dictionaryId,
-					updatedBy: inputActiveSubmission.userName,
-					errors: inputActiveSubmission.schemaErrors,
-				});
-				if (!resultUpdate) {
-					throw new InternalServerError();
-				}
+			const submissionRepo = submissionRepository(dependencies);
 
-				updatedSubmission = resultUpdate;
+			const newSubmission: NewSubmission = {
+				createdBy: input.createdBy,
+				data: {},
+				dictionaryCategoryId: input.categoryId,
+				dictionaryId: input.dictionaryId,
+				errors: {},
+				organization: input.organization,
+				status: SUBMISSION_STATUS.OPEN,
+			};
 
-				logger.info(
-					LOG_MODULE,
-					`Updated Active submission '${updatedSubmission.id}' for category '${updatedSubmission.dictionaryCategoryId}'`,
-				);
-			} else {
-				const newSubmission: NewSubmission = {
-					status: newStatusSubmission,
-					dictionaryCategoryId: Number(inputActiveSubmission.categoryId),
-					organization: inputActiveSubmission.organization,
-					data: inputActiveSubmission.entityMap,
-					errors: inputActiveSubmission.schemaErrors,
-					dictionaryId: inputActiveSubmission.dictionaryId,
-					createdBy: inputActiveSubmission.userName,
-				};
-
-				updatedSubmission = await submissionRepo.save(newSubmission);
-				logger.info(LOG_MODULE, `Created a new Active submission for category '${inputActiveSubmission.categoryId}'`);
-			}
-			return updatedSubmission;
+			return submissionRepo.save(newSubmission);
 		},
 
 		/**
@@ -325,6 +293,47 @@ const utils = (dependencies: BaseDependencies) => {
 				}),
 			);
 			return filesDataProcessed;
+		},
+
+		/**
+		 * Update Active Submission in database
+		 * @param {Object} input
+		 * @param {string} input.categoryId The category ID of the Submission
+		 * @param {number} input.dictionaryId The Dictionary ID of the Submission
+		 * @param {Record<string, SubmissionData>} input.entityMap Map of Entities with Entity Types as keys
+		 * @param {number} input.idActiveSubmission ID of the Active Submission
+		 * @param {string} input.organization Organization name
+		 * @param {Record<string, SchemaValidationError[]>} input.schemaErrors Array of schemaErrors
+		 * @param {string} input.userName User updating the active submission
+		 * @returns {Promise<Submission>} An Active Submission updated
+		 */
+		updateActiveSubmission: async (input: {
+			categoryId: string;
+			dictionaryId: number;
+			entityMap: Record<string, SubmissionData>;
+			idActiveSubmission: number;
+			organization: string;
+			schemaErrors: Record<string, SchemaValidationError[]>;
+			userName: string;
+		}): Promise<Submission> => {
+			const { categoryId, dictionaryId, entityMap, idActiveSubmission, organization, schemaErrors, userName } = input;
+			const newStatusSubmission =
+				Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
+			// Update with new data
+			const updatedActiveSubmission = await submissionRepo.update(idActiveSubmission, {
+				data: entityMap,
+				status: newStatusSubmission,
+				organization: organization,
+				dictionaryId: dictionaryId,
+				updatedBy: userName,
+				errors: schemaErrors,
+			});
+
+			logger.info(
+				LOG_MODULE,
+				`Updated Active submission '${updatedActiveSubmission.id}' with status '${newStatusSubmission}' on category '${updatedActiveSubmission.dictionaryCategoryId}'`,
+			);
+			return updatedActiveSubmission;
 		},
 	};
 };

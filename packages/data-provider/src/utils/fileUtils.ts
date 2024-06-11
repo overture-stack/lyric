@@ -2,7 +2,6 @@ import { DataRecord, SchemaData } from '@overturebio-stack/lectern-client/lib/sc
 import bytes from 'bytes';
 import firstline from 'firstline';
 import fs from 'fs';
-import { BadRequest } from './errors.js';
 import { notEmpty } from './formatUtils.js';
 
 const fsPromises = fs.promises;
@@ -10,16 +9,11 @@ const fsPromises = fs.promises;
 export const ARRAY_DELIMITER_CHAR = '|';
 
 /**
- * Validates if a file contains a .tsv extension
- * @param file A file to check its extension
- * throws a BadRequest errot type when file is not a .tsv
+ * Returns true if a file name contains a .tsv extension
+ * @param {Express.Multer.File} file
+ * @returns {boolean}
  */
-export const validateTsvExtension = (file: Express.Multer.File): void => {
-	// check if has .tsv extension to prevent irregular file names from reaching service level
-	if (!file.originalname.match(/.*\.tsv$/)) {
-		throw new BadRequest('Invalid extension');
-	}
-};
+export const hasTsvExtension = (file: Express.Multer.File): boolean => !!file.originalname.match(/.*\.tsv$/);
 
 /**
  * Reads only first line of the file

@@ -7,6 +7,7 @@ import * as _ from 'lodash-es';
 
 import { NewSubmittedData, Submission, SubmissionData, SubmittedData } from 'data-model';
 import { BaseDependencies } from '../config/config.js';
+import systemIdGenerator from '../external/systemIdGenerator.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
@@ -131,14 +132,28 @@ const service = (dependencies: BaseDependencies) => {
 			schemasDataToValidate.submittedDataByEntityName[entityName].map((data, index) => {
 				data.isValid = !hasErrorsByIndex(hasErrorByIndex, index);
 				if (data.id) {
-					logger.debug(LOG_MODULE, `Updating submittedData '${data.id}' in entity '${entityName}' index '${index}'`);
-					dataSubmittedRepo.update(data.id, {
-						isValid: data.isValid,
-						lastValidSchemaId: data.lastValidSchemaId,
-						updatedBy: data.updatedBy,
-					});
+					if (data.isValid) {
+						logger.debug(LOG_MODULE, `Updating submittedData system ID '${data.systemId}' in entity '${entityName}'`);
+						dataSubmittedRepo.update(data.id, {
+							isValid: data.isValid,
+							lastValidSchemaId: data.lastValidSchemaId,
+							updatedBy: data.updatedBy,
+						});
+					} else {
+						logger.error(
+							LOG_MODULE,
+							`Updating submittedData system ID '${data.systemId}' as Invalid in entity '${entityName}'`,
+						);
+						dataSubmittedRepo.update(data.id, {
+							isValid: data.isValid,
+							updatedBy: data.updatedBy,
+						});
+					}
 				} else {
-					logger.debug(LOG_MODULE, `Creating new submittedData in entity '${entityName}' index '${index}'`);
+					logger.info(
+						LOG_MODULE,
+						`Creating new submittedData in entity '${entityName}' with system ID '${data.systemId}'`,
+					);
 					dataSubmittedRepo.save(data);
 				}
 			});
@@ -168,7 +183,7 @@ const service = (dependencies: BaseDependencies) => {
 	}): Promise<Submission> => {
 		const { originalSubmission, newSubmissionData, userName } = input;
 
-		const { extractSchemaDataFromMergedDataRecords, createOrUpdateActiveSubmission } = submissionUtils(dependencies);
+		const { extractSchemaDataFromMergedDataRecords, updateActiveSubmission } = submissionUtils(dependencies);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { validateSchemas } = submittedDataUtils(dependencies);
 		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
@@ -207,7 +222,7 @@ const service = (dependencies: BaseDependencies) => {
 		}
 
 		// Update Active Submission
-		return await createOrUpdateActiveSubmission({
+		return await updateActiveSubmission({
 			idActiveSubmission: originalSubmission.id,
 			entityMap: newSubmissionData,
 			categoryId: originalSubmission.dictionaryCategoryId.toString(),
@@ -259,156 +274,16 @@ const service = (dependencies: BaseDependencies) => {
 
 	return {
 		/**
-		 * Validates and Creates the Entities Schemas of the Active Submission and stores it in the database
-		 * @param {Express.Multer.File[]} files An array of files
-		 * @param {number} categoryId Category ID of the Submission
-		 * @param {string} organization Organization name
-		 * @param {string} userName User name creating the Submission
-		 * @returns The Active Submission created or Updated
+		 * Runs Schema validation asynchronously and moves the Active Submission to Submitted Data
+		 * @param {number} categoryId
+		 * @param {number} submissionId
+		 * @returns {Promise<CommitSubmissionResult>}
 		 */
-		uploadSubmission: async ({
-			files,
-			categoryId,
-			organization,
-			userName,
-		}: {
-			files: Express.Multer.File[];
-			categoryId: number;
-			organization: string;
-			userName: string;
-		}): Promise<CreateSubmissionResult> => {
-			logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
-			const { checkFileNames, checkEntityFieldNames } = submissionUtils(dependencies);
-			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-
-			const entitiesToProcess: string[] = [];
-			const batchErrors: BatchError[] = [];
-
-			if (files.length > 0) {
-				const currentDictionary = await getActiveDictionaryByCategory(categoryId);
-				if (_.isEmpty(currentDictionary)) {
-					throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
-				}
-
-				const schemasDictionary: SchemasDictionary = {
-					name: currentDictionary.name,
-					version: currentDictionary.version,
-					schemas: currentDictionary.schemas,
-				};
-
-				// step 1 Validation. Validate entity type (filename matches dictionary entities, remove duplicates)
-				const schemaNames: string[] = schemasDictionary.schemas.map((item) => item.name);
-				const { validFileEntity, batchErrors: fileNamesErrors } = await checkFileNames(files, schemaNames);
-				batchErrors.push(...fileNamesErrors);
-
-				// step 2 Validation. Validate fieldNames (missing required fields based on schema)
-				const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
-				batchErrors.push(...fieldNameErrors);
-				entitiesToProcess.push(...Object.keys(checkedEntities));
-
-				if (!_.isEmpty(checkedEntities)) {
-					// Running Schema validation in the background do not need to wait
-					// Result of validations will be stored in database
-					validateFilesAsync(checkedEntities, {
-						categoryId,
-						organization,
-						userName,
-					});
-				}
-			}
-
-			let status: CreateSubmissionStatus = CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION;
-			let description: string = 'No valid files for submission';
-			if (batchErrors.length === 0 && entitiesToProcess.length > 0) {
-				status = CREATE_SUBMISSION_STATUS.PROCESSING;
-				description = 'Submission files are being processed';
-			} else if (batchErrors.length > 0 && entitiesToProcess.length > 0) {
-				status = CREATE_SUBMISSION_STATUS.PARTIAL_SUBMISSION;
-				description = 'Some Submission files are being processed while others were unable to process';
-			}
-
-			return {
-				status,
-				description,
-				batchErrors,
-				inProcessEntities: entitiesToProcess,
-			};
-		},
-
-		/**
-		 * Get an active Submission by Organization
-		 * @param {Object} params
-		 * @param {number} params.categoryId
-		 * @param {string} params.userName
-		 * @param {string} params.organization
-		 * @returns One Active Submission
-		 */
-		getActiveSubmissionByOrganization: async ({
-			categoryId,
-			userName,
-			organization,
-		}: {
-			categoryId: number;
-			userName: string;
-			organization: string;
-		}): Promise<ActiveSubmissionSummaryResponse | undefined> => {
-			const { getActiveSubmissionWithRelationsByOrganization } = submissionRepository(dependencies);
-			const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
-
-			const submission = await getActiveSubmissionWithRelationsByOrganization({ organization, userName, categoryId });
-			if (_.isEmpty(submission)) {
-				return;
-			}
-
-			return parseActiveSubmissionSummaryResponse(submission);
-		},
-
-		/**
-		 * Get an active Submission by Category
-		 * @param {Object} params
-		 * @param {number} params.categoryId
-		 * @param {string} params.userName
-		 * @returns  One Active Submission
-		 */
-		getActiveSubmissionsByCategory: async ({
-			categoryId,
-			userName,
-		}: {
-			categoryId: number;
-			userName: string;
-		}): Promise<ActiveSubmissionSummaryResponse[] | undefined> => {
-			const { getActiveSubmissionsWithRelationsByCategory } = submissionRepository(dependencies);
-			const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
-
-			const submissions = await getActiveSubmissionsWithRelationsByCategory({ userName, categoryId });
-			if (!submissions || submissions.length === 0) {
-				return;
-			}
-
-			return submissions.map((response) => parseActiveSubmissionSummaryResponse(response));
-		},
-
-		/**
-		 * Get Active Submission by Submission ID
-		 * @param {number} submissionId A Submission ID
-		 * @returns One Active Submission
-		 */
-		getActiveSubmissionById: async (submissionId: number) => {
-			const { getActiveSubmissionWithRelationsById } = submissionRepository(dependencies);
-			const { parseActiveSubmissionResponse } = submissionUtils(dependencies);
-
-			const submission = await getActiveSubmissionWithRelationsById(submissionId);
-			if (_.isEmpty(submission)) {
-				return;
-			}
-
-			return parseActiveSubmissionResponse(submission);
-		},
-
 		commitSubmission: async (categoryId: number, submissionId: number): Promise<CommitSubmissionResult> => {
 			const { getSubmissionById } = submissionRepository(dependencies);
 			const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
 			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
+			const { generateIdentifier } = systemIdGenerator(dependencies);
 
 			const submission = await getSubmissionById(submissionId);
 			if (!submission) {
@@ -449,6 +324,7 @@ const service = (dependencies: BaseDependencies) => {
 						organization: submission.organization,
 						originalSchemaId: submission.dictionaryId,
 						lastValidSchemaId: submission.dictionaryId,
+						systemId: generateIdentifier(entityName, record),
 						createdBy: '', // TODO: get User from auth
 					};
 					return newSubmittedData;
@@ -551,6 +427,161 @@ const service = (dependencies: BaseDependencies) => {
 			logger.info(LOG_MODULE, `Submission '${updatedRecord.id}' updated with new status '${updatedRecord.status}'`);
 
 			return updatedRecord;
+		},
+
+		/**
+		 * Get an active Submission by Category
+		 * @param {Object} params
+		 * @param {number} params.categoryId
+		 * @param {string} params.userName
+		 * @returns  One Active Submission
+		 */
+		getActiveSubmissionsByCategory: async ({
+			categoryId,
+			userName,
+		}: {
+			categoryId: number;
+			userName: string;
+		}): Promise<ActiveSubmissionSummaryResponse[] | undefined> => {
+			const { getActiveSubmissionsWithRelationsByCategory } = submissionRepository(dependencies);
+			const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
+
+			const submissions = await getActiveSubmissionsWithRelationsByCategory({ userName, categoryId });
+			if (!submissions || submissions.length === 0) {
+				return;
+			}
+
+			return submissions.map((response) => parseActiveSubmissionSummaryResponse(response));
+		},
+
+		/**
+		 * Get Active Submission by Submission ID
+		 * @param {number} submissionId A Submission ID
+		 * @returns One Active Submission
+		 */
+		getActiveSubmissionById: async (submissionId: number) => {
+			const { getActiveSubmissionWithRelationsById } = submissionRepository(dependencies);
+			const { parseActiveSubmissionResponse } = submissionUtils(dependencies);
+
+			const submission = await getActiveSubmissionWithRelationsById(submissionId);
+			if (_.isEmpty(submission)) {
+				return;
+			}
+
+			return parseActiveSubmissionResponse(submission);
+		},
+
+		/**
+		 * Get an active Submission by Organization
+		 * @param {Object} params
+		 * @param {number} params.categoryId
+		 * @param {string} params.userName
+		 * @param {string} params.organization
+		 * @returns One Active Submission
+		 */
+		getActiveSubmissionByOrganization: async ({
+			categoryId,
+			userName,
+			organization,
+		}: {
+			categoryId: number;
+			userName: string;
+			organization: string;
+		}): Promise<ActiveSubmissionSummaryResponse | undefined> => {
+			const { getActiveSubmissionWithRelationsByOrganization } = submissionRepository(dependencies);
+			const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
+
+			const submission = await getActiveSubmissionWithRelationsByOrganization({ organization, userName, categoryId });
+			if (_.isEmpty(submission)) {
+				return;
+			}
+
+			return parseActiveSubmissionSummaryResponse(submission);
+		},
+
+		/**
+		 * Validates and Creates the Entities Schemas of the Active Submission and stores it in the database
+		 * @param {Express.Multer.File[]} files An array of files
+		 * @param {number} categoryId Category ID of the Submission
+		 * @param {string} organization Organization name
+		 * @param {string} userName User name creating the Submission
+		 * @returns The Active Submission created or Updated
+		 */
+		uploadSubmission: async ({
+			files,
+			categoryId,
+			organization,
+			userName,
+		}: {
+			files: Express.Multer.File[];
+			categoryId: number;
+			organization: string;
+			userName: string;
+		}): Promise<CreateSubmissionResult> => {
+			logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
+			const { checkFileNames, checkEntityFieldNames, createOpenActiveSubmission } = submissionUtils(dependencies);
+			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
+
+			const entitiesToProcess: string[] = [];
+			const batchErrors: BatchError[] = [];
+
+			if (files.length > 0) {
+				const currentDictionary = await getActiveDictionaryByCategory(categoryId);
+				if (_.isEmpty(currentDictionary)) {
+					throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+				}
+
+				const schemasDictionary: SchemasDictionary = {
+					name: currentDictionary.name,
+					version: currentDictionary.version,
+					schemas: currentDictionary.schemas,
+				};
+
+				// step 1 Validation. Validate entity type (filename matches dictionary entities, remove duplicates)
+				const schemaNames: string[] = schemasDictionary.schemas.map((item) => item.name);
+				const { validFileEntity, batchErrors: fileNamesErrors } = await checkFileNames(files, schemaNames);
+				batchErrors.push(...fileNamesErrors);
+
+				// step 2 Validation. Validate fieldNames (missing required fields based on schema)
+				const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
+				batchErrors.push(...fieldNameErrors);
+				entitiesToProcess.push(...Object.keys(checkedEntities));
+
+				// create Open Active Submission
+				await createOpenActiveSubmission({
+					categoryId,
+					createdBy: userName,
+					dictionaryId: currentDictionary.id,
+					organization,
+				});
+
+				if (!_.isEmpty(checkedEntities)) {
+					// Running Schema validation in the background do not need to wait
+					// Result of validations will be stored in database
+					validateFilesAsync(checkedEntities, {
+						categoryId,
+						organization,
+						userName,
+					});
+				}
+			}
+
+			let status: CreateSubmissionStatus = CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION;
+			let description: string = 'No valid files for submission';
+			if (batchErrors.length === 0 && entitiesToProcess.length > 0) {
+				status = CREATE_SUBMISSION_STATUS.PROCESSING;
+				description = 'Submission files are being processed';
+			} else if (batchErrors.length > 0 && entitiesToProcess.length > 0) {
+				status = CREATE_SUBMISSION_STATUS.PARTIAL_SUBMISSION;
+				description = 'Some Submission files are being processed while others were unable to process';
+			}
+
+			return {
+				status,
+				description,
+				batchErrors,
+				inProcessEntities: entitiesToProcess,
+			};
 		},
 	};
 };

@@ -49,6 +49,7 @@ table submitted_data {
   last_valid_schema_id integer
   organization varchar [not null]
   original_schema_id integer
+  system_id varchar [not null, unique]
   created_at timestamp [default: `now()`]
   created_by varchar
   updated_at timestamp [default: `now()`]

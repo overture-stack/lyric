@@ -160,6 +160,7 @@ export type SubmittedDataRepository = {
 	entityName: string;
 	isValid: boolean | null;
 	organization: string;
+	systemId: string;
 };
 
 /**
@@ -170,6 +171,7 @@ export type SubmittedDataResponse = {
 	entityName: string;
 	isValid: boolean;
 	organization: string;
+	systemId: string;
 };
 
 /**

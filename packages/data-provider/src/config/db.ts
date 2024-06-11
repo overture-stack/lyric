@@ -1,17 +1,17 @@
 import * as schema from 'data-model';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
-import { dbInfo } from './config.js';
+import { DbConfig } from './config.js';
 
-export const connect = (info: dbInfo): NodePgDatabase<typeof schema> => {
+export const connect = (config: DbConfig): NodePgDatabase<typeof schema> => {
 	const pool = new pg.Pool({
-		host: info.host,
-		port: info.port,
-		database: info.database,
-		user: info.user,
-		password: info.password,
+		host: config.host,
+		port: config.port,
+		database: config.database,
+		user: config.user,
+		password: config.password,
 	});
-	console.log(`Connecting to database on ${info.host}`);
+	console.log(`Connecting to database on ${config.host}`);
 
 	return drizzle(pool, { schema });
 };

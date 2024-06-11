@@ -14,6 +14,7 @@ export const submittedData = pgTable('submitted_data', {
 	lastValidSchemaId: integer('last_valid_schema_id').references(() => dictionaries.id),
 	organization: varchar('organization').notNull(),
 	originalSchemaId: integer('original_schema_id').references(() => dictionaries.id),
+	systemId: varchar('system_id').unique().notNull(),
 	createdAt: timestamp('created_at').defaultNow(),
 	createdBy: varchar('created_by'),
 	updatedAt: timestamp('updated_at').defaultNow(),

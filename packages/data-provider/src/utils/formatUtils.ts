@@ -21,6 +21,18 @@ export function isNumber(value: any): value is number {
 	return typeof value === 'number';
 }
 
+export function uniqueCharacters(value: string): string {
+	if (isEmptyString(value)) return '';
+	// Split the string to make array
+	const splitted = value.split('');
+
+	// Create a new array using set
+	const arrayCharacters = [...new Set(splitted)];
+
+	// join array to make it string
+	return arrayCharacters.join('');
+}
+
 /**
  * Function that returns true if input is a valid number greater than zero.
  * Otherwise it returns false

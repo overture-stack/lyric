@@ -130,6 +130,9 @@ importers:
       multer:
         specifier: 1.4.5-lts.1
         version: 1.4.5-lts.1
+      nanoid:
+        specifier: ^5.0.7
+        version: 5.0.7
       pg:
         specifier: ^8.11.3
         version: 8.11.3
@@ -2020,6 +2023,12 @@ packages:
       object-assign: 4.1.1
       type-is: 1.6.18
       xtend: 4.0.2
+    dev: false
+
+  /nanoid@5.0.7:
+    resolution: {integrity: sha512-oLxFY2gd2IqnjcYyOXD8XGCftpGtZP2AbHbOkthDkvRywH5ayNtPVy9YlOPcHckXzbLTCHpkb7FB+yuxKV13pQ==}
+    engines: {node: ^18 || >=20}
+    hasBin: true
     dev: false
 
   /negotiator@0.6.3:
