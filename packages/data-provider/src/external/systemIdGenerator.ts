@@ -25,7 +25,7 @@ const systemIdGenerator = (dependencies: BaseDependencies) => {
 		generateIdentifier: (entityName: string, dataRecord: DataRecord): string => {
 			if (idService.useLocal) {
 				const id = nanoid();
-				logger.info(LOG_MODULE, `System ID '${id}' generated for entity '${entityName}'`);
+				logger.debug(LOG_MODULE, `System ID '${id}' generated for entity '${entityName}'`);
 				return id;
 			}
 			throw new NotImplemented('ID Service not configured');

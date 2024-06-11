@@ -3,8 +3,8 @@ import { NextFunction, Request, Response } from 'express';
 import { isEmpty } from 'lodash-es';
 import { BaseDependencies } from '../config/config.js';
 import submissionService from '../services/submissionService.js';
-import { BadRequest, NotFound, getErrorMessage } from '../utils/errors.js';
-import { validateTsvExtension } from '../utils/fileUtils.js';
+import { BadRequest, NotFound } from '../utils/errors.js';
+import { hasTsvExtension } from '../utils/fileUtils.js';
 import { isEmptyString, isValidIdNumber } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import { uploadSubmissionRequestSchema } from '../utils/schemas.js';
@@ -205,28 +205,31 @@ const controller = (dependencies: BaseDependencies) => {
 				}
 
 				if (!files || files.length == 0) {
-					throw new BadRequest('Request is missing attach `files`');
+					throw new BadRequest(
+						'The "files" parameter is missing or empty. Please include files in the request for processing.',
+					);
 				}
 
-				const fileErrors: BatchError[] = [];
-				const validFiles: Express.Multer.File[] = [];
-
-				for (const file of files) {
-					try {
-						validateTsvExtension(file);
-						validFiles.push(file);
-					} catch (error) {
-						logger.error(LOG_MODULE, `Error processing file '${file.originalname}'`, getErrorMessage(error));
-
-						const batchError: BatchError = {
-							type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
-							message: getErrorMessage(error),
-							batchName: file.originalname,
-						};
-
-						fileErrors.push(batchError);
-					}
-				}
+				// sort files into validFiles and fileErrors based on correct file extension
+				const { validFiles, fileErrors } = files.reduce<{
+					validFiles: Express.Multer.File[];
+					fileErrors: BatchError[];
+				}>(
+					(acc, file) => {
+						if (hasTsvExtension(file)) {
+							acc.validFiles.push(file);
+						} else {
+							const batchError: BatchError = {
+								type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
+								message: `File '${file.originalname}' has invalid file extension. File extension must be '.tsv'.`,
+								batchName: file.originalname,
+							};
+							acc.fileErrors.push(batchError);
+						}
+						return acc;
+					},
+					{ validFiles: [], fileErrors: [] },
+				);
 
 				const resultSubmission = await service.uploadSubmission({
 					files: validFiles,
@@ -238,7 +241,7 @@ const controller = (dependencies: BaseDependencies) => {
 				if (fileErrors.length == 0 && resultSubmission.batchErrors.length == 0) {
 					logger.info(LOG_MODULE, `Submission uploaded successfully`);
 				} else {
-					logger.error(LOG_MODULE, 'Found some errors processing this request');
+					logger.info(LOG_MODULE, 'Found some errors processing this request');
 				}
 
 				// This response provides the details of file Submission
