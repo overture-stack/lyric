@@ -4,14 +4,62 @@ Package published on npm as https://www.npmjs.com/@overture-stack/lyric
 
 This package is part of Lyric mono repo, for more details go to [main page](../../README.md)
 
-## Available scripts
+## Install
+
+```
+npm i @overture-stack/lyric
+```
+
+## Usage
+
+Import Lyric module and initialize the provider with custom configuration:
+
+```
+import { AppConfig, provider } from '@overture-stack/lyric';
+
+const ppConfig: AppConfig = {
+	db: {
+		host: [INSERT_DB_HOST],
+		port: [INSERT_DB_PORT],
+		database: [INSERT_DB_NAME],
+		user:[INSERT_DB_USER],
+		password: [INSERT_DB_PASSWORD],
+	},
+	schemaService: {
+		url: [INSERT_LECTERN_URL],
+	},
+	limits: {
+		fileSize: [INSERT_UPLOAD_LIMIT],
+	},
+	logger: {
+		level: [INSERT_LOG_LEVEL],
+	},
+};
+
+
+const lyricProvider = provider(defaultAppConfig);
+```
+
+Use any of the routers available on provider on a Express server:
+
+```
+import express from 'express';
+
+const app = express();
+
+app.use('/submission', lyricProvider.routers.submission);
+```
+
+## Development
+
+### Available scripts
 
 | Command          | Description                                                            |
 | ---------------- | ---------------------------------------------------------------------- |
 | `pnpm build:all` | Compile typescript code in the workspace and generate database schemas |
 | `pnpm start:dev` | Run code for development                                               |
 
-## Package structure
+### Package structure
 
 Source code is distributed on `src` folder as follows:
 
@@ -28,7 +76,7 @@ Source code is distributed on `src` folder as follows:
 │   └── utils
 ```
 
-### Adding a Service
+#### Adding a Service
 
 Create a service file `helloService.ts` on folder `src/services` with the following content.
 
@@ -53,7 +101,7 @@ Use the argument of type `BaseDependencies` to retrieve service configurations f
 
 Make sure to follow the instructions to export the resource accordingly. [link](#export-resource)
 
-### Adding a Controller
+#### Adding a Controller
 
 Create a controller file `helloController.ts` on folder `src/controllers` with the following content.
 
@@ -86,7 +134,7 @@ Use the argument of type `BaseDependencies` to retrieve service configurations f
 
 Make sure to follow the instructions to export the resource accordingly. [link](#export-resource)
 
-### Adding a Router
+#### Adding a Router
 
 Use the `express.Router` class to create modular route handlers.
 
@@ -109,7 +157,7 @@ export default router;
 
 Make sure to follow the instructions to export the resource accordingly. [link](#export-resource)
 
-### Installing a dependency
+#### Installing a dependency
 
 > Note: Run following command only from the monorepo root level.
 
@@ -117,7 +165,7 @@ Use the command `pnpm add package-name` to add a dependency to the monorepo. Add
 
 Add `-D` option to add to `devDependencies`
 
-### Export a resource
+#### Export a resource
 
 To export this resource as an individual resource include the exported resource on to the root `index.ts` file.
 

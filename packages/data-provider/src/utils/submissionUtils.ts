@@ -5,7 +5,7 @@ import {
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import * as _ from 'lodash-es';
 
-import { NewSubmission, Submission, SubmissionData } from 'data-model';
+import { NewSubmission, Submission, SubmissionData } from '@overture-stack/lyric-data-model';
 import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';

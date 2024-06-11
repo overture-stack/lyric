@@ -1,13 +1,13 @@
 {
 	"name": "server",
-	"version": "1.0.0",
-	"description": "",
+	"version": "0.1.0",
+	"description": "Lyric Server",
 	"engines": {
 		"node": ">=20.0.0"
 	},
 	"scripts": {
 		"\n==================  Build  ==================": "",
-		"build:compile": "rm -rf dist && tsc",
+		"build:compile": "rimraf dist && tsc",
 		"build:copy": "copyfiles swagger/**/*.yml dist/",
 		"build:all": "pnpm build:compile && pnpm build:copy",
 		"\n=============  Dev environment  =============": "",
@@ -18,13 +18,13 @@
 	},
 	"keywords": [],
 	"author": "Ontario Institute for Cancer Research",
-	"license": "ISC",
+	"license": "AGPL-3.0-or-later",
 	"type": "module",
 	"dependencies": {
+		"@overture-stack/lyric": "workspace:^",
 		"dotenv": "^16.4.1",
 		"express": "^4.18.2",
 		"helmet": "^7.1.0",
-		"data-provider": "workspace:^",
 		"swagger-jsdoc": "^6.2.8",
 		"swagger-ui-express": "^5.0.0",
 		"winston": "^3.11.0"
@@ -34,6 +34,7 @@
 		"@types/swagger-jsdoc": "^6.0.4",
 		"@types/swagger-ui-express": "^4.1.6",
 		"copyfiles": "^2.4.1",
-		"nodemon": "^3.0.3"
+		"nodemon": "^3.0.3",
+		"rimraf": "^5.0.7"
 	}
 }

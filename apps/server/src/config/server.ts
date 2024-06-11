@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-import { AppConfig } from 'data-provider';
+import { AppConfig } from '@overture-stack/lyric';
 
 export const getServerConfig = () => {
 	return {

@@ -6,7 +6,7 @@
 	"type": "module",
 	"scripts": {
 		"\n=====================  Build  =================": "",
-		"build:compile": "rm -rf dist && tsc",
+		"build:compile": "rimraf dist && tsc",
 		"build:migration": "drizzle-kit generate:pg",
 		"build:dbml": "tsx scripts/dbmlGenerator.ts",
 		"build:all": "pnpm build:compile && pnpm build:migration && pnpm build:dbml",
@@ -31,6 +31,7 @@
 		"@types/pg": "^8.11.0",
 		"drizzle-dbml-generator": "^0.6.1",
 		"drizzle-kit": "^0.20.17",
+		"rimraf": "^5.0.7",
 		"tsx": "^4.7.1"
 	},
 	"dependencies": {

@@ -1,4 +1,4 @@
-import * as schema from 'data-model';
+import * as schema from '@overture-stack/lyric-data-model';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import { dbInfo } from './config.js';

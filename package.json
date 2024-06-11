@@ -1,6 +1,6 @@
 {
-	"name": "@overture-stack/lyric",
-	"version": "1.0.0",
+	"name": "lyric",
+	"version": "0.1.0",
 	"description": "",
 	"scripts": {
 		"\n=================  Build  ===============": "",
@@ -14,12 +14,12 @@
 	"author": "Ontario Institute for Cancer Research",
 	"license": "ISC",
 	"devDependencies": {
-		"@types/node": "^20.11.16",
-		"dotenv-cli": "^7.4.1",
-		"prettier": "^3.2.5",
+		"@types/node": "^20.14.2",
+		"dotenv-cli": "^7.4.2",
+		"prettier": "^3.3.2",
 		"prettier-plugin-organize-imports": "^3.2.4",
 		"ts-node": "^10.9.2",
-		"typescript": "^5.3.3"
+		"typescript": "^5.4.5"
 	},
 	"type": "module"
 }

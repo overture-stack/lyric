@@ -1,6 +1,6 @@
 import { SQL, and, count, eq } from 'drizzle-orm/sql';
 
-import { NewSubmittedData, SubmittedData, submittedData } from 'data-model';
+import { NewSubmittedData, SubmittedData, submittedData } from '@overture-stack/lyric-data-model';
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import { BooleanTrueObject, PaginationOptions, SubmittedDataRepository } from '../utils/types.js';
