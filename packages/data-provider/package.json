@@ -1,5 +1,5 @@
 {
-	"name": "@overture-stack/lyric-data-provider",
+	"name": "@overture-stack/lyric",
 	"version": "0.1.0",
 	"description": "Data Submission system",
 	"main": "dist/index.js",
