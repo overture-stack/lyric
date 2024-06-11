@@ -18,6 +18,9 @@
 	},
 	"keywords": [],
 	"author": "Ontario Institute for Cancer Research",
+	"files": [
+		"dist/"
+	],
 	"license": "AGPL-3.0-or-later",
 	"repository": {
 		"type": "git",

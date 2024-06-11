@@ -20,6 +20,7 @@
 	"author": "Ontario Institute for Cancer Research",
 	"license": "AGPL-3.0-or-later",
 	"type": "module",
+	"private": true,
 	"dependencies": {
 		"@overture-stack/lyric": "workspace:^",
 		"dotenv": "^16.4.1",
