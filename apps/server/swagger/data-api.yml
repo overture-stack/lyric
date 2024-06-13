@@ -151,9 +151,9 @@
 
 /data/{systemId}:
   delete:
-    summary: Soft delete Submitted Data by System ID
+    summary: Delete Submitted Data by System ID
     tags:
-      - data
+      - admin
     parameters:
       - name: systemId
         in: path
@@ -161,16 +161,16 @@
         schema:
           type: string
       - name: dryRun
-        description: If true won't execute the deletion, but will return what will be deleted, default is true, set to false to execute.
+        description: If true won't execute the deletion, but will return what will be deleted, default is false.
         in: query
         required: false
         schema:
-          default: true
+          default: false
           type: boolean
       - name: reason
         description: Reason why the record is deleted
         in: query
-        required: true
+        required: false
         schema:
           type: string
     responses:
