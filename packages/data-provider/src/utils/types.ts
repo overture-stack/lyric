@@ -153,17 +153,6 @@ export type ActiveSubmissionSummaryRepository = {
 };
 
 /**
- * Rerieve Submitted Data object from repository
- */
-export type SubmittedDataRepository = {
-	data: DataRecord;
-	entityName: string;
-	isValid: boolean | null;
-	organization: string;
-	systemId: string;
-};
-
-/**
  * Submitted Raw Data information
  */
 export type SubmittedDataResponse = {

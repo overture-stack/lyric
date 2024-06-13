@@ -3,7 +3,7 @@ import { SQL, and, count, eq, inArray, isNull, or, sql } from 'drizzle-orm/sql';
 import { NewSubmittedData, SubmittedData, submittedData } from 'data-model';
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
-import { BooleanTrueObject, PaginationOptions, SubmittedDataRepository } from '../utils/types.js';
+import { BooleanTrueObject, PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTEDDATA_REPOSITORY';
@@ -83,7 +83,7 @@ const repository = (dependencies: BaseDependencies) => {
 		getSubmittedDataByCategoryIdPaginated: async (
 			categoryId: number,
 			paginationOptions: PaginationOptions,
-		): Promise<SubmittedDataRepository[] | undefined> => {
+		): Promise<SubmittedDataResponse[] | undefined> => {
 			const { page, pageSize } = paginationOptions;
 			try {
 				return await db.query.submittedData.findMany({
@@ -112,7 +112,7 @@ const repository = (dependencies: BaseDependencies) => {
 			organization: string,
 			paginationOptions: PaginationOptions,
 			filter?: SQL,
-		): Promise<SubmittedDataRepository[] | undefined> => {
+		): Promise<SubmittedDataResponse[] | undefined> => {
 			const { page, pageSize } = paginationOptions;
 			try {
 				return await db.query.submittedData.findMany({
