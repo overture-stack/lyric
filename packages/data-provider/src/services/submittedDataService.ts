@@ -9,7 +9,7 @@ import { SchemaNode, getDictionarySchemaRelations } from '../utils/dictionarySch
 import { BadRequest } from '../utils/errors.js';
 import { notEmpty } from '../utils/formatUtils.js';
 import submittedUtils from '../utils/submittedDataUtils.js';
-import { SubmittedDataResponse, paginationOps } from '../utils/types.js';
+import { PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
 
 const PAGINATION_ERROR_MESSAGES = {
 	INVALID_CATEGORY_ID: 'Invalid Category ID',
@@ -78,7 +78,7 @@ const service = (dependencies: BaseDependencies) => {
 	return {
 		getSubmittedDataByCategory: async (
 			categoryId: number,
-			paginationOps: paginationOps,
+			paginationOptions: PaginationOptions,
 		): Promise<{
 			data: SubmittedDataResponse[];
 			metadata: { totalRecords: number; errorMessage?: string };
@@ -93,7 +93,7 @@ const service = (dependencies: BaseDependencies) => {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.INVALID_CATEGORY_ID);
 			}
 
-			const recordsPaginated = await getSubmittedDataByCategoryIdPaginated(categoryId, paginationOps);
+			const recordsPaginated = await getSubmittedDataByCategoryIdPaginated(categoryId, paginationOptions);
 			if (!recordsPaginated) {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.NO_DATA_FOUND);
 			}
@@ -112,7 +112,7 @@ const service = (dependencies: BaseDependencies) => {
 		getSubmittedDataByOrganization: async (
 			categoryId: number,
 			organization: string,
-			paginationOps: paginationOps,
+			paginationOptions: PaginationOptions,
 			sqon?: SQON,
 		): Promise<{ data: SubmittedDataResponse[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
 			const { getSubmittedDataByCategoryIdAndOrganizationPaginated, getTotalRecordsByCategoryIdAndOrganization } =
@@ -130,7 +130,7 @@ const service = (dependencies: BaseDependencies) => {
 			const recordsPaginated = await getSubmittedDataByCategoryIdAndOrganizationPaginated(
 				categoryId,
 				organization,
-				paginationOps,
+				paginationOptions,
 				filterSql,
 			);
 			if (!notEmpty(recordsPaginated)) {

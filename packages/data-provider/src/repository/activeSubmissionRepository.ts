@@ -107,7 +107,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {any} newData Set fields to update
 		 * @returns An updated record
 		 */
-		update: async (submissionId: number, newData: Partial<Submission>): Promise<Submission | undefined> => {
+		update: async (submissionId: number, newData: Partial<Submission>): Promise<Submission> => {
 			try {
 				const resultUpdate = await db
 					.update(submissions)

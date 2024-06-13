@@ -32,9 +32,15 @@ const controller = (dependencies: BaseDependencies) => {
 					`Register Dictionary Request categoryName '${categoryName}' name '${dictionaryName}' version '${dictionaryVersion}'`,
 				);
 
-				if (isEmptyString(categoryName)) throw new BadRequest('Request is missing `categoryName` parameter.');
-				if (isEmptyString(dictionaryName)) throw new BadRequest('Request is missing `dictionaryName` parameter.');
-				if (isEmptyString(dictionaryVersion)) throw new BadRequest('Request is missing `version` parameter.');
+				if (isEmptyString(categoryName)) {
+					throw new BadRequest('Request is missing `categoryName` parameter.');
+				}
+				if (isEmptyString(dictionaryName)) {
+					throw new BadRequest('Request is missing `dictionaryName` parameter.');
+				}
+				if (isEmptyString(dictionaryVersion)) {
+					throw new BadRequest('Request is missing `version` parameter.');
+				}
 
 				const registered = await dictionaryService.register(categoryName, dictionaryName, dictionaryVersion);
 				logger.info(LOG_MODULE, `Register Dictionary completed!`);
