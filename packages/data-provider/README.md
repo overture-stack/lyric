@@ -15,7 +15,7 @@ Import `AppConfig` and `provider` from `@overture-stack/lyric` module to initial
 ```
 import { AppConfig, provider } from '@overture-stack/lyric';
 
-const ppConfig: AppConfig = {
+const appConfig: AppConfig = {
 	db: {
 		host: [INSERT_DB_HOST],
 		port: [INSERT_DB_PORT],
@@ -35,7 +35,7 @@ const ppConfig: AppConfig = {
 };
 
 
-const lyricProvider = provider(defaultAppConfig);
+const lyricProvider = provider(appConfig);
 ```
 
 Use any of the resources available on provider on a Express server:
