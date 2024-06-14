@@ -1,7 +1,7 @@
 > [!NOTE]
 > This package is likely not the one you want to use in your project, it is primarily used as a dependency within the Lyric monorepo. [@overture-stack/lyric](https://www.npmjs.com/package/@overture-stack/lyric) is what you are most likely to want to use.
 
-[![NPM Version](https://img.shields.io/npm/v/@overture-stack/lyric?color=%23cb3837&style=for-the-badge&logo=npm)](https://www.npmjs.com/package/@overture-stack/lyric)
+[![NPM Version](https://img.shields.io/npm/v/@overture-stack/lyric-data-model?color=%23cb3837&style=for-the-badge&logo=npm)](https://www.npmjs.com/package/@overture-stack/lyric-data-model)
 
 # Data Model for Lyric
 
