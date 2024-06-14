@@ -23,7 +23,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const systemId = req.params.systemId;
 
 				// Gives false value except when query param is explicitly true
-				const dryRun = req.query.dryRun === 'true' ? true : false;
+				const dryRun = req.query.dryRun?.toLowerCase() === 'true';
 
 				const reason = req.query.reason;
 
