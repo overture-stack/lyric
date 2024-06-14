@@ -33,6 +33,10 @@ const controller = (dependencies: BaseDependencies) => {
 					throw new BadRequest('Request is missing `systemId` parameter.');
 				}
 
+				if (isEmptyString(reason)) {
+					throw new BadRequest('Request is missing `reason` parameter.');
+				}
+
 				// TODO: get userName from auth
 				const userName = '';
 

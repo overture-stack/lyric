@@ -170,7 +170,7 @@
       - name: reason
         description: Reason why the record is deleted
         in: query
-        required: false
+        required: true
         schema:
           type: string
     responses:
