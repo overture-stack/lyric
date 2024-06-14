@@ -1,7 +1,7 @@
 {
 	"name": "lyric",
 	"version": "0.1.0",
-	"description": "",
+	"description": "Lyric Monorepo",
 	"scripts": {
 		"\n=================  Build  ===============": "",
 		"build:all": "pnpm -r build:all",
@@ -12,7 +12,8 @@
 		"start:prod": "pnpm --filter data-model db:migrate:workspace-prod && pnpm --filter server start:worskpace-prod"
 	},
 	"author": "Ontario Institute for Cancer Research",
-	"license": "ISC",
+	"license": "AGPL-3.0-or-later",
+	"private": true,
 	"devDependencies": {
 		"@types/node": "^20.14.2",
 		"dotenv-cli": "^7.4.2",
