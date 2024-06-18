@@ -20,7 +20,7 @@
 
 Describes the structure of the database illustrating how tables within the database are related to each other.
 
-Check the latest diagram located at [docs/schema.dbml](docs/schema.dbml)
+Check the latest diagram located at [docs/schema.dbml](https://github.com/overture-stack/lyric/blob/main/packages/data-model/docs/schema.dbml)
 
 > Used [DBML generator script](#generate-dbml-file) to generate bellow file
 
@@ -30,7 +30,7 @@ A free database visualizer at [dbdiagram.io](https://dbdiagram.io/)
 
 Illustrate the transitions of status on a lifecycle of a Submission
 
-Check the latest diagram located at [docs/stateDiagramSubmissionStatus.md](docs/stateDiagramSubmissionStatus.md)
+Check the latest diagram located at [docs/stateDiagramSubmissionStatus.md](https://github.com/overture-stack/lyric/blob/main/packages/data-model/docs/stateDiagramSubmissionStatus.md)
 
 ## Migrations
 
@@ -52,13 +52,13 @@ All migration files are provided under `migrations/` folder.
 
 ### Generate DBML file
 
-A script [dbmlGenerator.ts](scripts/dbmlGenerator.ts) is provided to generate a DBML file based on the source schema files found at the folder `src/models/`.
+A script [dbmlGenerator.ts](https://github.com/overture-stack/lyric/blob/main/packages/data-model/scripts/dbmlGenerator.ts) is provided to generate a DBML file based on the source schema files found at the folder `src/models/`.
 
 To run this script use the command `pnpm run build:dbml`.
 
 ### Run Migration
 
-A script [migrate.ts](scripts/migrate.ts) is provided as a helper to run SQL migration files on a specific database.
+A script [migrate.ts](https://github.com/overture-stack/lyric/blob/main/packages/data-model/scripts/migrate.ts) is provided as a helper to run SQL migration files on a specific database.
 
 It executes all the `.sql` files found on `migrations/` folder using Drizzle tools.
 
