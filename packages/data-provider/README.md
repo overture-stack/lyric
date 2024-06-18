@@ -52,7 +52,7 @@ app.use('/submission', lyricProvider.routers.submission);
 
 ## Support & Contributions
 
-- Developer documentation [docs](./docs/add-new-resources.md)
+- Developer documentation [docs](https://github.com/overture-stack/lyric/blob/main/packages/data-provider/docs/add-new-resources.md)
 - Filing an [issue](https://github.com/overture-stack/lyric/issues)
 - Connect with us on [Slack](http://slack.overture.bio)
-- Add or Upvote a [feature request](https://github.com/overture-stack/lyric/issues?q=is%3Aopen+is%3Aissue+label%3Anew-feature)
+- Add or Upvote a [feature request](https://github.com/overture-stack/lyric/issues/new?assignees=&labels=&projects=&template=Feature_Requests.md)

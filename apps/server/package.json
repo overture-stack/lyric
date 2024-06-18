@@ -1,6 +1,6 @@
 {
 	"name": "server",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Lyric Server",
 	"engines": {
 		"node": ">=20.0.0"
@@ -32,6 +32,8 @@
 	},
 	"devDependencies": {
 		"@types/express": "^4.17.21",
+		"@types/express-serve-static-core": "^4.19.0",
+		"@types/qs": "^6.9.15",
 		"@types/swagger-jsdoc": "^6.0.4",
 		"@types/swagger-ui-express": "^4.1.6",
 		"copyfiles": "^2.4.1",
