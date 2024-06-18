@@ -7,9 +7,9 @@
 		"build:all": "pnpm -r build:all",
 		"\n============  Dev environment  ==========": "",
 		"with-env": "dotenv -e ./.env --",
-		"start:dev": "pnpm with-env pnpm --filter data-model db:migrate:dev && pnpm with-env pnpm --parallel start:dev",
+		"start:dev": "pnpm with-env pnpm --filter @overture-stack/lyric-data-model db:migrate:dev && pnpm with-env pnpm --parallel start:dev",
 		"\n====  Prod environment (compiled)  ======": "",
-		"start:prod": "pnpm --filter data-model db:migrate:workspace-prod && pnpm --filter server start:worskpace-prod"
+		"start:prod": "pnpm --filter @overture-stack/lyric-data-model db:migrate:workspace-prod && pnpm --filter server start:worskpace-prod"
 	},
 	"author": "Ontario Institute for Cancer Research",
 	"license": "AGPL-3.0-or-later",
