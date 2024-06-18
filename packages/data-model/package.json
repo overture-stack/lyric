@@ -3,11 +3,12 @@
 	"version": "0.1.1",
 	"description": "Data model for Lyric",
 	"main": "dist/index.js",
+	"typings": "dist/index.d.ts",
 	"type": "module",
 	"scripts": {
 		"\n=====================  Build  =================": "",
 		"build:compile": "rimraf dist && tsc",
-		"build:migration": "drizzle-kit generate:pg",
+		"build:migration": "drizzle-kit generate:pg --config=drizzle.config.ts",
 		"build:dbml": "tsx scripts/dbmlGenerator.ts",
 		"build:all": "pnpm build:compile && pnpm build:migration && pnpm build:dbml",
 		"\n==============  Dev environment  ==============": "",

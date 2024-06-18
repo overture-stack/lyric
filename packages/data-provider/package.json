@@ -3,6 +3,7 @@
 	"version": "0.1.1",
 	"description": "Data Submission system",
 	"main": "dist/index.js",
+	"typings": "dist/index.d.ts",
 	"engines": {
 		"node": ">=20.0.0"
 	},
@@ -53,9 +54,11 @@
 		"@types/express": "^4.17.21",
 		"@types/express-serve-static-core": "^4.19.0",
 		"@types/firstline": "^2.0.4",
+		"@types/lodash": "^4.17.5",
 		"@types/lodash-es": "^4.17.12",
 		"@types/multer": "^1.4.11",
 		"@types/pg": "^8.11.0",
+		"@types/qs": "^6.9.15",
 		"nodemon": "^3.0.3",
 		"rimraf": "^5.0.7"
 	}
