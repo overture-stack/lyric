@@ -7,7 +7,6 @@ import submittedRepository from '../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
 import { SchemaNode, getDictionarySchemaRelations } from '../utils/dictionarySchemaRelations.js';
 import { BadRequest } from '../utils/errors.js';
-import { notEmpty } from '../utils/formatUtils.js';
 import submittedUtils from '../utils/submittedDataUtils.js';
 import { PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
 
@@ -89,18 +88,20 @@ const service = (dependencies: BaseDependencies) => {
 			const { fetchDataErrorResponse } = submittedUtils(dependencies);
 
 			const isValidCategory = await categoryIdExists(categoryId);
+
 			if (!isValidCategory) {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.INVALID_CATEGORY_ID);
 			}
 
 			const recordsPaginated = await getSubmittedDataByCategoryIdPaginated(categoryId, paginationOptions);
-			if (!recordsPaginated) {
+
+			if (recordsPaginated.length === 0) {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.NO_DATA_FOUND);
 			}
 
 			const totalRecords = await getTotalRecordsByCategoryId(categoryId);
 
-			logger.info(LOG_MODULE, `Retrieved '${recordsPaginated?.length}' Submitted data on categoryId '${categoryId}'`);
+			logger.info(LOG_MODULE, `Retrieved '${recordsPaginated.length}' Submitted data on categoryId '${categoryId}'`);
 
 			return {
 				data: recordsPaginated,
@@ -109,6 +110,7 @@ const service = (dependencies: BaseDependencies) => {
 				},
 			};
 		},
+
 		getSubmittedDataByOrganization: async (
 			categoryId: number,
 			organization: string,
@@ -121,6 +123,7 @@ const service = (dependencies: BaseDependencies) => {
 			const { fetchDataErrorResponse } = submittedUtils(dependencies);
 
 			const isValidCategory = await categoryIdExists(categoryId);
+
 			if (!isValidCategory) {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.INVALID_CATEGORY_ID);
 			}
@@ -133,7 +136,8 @@ const service = (dependencies: BaseDependencies) => {
 				paginationOptions,
 				filterSql,
 			);
-			if (!notEmpty(recordsPaginated)) {
+
+			if (recordsPaginated.length === 0) {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.NO_DATA_FOUND);
 			}
 
@@ -141,7 +145,7 @@ const service = (dependencies: BaseDependencies) => {
 
 			logger.info(
 				LOG_MODULE,
-				`Retrieved '${recordsPaginated?.length}' Submitted data on categoryId '${categoryId}' organization '${organization}'`,
+				`Retrieved '${recordsPaginated.length}' Submitted data on categoryId '${categoryId}' organization '${organization}'`,
 			);
 
 			return {
@@ -151,6 +155,7 @@ const service = (dependencies: BaseDependencies) => {
 				},
 			};
 		},
+
 		deleteSubmittedDataBySystemId: async (
 			systemId: string,
 			dryRun: boolean,
@@ -163,9 +168,11 @@ const service = (dependencies: BaseDependencies) => {
 
 			// get SubmittedData by SystemId
 			const submittedData = await getSubmittedDataBySystemId(systemId);
-			if (!notEmpty(submittedData)) {
+
+			if (!submittedData) {
 				throw new BadRequest(`No Submitted data found with systemId '${systemId}'`);
 			}
+
 			logger.info(LOG_MODULE, `Found Submitted Data with system ID '${systemId}'`);
 
 			// create array with records to be updated
@@ -173,13 +180,16 @@ const service = (dependencies: BaseDependencies) => {
 
 			// get dictionary
 			const dictionary = await getDictionaryById(submittedData.lastValidSchemaId);
+
 			if (!dictionary) {
 				throw new BadRequest(`Dictionary not found`);
 			}
+
 			// get dictionary relations
 			const dictionaryRelations = getDictionarySchemaRelations(dictionary);
 
 			const recordDependency = await searchDirectDependents(dictionaryRelations, submittedData);
+
 			if (recordDependency && recordDependency.length > 0) {
 				recordsToUpdate.push(...recordDependency);
 			}
@@ -192,11 +202,14 @@ const service = (dependencies: BaseDependencies) => {
 					deletedAt: new Date(),
 					deletedBy: userName,
 				});
+
 				logger.info(LOG_MODULE, `Successfully soft deleted Submitted Data. Total records '${updatedRecords.length}'`);
+
 				return mapRecordsSubmittedDataResponse(updatedRecords);
 			}
 
 			logger.info(LOG_MODULE, `Dry-Run Delete Submitted Data. Total records '${recordsToUpdate.length}'`);
+
 			return mapRecordsSubmittedDataResponse(recordsToUpdate);
 		},
 	};

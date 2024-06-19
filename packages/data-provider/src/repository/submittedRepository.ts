@@ -83,7 +83,7 @@ const repository = (dependencies: BaseDependencies) => {
 		getSubmittedDataByCategoryIdPaginated: async (
 			categoryId: number,
 			paginationOptions: PaginationOptions,
-		): Promise<SubmittedDataResponse[] | undefined> => {
+		): Promise<SubmittedDataResponse[]> => {
 			const { page, pageSize } = paginationOptions;
 			try {
 				return await db.query.submittedData.findMany({
@@ -112,7 +112,7 @@ const repository = (dependencies: BaseDependencies) => {
 			organization: string,
 			paginationOptions: PaginationOptions,
 			filter?: SQL,
-		): Promise<SubmittedDataResponse[] | undefined> => {
+		): Promise<SubmittedDataResponse[]> => {
 			const { page, pageSize } = paginationOptions;
 			try {
 				return await db.query.submittedData.findMany({
@@ -253,7 +253,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {string} filterData.entityName
 		 * @param {string} filterData.dataField
 		 * @param {string} filterData.dataValue
-		 * @returns {Promise<SubmittedData[] | []>}
+		 * @returns {Promise<SubmittedData[]>}
 		 */
 		getSubmittedDataFiltered: async (
 			organization: string,

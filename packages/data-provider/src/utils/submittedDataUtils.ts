@@ -101,15 +101,13 @@ const utils = (dependencies: BaseDependencies) => {
 		 * @returns {SubmittedDataResponse[]}
 		 */
 		mapRecordsSubmittedDataResponse: (submittedData: SubmittedData[]): SubmittedDataResponse[] => {
-			return submittedData.map((data) => {
-				return {
-					data: data.data,
-					entityName: data.entityName,
-					isValid: data.isValid,
-					organization: data.organization,
-					systemId: data.systemId,
-				};
-			});
+			return submittedData.map((data) => ({
+				data: data.data,
+				entityName: data.entityName,
+				isValid: data.isValid,
+				organization: data.organization,
+				systemId: data.systemId,
+			}));
 		},
 
 		/**
