@@ -10,7 +10,7 @@ const repository = (dependencies: BaseDependencies) => {
 	const { db, logger } = dependencies;
 
 	// Column name on the database used to build JSONB query
-	const jsonbColumnName = 'data';
+	const jsonbColumnName = submittedData.data.name;
 
 	const paginatedColumns: BooleanTrueObject = {
 		entityName: true,
@@ -20,11 +20,9 @@ const repository = (dependencies: BaseDependencies) => {
 		systemId: true,
 	};
 
-	// Enable or disable SoftDelete filter
-	// Manually adding softDelete filter as Drizzle currently doesn't support Soft-Delete option
-	// Important: Make sure all Queries contains this filter
-	const softDelete = true;
-	const softDeleteFilter = softDelete ? isNull(submittedData.deletedAt) : undefined;
+	// Adding softDelete filter as Drizzle currently doesn't support Soft-Delete option
+	// Important: Make sure all Queries on this repository contains this filter
+	const softDeleteFilter = isNull(submittedData.deletedAt);
 
 	return {
 		/**
