@@ -1,7 +1,7 @@
 import * as _ from 'lodash-es';
 
 import { SchemaDefinition } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
-import { Dictionary } from 'data-model/index.js';
+import { Dictionary } from 'data-model';
 
 export interface SchemaNode {
 	schemaName: string;
