@@ -144,7 +144,7 @@ const utils = (dependencies: BaseDependencies) => {
 		/**
 		 * Validate a full set of Schema Data using a Dictionary
 		 * @param {SchemasDictionary & {id: number }} dictionary
-		 * @param {Record<string, SchemaData>} schemaData
+		 * @param {Record<string, SchemaData>} schemasData
 		 * @returns an array of processedRecords and validationErrors for each Schema
 		 */
 		validateSchemas: (
