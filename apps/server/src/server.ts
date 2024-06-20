@@ -2,7 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { serve, setup } from 'swagger-ui-express';
 
-import { errorHandler, provider } from 'data-provider';
+import { errorHandler, provider } from '@overture-stack/lyric';
 import { defaultAppConfig, getServerConfig } from './config/server.js';
 import swaggerDoc from './config/swagger.js';
 import healthRouter from './routes/health.js';

@@ -5,4 +5,4 @@ const out = './docs/schema.dbml';
 const relational = true;
 
 pgGenerate({ schema, out, relational });
-console.log(`Generate DBML diagramen Completed!`);
+console.log(`Generate DBML diagram Completed!`);

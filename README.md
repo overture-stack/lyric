@@ -1,8 +1,10 @@
-# Data Submission
+# Data Submission Monorepo
+
+This project is intended to managed as a monorepo using [PNPM](https://pnpm.io/) package manager.
 
 ## Project structure
 
-This is a monorepo project managed by [PNPM](https://pnpm.io/) package manager. It's structured in `apps/` to keep deployable applications and `packages/` to keep shared libraries.
+The structure of this monorepo is app centric having `apps/` folder to keep deployable applications while `packages/` folder to keep shared libraries.
 
 ```
 .
@@ -28,13 +30,41 @@ This is a monorepo project managed by [PNPM](https://pnpm.io/) package manager. 
 
 ### Quickstart development
 
-To setup locally make sure to set following [environtment variables](#environment-variables).
+To set up this project locally, follow these steps from the root folder.
 
-Run `pnpm i` to install dependencies
+1. Install Dependencies:
 
-Use command `pnpm start:dev` described on [script commands](#script-commands-workspace) to start server in development mode running by default in port `3000`
+   Run the following command to install all necessary dependencies:
 
-Swagger URL: [http://localhost:3000/api-docs/](http://localhost:3000/api-docs/)
+   ```
+   pnpm i
+   ```
+
+2. Build the Workspace:
+
+   Use the following command to build the entire workspace:
+
+   ```
+   pnpm build:all
+   ```
+
+3. Set Environment Variables:
+
+   Refer to the [Environment Variables](#environment-variables) section to configure the required environment variables.
+
+4. Start the Server in Development Mode:
+
+   Once the build is complete, start the server in development mode using the command described in the [Script Commands](#script-commands-workspace) section:
+
+   ```
+   pnpm start:dev
+   ```
+
+   By default, the server runs on port 3030.
+
+5. Interact with API Endpoints:
+
+   A Swagger web interface is available to interact with the API endpoints. Access it at http://localhost:3030/api-docs/.
 
 ## Environment variables
 

@@ -1,25 +1,26 @@
 {
-	"name": "@overture-stack/lyric",
-	"version": "1.0.0",
-	"description": "",
+	"name": "lyric",
+	"version": "0.1.2",
+	"description": "Lyric Monorepo",
 	"scripts": {
 		"\n=================  Build  ===============": "",
 		"build:all": "pnpm -r build:all",
 		"\n============  Dev environment  ==========": "",
 		"with-env": "dotenv -e ./.env --",
-		"start:dev": "pnpm with-env pnpm --filter data-model db:migrate:dev && pnpm with-env pnpm --parallel start:dev",
+		"start:dev": "pnpm with-env pnpm --filter @overture-stack/lyric-data-model db:migrate:dev && pnpm with-env pnpm --parallel start:dev",
 		"\n====  Prod environment (compiled)  ======": "",
-		"start:prod": "pnpm --filter data-model db:migrate:workspace-prod && pnpm --filter server start:worskpace-prod"
+		"start:prod": "pnpm --filter @overture-stack/lyric-data-model db:migrate:workspace-prod && pnpm --filter server start:worskpace-prod"
 	},
 	"author": "Ontario Institute for Cancer Research",
-	"license": "ISC",
+	"license": "AGPL-3.0-or-later",
+	"private": true,
 	"devDependencies": {
-		"@types/node": "^20.11.16",
-		"dotenv-cli": "^7.4.1",
-		"prettier": "^3.2.5",
+		"@types/node": "^20.14.2",
+		"dotenv-cli": "^7.4.2",
+		"prettier": "^3.3.2",
 		"prettier-plugin-organize-imports": "^3.2.4",
 		"ts-node": "^10.9.2",
-		"typescript": "^5.3.3"
+		"typescript": "^5.4.5"
 	},
 	"type": "module"
 }

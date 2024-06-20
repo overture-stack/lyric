@@ -1,9 +1,9 @@
+import { NewSubmittedData, Submission, SubmissionData } from '@overture-stack/lyric-data-model';
 import {
 	DataRecord,
 	SchemasDictionary,
 	SchemaValidationError,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
-import { NewSubmittedData, Submission, SubmissionData } from 'data-model';
 import { DeepReadonly } from 'deep-freeze';
 
 type ObjectValues<T> = T[keyof T];

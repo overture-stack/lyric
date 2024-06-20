@@ -1,26 +1,41 @@
 {
-	"name": "data-provider",
-	"version": "1.0.0",
-	"description": "",
+	"name": "@overture-stack/lyric",
+	"version": "0.1.2",
+	"description": "Data Submission system",
 	"main": "dist/index.js",
+	"typings": "dist/index.d.ts",
 	"engines": {
 		"node": ">=20.0.0"
 	},
 	"scripts": {
 		"\n===============  Build  ===============": "",
-		"build:all": "rm -rf dist && tsc",
+		"build:all": "rimraf dist && tsc",
 		"\n===========  Dev environment  =========": "",
 		"start:dev": "nodemon"
 	},
-	"keywords": [],
+	"keywords": [
+		"overture",
+		"lyric"
+	],
 	"author": "Ontario Institute for Cancer Research",
-	"license": "ISC",
+	"files": [
+		"dist/"
+	],
+	"license": "AGPL-3.0-or-later",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/overture-stack/lyric.git"
+	},
+	"bugs": {
+		"url": "https://github.com/overture-stack/lyric/issues"
+	},
+	"homepage": "https://github.com/overture-stack/lyric#readme",
 	"type": "module",
 	"dependencies": {
+		"@overture-stack/lyric-data-model": "workspace:^",
 		"@overture-stack/sqon-builder": "^1.1.0",
 		"@overturebio-stack/lectern-client": "^1.5.0",
 		"bytes": "^3.1.2",
-		"data-model": "workspace:^",
 		"deep-freeze": "^0.0.1",
 		"dotenv": "^16.4.1",
 		"drizzle-orm": "^0.29.3",
@@ -39,9 +54,12 @@
 		"@types/express": "^4.17.21",
 		"@types/express-serve-static-core": "^4.19.0",
 		"@types/firstline": "^2.0.4",
+		"@types/lodash": "^4.17.5",
 		"@types/lodash-es": "^4.17.12",
 		"@types/multer": "^1.4.11",
 		"@types/pg": "^8.11.0",
-		"nodemon": "^3.0.3"
+		"@types/qs": "^6.9.15",
+		"nodemon": "^3.0.3",
+		"rimraf": "^5.0.7"
 	}
 }

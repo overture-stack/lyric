@@ -1,6 +1,6 @@
 import { isEmpty } from 'lodash-es';
 
-import { Category, NewCategory } from 'data-model';
+import { Category, NewCategory } from '@overture-stack/lyric-data-model';
 import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
 
