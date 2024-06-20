@@ -8,7 +8,9 @@ import * as _ from 'lodash-es';
 import { NewSubmission, Submission, SubmissionData } from '@overture-stack/lyric-data-model';
 import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
+import categoryRepository from '../repository/categoryRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
+import { InternalServerError } from './errors.js';
 import { readHeaders, tsvToJson } from './fileUtils.js';
 import {
 	ActiveSubmissionResponse,
@@ -137,37 +139,6 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Create an Open Active Submission with initial values and no schema data.
-		 * Returns the created database record.
-		 * @param {Object} input
-		 * @param {string} input.createdBy User who creates the Active Submission
-		 * @param {number} input.categoryId Category ID
-		 * @param {number} input.dictionaryId Dictionary ID
-		 * @param {string} input.organization Organization name
-		 * @returns {Promise<Submission>}
-		 */
-		createOpenActiveSubmission: async (input: {
-			createdBy: string;
-			categoryId: number;
-			dictionaryId: number;
-			organization: string;
-		}): Promise<Submission> => {
-			const submissionRepo = submissionRepository(dependencies);
-
-			const newSubmission: NewSubmission = {
-				createdBy: input.createdBy,
-				data: {},
-				dictionaryCategoryId: input.categoryId,
-				dictionaryId: input.dictionaryId,
-				errors: {},
-				organization: input.organization,
-				status: SUBMISSION_STATUS.OPEN,
-			};
-
-			return submissionRepo.save(newSubmission);
-		},
-
-		/**
 		 * Checks if object is a Submission or a SubmittedData
 		 * @param {SubmittedDataReference | SubmissionReference} toBeDetermined
 		 * @returns {boolean}
@@ -187,6 +158,47 @@ const utils = (dependencies: BaseDependencies) => {
 			mergeDataRecordsByEntityName: Record<string, DataRecordReference[]>,
 		): Record<string, SchemaData> => {
 			return _.mapValues(mergeDataRecordsByEntityName, (mappingArray) => mappingArray.map((o) => o.dataRecord));
+		},
+
+		/**
+		 * Find the current Active Submission or Create an Open Active Submission with initial values and no schema data.
+		 * @param {object} params
+		 * @param {string} params.userName Owner of the Submission
+		 * @param {number} params.categoryId Category ID of the Submission
+		 * @param {string} params.organization Organization name
+		 * @returns {Submission} An Active Submission
+		 */
+		getOrCreateActiveSubmission: async (params: {
+			userName: string;
+			categoryId: number;
+			organization: string;
+		}): Promise<Submission> => {
+			const { categoryId, userName, organization } = params;
+			const submissionRepo = submissionRepository(dependencies);
+			const categoryRepo = categoryRepository(dependencies);
+
+			const activeSubmission = await submissionRepo.getActiveSubmission({ categoryId, userName, organization });
+			if (activeSubmission) {
+				return activeSubmission;
+			}
+
+			const currentDictionary = await categoryRepo.getActiveDictionaryByCategory(categoryId);
+
+			if (!currentDictionary) {
+				throw new InternalServerError(`Dictionary in category '${categoryId}' not found`);
+			}
+
+			const newSubmissionInput: NewSubmission = {
+				createdBy: userName,
+				data: {},
+				dictionaryCategoryId: categoryId,
+				dictionaryId: currentDictionary.id,
+				errors: {},
+				organization: organization,
+				status: SUBMISSION_STATUS.OPEN,
+			};
+
+			return submissionRepo.save(newSubmissionInput);
 		},
 
 		/**

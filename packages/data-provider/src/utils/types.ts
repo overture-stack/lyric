@@ -1,8 +1,8 @@
 import { NewSubmittedData, Submission, SubmissionData } from '@overture-stack/lyric-data-model';
 import {
 	DataRecord,
-	SchemasDictionary,
 	SchemaValidationError,
+	SchemasDictionary,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { DeepReadonly } from 'deep-freeze';
 
@@ -34,6 +34,7 @@ export type CreateSubmissionStatus = ObjectValues<typeof CREATE_SUBMISSION_STATU
  * Used as a Response type on a Create new Active Submission (Upload endpoint)
  */
 export type CreateSubmissionResult = {
+	submissionId?: number;
 	status: CreateSubmissionStatus;
 	description: string;
 	inProcessEntities: string[];
@@ -150,17 +151,6 @@ export type ActiveSubmissionSummaryRepository = {
 	createdBy: string | null;
 	updatedAt: Date | null;
 	updatedBy: string | null;
-};
-
-/**
- * Rerieve Submitted Data object from repository
- */
-export type SubmittedDataRepository = {
-	data: DataRecord;
-	entityName: string;
-	isValid: boolean | null;
-	organization: string;
-	systemId: string;
 };
 
 /**
