@@ -1,5 +1,5 @@
+import { SubmittedData } from '@overture-stack/lyric-data-model';
 import { SQON } from '@overture-stack/sqon-builder';
-import { SubmittedData } from 'data-model';
 import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import dictionaryRepository from '../repository/dictionaryRepository.js';
