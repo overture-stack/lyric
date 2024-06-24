@@ -3,7 +3,6 @@ import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import getCategoryUtils from '../utils/categoryUtils.js';
 import getDictionaryUtils from '../utils/dictionaryUtils.js';
-import { NotImplemented } from '../utils/errors.js';
 
 const dictionaryService = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'DICTIONARY_SERVICE';
@@ -32,11 +31,6 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			await categoryRepo.updateCurrentDictionaryOnCategory(savedDictionary.id, savedCategory.id);
 
 			return savedDictionary;
-		},
-
-		getCurrentDictionary: async () => {
-			// TODO: Read latest dictionary from DB
-			throw new NotImplemented('This functionallity is not implemented');
 		},
 	};
 };
