@@ -17,10 +17,14 @@ const app = express();
 
 app.use(helmet());
 
+// Ping Route
 app.use('/ping', pingRouter);
+
+// Lyric Routes
+app.use('/category', lyricProvider.routers.category);
+app.use('/data', lyricProvider.routers.submittedData);
 app.use('/dictionary', lyricProvider.routers.dictionary);
 app.use('/submission', lyricProvider.routers.submission);
-app.use('/data', lyricProvider.routers.submittedData);
 
 // Swagger route
 app.use('/api-docs', serve, setup(swaggerDoc));

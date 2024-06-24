@@ -1,0 +1,52 @@
+/category:
+  get:
+    summary: List all categories
+    tags:
+      - category
+    responses:
+      200:
+        description: List all categories
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListAllCategories'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
+/category/{categoryId}:
+  get:
+    summary: Retrieve Details of an specific category
+    tags:
+      - category
+    parameters:
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID of the category
+    responses:
+      200:
+        description: Category Details
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryDetails'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'

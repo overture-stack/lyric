@@ -1,13 +1,16 @@
-import { SQL, and, count, eq } from 'drizzle-orm/sql';
+import { SQL, and, count, eq, inArray, isNull, or, sql } from 'drizzle-orm/sql';
 
 import { NewSubmittedData, SubmittedData, submittedData } from '@overture-stack/lyric-data-model';
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
-import { BooleanTrueObject, PaginationOptions, SubmittedDataRepository } from '../utils/types.js';
+import { BooleanTrueObject, PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTEDDATA_REPOSITORY';
 	const { db, logger } = dependencies;
+
+	// Column name on the database used to build JSONB query
+	const jsonbColumnName = submittedData.data.name;
 
 	const paginatedColumns: BooleanTrueObject = {
 		entityName: true,
@@ -16,6 +19,11 @@ const repository = (dependencies: BaseDependencies) => {
 		isValid: true,
 		systemId: true,
 	};
+
+	// Adding softDelete filter as Drizzle currently doesn't support Soft-Delete option
+	// Important: Make sure all Queries on this repository contains this filter
+	const softDeleteFilter = isNull(submittedData.deletedAt);
+
 	return {
 		/**
 		 * Save new SubmittedData in Database
@@ -52,7 +60,11 @@ const repository = (dependencies: BaseDependencies) => {
 		): Promise<SubmittedData[]> => {
 			try {
 				return await db.query.submittedData.findMany({
-					where: and(eq(submittedData.dictionaryCategoryId, categoryId), eq(submittedData.organization, organization)),
+					where: and(
+						eq(submittedData.dictionaryCategoryId, categoryId),
+						eq(submittedData.organization, organization),
+						softDeleteFilter,
+					),
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying SubmittedData with categoryId '${categoryId}'`, error);
@@ -69,11 +81,11 @@ const repository = (dependencies: BaseDependencies) => {
 		getSubmittedDataByCategoryIdPaginated: async (
 			categoryId: number,
 			paginationOptions: PaginationOptions,
-		): Promise<SubmittedDataRepository[] | undefined> => {
+		): Promise<SubmittedDataResponse[]> => {
 			const { page, pageSize } = paginationOptions;
 			try {
 				return await db.query.submittedData.findMany({
-					where: eq(submittedData.dictionaryCategoryId, categoryId),
+					where: and(eq(submittedData.dictionaryCategoryId, categoryId), softDeleteFilter),
 					columns: paginatedColumns,
 					orderBy: (submittedData, { asc }) => [asc(submittedData.entityName), asc(submittedData.id)],
 					limit: pageSize,
@@ -98,13 +110,14 @@ const repository = (dependencies: BaseDependencies) => {
 			organization: string,
 			paginationOptions: PaginationOptions,
 			filter?: SQL,
-		): Promise<SubmittedDataRepository[] | undefined> => {
+		): Promise<SubmittedDataResponse[]> => {
 			const { page, pageSize } = paginationOptions;
 			try {
 				return await db.query.submittedData.findMany({
 					where: and(
 						eq(submittedData.dictionaryCategoryId, categoryId),
 						eq(submittedData.organization, organization),
+						softDeleteFilter,
 						filter || undefined,
 					),
 					columns: paginatedColumns,
@@ -141,6 +154,7 @@ const repository = (dependencies: BaseDependencies) => {
 						and(
 							eq(submittedData.dictionaryCategoryId, categoryId),
 							eq(submittedData.organization, organization),
+							softDeleteFilter,
 							filter,
 						),
 					);
@@ -165,7 +179,7 @@ const repository = (dependencies: BaseDependencies) => {
 				const resultCount = await db
 					.select({ total: count() })
 					.from(submittedData)
-					.where(eq(submittedData.dictionaryCategoryId, categoryId));
+					.where(and(eq(submittedData.dictionaryCategoryId, categoryId), softDeleteFilter));
 				return resultCount[0].total;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed counting SubmittedData with categoryId '${categoryId}'`, error);
@@ -184,11 +198,82 @@ const repository = (dependencies: BaseDependencies) => {
 				const updated = await db
 					.update(submittedData)
 					.set({ ...newData, updatedAt: new Date() })
-					.where(eq(submittedData.id, submittedDataId))
+					.where(and(eq(submittedData.id, submittedDataId), softDeleteFilter))
 					.returning();
 				return updated[0];
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed updating SubmittedData`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Update multiple SubmittedData records by internal IDs
+		 * @param {number[]} submittedDataIds
+		 * @param {Partial<SubmittedData[]>} newData
+		 * @returns {Promise<SubmittedData[]>}
+		 */
+		updateMany: async (submittedDataIds: number[], newData: Partial<SubmittedData>): Promise<SubmittedData[]> => {
+			try {
+				return await db
+					.update(submittedData)
+					.set({ ...newData, updatedAt: new Date() })
+					.where(and(inArray(submittedData.id, submittedDataIds), softDeleteFilter))
+					.returning();
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed updating SubmittedData with ids ${submittedDataIds}`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Query to retrieve an unique SubmittedData record searching by System ID
+		 * Returns a SubmittedData record if found. Otherwise returns undefined
+		 * @param {string} systemId
+		 * @returns {Promise<SubmittedData | undefined>}
+		 */
+		getSubmittedDataBySystemId: async (systemId: string): Promise<SubmittedData | undefined> => {
+			try {
+				return await db.query.submittedData.findFirst({
+					where: and(eq(submittedData.systemId, systemId), softDeleteFilter),
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying SubmittedData by systemId '${systemId}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Query to retrieve submitted data filtered by JSONB field on an organization
+		 * Returns an array of SubmittedData records found or an empty array if there are no matching records
+		 * @param {string} organization
+		 * @param {Object} filterData
+		 * @param {string} filterData.entityName
+		 * @param {string} filterData.dataField
+		 * @param {string} filterData.dataValue
+		 * @returns {Promise<SubmittedData[]>}
+		 */
+		getSubmittedDataFiltered: async (
+			organization: string,
+			filterData: {
+				entityName: string;
+				dataField: string;
+				dataValue: string;
+			}[],
+		): Promise<SubmittedData[]> => {
+			const sqlDataFilter = filterData.map((filter) => {
+				return and(
+					sql.raw(`${jsonbColumnName} ->> '${filter.dataField}' IN ('${filter.dataValue}')`),
+					eq(submittedData.entityName, filter.entityName),
+				);
+			});
+
+			try {
+				return await db.query.submittedData.findMany({
+					where: and(or(...sqlDataFilter), eq(submittedData.organization, organization), softDeleteFilter),
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying SubmittedData`, error);
 				throw new ServiceUnavailable();
 			}
 		},

@@ -74,23 +74,26 @@ components:
         - inProcessEntities
       type: object
       properties:
-        status:
-          type: string
-          description: Result of uploading Submission files
-          enum: ['PROCESSING', 'INVALID_SUBMISSION', 'PARTIAL_SUBMISSION']
-        description:
-          type: string
-          description: Description of uploading Submission files
         batchErrors:
           type: array
           description: list of all batch related errors, should be empty on success
           items:
             $ref: '#/components/schemas/BatchError'
+        description:
+          type: string
+          description: Description of uploading Submission files
         inProcessEntities:
           type: array
           description: Names of the entities that will be processed
           items:
             type: string
+        status:
+          type: string
+          description: Result of uploading Submission files
+          enum: ['PROCESSING', 'INVALID_SUBMISSION', 'PARTIAL_SUBMISSION']
+        submissionId:
+          type: string
+          description: ID of the Submission
     CommitSubmissionResult:
       required:
         - status
@@ -248,6 +251,36 @@ components:
     ActiveSubmissionSummaryResult:
       $ref: '#/components/schemas/ActiveSubmissionSummary'
 
+    CategoryDetails:
+      type: object
+      properties:
+        id:
+          type: number
+          description: Id of the Category
+        dictionary:
+          type: object
+          description: Dictionary used to validate the submission
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+        name:
+          type: string
+          description: name of the Category
+        createdAt:
+          type: string
+          description: Date and time of creation
+        createdBy:
+          type: string
+          description: User name who created the submission
+        udpatedAt:
+          type: string
+          description: Date and time of latest update
+        updatedBy:
+          type: string
+          description: User name who last updated the submission
+
     GetSubmittedDataResult:
       type: object
       properties:
@@ -265,19 +298,36 @@ components:
         records:
           type: array
           items:
+            $ref: '#/components/schemas/SubmittedDataRecord'
+
+    ListAllCategories:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: number
+            description: Id of the Submission
+          name:
+            type: string
+            description: name of the Category
+
+    SubmittedDataRecord:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
             type: object
-            properties:
-              data:
-                type: array
-                items:
-                  type: object
-                  description: Content of the file in JSON format
-              entityName:
-                type: string
-              isValid:
-                type: boolean
-              organization:
-                type: string
+            description: Content of the file in JSON format
+        entityName:
+          type: string
+        isValid:
+          type: boolean
+        organization:
+          type: string
+        systemId:
+          type: string
 
     ValidationError:
       type: object
