@@ -153,6 +153,21 @@ export type ActiveSubmissionSummaryRepository = {
 	updatedBy: string | null;
 };
 
+export type CategoryDetailsResponse = {
+	id: number;
+	dictionary: { name: string; version: string };
+	name: string;
+	createdAt: string;
+	createdBy: string;
+	updatedAt: string;
+	updatedBy: string;
+};
+
+export type ListAllCategoriesResponse = {
+	id: number;
+	name: string;
+};
+
 /**
  * Submitted Raw Data information
  */

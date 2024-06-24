@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm/sql';
 
-import { Category, NewCategory, dictionaryCategories } from '@overture-stack/lyric-data-model';
+import { Category, Dictionary, NewCategory, dictionaryCategories } from '@overture-stack/lyric-data-model';
 import { SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import { ListAllCategoriesResponse } from 'src/utils/types.js';
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 
@@ -41,6 +42,43 @@ const repository = (dependencies: BaseDependencies) => {
 				return isValid;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying category with id ${categoryId}`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Get a list of category names and id
+		 * @returns {Promise<ListAllCategoriesResponse[]>}
+		 */
+		getAllCategoryNames: async (): Promise<ListAllCategoriesResponse[]> => {
+			try {
+				return await db.query.dictionaryCategories.findMany({
+					columns: {
+						id: true,
+						name: true,
+					},
+				});
+			} catch (error: any) {
+				logger.error(LOG_MODULE, `Failed querying category`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Find a Category by Id
+		 * @param {number} id Category id
+		 * @returns The Category found
+		 */
+		getCategoryById: async (id: number): Promise<(Category & { activeDictionary: Dictionary | null }) | undefined> => {
+			try {
+				return await db.query.dictionaryCategories.findFirst({
+					where: eq(dictionaryCategories.id, id),
+					with: {
+						activeDictionary: true,
+					},
+				});
+			} catch (error: any) {
+				logger.error(LOG_MODULE, `Failed querying category`, error);
 				throw new ServiceUnavailable();
 			}
 		},
