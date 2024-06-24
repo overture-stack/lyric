@@ -251,6 +251,36 @@ components:
     ActiveSubmissionSummaryResult:
       $ref: '#/components/schemas/ActiveSubmissionSummary'
 
+    CategoryDetails:
+      type: object
+      properties:
+        id:
+          type: number
+          description: Id of the Category
+        dictionary:
+          type: object
+          description: Dictionary used to validate the submission
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+        name:
+          type: string
+          description: name of the Category
+        createdAt:
+          type: string
+          description: Date and time of creation
+        createdBy:
+          type: string
+          description: User name who created the submission
+        udpatedAt:
+          type: string
+          description: Date and time of latest update
+        updatedBy:
+          type: string
+          description: User name who last updated the submission
+
     GetSubmittedDataResult:
       type: object
       properties:
@@ -269,6 +299,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SubmittedDataRecord'
+
+    ListAllCategories:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: number
+            description: Id of the Submission
+          name:
+            type: string
+            description: name of the Category
 
     SubmittedDataRecord:
       type: object
