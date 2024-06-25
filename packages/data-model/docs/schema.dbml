@@ -42,8 +42,8 @@ table submissions {
 
 table submitted_data {
   id serial [pk, not null, increment]
-  comment varchar
   data jsonb [not null]
+  deleteReason varchar
   dictionary_category_id integer [not null]
   entity_name varchar [not null]
   is_valid boolean [not null]

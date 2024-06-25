@@ -274,7 +274,7 @@ components:
           type: array
           items:
             type: object
-            description: Content of the file in JSON format
+            description: Content of the record in JSON format
         entityName:
           type: string
         isValid:

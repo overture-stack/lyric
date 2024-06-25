@@ -1,5 +1,5 @@
 {
-  "id": "81096383-b67a-4259-b500-1749be6aca5b",
+  "id": "471fbc27-4010-4957-990b-9b504d0626eb",
   "prevId": "2dc494e7-bc97-440a-889a-11df51e48b17",
   "version": "5",
   "dialect": "pg",
@@ -247,17 +247,17 @@
           "primaryKey": true,
           "notNull": true
         },
-        "comment": {
-          "name": "comment",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
         "data": {
           "name": "data",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true
+        },
+        "deleteReason": {
+          "name": "deleteReason",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
         },
         "dictionary_category_id": {
           "name": "dictionary_category_id",

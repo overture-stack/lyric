@@ -7,8 +7,8 @@ import { dictionaryCategories } from './dictionary_categories.js';
 
 export const submittedData = pgTable('submitted_data', {
 	id: serial('id').primaryKey(),
-	comment: varchar('comment'),
 	data: jsonb('data').$type<DataRecord>().notNull(),
+	deleteReason: varchar('deleteReason'),
 	dictionaryCategoryId: integer('dictionary_category_id')
 		.references(() => dictionaryCategories.id)
 		.notNull(),

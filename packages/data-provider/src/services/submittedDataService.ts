@@ -198,7 +198,7 @@ const service = (dependencies: BaseDependencies) => {
 				// Execute soft deletion on Submitted Data
 				const submittedDataIds = recordsToUpdate.map((records) => records.id);
 				const updatedRecords = await submittedDataRepo.updateMany(submittedDataIds, {
-					comment: `Soft-Delete reason: ${reason}`,
+					deleteReason: reason,
 					deletedAt: new Date(),
 					deletedBy: userName,
 				});
