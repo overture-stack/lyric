@@ -5,7 +5,7 @@ import categoryRepository from '../repository/categoryRepository.js';
 import dictionaryRepository from '../repository/dictionaryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
-import { SchemaNode, getDictionarySchemaRelations } from '../utils/dictionarySchemaRelations.js';
+import { SchemaChildNode, getDictionarySchemaRelations } from '../utils/dictionarySchemaRelations.js';
 import { BadRequest } from '../utils/errors.js';
 import submittedUtils from '../utils/submittedDataUtils.js';
 import { PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
@@ -24,12 +24,12 @@ const service = (dependencies: BaseDependencies) => {
 	/**
 	 * This function uses a dictionary children relations to query recursivaly
 	 * to return all SubmittedData that relates
-	 * @param {Record<string, SchemaNode[]>} dictionaryRelations
+	 * @param {Record<string, SchemaChildNode[]>} dictionaryRelations
 	 * @param {SubmittedData} submittedData
 	 * @returns {Promise<SubmittedData[]>}
 	 */
 	const searchDirectDependents = async (
-		dictionaryRelations: Record<string, SchemaNode[]>,
+		dictionaryRelations: Record<string, SchemaChildNode[]>,
 		submittedData: SubmittedData,
 	): Promise<SubmittedData[]> => {
 		const { getSubmittedDataFiltered } = submittedDataRepo;
@@ -40,11 +40,11 @@ const service = (dependencies: BaseDependencies) => {
 			const filterData: { entityName: string; dataField: string; dataValue: string }[] = Object.values(
 				dictionaryRelations[submittedData.entityName],
 			)
-				.filter((childrenNode) => childrenNode.parent?.fieldName)
-				.map((childrenNode) => ({
-					entityName: childrenNode.schemaName,
-					dataField: childrenNode.fieldName,
-					dataValue: submittedData.data[childrenNode.parent!.fieldName].toString(),
+				.filter((childNode) => childNode.parent?.fieldName)
+				.map((childNode) => ({
+					entityName: childNode.schemaName,
+					dataField: childNode.fieldName,
+					dataValue: submittedData.data[childNode.parent!.fieldName].toString(),
 				}));
 
 			logger.info(
