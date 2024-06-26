@@ -47,7 +47,7 @@ const service = (dependencies: BaseDependencies) => {
 					dataValue: submittedData.data[childNode.parent!.fieldName].toString(),
 				}));
 
-			logger.info(
+			logger.debug(
 				LOG_MODULE,
 				`Entity '${submittedData.entityName}' has following dependencies filter'${JSON.stringify(filterData)}'`,
 			);
