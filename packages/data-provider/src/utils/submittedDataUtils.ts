@@ -7,13 +7,7 @@ import {
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { groupBy, has } from 'lodash-es';
 import { BaseDependencies } from '../config/config.js';
-import {
-	DataRecordReference,
-	MERGE_REFERENCE_TYPE,
-	SubmittedDataReference,
-	SubmittedDataRepository,
-	SubmittedDataResponse,
-} from './types.js';
+import { DataRecordReference, MERGE_REFERENCE_TYPE, SubmittedDataReference, SubmittedDataResponse } from './types.js';
 
 const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_UTILS';
@@ -102,6 +96,21 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
+		 * Parses an array of SubmittedData objects into a more compact form used as a respone
+		 * @param {SubmittedData[]} submittedData
+		 * @returns {SubmittedDataResponse[]}
+		 */
+		mapRecordsSubmittedDataResponse: (submittedData: SubmittedData[]): SubmittedDataResponse[] => {
+			return submittedData.map((data) => ({
+				data: data.data,
+				entityName: data.entityName,
+				isValid: data.isValid,
+				organization: data.organization,
+				systemId: data.systemId,
+			}));
+		},
+
+		/**
 		 * Organize any array of Submitted Data by entityName.
 		 * @param {SubmittedData[] | undefined} submittedData
 		 * @returns {Record<string, DataRecordReference[]>}
@@ -130,24 +139,6 @@ const utils = (dependencies: BaseDependencies) => {
 			});
 
 			return mappingDataRecords;
-		},
-
-		/**
-		 * Utility to parse Raw Submitted Data into a REST Response format
-		 * Iterates each Submitted Data record and returns a formatted object
-		 * @param {SubmittedDataRepository[]} recordsArray
-		 * @returns {SubmittedDataResponse[]}
-		 */
-		parseSubmittedData: (recordsArray: SubmittedDataRepository[]): SubmittedDataResponse[] => {
-			return recordsArray.map((record) => {
-				return {
-					entityName: record.entityName,
-					data: record.data,
-					isValid: record.isValid || false,
-					organization: record.organization,
-					systemId: record.systemId,
-				};
-			});
 		},
 
 		/**

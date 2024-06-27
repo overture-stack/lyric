@@ -14,6 +14,48 @@ const controller = (dependencies: BaseDependencies) => {
 	const defaultPage = 1;
 	const defaultPageSize = 20;
 	return {
+		deleteSubmittedDataBySystemId: async (
+			req: Request<{ systemId: string }, {}, any, { dryRun: string; comment: string }>,
+			res: any,
+			next: any,
+		) => {
+			try {
+				const systemId = req.params.systemId;
+
+				// Gives false value except when query param is explicitly true
+				const dryRun = req.query.dryRun?.toLowerCase() === 'true';
+
+				const comment = req.query.comment;
+
+				logger.info(LOG_MODULE, `Request Delete Submitted Data systemId '${systemId}' dryRun '${dryRun}'`);
+
+				if (isEmptyString(systemId)) {
+					throw new BadRequest('Request is missing `systemId` parameter.');
+				}
+
+				if (isEmptyString(comment)) {
+					throw new BadRequest('Request is missing `comment` parameter.');
+				}
+
+				// TODO: get userName from auth
+				const userName = '';
+
+				const deletedRecords = await service.deleteSubmittedDataBySystemId(systemId, dryRun, comment, userName);
+
+				const response = {
+					data: deletedRecords,
+					metadata: {
+						totalRecords: deletedRecords.length,
+						dryRun,
+					},
+				};
+
+				return res.status(200).send(response);
+			} catch (error) {
+				next(error);
+			}
+		},
+
 		getSubmittedDataByCategory: async (
 			req: Request<{ categoryId: string }, {}, {}, { pageSize: string; page: string }>,
 			res: Response,
@@ -63,6 +105,7 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		},
+
 		getSubmittedDataByOrganization: async (
 			req: Request<{ categoryId: string; organization: string }, {}, {}, { page: string; pageSize: string }>,
 			res: Response,

@@ -17,6 +17,9 @@ const getRequiredConfig = (name: string) => {
 };
 
 export const defaultAppConfig: AppConfig = {
+	audit: {
+		enabled: (process.env.AUDIT_ENABLED ?? 'true').toLocaleLowerCase() === 'true',
+	},
 	db: {
 		host: getRequiredConfig('DB_HOST'),
 		port: Number(getRequiredConfig('DB_PORT')),
@@ -25,7 +28,7 @@ export const defaultAppConfig: AppConfig = {
 		password: getRequiredConfig('DB_PASSWORD'),
 	},
 	idService: {
-		useLocal: process.env.ID_USELOCAL === 'true',
+		useLocal: (process.env.ID_USELOCAL ?? 'true').toLocaleLowerCase() === 'true',
 		customAlphabet: process.env.ID_CUSTOM_ALPHABET || '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
 		customSize: Number(process.env.ID_CUSTOM_SIZE) || 21,
 	},

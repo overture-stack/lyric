@@ -321,6 +321,7 @@ const service = (dependencies: BaseDependencies) => {
 						data: record,
 						dictionaryCategoryId: categoryId,
 						entityName,
+						isValid: false, // By default New Submitted Data is created as invalid until validation process proves otherwise
 						organization: submission.organization,
 						originalSchemaId: submission.dictionaryId,
 						lastValidSchemaId: submission.dictionaryId,
