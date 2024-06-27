@@ -17,6 +17,7 @@ import getSubmittedDataUtils from '../utils/submittedDataUtils.js';
  */
 const provider = (configData: AppConfig) => {
 	const baseDeps: BaseDependencies = {
+		audit: configData.audit,
 		db: connect(configData.db),
 		logger: getLogger(configData.logger),
 		limits: configData.limits,

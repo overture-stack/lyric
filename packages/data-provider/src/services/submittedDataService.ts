@@ -159,7 +159,7 @@ const service = (dependencies: BaseDependencies) => {
 		deleteSubmittedDataBySystemId: async (
 			systemId: string,
 			dryRun: boolean,
-			reason: string,
+			comment: string,
 			userName: string,
 		): Promise<SubmittedDataResponse[]> => {
 			const { getSubmittedDataBySystemId } = submittedDataRepo;
@@ -195,20 +195,16 @@ const service = (dependencies: BaseDependencies) => {
 			}
 
 			if (dryRun === false) {
-				// Execute soft deletion on Submitted Data
-				const submittedDataIds = recordsToUpdate.map((records) => records.id);
-				const updatedRecords = await submittedDataRepo.updateMany(submittedDataIds, {
-					deleteReason: reason,
-					deletedAt: new Date(),
-					deletedBy: userName,
+				recordsToUpdate.forEach((record) => {
+					submittedDataRepo.delete(record, comment, userName);
 				});
-
-				logger.info(LOG_MODULE, `Successfully soft deleted Submitted Data. Total records '${updatedRecords.length}'`);
-
-				return mapRecordsSubmittedDataResponse(updatedRecords);
 			}
 
-			logger.info(LOG_MODULE, `Dry-Run Delete Submitted Data. Total records '${recordsToUpdate.length}'`);
+			logger.info(
+				LOG_MODULE,
+				`Dry-Run '${dryRun}'`,
+				`Delete Submitted Data. Total records '${recordsToUpdate.length}'`,
+			);
 
 			return mapRecordsSubmittedDataResponse(recordsToUpdate);
 		},

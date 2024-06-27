@@ -1,8 +1,8 @@
 import { NewSubmittedData, Submission, SubmissionData } from '@overture-stack/lyric-data-model';
 import {
 	DataRecord,
-	SchemasDictionary,
 	SchemaValidationError,
+	SchemasDictionary,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { DeepReadonly } from 'deep-freeze';
 
@@ -19,6 +19,15 @@ export const SUBMISSION_STATUS = {
 	COMMITED: 'COMMITTED',
 } as const;
 export type SubmissionStatus = ObjectValues<typeof SUBMISSION_STATUS>;
+
+/**
+ * Enum matching Audit Action in database
+ */
+export const AUDIT_ACTION = {
+	UPDATE: 'UPDATE',
+	DELETE: 'DELETE',
+} as const;
+export type AuditAction = ObjectValues<typeof AUDIT_ACTION>;
 
 /**
  * Enum used in the Reponse on Create new Submissions

@@ -26,8 +26,15 @@
 		{
 			"idx": 3,
 			"version": "5",
-			"when": 1719340872051,
-			"tag": "0003_add_soft_delete_submitted_data",
+			"when": 1719492640107,
+			"tag": "0003_set_not_null_columns_submitted_data",
+			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "5",
+			"when": 1719494133601,
+			"tag": "0004_audit_submitted_data",
 			"breakpoints": true
 		}
 	]

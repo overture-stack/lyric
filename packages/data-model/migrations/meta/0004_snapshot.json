@@ -1,9 +1,143 @@
 {
-  "id": "9e8a03e9-3a68-4cdd-b4dc-7e66f74ac100",
-  "prevId": "2dc494e7-bc97-440a-889a-11df51e48b17",
+  "id": "22070b4f-c12f-4daa-80c2-7a7afa261d4e",
+  "prevId": "9e8a03e9-3a68-4cdd-b4dc-7e66f74ac100",
   "version": "5",
   "dialect": "pg",
   "tables": {
+    "audit_submitted_data": {
+      "name": "audit_submitted_data",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "audit_action",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "comment": {
+          "name": "comment",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dictionary_category_id": {
+          "name": "dictionary_category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_name": {
+          "name": "entity_name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_valid": {
+          "name": "is_valid",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_valid_schema_id": {
+          "name": "last_valid_schema_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "new_data": {
+          "name": "new_data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "old_data": {
+          "name": "old_data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "organization": {
+          "name": "organization",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "original_schema_id": {
+          "name": "original_schema_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "system_id": {
+          "name": "system_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updatedBy": {
+          "name": "updatedBy",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "audit_submitted_data_dictionary_category_id_dictionary_categories_id_fk": {
+          "name": "audit_submitted_data_dictionary_category_id_dictionary_categories_id_fk",
+          "tableFrom": "audit_submitted_data",
+          "tableTo": "dictionary_categories",
+          "columnsFrom": [
+            "dictionary_category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "audit_submitted_data_last_valid_schema_id_dictionaries_id_fk": {
+          "name": "audit_submitted_data_last_valid_schema_id_dictionaries_id_fk",
+          "tableFrom": "audit_submitted_data",
+          "tableTo": "dictionaries",
+          "columnsFrom": [
+            "last_valid_schema_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "audit_submitted_data_original_schema_id_dictionaries_id_fk": {
+          "name": "audit_submitted_data_original_schema_id_dictionaries_id_fk",
+          "tableFrom": "audit_submitted_data",
+          "tableTo": "dictionaries",
+          "columnsFrom": [
+            "original_schema_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
     "dictionaries": {
       "name": "dictionaries",
       "schema": "",
@@ -377,6 +511,13 @@
     }
   },
   "enums": {
+    "audit_action": {
+      "name": "audit_action",
+      "values": {
+        "UPDATE": "UPDATE",
+        "DELETE": "DELETE"
+      }
+    },
     "submission_status": {
       "name": "submission_status",
       "values": {
