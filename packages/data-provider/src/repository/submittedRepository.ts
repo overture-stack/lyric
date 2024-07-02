@@ -13,7 +13,7 @@ import { AUDIT_ACTION, BooleanTrueObject, PaginationOptions, SubmittedDataRespon
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTEDDATA_REPOSITORY';
-	const { db, logger, audit } = dependencies;
+	const { db, logger, features } = dependencies;
 
 	const auditDeleteSubmittedData = async (data: SubmittedData, comment: string, userName: string) => {
 		const newAudit: NewAuditSubmittedData = {
@@ -48,7 +48,7 @@ const repository = (dependencies: BaseDependencies) => {
 		delete: async (data: SubmittedData, comment: string, userName: string) => {
 			const deletedRecord = await db.delete(submittedData).where(eq(submittedData.id, data.id));
 
-			if (audit.enabled) {
+			if (features?.audit?.enabled) {
 				await auditDeleteSubmittedData(data, comment, userName);
 			}
 

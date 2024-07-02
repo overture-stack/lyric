@@ -14,6 +14,10 @@ export type DbConfig = {
 	password: string;
 };
 
+export type FeaturesConfig = {
+	audit?: AuditConfig;
+};
+
 export type SchemaServiceConfig = {
 	url: string;
 };
@@ -39,21 +43,21 @@ export type IdServiceConfig = {
  */
 export type AppConfig = {
 	db: DbConfig;
+	features?: FeaturesConfig;
+	idService: IdServiceConfig;
 	limits: LimitsConfig;
 	logger: LoggerConfig;
 	schemaService: SchemaServiceConfig;
-	idService: IdServiceConfig;
-	audit: AuditConfig;
 };
 
 /**
  * Base Dependencies required for utils/services
  */
 export interface BaseDependencies {
-	audit: AuditConfig;
 	db: NodePgDatabase<typeof schema>;
-	logger: Logger;
-	limits: LimitsConfig;
-	schemaService: SchemaServiceConfig;
+	features?: FeaturesConfig;
 	idService: IdServiceConfig;
+	limits: LimitsConfig;
+	logger: Logger;
+	schemaService: SchemaServiceConfig;
 }
