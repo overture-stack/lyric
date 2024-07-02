@@ -8,6 +8,17 @@ export const getServerConfig = () => {
 	};
 };
 
+export const getBoolean = (env: any, defaultValue: boolean): boolean => {
+	switch ((env ?? '').toLocaleLowerCase()) {
+		case 'true':
+			return true;
+		case 'false':
+			return false;
+		default:
+			return defaultValue;
+	}
+};
+
 const getRequiredConfig = (name: string) => {
 	const value = process.env[name];
 	if (!value) {
@@ -18,7 +29,7 @@ const getRequiredConfig = (name: string) => {
 
 export const defaultAppConfig: AppConfig = {
 	audit: {
-		enabled: (process.env.AUDIT_ENABLED ?? 'true').toLocaleLowerCase() === 'true',
+		enabled: getBoolean(process.env.AUDIT_ENABLED, true),
 	},
 	db: {
 		host: getRequiredConfig('DB_HOST'),
@@ -28,7 +39,7 @@ export const defaultAppConfig: AppConfig = {
 		password: getRequiredConfig('DB_PASSWORD'),
 	},
 	idService: {
-		useLocal: (process.env.ID_USELOCAL ?? 'true').toLocaleLowerCase() === 'true',
+		useLocal: getBoolean(process.env.ID_USELOCAL, true),
 		customAlphabet: process.env.ID_CUSTOM_ALPHABET || '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
 		customSize: Number(process.env.ID_CUSTOM_SIZE) || 21,
 	},
