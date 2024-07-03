@@ -18,10 +18,13 @@ import getSubmittedDataUtils from '../utils/submittedDataUtils.js';
 const provider = (configData: AppConfig) => {
 	const baseDeps: BaseDependencies = {
 		db: connect(configData.db),
-		logger: getLogger(configData.logger),
-		limits: configData.limits,
-		schemaService: configData.schemaService,
+		features: {
+			audit: configData.features?.audit,
+		},
 		idService: configData.idService,
+		limits: configData.limits,
+		logger: getLogger(configData.logger),
+		schemaService: configData.schemaService,
 	};
 
 	return {
