@@ -15,12 +15,13 @@ export const auditSubmittedData = pgTable('audit_submitted_data', {
 		.references(() => dictionaryCategories.id)
 		.notNull(),
 	entityName: varchar('entity_name').notNull(),
-	isValid: boolean('is_valid').notNull(),
 	lastValidSchemaId: integer('last_valid_schema_id')
 		.references(() => dictionaries.id)
 		.notNull(),
-	new_data: jsonb('new_data').$type<DataRecord>(),
-	old_data: jsonb('old_data').$type<DataRecord>(),
+	newData: jsonb('new_data').$type<DataRecord>(),
+	newDataIsValid: boolean('new_data_is_valid').notNull(),
+	oldData: jsonb('old_data').$type<DataRecord>(),
+	oldDataIsValid: boolean('old_data_is_valid').notNull(),
 	organization: varchar('organization').notNull(),
 	originalSchemaId: integer('original_schema_id')
 		.references(() => dictionaries.id)

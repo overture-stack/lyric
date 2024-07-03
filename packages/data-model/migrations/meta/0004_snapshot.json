@@ -1,5 +1,5 @@
 {
-  "id": "22070b4f-c12f-4daa-80c2-7a7afa261d4e",
+  "id": "a725194d-2ae7-4b06-a226-94a70942923a",
   "prevId": "9e8a03e9-3a68-4cdd-b4dc-7e66f74ac100",
   "version": "5",
   "dialect": "pg",
@@ -38,12 +38,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "is_valid": {
-          "name": "is_valid",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
         "last_valid_schema_id": {
           "name": "last_valid_schema_id",
           "type": "integer",
@@ -56,11 +50,23 @@
           "primaryKey": false,
           "notNull": false
         },
+        "new_data_is_valid": {
+          "name": "new_data_is_valid",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
         "old_data": {
           "name": "old_data",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
+        },
+        "old_data_is_valid": {
+          "name": "old_data_is_valid",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
         },
         "organization": {
           "name": "organization",

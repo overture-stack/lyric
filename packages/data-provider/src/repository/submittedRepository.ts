@@ -21,9 +21,11 @@ const repository = (dependencies: BaseDependencies) => {
 			comment: comment,
 			dictionaryCategoryId: data.dictionaryCategoryId,
 			entityName: data.entityName,
-			isValid: data.isValid,
 			lastValidSchemaId: data.lastValidSchemaId,
-			old_data: data.data,
+			newData: null, // on delete event, new data is set to null and not valid
+			newDataIsValid: false,
+			oldData: data.data,
+			oldDataIsValid: data.isValid,
 			organization: data.organization,
 			originalSchemaId: data.originalSchemaId,
 			systemId: data.systemId,

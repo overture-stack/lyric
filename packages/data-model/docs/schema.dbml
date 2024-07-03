@@ -17,10 +17,11 @@ table audit_submitted_data {
   comment varchar
   dictionary_category_id integer [not null]
   entity_name varchar [not null]
-  is_valid boolean [not null]
   last_valid_schema_id integer [not null]
   new_data jsonb
+  new_data_is_valid boolean [not null]
   old_data jsonb
+  old_data_is_valid boolean [not null]
   organization varchar [not null]
   original_schema_id integer [not null]
   system_id varchar [not null]
