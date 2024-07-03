@@ -22,6 +22,20 @@
 			"when": 1717705153555,
 			"tag": "0002_set_not_null_columns_submissions",
 			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "5",
+			"when": 1719492640107,
+			"tag": "0003_set_not_null_columns_submitted_data",
+			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "5",
+			"when": 1720006396868,
+			"tag": "0004_audit_submitted_data",
+			"breakpoints": true
 		}
 	]
 }

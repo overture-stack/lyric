@@ -20,7 +20,9 @@ export const submissions = pgTable('submissions', {
 	dictionaryCategoryId: integer('dictionary_category_id')
 		.references(() => dictionaryCategories.id)
 		.notNull(),
-	dictionaryId: integer('dictionary_id').references(() => dictionaries.id),
+	dictionaryId: integer('dictionary_id')
+		.references(() => dictionaries.id)
+		.notNull(),
 	errors: jsonb('errors').$type<Record<string, SchemaValidationError[]>>(),
 	organization: varchar('organization').notNull(),
 	status: submissionStatusEnum('status').notNull(),

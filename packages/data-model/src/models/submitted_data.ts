@@ -8,12 +8,18 @@ import { dictionaryCategories } from './dictionary_categories.js';
 export const submittedData = pgTable('submitted_data', {
 	id: serial('id').primaryKey(),
 	data: jsonb('data').$type<DataRecord>().notNull(),
-	dictionaryCategoryId: integer('dictionary_category_id').references(() => dictionaryCategories.id),
+	dictionaryCategoryId: integer('dictionary_category_id')
+		.references(() => dictionaryCategories.id)
+		.notNull(),
 	entityName: varchar('entity_name').notNull(),
-	isValid: boolean('is_valid'),
-	lastValidSchemaId: integer('last_valid_schema_id').references(() => dictionaries.id),
+	isValid: boolean('is_valid').notNull(),
+	lastValidSchemaId: integer('last_valid_schema_id')
+		.references(() => dictionaries.id)
+		.notNull(),
 	organization: varchar('organization').notNull(),
-	originalSchemaId: integer('original_schema_id').references(() => dictionaries.id),
+	originalSchemaId: integer('original_schema_id')
+		.references(() => dictionaries.id)
+		.notNull(),
 	systemId: varchar('system_id').unique().notNull(),
 	createdAt: timestamp('created_at').defaultNow(),
 	createdBy: varchar('created_by'),

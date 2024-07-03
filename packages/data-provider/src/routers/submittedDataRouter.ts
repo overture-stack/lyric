@@ -27,6 +27,8 @@ const router = (dependencies: BaseDependencies): Router => {
 		submittedDataController(dependencies).getSubmittedDataByQuery,
 	);
 
+	router.delete(`/:systemId`, auth, submittedDataController(dependencies).deleteSubmittedDataBySystemId);
+
 	return router;
 };
 
