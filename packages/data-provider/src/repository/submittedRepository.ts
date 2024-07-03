@@ -81,6 +81,26 @@ const repository = (dependencies: BaseDependencies) => {
 		},
 
 		/**
+		 * Returns a list of all organizations found by category ID
+		 * @param {number} categoryId
+		 * @returns
+		 */
+		getAllOrganizationsByCategoryId: async (categoryId: number): Promise<string[]> => {
+			try {
+				const resultQuery = await db
+					.selectDistinct({ organization: submittedData.organization })
+					.from(submittedData)
+					.where(eq(submittedData.dictionaryCategoryId, categoryId))
+					.orderBy(submittedData.organization);
+
+				return resultQuery.map((record) => record.organization);
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying SubmittedData with categoryId '${categoryId}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
 		 * Find SubmittedData by category ID and organization
 		 * @param {number} categoryId Category ID
 		 * @param {string} organization Organization Name
