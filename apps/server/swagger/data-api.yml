@@ -167,10 +167,10 @@
         schema:
           default: false
           type: boolean
-      - name: reason
-        description: Reason why the record is deleted
+      - name: comment
+        description: Comment explaining the reason for deletion.
         in: query
-        required: true
+        required: false
         schema:
           type: string
     responses:

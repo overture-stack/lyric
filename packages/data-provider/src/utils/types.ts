@@ -21,6 +21,15 @@ export const SUBMISSION_STATUS = {
 export type SubmissionStatus = ObjectValues<typeof SUBMISSION_STATUS>;
 
 /**
+ * Enum matching Audit Action in database
+ */
+export const AUDIT_ACTION = {
+	UPDATE: 'UPDATE',
+	DELETE: 'DELETE',
+} as const;
+export type AuditAction = ObjectValues<typeof AUDIT_ACTION>;
+
+/**
  * Enum used in the Reponse on Create new Submissions
  */
 export const CREATE_SUBMISSION_STATUS = {

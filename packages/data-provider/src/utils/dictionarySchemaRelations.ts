@@ -1,29 +1,28 @@
 import { Dictionary } from '@overture-stack/lyric-data-model';
-import { SchemaDefinition } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
-export interface SchemaNode {
+export interface SchemaParentNode {
 	schemaName: string;
 	fieldName: string;
-	parent?: SchemaNode;
+}
+export interface SchemaChildNode {
+	schemaName: string;
+	fieldName: string;
+	parent: SchemaParentNode;
 }
 
 /**
  * Returns all the children and it's relations by each schema on a Dictionary
  * @param {Dictionary} dictionary
- * @returns {Record<string, SchemaNode[]>}
+ * @returns {Record<string, SchemaChildNode[]>}
  */
-export const getDictionarySchemaRelations = (dictionary: Dictionary): Record<string, SchemaNode[]> => {
-	const dictionaryRelations: Record<string, SchemaNode[]> = {};
-
-	dictionary.dictionary.map((schemaDefinition: SchemaDefinition) => {
-		const childrenSchemaName = schemaDefinition.name;
-
-		schemaDefinition.restrictions?.foreignKey?.map((foreignKey) => {
+export const getDictionarySchemaRelations = (dictionary: Dictionary): Record<string, SchemaChildNode[]> => {
+	return dictionary.dictionary.reduce<Record<string, SchemaChildNode[]>>((acc, schemaDefinition) => {
+		schemaDefinition.restrictions?.foreignKey?.reduce((acc, foreignKey) => {
 			const parentSchemaName = foreignKey.schema;
 
-			foreignKey.mappings.map((mapping) => {
-				const childrenNode: SchemaNode = {
-					schemaName: childrenSchemaName,
+			return foreignKey.mappings.reduce((mappingAccumulator, mapping) => {
+				const childNode: SchemaChildNode = {
+					schemaName: schemaDefinition.name,
 					fieldName: mapping.local,
 					parent: {
 						schemaName: parentSchemaName,
@@ -31,11 +30,10 @@ export const getDictionarySchemaRelations = (dictionary: Dictionary): Record<str
 					},
 				};
 
-				dictionaryRelations[parentSchemaName] = dictionaryRelations[parentSchemaName] || [];
-				dictionaryRelations[parentSchemaName].push(childrenNode);
-			});
-		});
-	});
-
-	return dictionaryRelations;
+				mappingAccumulator[parentSchemaName] = (mappingAccumulator[parentSchemaName] || []).concat(childNode);
+				return mappingAccumulator;
+			}, acc);
+		}, acc);
+		return acc;
+	}, {});
 };

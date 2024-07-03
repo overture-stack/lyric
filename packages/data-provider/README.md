@@ -23,6 +23,11 @@ const appConfig: AppConfig = {
 		user:[INSERT_DB_USER],
 		password: [INSERT_DB_PASSWORD],
 	},
+	features: {
+		audit: {
+			enabled: [INSERT_AUDIT_ENABLED]
+		}
+	},
 	schemaService: {
 		url: [INSERT_LECTERN_URL],
 	},

@@ -2,12 +2,20 @@ import * as schema from '@overture-stack/lyric-data-model';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Logger } from './logger.js';
 
+export type AuditConfig = {
+	enabled: boolean;
+};
+
 export type DbConfig = {
 	host: string;
 	port: number;
 	database: string;
 	user: string;
 	password: string;
+};
+
+export type FeaturesConfig = {
+	audit?: AuditConfig;
 };
 
 export type SchemaServiceConfig = {
@@ -35,10 +43,11 @@ export type IdServiceConfig = {
  */
 export type AppConfig = {
 	db: DbConfig;
+	features?: FeaturesConfig;
+	idService: IdServiceConfig;
 	limits: LimitsConfig;
 	logger: LoggerConfig;
 	schemaService: SchemaServiceConfig;
-	idService: IdServiceConfig;
 };
 
 /**
@@ -46,8 +55,9 @@ export type AppConfig = {
  */
 export interface BaseDependencies {
 	db: NodePgDatabase<typeof schema>;
-	logger: Logger;
-	limits: LimitsConfig;
-	schemaService: SchemaServiceConfig;
+	features?: FeaturesConfig;
 	idService: IdServiceConfig;
+	limits: LimitsConfig;
+	logger: Logger;
+	schemaService: SchemaServiceConfig;
 }
