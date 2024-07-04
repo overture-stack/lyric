@@ -1,41 +1,48 @@
 {
-	"version": "5",
-	"dialect": "pg",
-	"entries": [
-		{
-			"idx": 0,
-			"version": "5",
-			"when": 1714500467099,
-			"tag": "0000_init_db",
-			"breakpoints": true
-		},
-		{
-			"idx": 1,
-			"version": "5",
-			"when": 1716835188695,
-			"tag": "0001_add_system_id_to_submitted_data",
-			"breakpoints": true
-		},
-		{
-			"idx": 2,
-			"version": "5",
-			"when": 1717705153555,
-			"tag": "0002_set_not_null_columns_submissions",
-			"breakpoints": true
-		},
-		{
-			"idx": 3,
-			"version": "5",
-			"when": 1719492640107,
-			"tag": "0003_set_not_null_columns_submitted_data",
-			"breakpoints": true
-		},
-		{
-			"idx": 4,
-			"version": "5",
-			"when": 1720006396868,
-			"tag": "0004_audit_submitted_data",
-			"breakpoints": true
-		}
-	]
+  "version": "5",
+  "dialect": "pg",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1714500467099,
+      "tag": "0000_init_db",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1716835188695,
+      "tag": "0001_add_system_id_to_submitted_data",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1717705153555,
+      "tag": "0002_set_not_null_columns_submissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1719492640107,
+      "tag": "0003_set_not_null_columns_submitted_data",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1720006396868,
+      "tag": "0004_audit_submitted_data",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1720102734364,
+      "tag": "0005_remove_category_id_from_dictionary",
+      "breakpoints": true
+    }
+  ]
 }

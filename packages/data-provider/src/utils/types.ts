@@ -60,6 +60,17 @@ export type CommitSubmissionResult = {
 };
 
 /**
+ * Response type on Register new Dictionary
+ */
+export type RegisterDictionaryResult = {
+	categoryId: number;
+	categoryName: string;
+	dictionary: {};
+	name: string;
+	version: string;
+};
+
+/**
  * File upload validation error types
  */
 export const BATCH_ERROR_TYPE = {

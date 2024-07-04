@@ -16,14 +16,12 @@ const utils = (dependencies: BaseDependencies) => {
 		 * Creates a new dictionary only if it doesn't exist or returns if it already exists
 		 * @param dictionaryName The name of the dictionary to create
 		 * @param version The version of the dictionary to create
-		 * @param category The category object to which this dictionary belongs
 		 * @param dictionary The Schema of the dictionary
 		 * @returns The new dictionary created or the existing one
 		 */
 		createDictionaryIfDoesNotExist: async (
 			dictionaryName: string,
 			version: string,
-			category: any,
 			schemas: SchemaDefinition[],
 		): Promise<Dictionary> => {
 			try {
@@ -36,7 +34,6 @@ const utils = (dependencies: BaseDependencies) => {
 				const newDictionary: NewDictionary = {
 					name: dictionaryName,
 					version: version,
-					dictionaryCategoryId: category?.id,
 					dictionary: schemas,
 				};
 				const savedDictionary = await dictionaryRepo.save(newDictionary);

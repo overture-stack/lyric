@@ -1,4 +1,4 @@
-import { Dictionary } from '@overture-stack/lyric-data-model';
+import { Category, Dictionary } from '@overture-stack/lyric-data-model';
 import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import getCategoryUtils from '../utils/categoryUtils.js';
@@ -8,7 +8,11 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'DICTIONARY_SERVICE';
 	const { logger } = dependencies;
 	return {
-		register: async (categoryName: string, dictionaryName: string, version: string): Promise<Dictionary> => {
+		register: async (
+			categoryName: string,
+			dictionaryName: string,
+			version: string,
+		): Promise<{ dictionary: Dictionary; category: Category }> => {
 			logger.debug(
 				LOG_MODULE,
 				`Register new dictionary categoryName '${categoryName}' dictionaryName '${dictionaryName}' version '${version}'`,
@@ -21,16 +25,11 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			const { createDictionaryIfDoesNotExist, fetchDictionaryByVersion } = getDictionaryUtils(dependencies);
 			const dictionary = await fetchDictionaryByVersion(dictionaryName, version);
 
-			const savedDictionary = await createDictionaryIfDoesNotExist(
-				dictionaryName,
-				version,
-				savedCategory,
-				dictionary.schemas,
-			);
+			const savedDictionary = await createDictionaryIfDoesNotExist(dictionaryName, version, dictionary.schemas);
 
 			await categoryRepo.updateCurrentDictionaryOnCategory(savedDictionary.id, savedCategory.id);
 
-			return savedDictionary;
+			return { dictionary: savedDictionary, category: savedCategory };
 		},
 	};
 };

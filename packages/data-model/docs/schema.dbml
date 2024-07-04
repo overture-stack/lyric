@@ -32,7 +32,6 @@ table audit_submitted_data {
 table dictionaries {
   id serial [pk, not null, increment]
   dictionary jsonb [not null]
-  dictionary_category_id integer
   name varchar [not null]
   version varchar [not null]
   created_at timestamp [default: `now()`]
@@ -86,8 +85,6 @@ ref: audit_submitted_data.last_valid_schema_id - dictionaries.id
 ref: audit_submitted_data.original_schema_id - dictionaries.id
 
 ref: dictionary_categories.active_dictionary_id - dictionaries.id
-
-ref: dictionaries.dictionary_category_id > dictionary_categories.id
 
 ref: submissions.dictionary_id - dictionaries.id
 

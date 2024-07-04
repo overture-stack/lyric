@@ -8,22 +8,19 @@ components:
         application/json:
           schema:
             $ref: '#/components/responses/Error'
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          decription: Description of the error
+
     NotFound:
       description: Requested resource could not be found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/responses/Error'
-
-    StatusConflict:
-      description: Error response indicating a conflict in a Submission Status
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/responses/Error'
-
-    UnauthorizedError:
-      description: Access token is missing or invalid
       content:
         application/json:
           schema:
@@ -43,86 +40,27 @@ components:
           schema:
             $ref: '#/components/responses/Error'
 
-    Error:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Error type
-        message:
-          type: string
-          decription: Description of the error
+    StatusConflict:
+      description: Error response indicating a conflict in a Submission Status
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
+
+    UnauthorizedError:
+      description: Access token is missing or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
 
   schemas:
-    Health:
-      type: object
-      properties:
-        uptime:
-          type: string
-          description: Number of seconds the current Node.js process has been running
-        message:
-          type: string
-          description: Status of the service
-        timestamp:
-          type: string
-          description: Current system's time in milliseconds since the Unix epoch
-    CreateSubmissionResult:
-      required:
-        - status
-        - description
-        - batchErrors
-        - inProcessEntities
-      type: object
-      properties:
-        batchErrors:
-          type: array
-          description: list of all batch related errors, should be empty on success
-          items:
-            $ref: '#/components/schemas/BatchError'
-        description:
-          type: string
-          description: Description of uploading Submission files
-        inProcessEntities:
-          type: array
-          description: Names of the entities that will be processed
-          items:
-            type: string
-        status:
-          type: string
-          description: Result of uploading Submission files
-          enum: ['PROCESSING', 'INVALID_SUBMISSION', 'PARTIAL_SUBMISSION']
-        submissionId:
-          type: string
-          description: ID of the Submission
-    CommitSubmissionResult:
-      required:
-        - status
-        - dictionary
-      type: object
-      properties:
-        status:
-          type: string
-          description: Result of Commiting Submission
-          enum: ['PROCESSING']
-        dictionary:
-          type: object
-          description: The dictionary used to validate the submission
-          properties:
-            name:
-              type: string
-            version:
-              type: string
-        processedEntities:
-          type: array
-          description: Names of the entities that will be processed
-          items:
-            type: string
     ActiveSubmissionResult:
       type: object
       properties:
         id:
           type: number
-          description: Id of the Submission
+          description: ID of the Submission
         data:
           type: object
           additionalProperties:
@@ -181,12 +119,17 @@ components:
           type: string
           description: User name who last updated the submission
 
+    ActiveSubmissionsSummaryResult:
+      type: array
+      items:
+        $ref: '#/components/schemas/ActiveSubmissionSummary'
+
     ActiveSubmissionSummary:
       type: object
       properties:
         id:
           type: number
-          description: Id of the Submission
+          description: ID of the Submission
         data:
           type: object
           additionalProperties:
@@ -243,20 +186,38 @@ components:
           type: string
           description: User name who last updated the submission
 
-    ActiveSubmissionsSummaryResult:
-      type: array
-      items:
-        $ref: '#/components/schemas/ActiveSubmissionSummary'
-
     ActiveSubmissionSummaryResult:
       $ref: '#/components/schemas/ActiveSubmissionSummary'
+
+    BatchError:
+      type: object
+      properties:
+        message:
+          type: string
+          description: A message describing the error
+        type:
+          type: string
+          description: The type of error
+          enum:
+            - INCORRECT_SECTION
+            - INVALID_FILE_EXTENSION
+            - INVALID_FILE_NAME
+            - MISSING_REQUIRED_HEADER
+            - MULTIPLE_TYPED_FILES
+            - TSV_PARSING_FAILED
+            - UNRECOGNIZED_HEADER
+        batchName:
+          type: array
+          description: List of batch names causing error
+          items:
+            type: string
 
     CategoryDetails:
       type: object
       properties:
         id:
           type: number
-          description: Id of the Category
+          description: ID of the Category
         dictionary:
           type: object
           description: Dictionary used to validate the submission
@@ -267,7 +228,7 @@ components:
               type: string
         name:
           type: string
-          description: name of the Category
+          description: Name of the Category
         organizations:
           type: array
           items:
@@ -285,6 +246,59 @@ components:
         updatedBy:
           type: string
           description: User name who last updated the submission
+
+    CommitSubmissionResult:
+      required:
+        - status
+        - dictionary
+      type: object
+      properties:
+        status:
+          type: string
+          description: Result of Commiting Submission
+          enum: ['PROCESSING']
+        dictionary:
+          type: object
+          description: The dictionary used to validate the submission
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+        processedEntities:
+          type: array
+          description: Names of the entities that will be processed
+          items:
+            type: string
+
+    CreateSubmissionResult:
+      required:
+        - status
+        - description
+        - batchErrors
+        - inProcessEntities
+      type: object
+      properties:
+        batchErrors:
+          type: array
+          description: List of all batch related errors, should be empty on success
+          items:
+            $ref: '#/components/schemas/BatchError'
+        description:
+          type: string
+          description: Description of uploading Submission files
+        inProcessEntities:
+          type: array
+          description: Names of the entities that will be processed
+          items:
+            type: string
+        status:
+          type: string
+          description: Result of uploading Submission files
+          enum: ['PROCESSING', 'INVALID_SUBMISSION', 'PARTIAL_SUBMISSION']
+        submissionId:
+          type: string
+          description: ID of the Submission
 
     GetSubmittedDataResult:
       type: object
@@ -305,6 +319,19 @@ components:
           items:
             $ref: '#/components/schemas/SubmittedDataRecord'
 
+    Health:
+      type: object
+      properties:
+        uptime:
+          type: string
+          description: Number of seconds the current Node.js process has been running
+        message:
+          type: string
+          description: Status of the service
+        timestamp:
+          type: string
+          description: Current system's time in milliseconds since the Unix epoch
+
     ListAllCategories:
       type: array
       items:
@@ -312,10 +339,29 @@ components:
         properties:
           id:
             type: number
-            description: Id of the Submission
+            description: ID of the Submission
           name:
             type: string
-            description: name of the Category
+            description: Name of the Category
+
+    RegisterDictionaryResult:
+      type: object
+      properties:
+        categoryId:
+          type: number
+          description: ID of the Category
+        categoryName:
+          type: string
+          description: Name of the Category
+        dictionary:
+          type: object
+          description: Schema of the Dictionary
+        name:
+          type: string
+          description: Name of the Dictionary
+        version:
+          type: string
+          description: Version of the Dictionary
 
     SubmittedDataRecord:
       type: object
@@ -343,14 +389,14 @@ components:
       properties:
         fieldName:
           type: string
-          description: the field name that the error is related to
+          description: The field name that the error is related to
         info:
           type: object
-          description: contains context information related to the error
+          description: Contains context information related to the error
           properties:
             value:
               type: array
-              description: the faulty value
+              description: The faulty value
               items:
                 type: string
         index:
@@ -359,7 +405,7 @@ components:
           description: Index of the row for this error (starting from 0)
         errorType:
           type: string
-          description: the type of error
+          description: The type of error
           enum:
             - INVALID_BY_RANGE
             - INVALID_BY_REGEX
@@ -371,25 +417,3 @@ components:
         message:
           type: string
           description: Details of the error
-    BatchError:
-      type: object
-      properties:
-        message:
-          type: string
-          description: a message describing the error
-        type:
-          type: string
-          description: the type of error
-          enum:
-            - INCORRECT_SECTION
-            - INVALID_FILE_EXTENSION
-            - INVALID_FILE_NAME
-            - MISSING_REQUIRED_HEADER
-            - MULTIPLE_TYPED_FILES
-            - TSV_PARSING_FAILED
-            - UNRECOGNIZED_HEADER
-        batchName:
-          type: array
-          description: list of batch names causing error
-          items:
-            type: string
