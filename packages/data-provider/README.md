@@ -16,15 +16,17 @@ Import `AppConfig` and `provider` from `@overture-stack/lyric` module to initial
 import { AppConfig, provider } from '@overture-stack/lyric';
 
 const appConfig: AppConfig = {
-	audit: {
-		enabled: [INSERT_AUDIT_ENABLED]
-	},
 	db: {
 		host: [INSERT_DB_HOST],
 		port: [INSERT_DB_PORT],
 		database: [INSERT_DB_NAME],
 		user:[INSERT_DB_USER],
 		password: [INSERT_DB_PASSWORD],
+	},
+	features: {
+		audit: {
+			enabled: [INSERT_AUDIT_ENABLED]
+		}
 	},
 	schemaService: {
 		url: [INSERT_LECTERN_URL],

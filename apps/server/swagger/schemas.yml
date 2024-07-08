@@ -74,23 +74,26 @@ components:
         - inProcessEntities
       type: object
       properties:
-        status:
-          type: string
-          description: Result of uploading Submission files
-          enum: ['PROCESSING', 'INVALID_SUBMISSION', 'PARTIAL_SUBMISSION']
-        description:
-          type: string
-          description: Description of uploading Submission files
         batchErrors:
           type: array
           description: list of all batch related errors, should be empty on success
           items:
             $ref: '#/components/schemas/BatchError'
+        description:
+          type: string
+          description: Description of uploading Submission files
         inProcessEntities:
           type: array
           description: Names of the entities that will be processed
           items:
             type: string
+        status:
+          type: string
+          description: Result of uploading Submission files
+          enum: ['PROCESSING', 'INVALID_SUBMISSION', 'PARTIAL_SUBMISSION']
+        submissionId:
+          type: string
+          description: ID of the Submission
     CommitSubmissionResult:
       required:
         - status

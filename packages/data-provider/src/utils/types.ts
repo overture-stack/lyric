@@ -43,6 +43,7 @@ export type CreateSubmissionStatus = ObjectValues<typeof CREATE_SUBMISSION_STATU
  * Used as a Response type on a Create new Active Submission (Upload endpoint)
  */
 export type CreateSubmissionResult = {
+	submissionId?: number;
 	status: CreateSubmissionStatus;
 	description: string;
 	inProcessEntities: string[];
