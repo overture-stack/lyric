@@ -36,6 +36,13 @@
 			"when": 1720006396868,
 			"tag": "0004_audit_submitted_data",
 			"breakpoints": true
+		},
+		{
+			"idx": 5,
+			"version": "5",
+			"when": 1720549518710,
+			"tag": "0005_create_index_by_organization",
+			"breakpoints": true
 		}
 	]
 }
