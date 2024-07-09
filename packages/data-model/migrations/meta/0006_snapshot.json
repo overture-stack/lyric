@@ -1,6 +1,6 @@
 {
-  "id": "320cf5cc-4768-413e-9036-5193d92e3e32",
-  "prevId": "a725194d-2ae7-4b06-a226-94a70942923a",
+  "id": "0587f992-e43e-4df5-ac74-aeffd4cf74db",
+  "prevId": "320cf5cc-4768-413e-9036-5193d92e3e32",
   "version": "5",
   "dialect": "pg",
   "tables": {
@@ -160,12 +160,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "dictionary_category_id": {
-          "name": "dictionary_category_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "name": {
           "name": "name",
           "type": "varchar",
@@ -193,21 +187,7 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "dictionaries_dictionary_category_id_dictionary_categories_id_fk": {
-          "name": "dictionaries_dictionary_category_id_dictionary_categories_id_fk",
-          "tableFrom": "dictionaries",
-          "tableTo": "dictionary_categories",
-          "columnsFrom": [
-            "dictionary_category_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },

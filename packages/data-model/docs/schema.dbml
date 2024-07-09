@@ -76,6 +76,10 @@ table submitted_data {
   created_by varchar
   updated_at timestamp [default: `now()`]
   updated_by varchar
+
+  indexes {
+    organization [name: 'organization_index']
+  }
 }
 
 ref: audit_submitted_data.dictionary_category_id - dictionary_categories.id

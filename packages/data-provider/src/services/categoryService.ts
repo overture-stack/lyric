@@ -18,15 +18,17 @@ const categoryService = (dependencies: BaseDependencies) => {
 
 				return {
 					id: category.id,
-					dictionary: {
-						name: category.activeDictionary?.name || '',
-						version: category.activeDictionary?.version || '',
-					},
+					dictionary: category.activeDictionary
+						? {
+								name: category.activeDictionary.name,
+								version: category.activeDictionary.version,
+							}
+						: undefined,
 					name: category.name,
 					organizations: organizationsFound,
 					createdAt: _.toString(category.createdAt?.toISOString()),
 					createdBy: _.toString(category.createdBy),
-					updatedAt: _.toString(category.updatedAt),
+					updatedAt: _.toString(category.updatedAt?.toISOString()),
 					updatedBy: _.toString(category.updatedBy),
 				};
 			}

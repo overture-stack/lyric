@@ -175,7 +175,7 @@ export type ActiveSubmissionSummaryRepository = {
 
 export type CategoryDetailsResponse = {
 	id: number;
-	dictionary: { name: string; version: string };
+	dictionary?: { name: string; version: string };
 	name: string;
 	organizations: string[];
 	createdAt: string;

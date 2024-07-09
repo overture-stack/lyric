@@ -16,12 +16,10 @@ import submissionUtils from '../utils/submissionUtils.js';
 import submittedDataUtils from '../utils/submittedDataUtils.js';
 import {
 	ActiveSubmissionSummaryResponse,
-	BatchError,
 	CREATE_SUBMISSION_STATUS,
 	CommitSubmissionParams,
 	CommitSubmissionResult,
 	CreateSubmissionResult,
-	CreateSubmissionStatus,
 	DataRecordReference,
 	SUBMISSION_STATUS,
 	ValidateFilesParams,
@@ -524,62 +522,72 @@ const service = (dependencies: BaseDependencies) => {
 			const { checkFileNames, checkEntityFieldNames, getOrCreateActiveSubmission } = submissionUtils(dependencies);
 			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 
-			const entitiesToProcess: string[] = [];
-			const batchErrors: BatchError[] = [];
-			let status: CreateSubmissionStatus = CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION;
-			let description: string = 'No valid files for submission';
-			let activeSubmissionId: number | undefined = undefined;
-
-			if (files.length > 0) {
-				const currentDictionary = await getActiveDictionaryByCategory(categoryId);
-
-				if (_.isEmpty(currentDictionary)) {
-					throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
-				}
-
-				const schemasDictionary: SchemasDictionary = {
-					name: currentDictionary.name,
-					version: currentDictionary.version,
-					schemas: currentDictionary.schemas,
+			if (files.length === 0) {
+				return {
+					status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+					description: 'No valid files for submission',
+					batchErrors: [],
+					inProcessEntities: [],
 				};
+			}
 
-				// step 1 Validation. Validate entity type (filename matches dictionary entities, remove duplicates)
-				const schemaNames: string[] = schemasDictionary.schemas.map((item) => item.name);
-				const { validFileEntity, batchErrors: fileNamesErrors } = await checkFileNames(files, schemaNames);
-				batchErrors.push(...fileNamesErrors);
+			const currentDictionary = await getActiveDictionaryByCategory(categoryId);
 
-				// step 2 Validation. Validate fieldNames (missing required fields based on schema)
-				const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
-				batchErrors.push(...fieldNameErrors);
-				entitiesToProcess.push(...Object.keys(checkedEntities));
+			if (_.isEmpty(currentDictionary)) {
+				throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+			}
 
-				if (!_.isEmpty(checkedEntities)) {
-					// Get Active Submission or Open a new one
-					const activeSubmission = await getOrCreateActiveSubmission({ categoryId, userName, organization });
-					activeSubmissionId = activeSubmission.id;
+			const schemasDictionary: SchemasDictionary = {
+				name: currentDictionary.name,
+				version: currentDictionary.version,
+				schemas: currentDictionary.schemas,
+			};
 
-					// Running Schema validation in the background do not need to wait
-					// Result of validations will be stored in database
-					validateFilesAsync(checkedEntities, {
-						categoryId,
-						organization,
-						userName,
-					});
-				}
+			// step 1 Validation. Validate entity type (filename matches dictionary entities, remove duplicates)
+			const schemaNames: string[] = schemasDictionary.schemas.map((item) => item.name);
+			const { validFileEntity, batchErrors: fileNamesErrors } = await checkFileNames(files, schemaNames);
 
-				if (batchErrors.length === 0 && entitiesToProcess.length > 0) {
-					status = CREATE_SUBMISSION_STATUS.PROCESSING;
-					description = 'Submission files are being processed';
-				} else if (batchErrors.length > 0 && entitiesToProcess.length > 0) {
-					status = CREATE_SUBMISSION_STATUS.PARTIAL_SUBMISSION;
-					description = 'Some Submission files are being processed while others were unable to process';
-				}
+			// step 2 Validation. Validate fieldNames (missing required fields based on schema)
+			const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
+
+			const batchErrors = [...fileNamesErrors, ...fieldNameErrors];
+			const entitiesToProcess = Object.keys(checkedEntities);
+
+			if (_.isEmpty(checkedEntities)) {
+				return {
+					status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+					description: 'No valid entities in submission',
+					batchErrors,
+					inProcessEntities: entitiesToProcess,
+				};
+			}
+
+			// Get Active Submission or Open a new one
+			const activeSubmission = await getOrCreateActiveSubmission({ categoryId, userName, organization });
+			const activeSubmissionId = activeSubmission.id;
+
+			// Running Schema validation in the background do not need to wait
+			// Result of validations will be stored in database
+			validateFilesAsync(checkedEntities, {
+				categoryId,
+				organization,
+				userName,
+			});
+
+			if (batchErrors.length === 0) {
+				return {
+					status: CREATE_SUBMISSION_STATUS.PROCESSING,
+					description: 'Submission files are being processed',
+					submissionId: activeSubmissionId,
+					batchErrors,
+					inProcessEntities: entitiesToProcess,
+				};
 			}
 
 			return {
+				status: CREATE_SUBMISSION_STATUS.PARTIAL_SUBMISSION,
+				description: 'Some Submission files are being processed while others were unable to process',
 				submissionId: activeSubmissionId,
-				status,
-				description,
 				batchErrors,
 				inProcessEntities: entitiesToProcess,
 			};

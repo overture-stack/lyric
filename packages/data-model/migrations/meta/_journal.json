@@ -40,8 +40,15 @@
     {
       "idx": 5,
       "version": "5",
-      "when": 1720102734364,
-      "tag": "0005_remove_category_id_from_dictionary",
+      "when": 1720549518710,
+      "tag": "0005_create_index_by_organization",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1720559338424,
+      "tag": "0006_remove_category_id_from_dictionary",
       "breakpoints": true
     }
   ]
