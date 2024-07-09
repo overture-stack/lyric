@@ -122,7 +122,7 @@ components:
       properties:
         id:
           type: number
-          description: Id of the Submission
+          description: ID of the Submission
         data:
           type: object
           additionalProperties:
@@ -186,7 +186,7 @@ components:
       properties:
         id:
           type: number
-          description: Id of the Submission
+          description: ID of the Submission
         data:
           type: object
           additionalProperties:
@@ -251,6 +251,41 @@ components:
     ActiveSubmissionSummaryResult:
       $ref: '#/components/schemas/ActiveSubmissionSummary'
 
+    CategoryDetails:
+      type: object
+      properties:
+        id:
+          type: number
+          description: ID of the Category
+        dictionary:
+          type: object
+          description: Dictionary used to validate the submission
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+        name:
+          type: string
+          description: Name of the Category
+        organizations:
+          type: array
+          items:
+            type: string
+            description: List of organizations on this category
+        createdAt:
+          type: string
+          description: Date and time of creation
+        createdBy:
+          type: string
+          description: User name who created the submission
+        udpatedAt:
+          type: string
+          description: Date and time of latest update
+        updatedBy:
+          type: string
+          description: User name who last updated the submission
+
     GetSubmittedDataResult:
       type: object
       properties:
@@ -269,6 +304,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SubmittedDataRecord'
+
+    ListAllCategories:
+      type: array
+      items:
+        type: object
+        properties:
+          id:
+            type: number
+            description: ID of the Submission
+          name:
+            type: string
+            description: Name of the Category
 
     SubmittedDataRecord:
       type: object
@@ -296,14 +343,14 @@ components:
       properties:
         fieldName:
           type: string
-          description: the field name that the error is related to
+          description: The field name that the error is related to
         info:
           type: object
-          description: contains context information related to the error
+          description: Contains context information related to the error
           properties:
             value:
               type: array
-              description: the faulty value
+              description: The faulty value
               items:
                 type: string
         index:
@@ -312,7 +359,7 @@ components:
           description: Index of the row for this error (starting from 0)
         errorType:
           type: string
-          description: the type of error
+          description: The type of error
           enum:
             - INVALID_BY_RANGE
             - INVALID_BY_REGEX
@@ -329,10 +376,10 @@ components:
       properties:
         message:
           type: string
-          description: a message describing the error
+          description: A message describing the error
         type:
           type: string
-          description: the type of error
+          description: The type of error
           enum:
             - INCORRECT_SECTION
             - INVALID_FILE_EXTENSION
@@ -343,6 +390,6 @@ components:
             - UNRECOGNIZED_HEADER
         batchName:
           type: array
-          description: list of batch names causing error
+          description: List of batch names causing error
           items:
             type: string

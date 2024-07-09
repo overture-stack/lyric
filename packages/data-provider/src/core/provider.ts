@@ -1,14 +1,18 @@
-import * as _ from 'lodash-es';
 import { AppConfig, BaseDependencies } from '../config/config.js';
 import { connect } from '../config/db.js';
 import { getLogger } from '../config/logger.js';
-import dictionaryRouters from '../routers/dictionaryRouter.js';
-import submissionRouters from '../routers/submissionRouter.js';
-import submittedDataRouters from '../routers/submittedDataRouter.js';
-import getCategoryUtils from '../utils/categoryUtils.js';
-import getDictionaryUtils from '../utils/dictionaryUtils.js';
-import getSubmissionUtils from '../utils/submissionUtils.js';
-import getSubmittedDataUtils from '../utils/submittedDataUtils.js';
+import categoryRouter from '../routers/categoryRouter.js';
+import dictionaryRouter from '../routers/dictionaryRouter.js';
+import submissionRouter from '../routers/submissionRouter.js';
+import submittedDataRouter from '../routers/submittedDataRouter.js';
+import categoryService from '../services/categoryService.js';
+import dictionaryService from '../services/dictionaryService.js';
+import submissionService from '../services/submissionService.js';
+import submittedDataService from '../services/submittedDataService.js';
+import categoryUtils from '../utils/categoryUtils.js';
+import dictionaryUtils from '../utils/dictionaryUtils.js';
+import submissionUtils from '../utils/submissionUtils.js';
+import submittedDataUtils from '../utils/submittedDataUtils.js';
 
 /**
  * The main provider of submission resources
@@ -30,15 +34,22 @@ const provider = (configData: AppConfig) => {
 	return {
 		configs: baseDeps,
 		routers: {
-			dictionary: dictionaryRouters(baseDeps),
-			submission: submissionRouters(baseDeps),
-			submittedData: submittedDataRouters(baseDeps),
+			category: categoryRouter(baseDeps),
+			dictionary: dictionaryRouter(baseDeps),
+			submission: submissionRouter(baseDeps),
+			submittedData: submittedDataRouter(baseDeps),
+		},
+		services: {
+			category: categoryService(baseDeps),
+			dictionary: dictionaryService(baseDeps),
+			submission: submissionService(baseDeps),
+			submittedData: submittedDataService(baseDeps),
 		},
 		utils: {
-			dictionary: getDictionaryUtils(baseDeps),
-			category: getCategoryUtils(baseDeps),
-			submission: getSubmissionUtils(baseDeps),
-			submittedData: getSubmittedDataUtils(baseDeps),
+			category: categoryUtils(baseDeps),
+			dictionary: dictionaryUtils(baseDeps),
+			submission: submissionUtils(baseDeps),
+			submittedData: submittedDataUtils(baseDeps),
 		},
 	};
 };

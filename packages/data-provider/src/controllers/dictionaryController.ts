@@ -1,8 +1,6 @@
-import { NextFunction, Request, Response } from 'express';
-
 import { BaseDependencies } from '../config/config.js';
 import dictionarySvc from '../services/dictionaryService.js';
-import { BadRequest, NotImplemented } from '../utils/errors.js';
+import { BadRequest } from '../utils/errors.js';
 import { isEmptyString } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import { registerDictionaryRequestSchema } from '../utils/schemas.js';
@@ -12,15 +10,6 @@ const controller = (dependencies: BaseDependencies) => {
 	const { logger } = dependencies;
 	const LOG_MODULE = 'DICTIONARY_CONTROLLER';
 	return {
-		getCurrentDictionary: async (req: Request, res: Response, next: NextFunction) => {
-			try {
-				//TODO: implement logic to get current dictionary from DB
-				throw new NotImplemented();
-			} catch (error) {
-				next(error);
-			}
-		},
-
 		registerDictionary: validateRequest(registerDictionaryRequestSchema, async (req, res, next) => {
 			try {
 				const categoryName = req.body.categoryName;
