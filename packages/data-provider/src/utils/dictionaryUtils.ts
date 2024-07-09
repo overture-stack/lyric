@@ -16,7 +16,7 @@ const utils = (dependencies: BaseDependencies) => {
 		 * Creates a new dictionary only if it doesn't exist or returns if it already exists
 		 * @param dictionaryName The name of the dictionary to create
 		 * @param version The version of the dictionary to create
-		 * @param dictionary The Schema of the dictionary
+		 * @param schemas The Schema of the dictionary
 		 * @returns The new dictionary created or the existing one
 		 */
 		createDictionaryIfDoesNotExist: async (

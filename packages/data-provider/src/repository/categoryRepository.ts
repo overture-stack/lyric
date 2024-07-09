@@ -136,16 +136,22 @@ const repository = (dependencies: BaseDependencies) => {
 			}
 		},
 
-		updateCurrentDictionaryOnCategory: async (dictionaryId: number, categoryId: number) => {
+		/**
+		 * Update a Category record in database
+		 * @param categoryId The Category ID
+		 * @param newData Set fields to update
+		 * @returns The updated record
+		 */
+		update: async (categoryId: number, newData: Partial<Category>): Promise<Category> => {
 			try {
-				return await db
+				const updated = await db
 					.update(dictionaryCategories)
-					.set({
-						activeDictionaryId: dictionaryId,
-					})
-					.where(eq(dictionaryCategories.id, categoryId));
+					.set({ ...newData, updatedAt: new Date() })
+					.where(eq(dictionaryCategories.id, categoryId))
+					.returning();
+				return updated[0];
 			} catch (error) {
-				logger.error(LOG_MODULE, `Failed update current dictionary on Category`, error);
+				logger.error(LOG_MODULE, `Failed updating Category`, error);
 				throw new ServiceUnavailable();
 			}
 		},
