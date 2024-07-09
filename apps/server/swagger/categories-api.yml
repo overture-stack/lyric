@@ -23,7 +23,7 @@
 
 /category/{categoryId}:
   get:
-    summary: Retrieve Details of an specific category
+    summary: Retrieve details of a specific category
     tags:
       - category
     parameters:
