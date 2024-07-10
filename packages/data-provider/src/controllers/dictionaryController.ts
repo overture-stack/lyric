@@ -4,6 +4,7 @@ import { BadRequest } from '../utils/errors.js';
 import { isEmptyString } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import { registerDictionaryRequestSchema } from '../utils/schemas.js';
+import { RegisterDictionaryResult } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
 	const dictionaryService = dictionarySvc(dependencies);
@@ -31,9 +32,22 @@ const controller = (dependencies: BaseDependencies) => {
 					throw new BadRequest('Request is missing `version` parameter.');
 				}
 
-				const registered = await dictionaryService.register(categoryName, dictionaryName, dictionaryVersion);
+				const { dictionary, category } = await dictionaryService.register(
+					categoryName,
+					dictionaryName,
+					dictionaryVersion,
+				);
+
 				logger.info(LOG_MODULE, `Register Dictionary completed!`);
-				return res.send(registered);
+
+				const result: RegisterDictionaryResult = {
+					categoryId: category.id,
+					categoryName: category.name,
+					dictionary: dictionary.dictionary,
+					name: dictionary.name,
+					version: dictionary.version,
+				};
+				return res.send(result);
 			} catch (error) {
 				next(error);
 			}

@@ -546,7 +546,6 @@ const service = (dependencies: BaseDependencies) => {
 			// step 1 Validation. Validate entity type (filename matches dictionary entities, remove duplicates)
 			const schemaNames: string[] = schemasDictionary.schemas.map((item) => item.name);
 			const { validFileEntity, batchErrors: fileNamesErrors } = await checkFileNames(files, schemaNames);
-			// batchErrors.push(...fileNamesErrors);
 
 			// step 2 Validation. Validate fieldNames (missing required fields based on schema)
 			const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);

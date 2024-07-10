@@ -9,7 +9,6 @@ import categoryService from '../services/categoryService.js';
 import dictionaryService from '../services/dictionaryService.js';
 import submissionService from '../services/submissionService.js';
 import submittedDataService from '../services/submittedDataService.js';
-import categoryUtils from '../utils/categoryUtils.js';
 import dictionaryUtils from '../utils/dictionaryUtils.js';
 import submissionUtils from '../utils/submissionUtils.js';
 import submittedDataUtils from '../utils/submittedDataUtils.js';
@@ -46,7 +45,6 @@ const provider = (configData: AppConfig) => {
 			submittedData: submittedDataService(baseDeps),
 		},
 		utils: {
-			category: categoryUtils(baseDeps),
 			dictionary: dictionaryUtils(baseDeps),
 			submission: submissionUtils(baseDeps),
 			submittedData: submittedDataUtils(baseDeps),
