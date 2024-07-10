@@ -27,17 +27,12 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			// Check if Category exist
 			const foundCategory = await categoryRepo.getCategoryByName(categoryName);
 
-			if (!foundCategory) {
-				// Create a new Category
-				const newCategory: NewCategory = {
-					name: categoryName,
-					activeDictionaryId: savedDictionary.id,
-				};
+			if (foundCategory && foundCategory.activeDictionaryId === savedDictionary.id) {
+				// Dictionary and Category already exists
+				logger.info(LOG_MODULE, `Dictionary and Category already exists`);
 
-				const savedCategory = await categoryRepo.save(newCategory);
-
-				return { dictionary: savedDictionary, category: savedCategory };
-			} else if (foundCategory.activeDictionaryId !== savedDictionary.id) {
+				return { dictionary: savedDictionary, category: foundCategory };
+			} else if (foundCategory && foundCategory.activeDictionaryId !== savedDictionary.id) {
 				// Update the dictionary on existing Category
 				const updatedCategory = await categoryRepo.update(foundCategory.id, { activeDictionaryId: savedDictionary.id });
 
@@ -47,11 +42,17 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 				);
 
 				return { dictionary: savedDictionary, category: updatedCategory };
-			}
+			} else {
+				// Create a new Category
+				const newCategory: NewCategory = {
+					name: categoryName,
+					activeDictionaryId: savedDictionary.id,
+				};
 
-			// Dictionary and Category already exists
-			logger.info(LOG_MODULE, `Dictionary and Category already exists`);
-			return { dictionary: savedDictionary, category: foundCategory };
+				const savedCategory = await categoryRepo.save(newCategory);
+
+				return { dictionary: savedDictionary, category: savedCategory };
+			}
 		},
 	};
 };
