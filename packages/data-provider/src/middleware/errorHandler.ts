@@ -17,9 +17,8 @@ import {
  * @param res HTTP Response Object
  * @returns An HTTP Response Object with the corresponding HTTP code and message
  */
-// Do not modify error handler arguments, all are required.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction): any => {
+
+export const errorHandler = (err: Error, req: Request, res: Response, _next: NextFunction): any => {
 	console.error('error handler received error: ', err);
 	let status: number;
 	const customizableMsg = err.message;
