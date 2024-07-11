@@ -8,7 +8,7 @@ export const getServerConfig = () => {
 	};
 };
 
-export const getBoolean = (env: any, defaultValue: boolean): boolean => {
+export const getBoolean = (env: string | undefined, defaultValue: boolean): boolean => {
 	switch ((env ?? '').toLocaleLowerCase()) {
 		case 'true':
 			return true;

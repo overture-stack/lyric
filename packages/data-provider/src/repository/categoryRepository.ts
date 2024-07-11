@@ -59,7 +59,7 @@ const repository = (dependencies: BaseDependencies) => {
 						name: true,
 					},
 				});
-			} catch (error: any) {
+			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying category`, error);
 				throw new ServiceUnavailable();
 			}
@@ -78,7 +78,7 @@ const repository = (dependencies: BaseDependencies) => {
 						activeDictionary: true,
 					},
 				});
-			} catch (error: any) {
+			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying category`, error);
 				throw new ServiceUnavailable();
 			}
@@ -94,7 +94,7 @@ const repository = (dependencies: BaseDependencies) => {
 				return await db.query.dictionaryCategories.findFirst({
 					where: eq(dictionaryCategories.name, name),
 				});
-			} catch (error: any) {
+			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying category`, error);
 				throw new ServiceUnavailable();
 			}

@@ -18,7 +18,7 @@ import {
  * @returns An HTTP Response Object with the corresponding HTTP code and message
  */
 
-export const errorHandler = (err: Error, req: Request, res: Response, _next: NextFunction): any => {
+export const errorHandler = (err: Error, req: Request, res: Response, _next: NextFunction): unknown => {
 	console.error('error handler received error: ', err);
 	let status: number;
 	const customizableMsg = err.message;

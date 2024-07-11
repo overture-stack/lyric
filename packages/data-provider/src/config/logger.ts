@@ -2,7 +2,7 @@ import { createLogger, format, LoggerOptions, transports } from 'winston';
 
 import { LoggerConfig } from './config.js';
 
-export type loggerFunction = (...messages: any[]) => void;
+export type loggerFunction = (...messages: unknown[]) => void;
 
 export type Logger = {
 	debug: loggerFunction;
@@ -42,22 +42,22 @@ export const getLogger = (config: LoggerConfig): Logger => {
 		transports: transportList,
 	});
 
-	const log = (...message: string[]) => {
+	const log = (...message: unknown[]) => {
 		const fullMessage = message.join(' - ');
 		return fullMessage;
 	};
 
 	return {
-		debug: (...messages: any[]) => {
+		debug: (...messages: unknown[]) => {
 			return logger.debug(log(...messages));
 		},
-		warn: (...messages: any[]) => {
+		warn: (...messages: unknown[]) => {
 			return logger.warn(log(...messages));
 		},
-		info: (...messages: any[]) => {
+		info: (...messages: unknown[]) => {
 			return logger.info(log(...messages));
 		},
-		error: (...messages: any[]) => {
+		error: (...messages: unknown[]) => {
 			return logger.error(log(...messages));
 		},
 	};

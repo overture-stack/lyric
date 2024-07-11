@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { ParamsDictionary, RequestHandler } from 'express-serve-static-core';
-import { ZodError, ZodSchema } from 'zod';
+import { ZodError, ZodIssue, ZodSchema } from 'zod';
 
 import { BadRequest, InternalServerError } from './errors.js';
 
@@ -15,7 +15,7 @@ export declare type RequestValidation<TBody> = {
  */
 export function validateRequest<TBody>(
 	schema: RequestValidation<TBody>,
-	handler: RequestHandler<ParamsDictionary, any, TBody>,
+	handler: RequestHandler<ParamsDictionary, unknown, TBody>,
 ): RequestHandler {
 	const LOG_MODULE = 'REQUEST_VALIDATION';
 	return async (req: Request, res: Response, next: NextFunction) => {
@@ -28,7 +28,7 @@ export function validateRequest<TBody>(
 		} catch (error) {
 			if (error instanceof ZodError) {
 				const errorMessages = error.errors
-					.map((issue: any) => `${issue.path.join('.')} is ${issue.message}`)
+					.map((issue: ZodIssue) => `${issue.path.join('.')} is ${issue.message}`)
 					.join(' | ');
 				console.log(LOG_MODULE, req.method, req.url, JSON.stringify(errorMessages));
 				next(new BadRequest(errorMessages));

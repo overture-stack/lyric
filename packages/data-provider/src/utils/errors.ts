@@ -1,5 +1,5 @@
 export class BadRequest extends Error {
-	constructor(msg: string, details?: any) {
+	constructor(msg: string, details?: unknown) {
 		super(msg);
 		this.name = 'Bad Request';
 		this.cause = details;

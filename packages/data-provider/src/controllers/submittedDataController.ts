@@ -16,9 +16,9 @@ const controller = (dependencies: BaseDependencies) => {
 	const defaultPageSize = 20;
 	return {
 		deleteSubmittedDataBySystemId: async (
-			req: Request<{ systemId: string }, object, any, { dryRun: string; comment: string }>,
-			res: any,
-			next: any,
+			req: Request<{ systemId: string }, object, object, { dryRun: string; comment: string }>,
+			res: Response,
+			next: NextFunction,
 		) => {
 			try {
 				const systemId = req.params.systemId;
@@ -166,9 +166,9 @@ const controller = (dependencies: BaseDependencies) => {
 		},
 
 		getSubmittedDataByQuery: async (
-			req: Request<{ categoryId: string; organization: string }, object, any, { page: string; pageSize: string }>,
-			res: any,
-			next: any,
+			req: Request<{ categoryId: string; organization: string }, object, object, { page: string; pageSize: string }>,
+			res: Response,
+			next: NextFunction,
 		) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
