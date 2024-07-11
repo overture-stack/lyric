@@ -1,8 +1,9 @@
 import { eq } from 'drizzle-orm/sql';
-
-import { Category, Dictionary, NewCategory, dictionaryCategories } from '@overture-stack/lyric-data-model';
-import { SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { ListAllCategoriesResponse } from 'src/utils/types.js';
+
+import { Category, Dictionary, dictionaryCategories, NewCategory } from '@overture-stack/lyric-data-model';
+import { SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 

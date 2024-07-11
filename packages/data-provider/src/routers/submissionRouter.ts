@@ -1,10 +1,9 @@
-import { Router, json, urlencoded } from 'express';
+import { json, Router, urlencoded } from 'express';
 import multer from 'multer';
-
-import { auth } from '../middleware/auth.js';
 
 import { BaseDependencies } from '../config/config.js';
 import submissionController from '../controllers/submissionController.js';
+import { auth } from '../middleware/auth.js';
 import { getSizeInBytes } from '../utils/fileUtils.js';
 
 const router = (dependencies: BaseDependencies): Router => {

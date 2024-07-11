@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import * as _ from 'lodash-es';
+
 import { BaseDependencies } from '../config/config.js';
 import submittedDataService from '../services/submittedDataService.js';
 import { parseSQON } from '../utils/convertSqonToQuery.js';
@@ -15,7 +16,7 @@ const controller = (dependencies: BaseDependencies) => {
 	const defaultPageSize = 20;
 	return {
 		deleteSubmittedDataBySystemId: async (
-			req: Request<{ systemId: string }, {}, any, { dryRun: string; comment: string }>,
+			req: Request<{ systemId: string }, object, any, { dryRun: string; comment: string }>,
 			res: any,
 			next: any,
 		) => {
@@ -57,7 +58,7 @@ const controller = (dependencies: BaseDependencies) => {
 		},
 
 		getSubmittedDataByCategory: async (
-			req: Request<{ categoryId: string }, {}, {}, { pageSize: string; page: string }>,
+			req: Request<{ categoryId: string }, object, object, { pageSize: string; page: string }>,
 			res: Response,
 			next: NextFunction,
 		) => {
@@ -107,7 +108,7 @@ const controller = (dependencies: BaseDependencies) => {
 		},
 
 		getSubmittedDataByOrganization: async (
-			req: Request<{ categoryId: string; organization: string }, {}, {}, { page: string; pageSize: string }>,
+			req: Request<{ categoryId: string; organization: string }, object, object, { page: string; pageSize: string }>,
 			res: Response,
 			next: NextFunction,
 		) => {
@@ -165,7 +166,7 @@ const controller = (dependencies: BaseDependencies) => {
 		},
 
 		getSubmittedDataByQuery: async (
-			req: Request<{ categoryId: string; organization: string }, {}, any, { page: string; pageSize: string }>,
+			req: Request<{ categoryId: string; organization: string }, object, any, { page: string; pageSize: string }>,
 			res: any,
 			next: any,
 		) => {

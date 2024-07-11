@@ -1,18 +1,20 @@
+import { and, not, or, SQL, sql } from 'drizzle-orm';
+import * as _ from 'lodash-es';
+import { ZodError } from 'zod';
+
 import SQONBuilder, {
 	ArrayFilterValue,
 	CombinationKeys,
 	CombinationOperator,
 	FilterOperator,
 	GreaterThanFilter,
-	LesserThanFilter,
-	Operator,
 	isArrayFilter,
 	isCombination,
 	isFilter,
+	LesserThanFilter,
+	Operator,
 } from '@overture-stack/sqon-builder';
-import { SQL, and, not, or, sql } from 'drizzle-orm';
-import * as _ from 'lodash-es';
-import { ZodError } from 'zod';
+
 import { BadRequest } from './errors.js';
 
 // Column name on the database used to build JSONB query

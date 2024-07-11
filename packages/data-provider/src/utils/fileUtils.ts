@@ -1,7 +1,9 @@
-import { DataRecord, SchemaData } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import bytes from 'bytes';
 import firstline from 'firstline';
 import fs from 'fs';
+
+import { DataRecord, SchemaData } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+
 import { notEmpty } from './formatUtils.js';
 
 const fsPromises = fs.promises;

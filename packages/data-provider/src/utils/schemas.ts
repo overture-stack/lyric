@@ -1,11 +1,6 @@
 import { z } from 'zod';
-import { RequestValidation } from './requestValidation.js';
 
-const numberSchema = z
-	.custom<number>()
-	.refine((value) => value ?? false, 'required')
-	.refine((value) => Number.isFinite(Number(value)), 'an invalid number')
-	.transform((value) => Number(value));
+import { RequestValidation } from './requestValidation.js';
 
 export const uploadCustomFile = z
 	.custom<Express.Multer.File[]>()

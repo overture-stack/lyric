@@ -1,11 +1,12 @@
-import {
-	BatchProcessingResult,
-	SchemaValidationError,
-	SchemasDictionary,
-} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import * as _ from 'lodash-es';
 
 import { NewSubmittedData, Submission, SubmissionData, SubmittedData } from '@overture-stack/lyric-data-model';
+import {
+	BatchProcessingResult,
+	SchemasDictionary,
+	SchemaValidationError,
+} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+
 import { BaseDependencies } from '../config/config.js';
 import systemIdGenerator from '../external/systemIdGenerator.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
@@ -16,9 +17,9 @@ import submissionUtils from '../utils/submissionUtils.js';
 import submittedDataUtils from '../utils/submittedDataUtils.js';
 import {
 	ActiveSubmissionSummaryResponse,
-	CREATE_SUBMISSION_STATUS,
 	CommitSubmissionParams,
 	CommitSubmissionResult,
+	CREATE_SUBMISSION_STATUS,
 	CreateSubmissionResult,
 	DataRecordReference,
 	SUBMISSION_STATUS,
@@ -223,11 +224,9 @@ const service = (dependencies: BaseDependencies) => {
 		return await updateActiveSubmission({
 			idActiveSubmission: originalSubmission.id,
 			entityMap: newSubmissionData,
-			categoryId: originalSubmission.dictionaryCategoryId.toString(),
 			schemaErrors: submissionSchemaErrors,
 			dictionaryId: currentDictionary.id,
 			userName: userName,
-			organization: originalSubmission.organization,
 		});
 	};
 

@@ -1,4 +1,5 @@
-import { Category, Dictionary, NewCategory, NewDictionary } from '@overture-stack/lyric-data-model';
+import { Category, Dictionary, NewCategory } from '@overture-stack/lyric-data-model';
+
 import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import getDictionaryUtils from '../utils/dictionaryUtils.js';

@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
-
 import { isEmpty } from 'lodash-es';
+
 import { BaseDependencies } from '../config/config.js';
 import submissionService from '../services/submissionService.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
@@ -129,7 +129,7 @@ const controller = (dependencies: BaseDependencies) => {
 				logger.info(LOG_MODULE, `Request Active Submission submissionId '${submissionId}'`);
 
 				// TODO: get userName from auth
-				const userName = '';
+				// const userName = '';
 
 				const activeSubmission = await service.getActiveSubmissionById(submissionId);
 
@@ -247,7 +247,7 @@ const controller = (dependencies: BaseDependencies) => {
 				// This response provides the details of file Submission
 				return res
 					.status(200)
-					.send({ ...resultSubmission, batchErrors: [...fileErrors, ...resultSubmission?.batchErrors] });
+					.send({ ...resultSubmission, batchErrors: [...fileErrors, ...resultSubmission.batchErrors] });
 			} catch (error) {
 				next(error);
 			}

@@ -1,6 +1,8 @@
-import * as schema from '@overture-stack/lyric-data-model';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
+
+import * as schema from '@overture-stack/lyric-data-model';
+
 import { DbConfig } from './config.js';
 
 export const connect = (config: DbConfig): NodePgDatabase<typeof schema> => {

@@ -1,11 +1,13 @@
+import { groupBy, has } from 'lodash-es';
+
 import { NewSubmittedData, SubmittedData } from '@overture-stack/lyric-data-model';
 import { functions } from '@overturebio-stack/lectern-client';
 import {
 	SchemaData,
-	SchemaValidationError,
 	SchemasDictionary,
+	SchemaValidationError,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
-import { groupBy, has } from 'lodash-es';
+
 import { BaseDependencies } from '../config/config.js';
 import { DataRecordReference, MERGE_REFERENCE_TYPE, SubmittedDataReference, SubmittedDataResponse } from './types.js';
 

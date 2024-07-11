@@ -1,6 +1,6 @@
 import { integer, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
-
 import { relations } from 'drizzle-orm/relations';
+
 import { dictionaries } from './dictionaries.js';
 import { submissions } from './submissions.js';
 import { submittedData } from './submitted_data.js';

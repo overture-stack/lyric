@@ -1,4 +1,5 @@
-import { LoggerOptions, createLogger, format, transports } from 'winston';
+import { createLogger, format, LoggerOptions, transports } from 'winston';
+
 import { LoggerConfig } from './config.js';
 
 export type loggerFunction = (...messages: any[]) => void;
@@ -18,7 +19,7 @@ export type Logger = {
 export const getLogger = (config: LoggerConfig): Logger => {
 	const transportList: LoggerOptions['transports'] = [];
 
-	const { combine, timestamp, simple, colorize, printf } = format;
+	const { combine, timestamp, colorize, printf } = format;
 
 	// console transport
 	const consoleLog = new transports.Console({

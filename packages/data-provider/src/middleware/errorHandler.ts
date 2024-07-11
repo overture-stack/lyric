@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+
 import {
 	BadRequest,
 	InternalServerError,
@@ -14,9 +15,10 @@ import {
  * @param err An Error instance
  * @param req Incoming HTTP Request object
  * @param res HTTP Response Object
- * @param next Next middleware function
  * @returns An HTTP Response Object with the corresponding HTTP code and message
  */
+// Do not modify error handler arguments, all are required.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction): any => {
 	console.error('error handler received error: ', err);
 	let status: number;

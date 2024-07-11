@@ -1,11 +1,12 @@
-import {
-	SchemaData,
-	SchemaValidationError,
-	SchemasDictionary,
-} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import * as _ from 'lodash-es';
 
 import { NewSubmission, Submission, SubmissionData } from '@overture-stack/lyric-data-model';
+import {
+	SchemaData,
+	SchemasDictionary,
+	SchemaValidationError,
+} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+
 import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
@@ -256,7 +257,7 @@ const utils = (dependencies: BaseDependencies) => {
 		parseActiveSubmissionSummaryResponse: (
 			submission: ActiveSubmissionSummaryRepository,
 		): ActiveSubmissionSummaryResponse => {
-			let dataSummary = Object.entries(submission.data).reduce(
+			const dataSummary = Object.entries(submission.data).reduce(
 				(acc, [entityName, entityData]) => {
 					acc[entityName] = { ..._.omit(entityData, 'records'), recordsCount: entityData.records.length };
 					return acc;
@@ -310,32 +311,27 @@ const utils = (dependencies: BaseDependencies) => {
 		/**
 		 * Update Active Submission in database
 		 * @param {Object} input
-		 * @param {string} input.categoryId The category ID of the Submission
 		 * @param {number} input.dictionaryId The Dictionary ID of the Submission
 		 * @param {Record<string, SubmissionData>} input.entityMap Map of Entities with Entity Types as keys
 		 * @param {number} input.idActiveSubmission ID of the Active Submission
-		 * @param {string} input.organization Organization name
 		 * @param {Record<string, SchemaValidationError[]>} input.schemaErrors Array of schemaErrors
 		 * @param {string} input.userName User updating the active submission
 		 * @returns {Promise<Submission>} An Active Submission updated
 		 */
 		updateActiveSubmission: async (input: {
-			categoryId: string;
 			dictionaryId: number;
 			entityMap: Record<string, SubmissionData>;
 			idActiveSubmission: number;
-			organization: string;
 			schemaErrors: Record<string, SchemaValidationError[]>;
 			userName: string;
 		}): Promise<Submission> => {
-			const { categoryId, dictionaryId, entityMap, idActiveSubmission, organization, schemaErrors, userName } = input;
+			const { dictionaryId, entityMap, idActiveSubmission, schemaErrors, userName } = input;
 			const newStatusSubmission =
 				Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
 			// Update with new data
 			const updatedActiveSubmission = await submissionRepo.update(idActiveSubmission, {
 				data: entityMap,
 				status: newStatusSubmission,
-				organization: organization,
 				dictionaryId: dictionaryId,
 				updatedBy: userName,
 				errors: schemaErrors,

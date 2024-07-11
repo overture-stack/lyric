@@ -1,8 +1,8 @@
 import { relations } from 'drizzle-orm';
-
 import { integer, jsonb, pgEnum, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
 import { SchemaData, SchemaValidationError } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+
 import { dictionaries } from './dictionaries.js';
 import { dictionaryCategories } from './dictionary_categories.js';
 
