@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { ParamsDictionary, RequestHandler } from 'express-serve-static-core';
-import { ZodError, ZodIssue, ZodSchema } from 'zod';
+import { ZodError, ZodSchema } from 'zod';
 
 import { BadRequest, InternalServerError } from './errors.js';
 
@@ -27,9 +27,7 @@ export function validateRequest<TBody>(
 			return handler(req, res, next);
 		} catch (error) {
 			if (error instanceof ZodError) {
-				const errorMessages = error.errors
-					.map((issue: ZodIssue) => `${issue.path.join('.')} is ${issue.message}`)
-					.join(' | ');
+				const errorMessages = error.errors.map((issue) => `${issue.path.join('.')} is ${issue.message}`).join(' | ');
 				console.log(LOG_MODULE, req.method, req.url, JSON.stringify(errorMessages));
 				next(new BadRequest(errorMessages));
 			} else {

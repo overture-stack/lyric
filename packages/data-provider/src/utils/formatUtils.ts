@@ -36,7 +36,7 @@ export function uniqueCharacters(value: string): string {
 /**
  * Function that returns true if input is a valid number greater than zero.
  * Otherwise it returns false
- * @param {any} value
+ * @param {unknown} value
  * @returns {boolean}
  */
 export function isValidIdNumber(value: unknown): boolean {

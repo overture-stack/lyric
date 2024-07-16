@@ -105,7 +105,7 @@ const repository = (dependencies: BaseDependencies) => {
 		/**
 		 * Update a Submission record in database
 		 * @param {number} submissionId Submission ID to update
-		 * @param {any} newData Set fields to update
+		 * @param {Partial<Submission>} newData Set fields to update
 		 * @returns An updated record
 		 */
 		update: async (submissionId: number, newData: Partial<Submission>): Promise<Submission> => {
