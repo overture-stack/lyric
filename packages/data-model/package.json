@@ -32,16 +32,16 @@
 	},
 	"homepage": "https://github.com/overture-stack/lyric#readme",
 	"devDependencies": {
-		"@types/pg": "^8.11.0",
+		"@types/pg": "^8.11.6",
 		"drizzle-dbml-generator": "^0.6.1",
-		"drizzle-kit": "^0.20.17",
-		"rimraf": "^5.0.7",
-		"tsx": "^4.7.1"
+		"drizzle-kit": "^0.20.18",
+		"rimraf": "^5.0.9",
+		"tsx": "^4.16.2"
 	},
 	"dependencies": {
 		"@overturebio-stack/lectern-client": "^1.5.0",
-		"dotenv": "^16.4.1",
-		"drizzle-orm": "^0.29.3",
-		"pg": "^8.11.3"
+		"dotenv": "^16.4.5",
+		"drizzle-orm": "^0.29.5",
+		"pg": "^8.12.0"
 	}
 }
