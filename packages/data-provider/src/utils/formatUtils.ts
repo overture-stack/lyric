@@ -1,10 +1,10 @@
 import * as lodash from 'lodash-es';
 
-export const isEmptyString = (value: any) => {
+export const isEmptyString = (value: unknown) => {
 	return value == null || (typeof value === 'string' && value.trim().length === 0);
 };
 
-export const isArrayWithValues = (value: any) => {
+export const isArrayWithValues = (value: unknown) => {
 	return Array.isArray(value) && value.length > 0;
 };
 
@@ -17,7 +17,7 @@ export function notEmpty<TValue>(value: TValue | null | undefined): value is TVa
 	return (isNumber(value) && !isNaN(value)) || !lodash.isEmpty(value);
 }
 
-export function isNumber(value: any): value is number {
+export function isNumber(value: unknown): value is number {
 	return typeof value === 'number';
 }
 
@@ -36,9 +36,9 @@ export function uniqueCharacters(value: string): string {
 /**
  * Function that returns true if input is a valid number greater than zero.
  * Otherwise it returns false
- * @param {any} value
+ * @param {unknown} value
  * @returns {boolean}
  */
-export function isValidIdNumber(value: any): boolean {
+export function isValidIdNumber(value: unknown): boolean {
 	return isNumber(value) && !isNaN(value) && value > 0;
 }

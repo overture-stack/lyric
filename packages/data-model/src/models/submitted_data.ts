@@ -2,6 +2,7 @@ import { relations } from 'drizzle-orm';
 import { boolean, index, integer, jsonb, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
 import { DataRecord } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+
 import { dictionaries } from './dictionaries.js';
 import { dictionaryCategories } from './dictionary_categories.js';
 

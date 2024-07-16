@@ -1,11 +1,12 @@
 import { SubmittedData } from '@overture-stack/lyric-data-model';
 import { SQON } from '@overture-stack/sqon-builder';
+
 import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import dictionaryRepository from '../repository/dictionaryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
-import { SchemaChildNode, getDictionarySchemaRelations } from '../utils/dictionarySchemaRelations.js';
+import { getDictionarySchemaRelations, SchemaChildNode } from '../utils/dictionarySchemaRelations.js';
 import { BadRequest } from '../utils/errors.js';
 import submittedUtils from '../utils/submittedDataUtils.js';
 import { PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
@@ -35,7 +36,7 @@ const service = (dependencies: BaseDependencies) => {
 		const { getSubmittedDataFiltered } = submittedDataRepo;
 
 		// Check if entity has children relationships
-		if (dictionaryRelations.hasOwnProperty(submittedData.entityName)) {
+		if (Object.prototype.hasOwnProperty.call(dictionaryRelations, submittedData.entityName)) {
 			// Array that represents the children fields to filter
 			const filterData: { entityName: string; dataField: string; dataValue: string }[] = Object.values(
 				dictionaryRelations[submittedData.entityName],

@@ -1,5 +1,7 @@
-import * as schema from '@overture-stack/lyric-data-model';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+
+import * as schema from '@overture-stack/lyric-data-model';
+
 import { Logger } from './logger.js';
 
 export type AuditConfig = {

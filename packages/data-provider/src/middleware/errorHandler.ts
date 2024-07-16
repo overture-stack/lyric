@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+
 import {
 	BadRequest,
 	InternalServerError,
@@ -14,10 +15,10 @@ import {
  * @param err An Error instance
  * @param req Incoming HTTP Request object
  * @param res HTTP Response Object
- * @param next Next middleware function
  * @returns An HTTP Response Object with the corresponding HTTP code and message
  */
-export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction): any => {
+
+export const errorHandler = (err: Error, req: Request, res: Response, _next: NextFunction): unknown => {
 	console.error('error handler received error: ', err);
 	let status: number;
 	const customizableMsg = err.message;

@@ -1,6 +1,6 @@
 import { entities as dictionaryEntities, restClient as dictionaryRestClient } from '@overturebio-stack/lectern-client';
-import { Logger } from '../config/logger.js';
 
+import { Logger } from '../config/logger.js';
 import { BadRequest, ServiceUnavailable } from '../utils/errors.js';
 
 const client = (schemaServiceUrl: string, logger: Logger) => {

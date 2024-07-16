@@ -1,9 +1,8 @@
-import { Router, json, urlencoded } from 'express';
-
-import { auth } from '../middleware/auth.js';
+import { json, Router, urlencoded } from 'express';
 
 import { BaseDependencies } from '../config/config.js';
 import categoryController from '../controllers/categoryController.js';
+import { auth } from '../middleware/auth.js';
 
 const router = (dependencies: BaseDependencies): Router => {
 	const router = Router();

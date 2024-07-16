@@ -1,10 +1,11 @@
+import { DeepReadonly } from 'deep-freeze';
+
 import { NewSubmittedData, Submission, SubmissionData } from '@overture-stack/lyric-data-model';
 import {
 	DataRecord,
-	SchemaValidationError,
 	SchemasDictionary,
+	SchemaValidationError,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
-import { DeepReadonly } from 'deep-freeze';
 
 type ObjectValues<T> = T[keyof T];
 
@@ -55,7 +56,7 @@ export type CreateSubmissionResult = {
  */
 export type CommitSubmissionResult = {
 	status: string;
-	dictionary: {};
+	dictionary: object;
 	processedEntities: string[];
 };
 
@@ -65,7 +66,7 @@ export type CommitSubmissionResult = {
 export type RegisterDictionaryResult = {
 	categoryId: number;
 	categoryName: string;
-	dictionary: {};
+	dictionary: object;
 	name: string;
 	version: string;
 };
@@ -162,8 +163,8 @@ export type ActiveSubmissionSummaryResponse = Omit<ActiveSubmissionResponse, 'da
 export type ActiveSubmissionSummaryRepository = {
 	id: number;
 	data: Record<string, SubmissionData>;
-	dictionary: {} | null;
-	dictionaryCategory: {} | null;
+	dictionary: object | null;
+	dictionaryCategory: object | null;
 	errors: Record<string, SchemaValidationError[]> | null;
 	organization: string | null;
 	status: SubmissionStatus | null;

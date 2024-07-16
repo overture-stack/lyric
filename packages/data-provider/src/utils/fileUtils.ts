@@ -1,7 +1,9 @@
-import { DataRecord, SchemaData } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import bytes from 'bytes';
 import firstline from 'firstline';
 import fs from 'fs';
+
+import { DataRecord, SchemaData } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+
 import { notEmpty } from './formatUtils.js';
 
 const fsPromises = fs.promises;
@@ -39,24 +41,23 @@ export const tsvToJson = async (fileName: string): Promise<SchemaData> => {
 const parseTsvToJson = (content: string): SchemaData => {
 	const lines = content.split('\n');
 	const headers = lines.slice(0, 1)[0].trim().split('\t');
-	const rows = lines.slice(1, lines.length).map((line) => {
-		// check for any empty lines
-		if (!line || line.trim() === '') {
-			return undefined;
-		}
-		const data = line.split('\t');
-		return headers.reduce((obj: any, nextKey, index) => {
-			const dataStr = data[index] || '';
-			const formattedData = formatForExcelCompatibility(dataStr);
-			const dataAsArray: string[] = formattedData
-				.trim()
-				.split(ARRAY_DELIMITER_CHAR)
-				.map((s) => s.trim());
+	const rows = lines
+		.slice(1, lines.length)
+		.filter((line) => line && line.trim() !== '')
+		.map((line) => {
+			const data = line.split('\t');
+			return headers.reduce((obj: { [k: string]: string | string[] }, nextKey, index) => {
+				const dataStr = data[index] || '';
+				const formattedData = formatForExcelCompatibility(dataStr);
+				const dataAsArray: string[] = formattedData
+					.trim()
+					.split(ARRAY_DELIMITER_CHAR)
+					.map((s) => s.trim());
 
-			obj[nextKey] = dataAsArray.length === 1 ? dataAsArray[0] : dataAsArray;
-			return obj as DataRecord;
-		}, {});
-	});
+				obj[nextKey] = dataAsArray.length === 1 ? dataAsArray[0] : dataAsArray;
+				return obj as DataRecord;
+			}, {});
+		});
 	return rows.filter(notEmpty);
 };
 

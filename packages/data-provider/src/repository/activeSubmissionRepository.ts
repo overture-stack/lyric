@@ -1,6 +1,7 @@
 import { and, eq, or } from 'drizzle-orm/sql';
 
 import { NewSubmission, Submission, submissions } from '@overture-stack/lyric-data-model';
+
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import { ActiveSubmissionSummaryRepository, BooleanTrueObject } from '../utils/types.js';
@@ -104,7 +105,7 @@ const repository = (dependencies: BaseDependencies) => {
 		/**
 		 * Update a Submission record in database
 		 * @param {number} submissionId Submission ID to update
-		 * @param {any} newData Set fields to update
+		 * @param {Partial<Submission>} newData Set fields to update
 		 * @returns An updated record
 		 */
 		update: async (submissionId: number, newData: Partial<Submission>): Promise<Submission> => {

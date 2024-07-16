@@ -1,6 +1,7 @@
 import { customAlphabet } from 'nanoid';
 
 import { DataRecord } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+
 import { BaseDependencies } from '../config/config.js';
 import { NotImplemented } from '../utils/errors.js';
 import { uniqueCharacters } from '../utils/formatUtils.js';
@@ -22,7 +23,8 @@ const systemIdGenerator = (dependencies: BaseDependencies) => {
 		 * Generate unique ID on system database
 		 * @returns {string} generated ID
 		 */
-		generateIdentifier: (entityName: string, dataRecord: DataRecord): string => {
+
+		generateIdentifier: (entityName: string, _dataRecord: DataRecord): string => {
 			if (idService.useLocal) {
 				const id = nanoid();
 				logger.debug(LOG_MODULE, `System ID '${id}' generated for entity '${entityName}'`);

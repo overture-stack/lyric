@@ -1,18 +1,17 @@
 import { z } from 'zod';
-import { RequestValidation } from './requestValidation.js';
 
-const numberSchema = z
-	.custom<number>()
-	.refine((value) => value ?? false, 'required')
-	.refine((value) => Number.isFinite(Number(value)), 'an invalid number')
-	.transform((value) => Number(value));
+import { RequestValidation } from './requestValidation.js';
 
 export const uploadCustomFile = z
 	.custom<Express.Multer.File[]>()
 	.refine((files) => files?.length > 0, 'required as a .tsv format')
 	.refine((files) => files.every((file) => file.originalname.match(/.*\.tsv$/)), 'required as a .tsv format');
 
-export const registerDictionaryRequestSchema: RequestValidation<any> = {
+export const registerDictionaryRequestSchema: RequestValidation<{
+	categoryName: string;
+	dictionaryName: string;
+	version: string;
+}> = {
 	body: z.object({
 		categoryName: z.string(),
 		dictionaryName: z.string(),
@@ -21,7 +20,7 @@ export const registerDictionaryRequestSchema: RequestValidation<any> = {
 };
 
 // params can be only validated as strings to match ParamsDictionary
-export const uploadSubmissionRequestSchema: RequestValidation<any> = {
+export const uploadSubmissionRequestSchema: RequestValidation<{ organization: string }> = {
 	body: z.object({
 		organization: z.string(),
 	}),
