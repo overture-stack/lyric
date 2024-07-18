@@ -173,6 +173,55 @@ describe('Test SQON functions', () => {
 		});
 	});
 
+	describe('Test SQON with a combination of OR filter', () => {
+		const sqonCombinedORFilterRawInput = {
+			op: 'or',
+			content: [
+				{
+					op: 'in',
+					content: {
+						fieldName: 'submitter_participant_id',
+						value: ['NR-01'],
+					},
+				},
+				{
+					op: 'in',
+					content: {
+						fieldName: 'study_id',
+						value: ['XYZ'],
+					},
+				},
+			],
+		};
+
+		const sqonCombinedORFilterParsed: SQON = {
+			op: 'or',
+			content: [
+				{ op: 'in', content: { fieldName: 'submitter_participant_id', value: ['NR-01'] } },
+				{ op: 'in', content: { fieldName: 'study_id', value: ['XYZ'] } },
+			],
+		};
+
+		const combinedORFilterChunks: SQLChunk[] = [
+			'(',
+			"data ->> 'submitter_participant_id' IN ('NR-01')",
+			' or ',
+			"data ->> 'study_id' IN ('XYZ')",
+			')',
+		];
+
+		it('should convert a json text with OR filter into a SQON format', () => {
+			const result = parseSQON(sqonCombinedORFilterRawInput);
+			expect(JSON.stringify(result)).to.eql(JSON.stringify(sqonCombinedORFilterParsed));
+		});
+
+		it('should convert SQON with OR filter into a database query', () => {
+			const result = convertSqonToQuery(sqonCombinedORFilterParsed);
+			const extractedValues = extractValues(result, 'value');
+			expect(extractedValues).to.eql(combinedORFilterChunks);
+		});
+	});
+
 	describe('Test invalid SQON filter operator', () => {
 		const sqonInvalidFilterRawInput = {
 			op: 'xor',
