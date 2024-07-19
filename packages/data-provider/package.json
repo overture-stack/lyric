@@ -37,29 +37,29 @@
 		"@overturebio-stack/lectern-client": "^1.5.0",
 		"bytes": "^3.1.2",
 		"deep-freeze": "^0.0.1",
-		"dotenv": "^16.4.1",
-		"drizzle-orm": "^0.29.3",
-		"express": "^4.18.2",
+		"dotenv": "^16.4.5",
+		"drizzle-orm": "^0.29.5",
+		"express": "^4.19.2",
 		"firstline": "^2.0.2",
 		"lodash-es": "^4.17.21",
 		"multer": "1.4.5-lts.1",
 		"nanoid": "^5.0.7",
-		"pg": "^8.11.3",
-		"winston": "^3.11.0",
-		"zod": "^3.22.4"
+		"pg": "^8.12.0",
+		"winston": "^3.13.1",
+		"zod": "^3.23.8"
 	},
 	"devDependencies": {
 		"@types/bytes": "^3.1.4",
 		"@types/deep-freeze": "^0.1.5",
 		"@types/express": "^4.17.21",
-		"@types/express-serve-static-core": "^4.19.0",
+		"@types/express-serve-static-core": "^4.19.5",
 		"@types/firstline": "^2.0.4",
-		"@types/lodash": "^4.17.5",
+		"@types/lodash": "^4.17.7",
 		"@types/lodash-es": "^4.17.12",
 		"@types/multer": "^1.4.11",
-		"@types/pg": "^8.11.0",
+		"@types/pg": "^8.11.6",
 		"@types/qs": "^6.9.15",
-		"nodemon": "^3.0.3",
-		"rimraf": "^5.0.7"
+		"nodemon": "^3.1.4",
+		"rimraf": "^5.0.9"
 	}
 }
