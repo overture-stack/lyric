@@ -98,7 +98,7 @@ describe('Test SQON functions', () => {
 				{
 					op: 'in',
 					content: {
-						fieldName: 'submitter_participant_id',
+						fieldName: 'player_id',
 						value: ['NR-01'],
 					},
 				},
@@ -107,10 +107,10 @@ describe('Test SQON functions', () => {
 
 		const sqonCombinedNOTFilterParsed: SQON = {
 			op: 'not',
-			content: [{ op: 'in', content: { fieldName: 'submitter_participant_id', value: ['NR-01'] } }],
+			content: [{ op: 'in', content: { fieldName: 'player_id', value: ['NR-01'] } }],
 		};
 
-		const combinedNOTFilterChunks: SQLChunk[] = ['not ', "data ->> 'submitter_participant_id' IN ('NR-01')", ''];
+		const combinedNOTFilterChunks: SQLChunk[] = ['not ', "data ->> 'player_id' IN ('NR-01')", ''];
 
 		it('should convert a json text with NOT filter into a SQON format', () => {
 			const result = parseSQON(sqonCombinedNOTFilterRawInput);
@@ -131,14 +131,14 @@ describe('Test SQON functions', () => {
 				{
 					op: 'in',
 					content: {
-						fieldName: 'submitter_participant_id',
+						fieldName: 'player_id',
 						value: ['NR-01'],
 					},
 				},
 				{
 					op: 'in',
 					content: {
-						fieldName: 'study_id',
+						fieldName: 'team_id',
 						value: ['XYZ'],
 					},
 				},
@@ -148,16 +148,16 @@ describe('Test SQON functions', () => {
 		const sqonCombinedANDFilterParsed: SQON = {
 			op: 'and',
 			content: [
-				{ op: 'in', content: { fieldName: 'submitter_participant_id', value: ['NR-01'] } },
-				{ op: 'in', content: { fieldName: 'study_id', value: ['XYZ'] } },
+				{ op: 'in', content: { fieldName: 'player_id', value: ['NR-01'] } },
+				{ op: 'in', content: { fieldName: 'team_id', value: ['XYZ'] } },
 			],
 		};
 
 		const combinedANDFilterChunks: SQLChunk[] = [
 			'(',
-			"data ->> 'submitter_participant_id' IN ('NR-01')",
+			"data ->> 'player_id' IN ('NR-01')",
 			' and ',
-			"data ->> 'study_id' IN ('XYZ')",
+			"data ->> 'team_id' IN ('XYZ')",
 			')',
 		];
 
@@ -180,14 +180,14 @@ describe('Test SQON functions', () => {
 				{
 					op: 'in',
 					content: {
-						fieldName: 'submitter_participant_id',
+						fieldName: 'player_id',
 						value: ['NR-01'],
 					},
 				},
 				{
 					op: 'in',
 					content: {
-						fieldName: 'study_id',
+						fieldName: 'team_id',
 						value: ['XYZ'],
 					},
 				},
@@ -197,16 +197,16 @@ describe('Test SQON functions', () => {
 		const sqonCombinedORFilterParsed: SQON = {
 			op: 'or',
 			content: [
-				{ op: 'in', content: { fieldName: 'submitter_participant_id', value: ['NR-01'] } },
-				{ op: 'in', content: { fieldName: 'study_id', value: ['XYZ'] } },
+				{ op: 'in', content: { fieldName: 'player_id', value: ['NR-01'] } },
+				{ op: 'in', content: { fieldName: 'team_id', value: ['XYZ'] } },
 			],
 		};
 
 		const combinedORFilterChunks: SQLChunk[] = [
 			'(',
-			"data ->> 'submitter_participant_id' IN ('NR-01')",
+			"data ->> 'player_id' IN ('NR-01')",
 			' or ',
-			"data ->> 'study_id' IN ('XYZ')",
+			"data ->> 'team_id' IN ('XYZ')",
 			')',
 		];
 
@@ -229,7 +229,7 @@ describe('Test SQON functions', () => {
 				{
 					op: 'in',
 					content: {
-						fieldName: 'submitter_participant_id',
+						fieldName: 'player_id',
 						value: ['NR-01'],
 					},
 				},

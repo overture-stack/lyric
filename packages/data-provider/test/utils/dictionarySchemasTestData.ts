@@ -3,12 +3,12 @@ import { SchemaDefinition, ValueType } from '@overturebio-stack/lectern-client/l
 
 const sampleDictionaryData: SchemaDefinition[] = [
 	{
-		name: 'study',
+		name: 'sport',
 		fields: [
 			{
-				name: 'study_id',
+				name: 'sport_id',
 				valueType: ValueType.STRING,
-				description: 'Unique identifier of the study.',
+				description: 'Unique identifier of the sport.',
 				restrictions: {
 					required: true,
 				},
@@ -16,7 +16,7 @@ const sampleDictionaryData: SchemaDefinition[] = [
 			{
 				name: 'name',
 				valueType: ValueType.STRING,
-				description: 'Study name',
+				description: 'Name of the sport.',
 				restrictions: {
 					required: true,
 				},
@@ -24,65 +24,60 @@ const sampleDictionaryData: SchemaDefinition[] = [
 			{
 				name: 'description',
 				valueType: ValueType.STRING,
-				description: 'Information about the study',
+				description: 'Description of the sport.',
 				restrictions: {
-					required: true,
-				},
-			},
-		],
-		description: 'The collection of data elements required to register the study program.',
-		restrictions: {},
-	},
-	{
-		name: 'participant',
-		fields: [
-			{
-				name: 'study_id',
-				valueType: ValueType.STRING,
-				description: 'Unique identifier of the study.',
-				restrictions: {
-					required: true,
-				},
-			},
-			{
-				name: 'submitter_participant_id',
-				valueType: ValueType.STRING,
-				description: 'Unique identifier for the participant, assigned by the data provider.',
-				restrictions: {
-					regex: '^[A-Za-z0-9\\-\\._]+$',
-					required: true,
-				},
-			},
-			{
-				name: 'sex_at_birth',
-				valueType: ValueType.STRING,
-				description:
-					"Refers to sex assigned at birth. Sex at birth is typically assigned based on a person's reproductive system and other physical characteristics. The provided values are based on the categories defined by Statistics Canada",
-				restrictions: {
-					codeList: ['Male', 'Female'],
-					required: true,
-				},
-			},
-			{
-				name: 'gender',
-				valueType: ValueType.STRING,
-				description:
-					"Refers to an individual's personal and social identity as a man, woman or non-binary person (a person who is not exclusively a man or a woman). The provided values are based on the categories defined by Statistics Canada",
-				restrictions: {
-					codeList: ['Man', 'Woman', 'Non-binary person'],
 					required: false,
 				},
 			},
 		],
-		description: 'The collection of data elements related to a specific donor',
+		description: 'The collection of data elements required to register a sport.',
+		restrictions: {},
+	},
+	{
+		name: 'team',
+		fields: [
+			{
+				name: 'team_id',
+				valueType: ValueType.STRING,
+				description: 'Unique identifier of the team.',
+				restrictions: {
+					required: true,
+				},
+			},
+			{
+				name: 'sport_id',
+				valueType: ValueType.STRING,
+				description: 'Unique identifier of the sport the team plays.',
+				restrictions: {
+					required: true,
+				},
+			},
+			{
+				name: 'name',
+				valueType: ValueType.STRING,
+				description: 'Name of the team.',
+				restrictions: {
+					required: true,
+				},
+			},
+			{
+				name: 'coach',
+				valueType: ValueType.STRING,
+				description: "Name of the team's coach.",
+				restrictions: {
+					required: false,
+				},
+			},
+		],
+		description: 'The collection of data elements required to register a team.',
 		restrictions: {
 			foreignKey: [
 				{
-					schema: 'study',
+					schema: 'sport',
 					mappings: [
 						{
-							local: 'study_id',
-							foreign: 'study_id',
+							local: 'sport_id',
+							foreign: 'sport_id',
 						},
 					],
 				},
@@ -90,71 +85,50 @@ const sampleDictionaryData: SchemaDefinition[] = [
 		},
 	},
 	{
-		name: 'sample',
+		name: 'player',
 		fields: [
 			{
-				name: 'study_id',
+				name: 'player_id',
 				valueType: ValueType.STRING,
-				description: 'Unique identifier of the study.',
+				description: 'Unique identifier of the player.',
 				restrictions: {
 					required: true,
 				},
 			},
 			{
-				name: 'submitter_participant_id',
+				name: 'team_id',
 				valueType: ValueType.STRING,
-				description: 'Unique identifier for the participant, assigned by the data provider.',
+				description: 'Unique identifier of the team the player belongs to.',
 				restrictions: {
-					regex: '^[A-Za-z0-9\\-\\._]+$',
 					required: true,
 				},
 			},
 			{
-				name: 'submitter_specimen_id',
+				name: 'name',
 				valueType: ValueType.STRING,
-				description: 'Unique identifier of the specimen, assigned by the data provider.',
+				description: 'Name of the player.',
 				restrictions: {
-					regex: '^[A-Za-z0-9\\-\\._]+$',
 					required: true,
 				},
 			},
 			{
-				name: 'submitter_sample_id',
+				name: 'position',
 				valueType: ValueType.STRING,
-				description: 'Unique identifier of the sample, assigned by the data provider.',
+				description: 'Position of the player in the team.',
 				restrictions: {
-					regex: '^[A-Za-z0-9\\-\\._]+$',
-					required: true,
+					required: false,
 				},
 			},
 		],
-		description: 'The collection of data elements required to register the required Donor-Specimen-Sample data',
+		description: 'The collection of data elements required to register a player.',
 		restrictions: {
 			foreignKey: [
 				{
-					schema: 'study',
+					schema: 'team',
 					mappings: [
 						{
-							local: 'study_id',
-							foreign: 'study_id',
-						},
-					],
-				},
-				{
-					schema: 'participant',
-					mappings: [
-						{
-							local: 'submitter_participant_id',
-							foreign: 'submitter_participant_id',
-						},
-					],
-				},
-				{
-					schema: 'specimen',
-					mappings: [
-						{
-							local: 'submitter_specimen_id',
-							foreign: 'submitter_specimen_id',
+							local: 'team_id',
+							foreign: 'team_id',
 						},
 					],
 				},
@@ -162,63 +136,51 @@ const sampleDictionaryData: SchemaDefinition[] = [
 		},
 	},
 	{
-		name: 'specimen',
+		name: 'game',
 		fields: [
 			{
-				name: 'study_id',
+				name: 'game_id',
 				valueType: ValueType.STRING,
-				description: 'Unique identifier of the study.',
+				description: 'Unique identifier of the game.',
 				restrictions: {
 					required: true,
 				},
 			},
 			{
-				name: 'submitter_participant_id',
+				name: 'sport_id',
 				valueType: ValueType.STRING,
-				description: 'Unique identifier for the participant, assigned by the data provider.',
+				description: 'Unique identifier of the sport being played.',
 				restrictions: {
-					regex: '^[A-Za-z0-9\\-\\._]+$',
 					required: true,
 				},
 			},
 			{
-				name: 'submitter_specimen_id',
+				name: 'date',
 				valueType: ValueType.STRING,
-				description: 'Unique identifier of the specimen, assigned by the data provider.',
+				description: 'Date of the game.',
 				restrictions: {
-					regex: '^[A-Za-z0-9\\-\\._]+$',
+					regex: '^\\d{4}-(0[1-9]|1[012])-\\d{2}$',
 					required: true,
 				},
 			},
 			{
-				name: 'specimen_collection_date',
+				name: 'location',
 				valueType: ValueType.STRING,
-				description: 'Indicate the date when the specimen was collected from donor.',
+				description: 'Location of the game.',
 				restrictions: {
-					regex: '^\\d{4}-(0[1-9]|1[012])$',
-					required: true,
+					required: false,
 				},
 			},
 		],
-		description:
-			"The collection of data elements related to a donor's specimen. A specimen is any material sample taken for testing, diagnostic or research purposes.",
+		description: 'The collection of data elements required to register a game.',
 		restrictions: {
 			foreignKey: [
 				{
-					schema: 'study',
+					schema: 'sport',
 					mappings: [
 						{
-							local: 'study_id',
-							foreign: 'study_id',
-						},
-					],
-				},
-				{
-					schema: 'participant',
-					mappings: [
-						{
-							local: 'submitter_participant_id',
-							foreign: 'submitter_participant_id',
+							local: 'sport_id',
+							foreign: 'sport_id',
 						},
 					],
 				},
@@ -237,28 +199,15 @@ export const sampleDictionary: Dictionary = {
 };
 
 export const sampleChildrenNodes = {
-	study: [
-		{ schemaName: 'participant', fieldName: 'study_id', parent: { schemaName: 'study', fieldName: 'study_id' } },
-		{ schemaName: 'sample', fieldName: 'study_id', parent: { schemaName: 'study', fieldName: 'study_id' } },
-		{ schemaName: 'specimen', fieldName: 'study_id', parent: { schemaName: 'study', fieldName: 'study_id' } },
+	sport: [
+		{ schemaName: 'team', fieldName: 'sport_id', parent: { schemaName: 'sport', fieldName: 'sport_id' } },
+		{ schemaName: 'game', fieldName: 'sport_id', parent: { schemaName: 'sport', fieldName: 'sport_id' } },
 	],
-	participant: [
+	team: [
 		{
-			schemaName: 'sample',
-			fieldName: 'submitter_participant_id',
-			parent: { schemaName: 'participant', fieldName: 'submitter_participant_id' },
-		},
-		{
-			schemaName: 'specimen',
-			fieldName: 'submitter_participant_id',
-			parent: { schemaName: 'participant', fieldName: 'submitter_participant_id' },
-		},
-	],
-	specimen: [
-		{
-			schemaName: 'sample',
-			fieldName: 'submitter_specimen_id',
-			parent: { schemaName: 'specimen', fieldName: 'submitter_specimen_id' },
+			schemaName: 'player',
+			fieldName: 'team_id',
+			parent: { schemaName: 'team', fieldName: 'team_id' },
 		},
 	],
 };
