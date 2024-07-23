@@ -6,8 +6,14 @@ import { SQON } from '@overture-stack/sqon-builder';
 
 import { convertSqonToQuery, parseSQON } from '../../src/utils/convertSqonToQuery.js';
 
+/**
+ * Function to facilitate test cases to extract array of SQL chunks from a `SQL` object
+ * @param {SQL | undefined} obj
+ * @param {string} key
+ * @returns {SQLChunk[]}
+ */
 function extractValues(obj: SQL | undefined, key: string) {
-	let values: SQL[] = [];
+	let values: SQLChunk[] = [];
 
 	function recurse(currentObj: SQL | undefined) {
 		if (Array.isArray(currentObj)) {
