@@ -31,6 +31,60 @@ export const AUDIT_ACTION = {
 export type AuditAction = ObjectValues<typeof AUDIT_ACTION>;
 
 /**
+ * Audit Raw Data from Repository
+ */
+export type AuditDataRepository = {
+	comment: string | null;
+	entityName: string;
+	action: AuditAction;
+	newData: DataRecord | null;
+	newDataIsValid: boolean;
+	oldData: DataRecord | null;
+	oldDataIsValid: boolean;
+	organization: string;
+	systemId: string;
+	updatedAt: Date | null;
+	updatedBy: string | null;
+};
+
+/**
+ * Audit Data Response formatted
+ */
+export type AuditDataResponse = {
+	comment: string;
+	entityName: string;
+	event: AuditAction;
+	newData: DataRecord | null;
+	newIsValid: boolean;
+	oldData: DataRecord | null;
+	oldIsValid: boolean;
+	organization: string;
+	systemId: string;
+	updatedAt: string;
+	updatedBy: string;
+};
+
+/**
+ * Include an array of the filtered records and a summary of the pagination
+ * Response type used to query submitted data endpoint
+ */
+export type AuditPaginatedResponse = {
+	pagination: PaginationMetadata;
+	records: AuditDataResponse[];
+};
+
+/**
+ * Type that describes the options used as a filter on Audit Table
+ */
+export type AuditFilterOptions = PaginationOptions & {
+	entityName: string;
+	eventType: string;
+	startDate: string;
+	endDate: string;
+	systemId: string;
+};
+
+/**
  * Enum used in the Reponse on Create new Submissions
  */
 export const CREATE_SUBMISSION_STATUS = {
