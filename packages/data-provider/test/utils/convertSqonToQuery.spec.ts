@@ -13,8 +13,9 @@ function extractValues(obj: SQL | undefined, key: string) {
 		if (Array.isArray(currentObj)) {
 			currentObj.forEach(recurse);
 		} else if (currentObj && typeof currentObj === 'object') {
-			if (Object.prototype.hasOwnProperty.call(currentObj, key)) {
-				values = values.concat(currentObj[key]);
+			const objectDescriptor = Object.getOwnPropertyDescriptor(currentObj, key);
+			if (objectDescriptor?.value) {
+				values = values.concat(objectDescriptor?.value);
 			}
 			Object.values(currentObj).forEach(recurse);
 		}
