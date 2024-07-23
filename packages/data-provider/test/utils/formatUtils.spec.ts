@@ -30,7 +30,7 @@ describe('Format Utils tests', () => {
 	});
 
 	it('should determine if array has any values', () => {
-		const emptyArray = [];
+		const emptyArray: string[] = [];
 		const response = isArrayWithValues(emptyArray);
 		expect(response).to.be.false;
 	});
