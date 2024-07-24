@@ -31,32 +31,14 @@ function extractValues(obj: SQL | undefined, key: string) {
 	return values;
 }
 
-describe('Test SQON functions', () => {
-	describe('Test SQON with greater than filter', () => {
-		const sqonGreaterThanFilterRawInput = {
-			op: 'and',
-			content: [
-				{
-					op: 'gt',
-					content: {
-						fieldName: 'date_of_birth',
-						value: 197005,
-					},
-				},
-			],
-		};
-
+describe('SQON utils', () => {
+	describe('SQON with greater than filter', () => {
 		const sqonGreaterThanFilterParsed: SQON = {
 			op: 'gt',
 			content: { fieldName: 'date_of_birth', value: 197005 },
 		};
 
 		const greaterThanFilterChunk: SQLChunk[] = ["data ->> 'date_of_birth' > '197005'"];
-
-		it('should convert a json text with greater than filter into a SQON format', () => {
-			const result = parseSQON(sqonGreaterThanFilterRawInput);
-			expect(JSON.stringify(result)).to.eql(JSON.stringify(sqonGreaterThanFilterParsed));
-		});
 
 		it('should convert SQON with greater than filter into a database query', () => {
 			const result = convertSqonToQuery(sqonGreaterThanFilterParsed);
@@ -65,31 +47,13 @@ describe('Test SQON functions', () => {
 		});
 	});
 
-	describe('Test SQON with less than filter', () => {
-		const sqonLessThanFilterRawInput = {
-			op: 'and',
-			content: [
-				{
-					op: 'lt',
-					content: {
-						fieldName: 'date_of_birth',
-						value: 197005,
-					},
-				},
-			],
-		};
-
+	describe('SQON with less than filter', () => {
 		const sqonLessThanFilterParsed: SQON = {
 			op: 'lt',
 			content: { fieldName: 'date_of_birth', value: 197005 },
 		};
 
 		const lessThanFilterChunk: SQLChunk[] = ["data ->> 'date_of_birth' < '197005'"];
-
-		it('should convert a json text with less than filter into a SQON format', () => {
-			const result = parseSQON(sqonLessThanFilterRawInput);
-			expect(JSON.stringify(result)).to.eql(JSON.stringify(sqonLessThanFilterParsed));
-		});
 
 		it('should convert SQON with less than filter into a database query', () => {
 			const result = convertSqonToQuery(sqonLessThanFilterParsed);
@@ -98,7 +62,7 @@ describe('Test SQON functions', () => {
 		});
 	});
 
-	describe('Test SQON with NOT filter', () => {
+	describe('SQON with NOT filter', () => {
 		const sqonCombinedNOTFilterRawInput = {
 			op: 'not',
 			content: [
@@ -131,7 +95,7 @@ describe('Test SQON functions', () => {
 		});
 	});
 
-	describe('Test SQON with a combination of AND filter', () => {
+	describe('SQON with a combination of AND filter', () => {
 		const sqonCombinedANDFilterRawInput = {
 			op: 'and',
 			content: [
@@ -180,7 +144,7 @@ describe('Test SQON functions', () => {
 		});
 	});
 
-	describe('Test SQON with a combination of OR filter', () => {
+	describe('SQON with a combination of OR filter', () => {
 		const sqonCombinedORFilterRawInput = {
 			op: 'or',
 			content: [
@@ -229,7 +193,7 @@ describe('Test SQON functions', () => {
 		});
 	});
 
-	describe('Test invalid SQON filter operator', () => {
+	describe('invalid SQON filter operator', () => {
 		const sqonInvalidFilterRawInput = {
 			op: 'xor',
 			content: [

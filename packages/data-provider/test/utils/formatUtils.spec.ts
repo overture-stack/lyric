@@ -3,7 +3,7 @@ import { describe, it } from 'mocha';
 
 import { isArrayWithValues, isEmptyString, isValidIdNumber, uniqueCharacters } from '../../src/utils/formatUtils.js';
 
-describe('Format Utils tests', () => {
+describe('Format Utils', () => {
 	describe('Validate if input is a valid ID number', () => {
 		it('should return true if input is a valid number', () => {
 			const validNumber = 1;

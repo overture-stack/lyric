@@ -7,7 +7,7 @@ const fsPromises = fs.promises;
 
 import { tsvToJson } from '../../src/utils/fileUtils.js';
 
-describe('File Utils tests', () => {
+describe('File Utils', () => {
 	it('should read a .tsv file and parse it to JSON format', async () => {
 		const archiveAsTsv = 'study_id\tsubmitter_participant_id\tsex_at_birth\tgender\nTESTABC\tNR-01\tMale\tMan';
 

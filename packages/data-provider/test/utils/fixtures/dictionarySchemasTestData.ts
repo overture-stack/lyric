@@ -1,7 +1,7 @@
 import { Dictionary } from '@overture-stack/lyric-data-model';
 import { SchemaDefinition, ValueType } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
-const sampleDictionaryData: SchemaDefinition[] = [
+const dictionarySportsData: SchemaDefinition[] = [
 	{
 		name: 'sport',
 		fields: [
@@ -187,18 +187,18 @@ const sampleDictionaryData: SchemaDefinition[] = [
 			],
 		},
 	},
-];
+] as const;
 
-export const sampleDictionary: Dictionary = {
+export const dictionarySportStats: Dictionary = {
 	id: 1,
 	name: 'test dictionary',
 	version: '1.0.0',
-	dictionary: sampleDictionaryData,
+	dictionary: dictionarySportsData,
 	createdAt: new Date(),
 	createdBy: '',
-};
+} as const;
 
-export const sampleChildrenNodes = {
+export const dictionarySportStatsNodeGraph = {
 	sport: [
 		{ schemaName: 'team', fieldName: 'sport_id', parent: { schemaName: 'sport', fieldName: 'sport_id' } },
 		{ schemaName: 'game', fieldName: 'sport_id', parent: { schemaName: 'sport', fieldName: 'sport_id' } },
@@ -210,4 +210,4 @@ export const sampleChildrenNodes = {
 			parent: { schemaName: 'team', fieldName: 'team_id' },
 		},
 	],
-};
+} as const;
