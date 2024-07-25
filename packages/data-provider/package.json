@@ -11,7 +11,9 @@
 		"\n===============  Build  ===============": "",
 		"build:all": "rimraf dist && tsc",
 		"\n===========  Dev environment  =========": "",
-		"start:dev": "nodemon"
+		"start:dev": "nodemon",
+		"test": "mocha",
+		"test:coverage": "c8 pnpm run test"
 	},
 	"keywords": [
 		"overture",

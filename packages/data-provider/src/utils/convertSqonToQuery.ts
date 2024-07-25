@@ -13,6 +13,7 @@ import SQONBuilder, {
 	isFilter,
 	LesserThanFilter,
 	Operator,
+	SQON,
 } from '@overture-stack/sqon-builder';
 
 import { BadRequest } from './errors.js';
@@ -145,7 +146,7 @@ export const convertSqonToQuery = (sqon: Operator | undefined): SQL<unknown> | u
  * @param {unknown} input
  * @returns SQONBuilder
  */
-export const parseSQON = (input: unknown) => {
+export const parseSQON = (input: unknown): SQON | undefined => {
 	try {
 		// Given any input, attempt to parse it as a SQON.
 		// An error will be thrown if the provided input is invalid.
