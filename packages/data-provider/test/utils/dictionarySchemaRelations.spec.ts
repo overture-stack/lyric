@@ -2,12 +2,12 @@ import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
 import { getDictionarySchemaRelations } from '../../src/utils/dictionarySchemaRelations.js';
-import { sampleChildrenNodes, sampleDictionary } from './dictionarySchemasTestData.js';
+import { dictionarySportStats, dictionarySportStatsNodeGraph } from './fixtures/dictionarySchemasTestData.js';
 
-describe('Test Dictionary Schema Relations', () => {
+describe('Dictionary Schema Relations', () => {
 	it('should return the schema children nodes on a Dictionary', () => {
-		const result = getDictionarySchemaRelations(sampleDictionary);
+		const result = getDictionarySchemaRelations(dictionarySportStats);
 
-		expect(result).to.deep.equal(sampleChildrenNodes);
+		expect(result).to.deep.equal(dictionarySportStatsNodeGraph);
 	});
 });
