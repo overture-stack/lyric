@@ -5,7 +5,7 @@ export const isEmptyString = (value: unknown) => {
 };
 
 export const isArrayWithValues = (value: unknown) => {
-	return Array.isArray(value) && value.length > 0;
+	return Array.isArray(value) && value.length > 0 && value.some((x) => !!x);
 };
 
 export function notEmpty<TValue>(value: TValue | null | undefined): value is TValue {
@@ -24,7 +24,7 @@ export function isNumber(value: unknown): value is number {
 export function uniqueCharacters(value: string): string {
 	if (isEmptyString(value)) return '';
 	// Split the string to make array
-	const splitted = value.split('');
+	const splitted = value.replace(/\s/g, '').split('');
 
 	// Create a new array using set
 	const arrayCharacters = [...new Set(splitted)];
@@ -40,5 +40,5 @@ export function uniqueCharacters(value: string): string {
  * @returns {boolean}
  */
 export function isValidIdNumber(value: unknown): boolean {
-	return isNumber(value) && !isNaN(value) && value > 0;
+	return isNumber(value) && !isNaN(value) && value > 0 && value < Number.MAX_VALUE;
 }
