@@ -26,7 +26,7 @@ The structure of this monorepo is app centric having `apps/` folder to keep depl
 
 - [PNPM](https://pnpm.io/) Project manager
 - [Node.js](https://nodejs.org/en) Runtime environment (v20 or higher)
-- [VS Code](https://code.visualstudio.com/) As recommended code editor
+- [VS Code](https://code.visualstudio.com/) As recommended code editor. Plugins recommended: ESLint, Prettier - Code formatter, Mocha Test Explorer, Monorepo Workspace
 
 ### Quickstart development
 
