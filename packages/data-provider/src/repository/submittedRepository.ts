@@ -47,6 +47,20 @@ const repository = (dependencies: BaseDependencies) => {
 		systemId: true,
 	};
 
+	/**
+	 * Build a SQL object to search submitted data by entity Name
+	 * @param {string[] | undefined} entityNameArray
+	 * @returns {SQL<unknown> | undefined}
+	 */
+	const filterByEntityNameArray = (entityNameArray: string[] | undefined): SQL<unknown> | undefined => {
+		if (Array.isArray(entityNameArray)) {
+			return or(
+				...entityNameArray.filter((entity) => entity).map((entity) => eq(submittedData.entityName, entity.trim())),
+			);
+		}
+		return undefined;
+	};
+
 	return {
 		delete: async (data: SubmittedData, comment: string, userName: string) => {
 			const deletedRecord = await db.delete(submittedData).where(eq(submittedData.id, data.id));
@@ -130,11 +144,15 @@ const repository = (dependencies: BaseDependencies) => {
 		getSubmittedDataByCategoryIdPaginated: async (
 			categoryId: number,
 			paginationOptions: PaginationOptions,
+			filter?: { entityNames?: string[] },
 		): Promise<SubmittedDataResponse[]> => {
 			const { page, pageSize } = paginationOptions;
+
+			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
+
 			try {
 				return await db.query.submittedData.findMany({
-					where: eq(submittedData.dictionaryCategoryId, categoryId),
+					where: and(eq(submittedData.dictionaryCategoryId, categoryId), filterEntityNameSql),
 					columns: paginatedColumns,
 					orderBy: (submittedData, { asc }) => [asc(submittedData.entityName), asc(submittedData.id)],
 					limit: pageSize,
@@ -158,15 +176,19 @@ const repository = (dependencies: BaseDependencies) => {
 			categoryId: number,
 			organization: string,
 			paginationOptions: PaginationOptions,
-			filter?: SQL,
+			filter?: { sql?: SQL; entityNames?: string[] },
 		): Promise<SubmittedDataResponse[]> => {
 			const { page, pageSize } = paginationOptions;
+
+			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
+
 			try {
 				return await db.query.submittedData.findMany({
 					where: and(
 						eq(submittedData.dictionaryCategoryId, categoryId),
 						eq(submittedData.organization, organization),
-						filter || undefined,
+						filter?.sql,
+						filterEntityNameSql,
 					),
 					columns: paginatedColumns,
 					orderBy: (submittedData, { asc }) => [asc(submittedData.entityName), asc(submittedData.id)],
@@ -192,8 +214,10 @@ const repository = (dependencies: BaseDependencies) => {
 		getTotalRecordsByCategoryIdAndOrganization: async (
 			categoryId: number,
 			organization: string,
-			filter?: SQL,
+			filter?: { sql?: SQL; entityNames?: string[] },
 		): Promise<number> => {
+			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
+
 			try {
 				const resultCount = await db
 					.select({ total: count() })
@@ -202,7 +226,8 @@ const repository = (dependencies: BaseDependencies) => {
 						and(
 							eq(submittedData.dictionaryCategoryId, categoryId),
 							eq(submittedData.organization, organization),
-							filter,
+							filter?.sql,
+							filterEntityNameSql,
 						),
 					);
 				return resultCount[0].total;
@@ -221,12 +246,16 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {number} categoryId Category ID
 		 * @returns Total number of recourds
 		 */
-		getTotalRecordsByCategoryId: async (categoryId: number): Promise<number> => {
+		getTotalRecordsByCategoryId: async (
+			categoryId: number,
+			filter?: { sql?: SQL; entityNames?: string[] },
+		): Promise<number> => {
+			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
 			try {
 				const resultCount = await db
 					.select({ total: count() })
 					.from(submittedData)
-					.where(eq(submittedData.dictionaryCategoryId, categoryId));
+					.where(and(eq(submittedData.dictionaryCategoryId, categoryId), filterEntityNameSql));
 				return resultCount[0].total;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed counting SubmittedData with categoryId '${categoryId}'`, error);

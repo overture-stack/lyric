@@ -8,6 +8,10 @@ export const isArrayWithValues = (value: unknown) => {
 	return Array.isArray(value) && value.length > 0 && value.some((x) => !!x);
 };
 
+export const splitString = (value: string, separator: string) => {
+	return value.split(',');
+};
+
 export function notEmpty<TValue>(value: TValue | null | undefined): value is TValue {
 	// lodash 4.14 behavior note, these are all evaluated to true:
 	// _.isEmpty(null) _.isEmpty(undefined) _.isEmpty([])
