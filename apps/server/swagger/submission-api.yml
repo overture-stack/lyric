@@ -92,7 +92,7 @@
 
 /submission/category/{categoryId}:
   get:
-    summary: List active submissions for a category
+    summary: Retrieve the active submissions for a category in this user session
     tags:
       - submission
     parameters:
@@ -119,7 +119,7 @@
 
 /submission/category/{categoryId}/organization/{organization}:
   get:
-    summary: List active submissions for a category and organization
+    summary: Retrieve the active submission for a category and organization in this user session
     tags:
       - submission
     parameters:
@@ -133,7 +133,7 @@
         required: true
     responses:
       200:
-        description: Active Submissions
+        description: Active Submission
         content:
           application/json:
             schema:
