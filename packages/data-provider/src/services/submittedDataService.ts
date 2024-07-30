@@ -79,6 +79,7 @@ const service = (dependencies: BaseDependencies) => {
 		getSubmittedDataByCategory: async (
 			categoryId: number,
 			paginationOptions: PaginationOptions,
+			filterOptions: { entityName?: string },
 		): Promise<{
 			data: SubmittedDataResponse[];
 			metadata: { totalRecords: number; errorMessage?: string };
@@ -94,13 +95,17 @@ const service = (dependencies: BaseDependencies) => {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.INVALID_CATEGORY_ID);
 			}
 
-			const recordsPaginated = await getSubmittedDataByCategoryIdPaginated(categoryId, paginationOptions);
+			const entityNameArray = filterOptions?.entityName?.split(',');
+
+			const recordsPaginated = await getSubmittedDataByCategoryIdPaginated(categoryId, paginationOptions, {
+				entityNames: entityNameArray,
+			});
 
 			if (recordsPaginated.length === 0) {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.NO_DATA_FOUND);
 			}
 
-			const totalRecords = await getTotalRecordsByCategoryId(categoryId);
+			const totalRecords = await getTotalRecordsByCategoryId(categoryId, { entityNames: entityNameArray });
 
 			logger.info(LOG_MODULE, `Retrieved '${recordsPaginated.length}' Submitted data on categoryId '${categoryId}'`);
 
@@ -116,7 +121,7 @@ const service = (dependencies: BaseDependencies) => {
 			categoryId: number,
 			organization: string,
 			paginationOptions: PaginationOptions,
-			sqon?: SQON,
+			filterOptions?: { sqon?: SQON; entityName?: string },
 		): Promise<{ data: SubmittedDataResponse[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
 			const { getSubmittedDataByCategoryIdAndOrganizationPaginated, getTotalRecordsByCategoryIdAndOrganization } =
 				submittedDataRepo;
@@ -129,20 +134,25 @@ const service = (dependencies: BaseDependencies) => {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.INVALID_CATEGORY_ID);
 			}
 
-			const filterSql = convertSqonToQuery(sqon);
+			const sqonQuery = convertSqonToQuery(filterOptions?.sqon);
+
+			const entityNameArray = filterOptions?.entityName?.split(',');
 
 			const recordsPaginated = await getSubmittedDataByCategoryIdAndOrganizationPaginated(
 				categoryId,
 				organization,
 				paginationOptions,
-				filterSql,
+				{ sql: sqonQuery, entityNames: entityNameArray },
 			);
 
 			if (recordsPaginated.length === 0) {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.NO_DATA_FOUND);
 			}
 
-			const totalRecords = await getTotalRecordsByCategoryIdAndOrganization(categoryId, organization, filterSql);
+			const totalRecords = await getTotalRecordsByCategoryIdAndOrganization(categoryId, organization, {
+				sql: sqonQuery,
+				entityNames: entityNameArray,
+			});
 
 			logger.info(
 				LOG_MODULE,

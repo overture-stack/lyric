@@ -41,7 +41,7 @@ components:
             $ref: '#/components/responses/Error'
 
     StatusConflict:
-      description: Error response indicating a conflict in a Submission Status
+      description: Error response indicating the requested action could not be performed on the entity in its current state.
       content:
         application/json:
           schema:
@@ -68,7 +68,7 @@ components:
             properties:
               creator:
                 type: string
-                description: User name who created the submission
+                description: Name of user who created the submission
               records:
                 type: array
                 items:
@@ -140,7 +140,7 @@ components:
                 description: Original filename  of the submission
               creator:
                 type: string
-                description: User name who created the submission
+                description: Name of user who created the submission
               recordsCount:
                 type: number
                 description: Number Of Records
@@ -178,13 +178,13 @@ components:
           description: Date and time of creation
         createdBy:
           type: string
-          description: User name who created the submission
+          description: Name of user who created the submission
         udpatedAt:
           type: string
           description: Date and time of latest update
         updatedBy:
           type: string
-          description: User name who last updated the submission
+          description: Name of user who last updated the submission
 
     ActiveSubmissionSummaryResult:
       $ref: '#/components/schemas/ActiveSubmissionSummary'
@@ -246,6 +246,62 @@ components:
         updatedBy:
           type: string
           description: User name who last updated the submission
+
+    ChangeHistorySummaryResult:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            currentPage:
+              type: number
+            pageSize:
+              type: number
+            totalPages:
+              type: number
+            totalRecords:
+              type: number
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChangeHistoryRecord'
+
+    ChangeHistoryRecord:
+      type: object
+      properties:
+        comment:
+          type: string
+          description: Comment of the event
+        entityName:
+          type: string
+          description: Name of the Entity
+        event:
+          type: string
+          description: Type of event
+        newData:
+          type: object
+          description: New content of the record in JSON format
+        newIsValid:
+          type: boolean
+          description: New isValid value
+        oldData:
+          type: object
+          description: Old content of the record in JSON format
+        oldIsValid:
+          type: boolean
+          description: Old isValid value
+        organization:
+          type: string
+          description: Name of the Organization
+        systemId:
+          type: string
+          description: System ID
+        updatedAt:
+          type: string
+          description: Date and time of creation
+        updatedBy:
+          type: string
+          description: User name who updated the submission
 
     CommitSubmissionResult:
       required:

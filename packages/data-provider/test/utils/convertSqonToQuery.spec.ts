@@ -12,7 +12,7 @@ import { convertSqonToQuery, parseSQON } from '../../src/utils/convertSqonToQuer
  * @param {string} key
  * @returns {SQLChunk[]}
  */
-function extractValues(obj: SQL | undefined, key: string) {
+function extractValues(obj: SQL | undefined, key: string): SQLChunk[] {
 	let values: SQLChunk[] = [];
 
 	function recurse(currentObj: SQL | undefined) {

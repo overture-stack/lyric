@@ -1,10 +1,12 @@
 import { AppConfig, BaseDependencies } from '../config/config.js';
 import { connect } from '../config/db.js';
 import { getLogger } from '../config/logger.js';
+import auditRouter from '../routers/auditRouter.js';
 import categoryRouter from '../routers/categoryRouter.js';
 import dictionaryRouter from '../routers/dictionaryRouter.js';
 import submissionRouter from '../routers/submissionRouter.js';
 import submittedDataRouter from '../routers/submittedDataRouter.js';
+import auditService from '../services/auditService.js';
 import categoryService from '../services/categoryService.js';
 import dictionaryService from '../services/dictionaryService.js';
 import submissionService from '../services/submissionService.js';
@@ -33,12 +35,14 @@ const provider = (configData: AppConfig) => {
 	return {
 		configs: baseDeps,
 		routers: {
+			audit: auditRouter(baseDeps),
 			category: categoryRouter(baseDeps),
 			dictionary: dictionaryRouter(baseDeps),
 			submission: submissionRouter(baseDeps),
 			submittedData: submittedDataRouter(baseDeps),
 		},
 		services: {
+			audit: auditService(baseDeps),
 			category: categoryService(baseDeps),
 			dictionary: dictionaryService(baseDeps),
 			submission: submissionService(baseDeps),

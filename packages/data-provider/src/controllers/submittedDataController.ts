@@ -58,12 +58,15 @@ const controller = (dependencies: BaseDependencies) => {
 		},
 
 		getSubmittedDataByCategory: async (
-			req: Request<{ categoryId: string }, object, object, { pageSize: string; page: string }>,
+			req: Request<{ categoryId: string }, object, object, { entityName: string; pageSize: string; page: string }>,
 			res: Response,
 			next: NextFunction,
 		) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
+
+				// query params
+				const entityName = req.query.entityName;
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 
@@ -85,7 +88,11 @@ const controller = (dependencies: BaseDependencies) => {
 					throw new BadRequest('Request provided an invalid category ID');
 				}
 
-				const submittedDataResult = await service.getSubmittedDataByCategory(categoryId, { page, pageSize });
+				const submittedDataResult = await service.getSubmittedDataByCategory(
+					categoryId,
+					{ page, pageSize },
+					{ entityName },
+				);
 
 				if (_.isEmpty(submittedDataResult.data)) {
 					throw new NotFound('No Submitted Data found');
@@ -108,13 +115,21 @@ const controller = (dependencies: BaseDependencies) => {
 		},
 
 		getSubmittedDataByOrganization: async (
-			req: Request<{ categoryId: string; organization: string }, object, object, { page: string; pageSize: string }>,
+			req: Request<
+				{ categoryId: string; organization: string },
+				object,
+				object,
+				{ entityName: string; page: string; pageSize: string }
+			>,
 			res: Response,
 			next: NextFunction,
 		) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
+
+				// query parameters
+				const entityName = req.query.entityName;
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 
@@ -140,10 +155,17 @@ const controller = (dependencies: BaseDependencies) => {
 					throw new BadRequest('Request is missing `organization` parameter.');
 				}
 
-				const submittedDataResult = await service.getSubmittedDataByOrganization(categoryId, organization, {
-					page,
-					pageSize,
-				});
+				const submittedDataResult = await service.getSubmittedDataByOrganization(
+					categoryId,
+					organization,
+					{
+						page,
+						pageSize,
+					},
+					{
+						entityName,
+					},
+				);
 
 				if (submittedDataResult.metadata.errorMessage) {
 					throw new NotFound(submittedDataResult.metadata.errorMessage);
@@ -166,7 +188,12 @@ const controller = (dependencies: BaseDependencies) => {
 		},
 
 		getSubmittedDataByQuery: async (
-			req: Request<{ categoryId: string; organization: string }, object, object, { page: string; pageSize: string }>,
+			req: Request<
+				{ categoryId: string; organization: string },
+				object,
+				object,
+				{ entityName: string; page: string; pageSize: string }
+			>,
 			res: Response,
 			next: NextFunction,
 		) => {
@@ -174,6 +201,9 @@ const controller = (dependencies: BaseDependencies) => {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
 				const sqon = parseSQON(req.body);
+
+				// query parameters
+				const entityName = req.query.entityName;
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 
@@ -207,7 +237,7 @@ const controller = (dependencies: BaseDependencies) => {
 						page,
 						pageSize,
 					},
-					sqon,
+					{ sqon, entityName },
 				);
 
 				if (submittedDataResult.metadata.errorMessage) {

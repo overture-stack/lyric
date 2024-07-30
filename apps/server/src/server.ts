@@ -22,6 +22,7 @@ app.use(helmet());
 app.use('/ping', pingRouter);
 
 // Lyric Routes
+app.use('/audit', lyricProvider.routers.audit);
 app.use('/category', lyricProvider.routers.category);
 app.use('/data', lyricProvider.routers.submittedData);
 app.use('/dictionary', lyricProvider.routers.dictionary);
