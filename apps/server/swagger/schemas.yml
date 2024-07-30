@@ -41,7 +41,7 @@ components:
             $ref: '#/components/responses/Error'
 
     StatusConflict:
-      description: Error response indicating a conflict in a Submission Status
+      description: Error response indicating the requested action could not be performed on the entity in its current state.
       content:
         application/json:
           schema:
@@ -68,7 +68,7 @@ components:
             properties:
               creator:
                 type: string
-                description: User name who created the submission
+                description: Name of user who created the submission
               records:
                 type: array
                 items:
@@ -140,7 +140,7 @@ components:
                 description: Original filename  of the submission
               creator:
                 type: string
-                description: User name who created the submission
+                description: Name of user who created the submission
               recordsCount:
                 type: number
                 description: Number Of Records
@@ -178,13 +178,13 @@ components:
           description: Date and time of creation
         createdBy:
           type: string
-          description: User name who created the submission
+          description: Name of user who created the submission
         udpatedAt:
           type: string
           description: Date and time of latest update
         updatedBy:
           type: string
-          description: User name who last updated the submission
+          description: Name of user who last updated the submission
 
     ActiveSubmissionSummaryResult:
       $ref: '#/components/schemas/ActiveSubmissionSummary'

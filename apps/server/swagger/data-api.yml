@@ -131,18 +131,55 @@
           type: integer
         description: Optional query parameter to specify the number of results per page. Default value is 20
     requestBody:
+      description: Custom filter SQON Notation to provide a flexible system for combining filters in a JSON object format. Find more documentation on https://github.com/overture-stack/sqon-builder
+      required: true
       content:
         application/json:
           schema:
             type: object
             description: A SQON object
-            example:
-              op: 'and'
-              content:
-                - op: 'in'
-                  content:
-                    fieldName: 'id'
-                    value: ['123']
+          examples:
+            in:
+              summary: In - Field must match the provided value or be included in the array of values.
+              value:
+                op: 'and'
+                content:
+                  - op: 'in'
+                    content:
+                      fieldName: 'name'
+                      value: ['Bob']
+            gt:
+              summary: Greater Than - field value must be greater than the given number
+              value:
+                op: 'and'
+                content:
+                  - op: 'gt'
+                    content:
+                      fieldName: 'years'
+                      value: 21
+            lt:
+              summary: Lesser Than - field value must be lesser than the given number
+              value:
+                op: 'and'
+                content:
+                  - op: 'lt'
+                    content:
+                      fieldName: 'years'
+                      value: 100
+            combination:
+              summary: Every SQON can be combined with other SQONs through the boolean combinations 'and', 'or', and 'not'
+              value:
+                op: 'or'
+                content:
+                  - op: 'in'
+                    content:
+                      fieldName: 'name'
+                      value: ['Bob']
+                  - op: 'gt'
+                    content:
+                      fieldName: 'score'
+                      value: 100
+
     responses:
       200:
         description: Submitted Data
