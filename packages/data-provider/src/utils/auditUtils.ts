@@ -1,6 +1,22 @@
 import * as _ from 'lodash-es';
+import { z } from 'zod';
 
-import { AUDIT_ACTION, AuditAction, AuditDataRepository, AuditDataResponse } from './types.js';
+import { AUDIT_ACTION, AuditAction, AuditDataResponse, AuditRepositoryRecord } from './types.js';
+
+/**
+ * Convert Audit Action enum into an array of strings in uppercase to facilitate validation
+ */
+const upperCaseAuditActions: string[] = Object.values(AUDIT_ACTION).map((value) => value.toUpperCase());
+
+/**
+ * This function takes an array of values and casts it to a tuple type where the first element is of the same type as the array, and the rest are of the same type as well.
+ */
+const zodEnum = <T>(arr: T[]): [T, ...T[]] => arr as [T, ...T[]];
+
+/**
+ * Create Zod enum schema from uppercase enum values
+ */
+const auditActionSchema = z.enum(zodEnum(upperCaseAuditActions));
 
 /**
  * Returns `true` if input value matches with a valid Audit Event type.
@@ -8,12 +24,8 @@ import { AUDIT_ACTION, AuditAction, AuditDataRepository, AuditDataResponse } fro
  * @param {unknown} value
  * @returns {boolean}
  */
-export const isAuditEventValid = (value: unknown): boolean => {
-	return (
-		typeof value === 'string' &&
-		[AUDIT_ACTION.DELETE.toString(), AUDIT_ACTION.UPDATE.toString()].includes(value.toUpperCase())
-	);
-};
+export const isAuditEventValid = (value: unknown): boolean =>
+	typeof value === 'string' && auditActionSchema.safeParse(value.toUpperCase()).success;
 
 /**
  * Convert a value string into it's Audit event type if it matches.
@@ -22,19 +34,20 @@ export const isAuditEventValid = (value: unknown): boolean => {
  * @returns {AuditAction | undefined}
  */
 export const convertToAuditEvent = (value: string): AuditAction | undefined => {
-	if (isAuditEventValid(value)) {
-		if (value.toUpperCase() === AUDIT_ACTION.UPDATE.toString()) return AUDIT_ACTION.UPDATE;
-		else if (value.toUpperCase() === AUDIT_ACTION.DELETE.toString()) return AUDIT_ACTION.DELETE;
+	const parseResult = auditActionSchema.safeParse(value.toUpperCase());
+
+	if (parseResult.success) {
+		return parseResult.data as AuditAction;
 	}
 	return undefined;
 };
 
 /**
  * Parsing function to map Audit data fields
- * @param {AuditDataRepository[]} data
+ * @param {AuditRepositoryRecord[]} data
  * @returns {AuditDataResponse[]}
  */
-export const parseAuditRecords = (data: AuditDataRepository[]): AuditDataResponse[] => {
+export const parseAuditRecords = (data: AuditRepositoryRecord[]): AuditDataResponse[] => {
 	return data.map((record) => ({
 		comment: _.toString(record.comment),
 		entityName: record.entityName,

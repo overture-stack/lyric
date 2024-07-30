@@ -33,7 +33,7 @@ export type AuditAction = ObjectValues<typeof AUDIT_ACTION>;
 /**
  * Audit Raw Data from Repository
  */
-export type AuditDataRepository = {
+export type AuditRepositoryRecord = {
 	comment: string | null;
 	entityName: string;
 	action: AuditAction;
