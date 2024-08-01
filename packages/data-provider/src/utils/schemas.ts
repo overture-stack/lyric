@@ -1,3 +1,4 @@
+import type { ParamsDictionary } from 'express-serve-static-core';
 import type { ParsedQs } from 'qs';
 import { z } from 'zod';
 
@@ -5,7 +6,29 @@ import { isAuditEventValid } from './auditUtils.js';
 import { isValidDateFormat } from './formatUtils.js';
 import { RequestValidation } from './requestValidation.js';
 
-// Pagination Request
+// Category Path Params
+export interface categoryPathParams extends ParamsDictionary {
+	categoryId: string;
+}
+
+export const categoryPathParamsSchema = z.object({
+	categoryId: z.string(),
+	organization: z.string(),
+});
+
+// Category And Organization Path Params
+
+export interface categoryOrganizationPathParams extends ParamsDictionary {
+	categoryId: string;
+	organization: string;
+}
+
+export const categoryOrganizationPathParamsSchema = z.object({
+	categoryId: z.string(),
+	organization: z.string(),
+});
+
+// Pagination Query Params
 
 export interface paginationQueryParams extends ParsedQs {
 	page?: string;
@@ -60,10 +83,6 @@ const paginationQuerySchema = z.object({
 		.optional(),
 });
 
-export const paginationQueryRequestValidation: RequestValidation<object, paginationQueryParams> = {
-	query: paginationQuerySchema,
-};
-
 // Audit Request
 
 export interface auditQueryParams extends ParsedQs {
@@ -99,8 +118,13 @@ const auditQuerySchema = z
 	})
 	.merge(paginationQuerySchema);
 
-export const auditRequestSchema: RequestValidation<object, paginationQueryParams & auditQueryParams> = {
+export const auditRequestSchema: RequestValidation<
+	object,
+	paginationQueryParams & auditQueryParams,
+	categoryOrganizationPathParams
+> = {
 	query: auditQuerySchema,
+	params: categoryOrganizationPathParamsSchema,
 };
 
 // Register Dictionary Request
@@ -117,14 +141,20 @@ export const registerDictionaryQuerySchema = z.object({
 	version: z.string(),
 });
 
-export const registerDictionaryRequestSchema: RequestValidation<registerDictionaryQueryParams, ParsedQs> = {
+export const registerDictionaryRequestSchema: RequestValidation<
+	registerDictionaryQueryParams,
+	ParsedQs,
+	ParamsDictionary
+> = {
 	body: registerDictionaryQuerySchema,
 };
 
 // Upload Submission
 
-export const uploadSubmissionRequestSchema: RequestValidation<{ organization: string }, ParsedQs> = {
-	body: z.object({
-		organization: z.string(),
-	}),
-};
+export const uploadSubmissionRequestSchema: RequestValidation<{ organization: string }, ParsedQs, categoryPathParams> =
+	{
+		body: z.object({
+			organization: z.string(),
+		}),
+		params: categoryPathParamsSchema,
+	};

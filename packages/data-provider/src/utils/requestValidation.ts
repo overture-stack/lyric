@@ -1,11 +1,12 @@
-import { ParamsDictionary, RequestHandler } from 'express-serve-static-core';
+import { RequestHandler } from 'express-serve-static-core';
 import { ZodError, ZodSchema } from 'zod';
 
 import { BadRequest, InternalServerError } from './errors.js';
 
-export declare type RequestValidation<TBody, TQuery> = {
+export declare type RequestValidation<TBody, TQuery, TParams> = {
 	body?: ZodSchema<TBody>;
 	query?: ZodSchema<TQuery>;
+	params?: ZodSchema<TParams>;
 };
 
 /**
@@ -13,10 +14,10 @@ export declare type RequestValidation<TBody, TQuery> = {
  * @param schema Zod objects used to validate request
  * @returns Throws a Bad Request when validation fails
  */
-export function validateRequest<TBody, TQuery>(
-	schema: RequestValidation<TBody, TQuery>,
-	handler: RequestHandler<ParamsDictionary, unknown, TBody, TQuery>,
-): RequestHandler<ParamsDictionary, unknown, TBody, TQuery> {
+export function validateRequest<TBody, TQuery, TParams>(
+	schema: RequestValidation<TBody, TQuery, TParams>,
+	handler: RequestHandler<TParams, unknown, TBody, TQuery>,
+): RequestHandler<TParams, unknown, TBody, TQuery> {
 	const LOG_MODULE = 'REQUEST_VALIDATION';
 	return async (req, res, next) => {
 		try {
