@@ -1,13 +1,19 @@
-import { NextFunction, Request, Response } from 'express';
 import { isEmpty } from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
 import submissionService from '../services/submissionService.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
 import { hasTsvExtension } from '../utils/fileUtils.js';
-import { isEmptyString, isValidIdNumber } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
-import { uploadSubmissionRequestSchema } from '../utils/schemas.js';
+import {
+	submissionActiveByIdRequestSchema,
+	submissionActiveByOrganizationRequestSchema,
+	submissionActiveyByCategoryRequestSchema,
+	submissionCommitRequestSchema,
+	submissionDeleteEntityNameRequestSchema,
+	submissionDeleteRequestSchema,
+	uploadSubmissionRequestSchema,
+} from '../utils/schemas.js';
 import { BATCH_ERROR_TYPE, BatchError } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
@@ -15,17 +21,10 @@ const controller = (dependencies: BaseDependencies) => {
 	const { logger } = dependencies;
 	const LOG_MODULE = 'SUBMISSION_CONTROLLER';
 	return {
-		commit: async (req: Request<{ categoryId: string; submissionId: string }>, res: Response, next: NextFunction) => {
+		commit: validateRequest(submissionCommitRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const submissionId = Number(req.params.submissionId);
-
-				if (!isValidIdNumber(categoryId)) {
-					throw new BadRequest('Request provided an invalid category ID');
-				}
-				if (!isValidIdNumber(submissionId)) {
-					throw new BadRequest('Request provided an invalid submission ID');
-				}
 
 				logger.info(LOG_MODULE, `Request Commit Active Submission '${submissionId}' on category '${categoryId}'`);
 
@@ -35,14 +34,10 @@ const controller = (dependencies: BaseDependencies) => {
 			} catch (error) {
 				next(error);
 			}
-		},
-		delete: async (req: Request<{ submissionId: string }>, res: Response, next: NextFunction) => {
+		}),
+		delete: validateRequest(submissionDeleteRequestSchema, async (req, res, next) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
-
-				if (!isValidIdNumber(submissionId)) {
-					throw new BadRequest('Request provided an invalid submission ID');
-				}
 
 				logger.info(LOG_MODULE, `Request Delete Active Submission '${submissionId}'`);
 
@@ -59,23 +54,11 @@ const controller = (dependencies: BaseDependencies) => {
 			} catch (error) {
 				next(error);
 			}
-		},
-		deleteEntityName: async (
-			req: Request<{ submissionId: string; entityName: string }>,
-			res: Response,
-			next: NextFunction,
-		) => {
+		}),
+		deleteEntityName: validateRequest(submissionDeleteEntityNameRequestSchema, async (req, res, next) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
 				const entityName = req.params.entityName;
-
-				if (!isValidIdNumber(submissionId)) {
-					throw new BadRequest('Request provided an invalid submission ID');
-				}
-
-				if (isEmptyString(entityName)) {
-					throw new BadRequest('Request is missing `entityName` parameter.');
-				}
 
 				logger.info(LOG_MODULE, `Request Delete entity '${entityName}' on Active Submission '${submissionId}'`);
 
@@ -92,13 +75,10 @@ const controller = (dependencies: BaseDependencies) => {
 			} catch (error) {
 				next(error);
 			}
-		},
-		getActiveByCategory: async (req: Request<{ categoryId: string }>, res: Response, next: NextFunction) => {
+		}),
+		getActiveByCategory: validateRequest(submissionActiveyByCategoryRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				if (!isValidIdNumber(categoryId)) {
-					throw new BadRequest('Request provided an invalid category ID');
-				}
 
 				logger.info(LOG_MODULE, `Request Active Submission categoryId '${categoryId}'`);
 
@@ -117,14 +97,10 @@ const controller = (dependencies: BaseDependencies) => {
 			} catch (error) {
 				next(error);
 			}
-		},
-		getActiveById: async (req: Request<{ submissionId: string }>, res: Response, next: NextFunction) => {
+		}),
+		getActiveById: validateRequest(submissionActiveByIdRequestSchema, async (req, res, next) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
-
-				if (!isValidIdNumber(submissionId)) {
-					throw new BadRequest('Request provided an invalid submission ID');
-				}
 
 				logger.info(LOG_MODULE, `Request Active Submission submissionId '${submissionId}'`);
 
@@ -141,23 +117,11 @@ const controller = (dependencies: BaseDependencies) => {
 			} catch (error) {
 				next(error);
 			}
-		},
-		getActiveByOrganization: async (
-			req: Request<{ categoryId: string; organization: string }>,
-			res: Response,
-			next: NextFunction,
-		) => {
+		}),
+		getActiveByOrganization: validateRequest(submissionActiveByOrganizationRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
-
-				if (!isValidIdNumber(categoryId)) {
-					throw new BadRequest('Request provided an invalid category ID');
-				}
-
-				if (isEmptyString(organization)) {
-					throw new BadRequest('Request is missing `organization` parameter.');
-				}
 
 				logger.info(
 					LOG_MODULE,
@@ -179,7 +143,7 @@ const controller = (dependencies: BaseDependencies) => {
 			} catch (error) {
 				next(error);
 			}
-		},
+		}),
 		upload: validateRequest(uploadSubmissionRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
@@ -195,14 +159,6 @@ const controller = (dependencies: BaseDependencies) => {
 					` organization '${organization}'`,
 					` files '${files?.map((f) => f.originalname)}'`,
 				);
-
-				if (!isValidIdNumber(categoryId)) {
-					throw new BadRequest('Request provided an invalid category ID');
-				}
-
-				if (isEmptyString(organization)) {
-					throw new BadRequest('Request is missing `organization` parameter.');
-				}
 
 				if (!files || files.length == 0) {
 					throw new BadRequest(

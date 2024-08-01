@@ -1,9 +1,7 @@
 import { BaseDependencies } from '../config/config.js';
 import dictionarySvc from '../services/dictionaryService.js';
-import { BadRequest } from '../utils/errors.js';
-import { isEmptyString } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
-import { registerDictionaryRequestSchema } from '../utils/schemas.js';
+import { dictionaryRegisterRequestSchema } from '../utils/schemas.js';
 import { RegisterDictionaryResult } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
@@ -11,7 +9,7 @@ const controller = (dependencies: BaseDependencies) => {
 	const { logger } = dependencies;
 	const LOG_MODULE = 'DICTIONARY_CONTROLLER';
 	return {
-		registerDictionary: validateRequest(registerDictionaryRequestSchema, async (req, res, next) => {
+		registerDictionary: validateRequest(dictionaryRegisterRequestSchema, async (req, res, next) => {
 			try {
 				const categoryName = req.body.categoryName;
 				const dictionaryName = req.body.dictionaryName;
@@ -21,16 +19,6 @@ const controller = (dependencies: BaseDependencies) => {
 					LOG_MODULE,
 					`Register Dictionary Request categoryName '${categoryName}' name '${dictionaryName}' version '${dictionaryVersion}'`,
 				);
-
-				if (isEmptyString(categoryName)) {
-					throw new BadRequest('Request is missing `categoryName` parameter.');
-				}
-				if (isEmptyString(dictionaryName)) {
-					throw new BadRequest('Request is missing `dictionaryName` parameter.');
-				}
-				if (isEmptyString(dictionaryVersion)) {
-					throw new BadRequest('Request is missing `version` parameter.');
-				}
 
 				const { dictionary, category } = await dictionaryService.register(
 					categoryName,

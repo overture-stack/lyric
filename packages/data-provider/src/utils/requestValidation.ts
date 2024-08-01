@@ -6,7 +6,7 @@ import { BadRequest, InternalServerError } from './errors.js';
 export declare type RequestValidation<TBody, TQuery, TParams> = {
 	body?: ZodSchema<TBody>;
 	query?: ZodSchema<TQuery>;
-	params?: ZodSchema<TParams>;
+	pathParams?: ZodSchema<TParams>;
 };
 
 /**
@@ -27,6 +27,10 @@ export function validateRequest<TBody, TQuery, TParams>(
 
 			if (schema.query) {
 				schema.query.parse(req.query);
+			}
+
+			if (schema.pathParams) {
+				schema.pathParams.parse(req.params);
 			}
 
 			return handler(req, res, next);

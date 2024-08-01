@@ -1,9 +1,8 @@
 import { BaseDependencies } from '../config/config.js';
 import auditSvc from '../services/auditService.js';
-import { BadRequest, NotFound } from '../utils/errors.js';
-import { isEmptyString, isValidIdNumber } from '../utils/formatUtils.js';
+import { NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
-import { auditRequestSchema } from '../utils/schemas.js';
+import { auditByCatAndOrgRequestSchema } from '../utils/schemas.js';
 import { AuditPaginatedResponse } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
@@ -13,7 +12,7 @@ const controller = (dependencies: BaseDependencies) => {
 	const defaultPage = 1;
 	const defaultPageSize = 20;
 	return {
-		byCategoryIdAndOrganization: validateRequest(auditRequestSchema, async (req, res, next) => {
+		byCategoryIdAndOrganization: validateRequest(auditByCatAndOrgRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
@@ -24,14 +23,6 @@ const controller = (dependencies: BaseDependencies) => {
 
 				// optional query parameters
 				const { entityName, eventType, startDate, endDate, systemId } = req.query;
-
-				if (!isValidIdNumber(categoryId)) {
-					throw new BadRequest('Request provided an invalid category ID');
-				}
-
-				if (isEmptyString(organization)) {
-					throw new BadRequest('Request is missing `organization` parameter.');
-				}
 
 				logger.info(LOG_MODULE, 'Request Audit', `categoryId '${categoryId}' organization '${organization}'`);
 
