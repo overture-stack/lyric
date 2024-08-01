@@ -6,7 +6,7 @@ import { BaseDependencies } from '../config/config.js';
 import { convertToAuditEvent } from '../utils/auditUtils.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import { isEmptyString, isValidDateFormat } from '../utils/formatUtils.js';
-import { AuditDataRepository, AuditFilterOptions, BooleanTrueObject } from '../utils/types.js';
+import { AuditFilterOptions, AuditRepositoryRecord, BooleanTrueObject } from '../utils/types.js';
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'AUDIT_REPOSITORY';
@@ -33,31 +33,33 @@ const repository = (dependencies: BaseDependencies) => {
 		startDate,
 		systemId,
 	}: {
-		entityName: string;
-		eventType: string;
-		endDate: string;
-		startDate: string;
-		systemId: string;
+		entityName?: string;
+		eventType?: string;
+		endDate?: string;
+		startDate?: string;
+		systemId?: string;
 	}): SQL<unknown>[] => {
 		const filterArray: SQL[] = [];
-		if (!isEmptyString(systemId)) {
+		if (systemId && !isEmptyString(systemId)) {
 			filterArray.push(eq(auditSubmittedData.systemId, systemId));
 		}
 
-		if (!isEmptyString(entityName)) {
+		if (entityName && !isEmptyString(entityName)) {
 			filterArray.push(eq(auditSubmittedData.entityName, entityName));
 		}
 
-		const eventEnum = convertToAuditEvent(eventType);
-		if (eventEnum) {
-			filterArray.push(eq(auditSubmittedData.action, eventEnum));
+		if (eventType && !isEmptyString(eventType)) {
+			const eventEnum = convertToAuditEvent(eventType);
+			if (eventEnum) {
+				filterArray.push(eq(auditSubmittedData.action, eventEnum));
+			}
 		}
 
-		if (isValidDateFormat(endDate)) {
+		if (endDate && isValidDateFormat(endDate)) {
 			filterArray.push(lt(auditSubmittedData.updatedAt, new Date(endDate)));
 		}
 
-		if (isValidDateFormat(startDate)) {
+		if (startDate && isValidDateFormat(startDate)) {
 			filterArray.push(gt(auditSubmittedData.updatedAt, new Date(startDate)));
 		}
 
@@ -82,7 +84,7 @@ const repository = (dependencies: BaseDependencies) => {
 			categoryId: number,
 			organization: string,
 			filterOptions: AuditFilterOptions,
-		): Promise<AuditDataRepository[]> => {
+		): Promise<AuditRepositoryRecord[]> => {
 			const { entityName, eventType, endDate, startDate, systemId, page, pageSize } = filterOptions;
 			try {
 				const optionalFilter = getOptionalFilter({

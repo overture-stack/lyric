@@ -77,11 +77,11 @@ export type AuditPaginatedResponse = {
  * Type that describes the options used as a filter on Audit Table
  */
 export type AuditFilterOptions = PaginationOptions & {
-	entityName: string;
-	eventType: string;
-	startDate: string;
-	endDate: string;
-	systemId: string;
+	entityName?: string;
+	eventType?: string;
+	startDate?: string;
+	endDate?: string;
+	systemId?: string;
 };
 
 /**
