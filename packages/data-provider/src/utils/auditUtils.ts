@@ -4,19 +4,9 @@ import { z } from 'zod';
 import { AUDIT_ACTION, AuditAction, AuditDataResponse, AuditRepositoryRecord } from './types.js';
 
 /**
- * Convert Audit Action enum into an array of strings in uppercase to facilitate validation
+ * Create Zod enum schema transforming to uppercase enum values
  */
-const upperCaseAuditActions: string[] = Object.values(AUDIT_ACTION).map((value) => value.toUpperCase());
-
-/**
- * This function takes an array of values and casts it to a tuple type where the first element is of the same type as the array, and the rest are of the same type as well.
- */
-const zodEnum = <T>(arr: T[]): [T, ...T[]] => arr as [T, ...T[]];
-
-/**
- * Create Zod enum schema from uppercase enum values
- */
-const auditActionSchema = z.enum(zodEnum(upperCaseAuditActions));
+const auditActionSchema = z.nativeEnum(AUDIT_ACTION).transform((value) => value.toUpperCase());
 
 /**
  * Returns `true` if input value matches with a valid Audit Event type.

@@ -9,8 +9,6 @@ import { parseSQON } from './convertSqonToQuery.js';
 import { isValidDateFormat, isValidIdNumber } from './formatUtils.js';
 import { RequestValidation } from './requestValidation.js';
 
-// Zod Schemas
-
 const categoryIdSchema = z
 	.string()
 	.trim()
