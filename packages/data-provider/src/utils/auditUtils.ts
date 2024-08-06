@@ -1,12 +1,6 @@
 import * as _ from 'lodash-es';
-import { z } from 'zod';
 
 import { AUDIT_ACTION, AuditAction, AuditDataResponse, AuditRepositoryRecord } from './types.js';
-
-/**
- * Create Zod enum schema transforming to uppercase enum values
- */
-const auditActionSchema = z.nativeEnum(AUDIT_ACTION).transform((value) => value.toUpperCase());
 
 /**
  * Returns `true` if input value matches with a valid Audit Event type.
@@ -15,7 +9,8 @@ const auditActionSchema = z.nativeEnum(AUDIT_ACTION).transform((value) => value.
  * @returns {boolean}
  */
 export const isAuditEventValid = (value: unknown): boolean =>
-	typeof value === 'string' && auditActionSchema.safeParse(value.toUpperCase()).success;
+	typeof value === 'string' &&
+	AUDIT_ACTION.transform((action) => action.toUpperCase()).safeParse(value.toUpperCase()).success;
 
 /**
  * Convert a value string into it's Audit event type if it matches.
@@ -24,7 +19,7 @@ export const isAuditEventValid = (value: unknown): boolean =>
  * @returns {AuditAction | undefined}
  */
 export const convertToAuditEvent = (value: string): AuditAction | undefined => {
-	const parseResult = auditActionSchema.safeParse(value.toUpperCase());
+	const parseResult = AUDIT_ACTION.transform((action) => action.toUpperCase()).safeParse(value.toUpperCase());
 
 	if (parseResult.success) {
 		return parseResult.data as AuditAction;

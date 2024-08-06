@@ -1,4 +1,5 @@
 import { DeepReadonly } from 'deep-freeze';
+import { z } from 'zod';
 
 import { NewSubmittedData, Submission, SubmissionData } from '@overture-stack/lyric-data-model';
 import {
@@ -24,11 +25,8 @@ export type SubmissionStatus = ObjectValues<typeof SUBMISSION_STATUS>;
 /**
  * Enum matching Audit Action in database
  */
-export const AUDIT_ACTION = {
-	UPDATE: 'UPDATE',
-	DELETE: 'DELETE',
-} as const;
-export type AuditAction = ObjectValues<typeof AUDIT_ACTION>;
+export const AUDIT_ACTION = z.enum(['UPDATE', 'DELETE']);
+export type AuditAction = z.infer<typeof AUDIT_ACTION>;
 
 /**
  * Audit Raw Data from Repository
