@@ -1,11 +1,16 @@
-import { NextFunction, Request, Response } from 'express';
 import * as _ from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
 import submittedDataService from '../services/submittedDataService.js';
 import { parseSQON } from '../utils/convertSqonToQuery.js';
-import { BadRequest, NotFound } from '../utils/errors.js';
-import { isEmptyString, isValidIdNumber } from '../utils/formatUtils.js';
+import { NotFound } from '../utils/errors.js';
+import { validateRequest } from '../utils/requestValidation.js';
+import {
+	dataDeleteBySystemIdRequestSchema,
+	dataGetByCategoryRequestSchema,
+	dataGetByOrganizationRequestSchema,
+	dataGetByQueryRequestschema,
+} from '../utils/schemas.js';
 import { SubmittedDataPaginatedResponse } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
@@ -15,11 +20,7 @@ const controller = (dependencies: BaseDependencies) => {
 	const defaultPage = 1;
 	const defaultPageSize = 20;
 	return {
-		deleteSubmittedDataBySystemId: async (
-			req: Request<{ systemId: string }, object, object, { dryRun: string; comment: string }>,
-			res: Response,
-			next: NextFunction,
-		) => {
+		deleteSubmittedDataBySystemId: validateRequest(dataDeleteBySystemIdRequestSchema, async (req, res, next) => {
 			try {
 				const systemId = req.params.systemId;
 
@@ -29,14 +30,6 @@ const controller = (dependencies: BaseDependencies) => {
 				const comment = req.query.comment;
 
 				logger.info(LOG_MODULE, `Request Delete Submitted Data systemId '${systemId}' dryRun '${dryRun}'`);
-
-				if (isEmptyString(systemId)) {
-					throw new BadRequest('Request is missing `systemId` parameter.');
-				}
-
-				if (isEmptyString(comment)) {
-					throw new BadRequest('Request is missing `comment` parameter.');
-				}
 
 				// TODO: get userName from auth
 				const userName = '';
@@ -55,13 +48,9 @@ const controller = (dependencies: BaseDependencies) => {
 			} catch (error) {
 				next(error);
 			}
-		},
+		}),
 
-		getSubmittedDataByCategory: async (
-			req: Request<{ categoryId: string }, object, object, { entityName: string; pageSize: string; page: string }>,
-			res: Response,
-			next: NextFunction,
-		) => {
+		getSubmittedDataByCategory: validateRequest(dataGetByCategoryRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 
@@ -75,18 +64,6 @@ const controller = (dependencies: BaseDependencies) => {
 					`Request Submitted Data on categoryId '${categoryId}'`,
 					`pagination params: page '${page}' pageSize '${pageSize}'`,
 				);
-
-				if (page < 0) {
-					throw new BadRequest('Invalid `page` parameter. Expecting a numeric value greater than 0');
-				}
-
-				if (pageSize < 0) {
-					throw new BadRequest('Invalid `pageSize` parameter. Expecting a numeric value greater than 0');
-				}
-
-				if (!isValidIdNumber(categoryId)) {
-					throw new BadRequest('Request provided an invalid category ID');
-				}
 
 				const submittedDataResult = await service.getSubmittedDataByCategory(
 					categoryId,
@@ -112,18 +89,9 @@ const controller = (dependencies: BaseDependencies) => {
 			} catch (error) {
 				next(error);
 			}
-		},
+		}),
 
-		getSubmittedDataByOrganization: async (
-			req: Request<
-				{ categoryId: string; organization: string },
-				object,
-				object,
-				{ entityName: string; page: string; pageSize: string }
-			>,
-			res: Response,
-			next: NextFunction,
-		) => {
+		getSubmittedDataByOrganization: validateRequest(dataGetByOrganizationRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
@@ -139,22 +107,6 @@ const controller = (dependencies: BaseDependencies) => {
 					`pagination params: page '${page}' pageSize '${pageSize}'`,
 				);
 
-				if (page < 0) {
-					throw new BadRequest('Invalid `page` parameter');
-				}
-
-				if (pageSize < 0) {
-					throw new BadRequest('Invalid `pageSize` parameter');
-				}
-
-				if (!isValidIdNumber(categoryId)) {
-					throw new BadRequest('Request provided an invalid category ID');
-				}
-
-				if (isEmptyString(organization)) {
-					throw new BadRequest('Request is missing `organization` parameter.');
-				}
-
 				const submittedDataResult = await service.getSubmittedDataByOrganization(
 					categoryId,
 					organization,
@@ -162,9 +114,7 @@ const controller = (dependencies: BaseDependencies) => {
 						page,
 						pageSize,
 					},
-					{
-						entityName,
-					},
+					{ entityName },
 				);
 
 				if (submittedDataResult.metadata.errorMessage) {
@@ -185,18 +135,9 @@ const controller = (dependencies: BaseDependencies) => {
 			} catch (error) {
 				next(error);
 			}
-		},
+		}),
 
-		getSubmittedDataByQuery: async (
-			req: Request<
-				{ categoryId: string; organization: string },
-				object,
-				object,
-				{ entityName: string; page: string; pageSize: string }
-			>,
-			res: Response,
-			next: NextFunction,
-		) => {
+		getSubmittedDataByQuery: validateRequest(dataGetByQueryRequestschema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
@@ -215,20 +156,6 @@ const controller = (dependencies: BaseDependencies) => {
 					`sqon '${JSON.stringify(sqon)}'`,
 					`pagination params: page '${page}' pageSize '${pageSize}'`,
 				);
-
-				if (!isValidIdNumber(categoryId)) {
-					throw new BadRequest('Request provided an invalid category ID');
-				}
-				if (isEmptyString(organization)) {
-					throw new BadRequest('Request is missing `organization` parameter.');
-				}
-				if (page < 0) {
-					throw new BadRequest('Invalid `page` parameter');
-				}
-
-				if (pageSize < 0) {
-					throw new BadRequest('Invalid `pageSize` parameter');
-				}
 
 				const submittedDataResult = await service.getSubmittedDataByOrganization(
 					categoryId,
@@ -258,7 +185,7 @@ const controller = (dependencies: BaseDependencies) => {
 			} catch (error) {
 				next(error);
 			}
-		},
+		}),
 	};
 };
 

@@ -18,7 +18,7 @@ const repository = (dependencies: BaseDependencies) => {
 
 	const auditDeleteSubmittedData = async (data: SubmittedData, comment: string, userName: string) => {
 		const newAudit: NewAuditSubmittedData = {
-			action: AUDIT_ACTION.DELETE,
+			action: AUDIT_ACTION.Values.DELETE,
 			comment: comment,
 			dictionaryCategoryId: data.dictionaryCategoryId,
 			entityName: data.entityName,
