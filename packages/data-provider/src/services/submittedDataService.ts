@@ -8,6 +8,7 @@ import submittedRepository from '../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations, SchemaChildNode } from '../utils/dictionarySchemaRelations.js';
 import { BadRequest } from '../utils/errors.js';
+import { splitString } from '../utils/formatUtils.js';
 import submittedUtils from '../utils/submittedDataUtils.js';
 import { PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
 
@@ -15,6 +16,10 @@ const PAGINATION_ERROR_MESSAGES = {
 	INVALID_CATEGORY_ID: 'Invalid Category ID',
 	NO_DATA_FOUND: 'No Submitted data found',
 } as const;
+
+// A constant representing a list separator using the pipe character (|),
+// which cannot be used in entity names due to its illegality.
+const entitySeparator = '|' as const;
 
 const service = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_SERVICE';
@@ -95,7 +100,7 @@ const service = (dependencies: BaseDependencies) => {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.INVALID_CATEGORY_ID);
 			}
 
-			const entityNameArray = filterOptions?.entityName?.split(',');
+			const entityNameArray = splitString(filterOptions?.entityName ?? '', entitySeparator);
 
 			const recordsPaginated = await getSubmittedDataByCategoryIdPaginated(categoryId, paginationOptions, {
 				entityNames: entityNameArray,
@@ -136,7 +141,7 @@ const service = (dependencies: BaseDependencies) => {
 
 			const sqonQuery = convertSqonToQuery(filterOptions?.sqon);
 
-			const entityNameArray = filterOptions?.entityName?.split(',');
+			const entityNameArray = splitString(filterOptions?.entityName ?? '', entitySeparator);
 
 			const recordsPaginated = await getSubmittedDataByCategoryIdAndOrganizationPaginated(
 				categoryId,

@@ -11,7 +11,7 @@
           type: string
         description: ID of the category
       - name: entityName
-        description: Filter by entity name. Separate multiple values with commas
+        description: Filter by entity name. Separate multiple values with pipe character (|)
         in: query
         required: false
       - name: page
@@ -63,7 +63,7 @@
           type: string
         description: Organization name
       - name: entityName
-        description: Filter by entity name. Separate multiple values with commas
+        description: Filter by entity name. Separate multiple values with pipe character (|)
         in: query
         required: false
       - name: page
@@ -115,7 +115,7 @@
           type: string
         description: Organization name
       - name: entityName
-        description: Filter by entity name. Separate multiple values with commas
+        description: Filter by entity name. Separate multiple values with pipe character (|)
         in: query
         required: false
       - name: page

@@ -9,7 +9,7 @@ export const isArrayWithValues = (value: unknown) => {
 };
 
 export const splitString = (value: string, separator: string) => {
-	return value.split(',');
+	return value.split(separator);
 };
 
 export function notEmpty<TValue>(value: TValue | null | undefined): value is TValue {
