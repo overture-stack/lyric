@@ -9,8 +9,7 @@ import { AUDIT_ACTION, AuditAction, AuditDataResponse, AuditRepositoryRecord } f
  * @returns {boolean}
  */
 export const isAuditEventValid = (value: unknown): boolean =>
-	typeof value === 'string' &&
-	AUDIT_ACTION.transform((action) => action.toUpperCase()).safeParse(value.toUpperCase()).success;
+	typeof value === 'string' && AUDIT_ACTION.safeParse(value.toUpperCase()).success;
 
 /**
  * Convert a value string into it's Audit event type if it matches.
@@ -19,7 +18,7 @@ export const isAuditEventValid = (value: unknown): boolean =>
  * @returns {AuditAction | undefined}
  */
 export const convertToAuditEvent = (value: string): AuditAction | undefined => {
-	const parseResult = AUDIT_ACTION.transform((action) => action.toUpperCase()).safeParse(value.toUpperCase());
+	const parseResult = AUDIT_ACTION.safeParse(value.toUpperCase());
 
 	if (parseResult.success) {
 		return parseResult.data as AuditAction;
