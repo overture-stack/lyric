@@ -290,26 +290,38 @@ export const dataDeleteBySystemIdRequestSchema: RequestValidation<
 	}),
 };
 
-export const dataGetByCategoryRequestSchema: RequestValidation<object, paginationQueryParams, categoryPathParams> = {
-	query: paginationQuerySchema,
+export interface dataQueryParams extends paginationQueryParams {
+	entityName?: string;
+}
+
+export const dataGetByCategoryRequestSchema: RequestValidation<object, dataQueryParams, categoryPathParams> = {
+	query: z
+		.object({
+			entityName: entityNameSchema.optional(),
+		})
+		.merge(paginationQuerySchema),
 	pathParams: categoryPathParamsSchema,
 };
 
 export const dataGetByOrganizationRequestSchema: RequestValidation<
 	object,
-	paginationQueryParams,
+	dataQueryParams,
 	categoryOrganizationPathParams
 > = {
-	query: paginationQuerySchema,
+	query: z
+		.object({
+			entityName: entityNameSchema.optional(),
+		})
+		.merge(paginationQuerySchema),
 	pathParams: categoryOrganizationPathParamsSchema,
 };
 
-export const dataGetByQueryRequestschema: RequestValidation<
-	object,
-	paginationQueryParams,
-	categoryOrganizationPathParams
-> = {
+export const dataGetByQueryRequestschema: RequestValidation<object, dataQueryParams, categoryOrganizationPathParams> = {
 	body: sqonSchema,
-	query: paginationQuerySchema,
+	query: z
+		.object({
+			entityName: entityNameSchema.optional(),
+		})
+		.merge(paginationQuerySchema),
 	pathParams: categoryOrganizationPathParamsSchema,
 };
