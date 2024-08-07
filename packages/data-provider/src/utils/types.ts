@@ -1,4 +1,5 @@
 import { DeepReadonly } from 'deep-freeze';
+import { z } from 'zod';
 
 import { NewSubmittedData, Submission, SubmissionData } from '@overture-stack/lyric-data-model';
 import {
@@ -24,11 +25,62 @@ export type SubmissionStatus = ObjectValues<typeof SUBMISSION_STATUS>;
 /**
  * Enum matching Audit Action in database
  */
-export const AUDIT_ACTION = {
-	UPDATE: 'UPDATE',
-	DELETE: 'DELETE',
-} as const;
-export type AuditAction = ObjectValues<typeof AUDIT_ACTION>;
+export const AUDIT_ACTION = z.enum(['UPDATE', 'DELETE']);
+export type AuditAction = z.infer<typeof AUDIT_ACTION>;
+
+/**
+ * Audit Raw Data from Repository
+ */
+export type AuditRepositoryRecord = {
+	comment: string | null;
+	entityName: string;
+	action: AuditAction;
+	newData: DataRecord | null;
+	newDataIsValid: boolean;
+	oldData: DataRecord | null;
+	oldDataIsValid: boolean;
+	organization: string;
+	systemId: string;
+	updatedAt: Date | null;
+	updatedBy: string | null;
+};
+
+/**
+ * Audit Data Response formatted
+ */
+export type AuditDataResponse = {
+	comment: string;
+	entityName: string;
+	event: AuditAction;
+	newData: DataRecord | null;
+	newIsValid: boolean;
+	oldData: DataRecord | null;
+	oldIsValid: boolean;
+	organization: string;
+	systemId: string;
+	updatedAt: string;
+	updatedBy: string;
+};
+
+/**
+ * Include an array of the filtered records and a summary of the pagination
+ * Response type used to query submitted data endpoint
+ */
+export type AuditPaginatedResponse = {
+	pagination: PaginationMetadata;
+	records: AuditDataResponse[];
+};
+
+/**
+ * Type that describes the options used as a filter on Audit Table
+ */
+export type AuditFilterOptions = PaginationOptions & {
+	entityName?: string;
+	eventType?: string;
+	startDate?: string;
+	endDate?: string;
+	systemId?: string;
+};
 
 /**
  * Enum used in the Reponse on Create new Submissions

@@ -3,20 +3,17 @@ import { NextFunction, Request, Response } from 'express';
 import { BaseDependencies } from '../config/config.js';
 import categorySvc from '../services/categoryService.js';
 import { BadRequest } from '../utils/errors.js';
-import { isValidIdNumber } from '../utils/formatUtils.js';
+import { validateRequest } from '../utils/requestValidation.js';
+import { cagegoryDetailsRequestSchema } from '../utils/schemas.js';
 
 const controller = (dependencies: BaseDependencies) => {
 	const categoryService = categorySvc(dependencies);
 	const { logger } = dependencies;
 	const LOG_MODULE = 'CATEGORY_CONTROLLER';
 	return {
-		getDetails: async (req: Request<{ categoryId: string }>, res: Response, next: NextFunction) => {
+		getDetails: validateRequest(cagegoryDetailsRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-
-				if (!isValidIdNumber(categoryId)) {
-					throw new BadRequest('Request provided an invalid category ID');
-				}
 
 				logger.info(LOG_MODULE, 'Request Get Category Details', `categoryId '${categoryId}'`);
 
@@ -29,7 +26,7 @@ const controller = (dependencies: BaseDependencies) => {
 			} catch (error) {
 				next(error);
 			}
-		},
+		}),
 		listAll: async (req: Request, res: Response, next: NextFunction) => {
 			try {
 				logger.info(LOG_MODULE, `List All Categories request`);

@@ -247,6 +247,62 @@ components:
           type: string
           description: User name who last updated the submission
 
+    ChangeHistorySummaryResult:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            currentPage:
+              type: number
+            pageSize:
+              type: number
+            totalPages:
+              type: number
+            totalRecords:
+              type: number
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChangeHistoryRecord'
+
+    ChangeHistoryRecord:
+      type: object
+      properties:
+        comment:
+          type: string
+          description: Comment of the event
+        entityName:
+          type: string
+          description: Name of the Entity
+        event:
+          type: string
+          description: Type of event
+        newData:
+          type: object
+          description: New content of the record in JSON format
+        newIsValid:
+          type: boolean
+          description: New isValid value
+        oldData:
+          type: object
+          description: Old content of the record in JSON format
+        oldIsValid:
+          type: boolean
+          description: Old isValid value
+        organization:
+          type: string
+          description: Name of the Organization
+        systemId:
+          type: string
+          description: System ID
+        updatedAt:
+          type: string
+          description: Date and time of creation
+        updatedBy:
+          type: string
+          description: User name who updated the submission
+
     CommitSubmissionResult:
       required:
         - status
