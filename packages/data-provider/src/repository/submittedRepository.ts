@@ -52,10 +52,12 @@ const repository = (dependencies: BaseDependencies) => {
 	 * @param {string[] | undefined} entityNameArray
 	 * @returns {SQL<unknown> | undefined}
 	 */
-	const filterByEntityNameArray = (entityNameArray: string[] | undefined): SQL<unknown> | undefined => {
+	const filterByEntityNameArray = (entityNameArray?: (string | undefined)[]): SQL<unknown> | undefined => {
 		if (Array.isArray(entityNameArray)) {
 			return or(
-				...entityNameArray.filter((entity) => entity).map((entity) => eq(submittedData.entityName, entity.trim())),
+				...entityNameArray
+					.filter((entity) => entity !== undefined)
+					.map((entity) => eq(submittedData.entityName, entity.trim())),
 			);
 		}
 		return undefined;
@@ -144,7 +146,7 @@ const repository = (dependencies: BaseDependencies) => {
 		getSubmittedDataByCategoryIdPaginated: async (
 			categoryId: number,
 			paginationOptions: PaginationOptions,
-			filter?: { entityNames?: string[] },
+			filter?: { entityNames?: (string | undefined)[] },
 		): Promise<SubmittedDataResponse[]> => {
 			const { page, pageSize } = paginationOptions;
 
@@ -176,7 +178,7 @@ const repository = (dependencies: BaseDependencies) => {
 			categoryId: number,
 			organization: string,
 			paginationOptions: PaginationOptions,
-			filter?: { sql?: SQL; entityNames?: string[] },
+			filter?: { sql?: SQL; entityNames?: (string | undefined)[] },
 		): Promise<SubmittedDataResponse[]> => {
 			const { page, pageSize } = paginationOptions;
 
@@ -209,12 +211,15 @@ const repository = (dependencies: BaseDependencies) => {
 		 * Counts the total of records found by Category and Organization
 		 * @param {number} categoryId Category ID
 		 * @param {string} organization Organization Name
+		 * @param {object} filter Filter Options
+		 * @param {SQL | undefined} filter.sql SQL command to filter
+		 * @param {(string | undefined)[] | undefined} filter.entityNames Array of entity names to filter
 		 * @returns Total number of recourds
 		 */
 		getTotalRecordsByCategoryIdAndOrganization: async (
 			categoryId: number,
 			organization: string,
-			filter?: { sql?: SQL; entityNames?: string[] },
+			filter?: { sql?: SQL; entityNames?: (string | undefined)[] },
 		): Promise<number> => {
 			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
 
@@ -244,11 +249,14 @@ const repository = (dependencies: BaseDependencies) => {
 		/**
 		 * Counts the total of records found by Category
 		 * @param {number} categoryId Category ID
+		 * @param {object} filter Filter options
+		 * @param {SQL | undefined} filter.sql SQL command
+		 * @param {(string | undefined)[] | undefined} filter.entityNames Array of entity names to filter
 		 * @returns Total number of recourds
 		 */
 		getTotalRecordsByCategoryId: async (
 			categoryId: number,
-			filter?: { sql?: SQL; entityNames?: string[] },
+			filter?: { sql?: SQL; entityNames?: (string | undefined)[] },
 		): Promise<number> => {
 			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
 			try {

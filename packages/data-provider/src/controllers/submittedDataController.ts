@@ -4,7 +4,7 @@ import { BaseDependencies } from '../config/config.js';
 import submittedDataService from '../services/submittedDataService.js';
 import { parseSQON } from '../utils/convertSqonToQuery.js';
 import { NotFound } from '../utils/errors.js';
-import { stringToArray } from '../utils/formatUtils.js';
+import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
 	dataDeleteBySystemIdRequestSchema,
@@ -56,7 +56,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const categoryId = Number(req.params.categoryId);
 
 				// query params
-				const entityName = stringToArray(req.query.entityName);
+				const entityName = asArray(req.query.entityName);
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 
@@ -98,7 +98,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const organization = req.params.organization;
 
 				// query parameters
-				const entityName = stringToArray(req.query.entityName);
+				const entityName = asArray(req.query.entityName);
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 
@@ -145,7 +145,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const sqon = parseSQON(req.body);
 
 				// query parameters
-				const entityName = stringToArray(req.query.entityName);
+				const entityName = asArray(req.query.entityName);
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 

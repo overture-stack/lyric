@@ -79,7 +79,7 @@ const service = (dependencies: BaseDependencies) => {
 		getSubmittedDataByCategory: async (
 			categoryId: number,
 			paginationOptions: PaginationOptions,
-			filterOptions: { entityName?: string[] },
+			filterOptions: { entityName?: (string | undefined)[] },
 		): Promise<{
 			data: SubmittedDataResponse[];
 			metadata: { totalRecords: number; errorMessage?: string };
@@ -119,7 +119,7 @@ const service = (dependencies: BaseDependencies) => {
 			categoryId: number,
 			organization: string,
 			paginationOptions: PaginationOptions,
-			filterOptions?: { sqon?: SQON; entityName?: string[] },
+			filterOptions?: { sqon?: SQON; entityName?: (string | undefined)[] },
 		): Promise<{ data: SubmittedDataResponse[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
 			const { getSubmittedDataByCategoryIdAndOrganizationPaginated, getTotalRecordsByCategoryIdAndOrganization } =
 				submittedDataRepo;
