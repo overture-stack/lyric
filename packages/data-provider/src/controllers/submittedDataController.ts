@@ -4,6 +4,7 @@ import { BaseDependencies } from '../config/config.js';
 import submittedDataService from '../services/submittedDataService.js';
 import { parseSQON } from '../utils/convertSqonToQuery.js';
 import { NotFound } from '../utils/errors.js';
+import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
 	dataDeleteBySystemIdRequestSchema,
@@ -53,6 +54,9 @@ const controller = (dependencies: BaseDependencies) => {
 		getSubmittedDataByCategory: validateRequest(dataGetByCategoryRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
+
+				// query params
+				const entityName = asArray(req.query.entityName);
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 
@@ -62,7 +66,11 @@ const controller = (dependencies: BaseDependencies) => {
 					`pagination params: page '${page}' pageSize '${pageSize}'`,
 				);
 
-				const submittedDataResult = await service.getSubmittedDataByCategory(categoryId, { page, pageSize });
+				const submittedDataResult = await service.getSubmittedDataByCategory(
+					categoryId,
+					{ page, pageSize },
+					{ entityName },
+				);
 
 				if (_.isEmpty(submittedDataResult.data)) {
 					throw new NotFound('No Submitted Data found');
@@ -88,6 +96,9 @@ const controller = (dependencies: BaseDependencies) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
+
+				// query parameters
+				const entityName = asArray(req.query.entityName);
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 
@@ -97,10 +108,15 @@ const controller = (dependencies: BaseDependencies) => {
 					`pagination params: page '${page}' pageSize '${pageSize}'`,
 				);
 
-				const submittedDataResult = await service.getSubmittedDataByOrganization(categoryId, organization, {
-					page,
-					pageSize,
-				});
+				const submittedDataResult = await service.getSubmittedDataByOrganization(
+					categoryId,
+					organization,
+					{
+						page,
+						pageSize,
+					},
+					{ entityName },
+				);
 
 				if (submittedDataResult.metadata.errorMessage) {
 					throw new NotFound(submittedDataResult.metadata.errorMessage);
@@ -127,6 +143,9 @@ const controller = (dependencies: BaseDependencies) => {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
 				const sqon = parseSQON(req.body);
+
+				// query parameters
+				const entityName = asArray(req.query.entityName);
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 
@@ -146,7 +165,7 @@ const controller = (dependencies: BaseDependencies) => {
 						page,
 						pageSize,
 					},
-					sqon,
+					{ sqon, entityName },
 				);
 
 				if (submittedDataResult.metadata.errorMessage) {

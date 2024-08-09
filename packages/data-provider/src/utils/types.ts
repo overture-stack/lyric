@@ -265,6 +265,13 @@ export type PaginationMetadata = {
 };
 
 /**
+ * Type that describes the options used as a filter on Submitted Data
+ */
+export type SubmittedDataFilterOptions = PaginationOptions & {
+	entityName: string;
+};
+
+/**
  * Include an array of the filtered records and a summary of the pagination
  * Response type used to query submitted data endpoint
  */

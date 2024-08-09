@@ -8,6 +8,10 @@ export const isArrayWithValues = (value: unknown) => {
 	return Array.isArray(value) && value.length > 0 && value.some((x) => !!x);
 };
 
+export const splitString = (value: string, separator: string) => {
+	return value.split(separator);
+};
+
 export function notEmpty<TValue>(value: TValue | null | undefined): value is TValue {
 	// lodash 4.14 behavior note, these are all evaluated to true:
 	// _.isEmpty(null) _.isEmpty(undefined) _.isEmpty([])
@@ -58,3 +62,12 @@ export function isValidDateFormat(value: string): boolean {
 
 	return !isNaN(timestamp);
 }
+
+/**
+ * Ensure a value is wrapped in an array.
+ *
+ * If passed an array, return it without change. If passed a single item, wrap it in an array.
+ * @param val an item or array
+ * @return an array
+ */
+export const asArray = <T>(val: T | T[]): T[] => (Array.isArray(val) ? val : [val]);
