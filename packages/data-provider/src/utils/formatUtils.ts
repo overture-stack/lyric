@@ -62,3 +62,15 @@ export function isValidDateFormat(value: string): boolean {
 
 	return !isNaN(timestamp);
 }
+/**
+ * If the input is a string, it converts it into an array containing that string.
+ * Otherwise, it returns the input as-is.
+ * @param {string | string[] | undefined} value
+ * @returns {string[] | undefined}
+ */
+export function stringToArray(value: string | string[] | undefined): string[] | undefined {
+	if (typeof value === 'string') {
+		return [value];
+	}
+	return value;
+}

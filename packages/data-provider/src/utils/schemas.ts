@@ -291,13 +291,13 @@ export const dataDeleteBySystemIdRequestSchema: RequestValidation<
 };
 
 export interface dataQueryParams extends paginationQueryParams {
-	entityName?: string;
+	entityName?: string | string[];
 }
 
 export const dataGetByCategoryRequestSchema: RequestValidation<object, dataQueryParams, categoryPathParams> = {
 	query: z
 		.object({
-			entityName: entityNameSchema.optional(),
+			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
 		})
 		.merge(paginationQuerySchema),
 	pathParams: categoryPathParamsSchema,
@@ -310,7 +310,7 @@ export const dataGetByOrganizationRequestSchema: RequestValidation<
 > = {
 	query: z
 		.object({
-			entityName: entityNameSchema.optional(),
+			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
 		})
 		.merge(paginationQuerySchema),
 	pathParams: categoryOrganizationPathParamsSchema,
@@ -320,7 +320,7 @@ export const dataGetByQueryRequestschema: RequestValidation<object, dataQueryPar
 	body: sqonSchema,
 	query: z
 		.object({
-			entityName: entityNameSchema.optional(),
+			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
 		})
 		.merge(paginationQuerySchema),
 	pathParams: categoryOrganizationPathParamsSchema,

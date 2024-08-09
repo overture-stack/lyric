@@ -8,7 +8,6 @@ import submittedRepository from '../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations, SchemaChildNode } from '../utils/dictionarySchemaRelations.js';
 import { BadRequest } from '../utils/errors.js';
-import { splitString } from '../utils/formatUtils.js';
 import submittedUtils from '../utils/submittedDataUtils.js';
 import { PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
 
@@ -16,10 +15,6 @@ const PAGINATION_ERROR_MESSAGES = {
 	INVALID_CATEGORY_ID: 'Invalid Category ID',
 	NO_DATA_FOUND: 'No Submitted data found',
 } as const;
-
-// A constant representing a list separator using the pipe character (|),
-// which cannot be used in entity names due to its illegality.
-const entitySeparator = '|' as const;
 
 const service = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_SERVICE';
@@ -84,7 +79,7 @@ const service = (dependencies: BaseDependencies) => {
 		getSubmittedDataByCategory: async (
 			categoryId: number,
 			paginationOptions: PaginationOptions,
-			filterOptions: { entityName?: string },
+			filterOptions: { entityName?: string[] },
 		): Promise<{
 			data: SubmittedDataResponse[];
 			metadata: { totalRecords: number; errorMessage?: string };
@@ -100,17 +95,15 @@ const service = (dependencies: BaseDependencies) => {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.INVALID_CATEGORY_ID);
 			}
 
-			const entityNameArray = splitString(filterOptions?.entityName ?? '', entitySeparator);
-
 			const recordsPaginated = await getSubmittedDataByCategoryIdPaginated(categoryId, paginationOptions, {
-				entityNames: entityNameArray,
+				entityNames: filterOptions?.entityName,
 			});
 
 			if (recordsPaginated.length === 0) {
 				return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.NO_DATA_FOUND);
 			}
 
-			const totalRecords = await getTotalRecordsByCategoryId(categoryId, { entityNames: entityNameArray });
+			const totalRecords = await getTotalRecordsByCategoryId(categoryId, { entityNames: filterOptions?.entityName });
 
 			logger.info(LOG_MODULE, `Retrieved '${recordsPaginated.length}' Submitted data on categoryId '${categoryId}'`);
 
@@ -126,7 +119,7 @@ const service = (dependencies: BaseDependencies) => {
 			categoryId: number,
 			organization: string,
 			paginationOptions: PaginationOptions,
-			filterOptions?: { sqon?: SQON; entityName?: string },
+			filterOptions?: { sqon?: SQON; entityName?: string[] },
 		): Promise<{ data: SubmittedDataResponse[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
 			const { getSubmittedDataByCategoryIdAndOrganizationPaginated, getTotalRecordsByCategoryIdAndOrganization } =
 				submittedDataRepo;
@@ -141,13 +134,11 @@ const service = (dependencies: BaseDependencies) => {
 
 			const sqonQuery = convertSqonToQuery(filterOptions?.sqon);
 
-			const entityNameArray = splitString(filterOptions?.entityName ?? '', entitySeparator);
-
 			const recordsPaginated = await getSubmittedDataByCategoryIdAndOrganizationPaginated(
 				categoryId,
 				organization,
 				paginationOptions,
-				{ sql: sqonQuery, entityNames: entityNameArray },
+				{ sql: sqonQuery, entityNames: filterOptions?.entityName },
 			);
 
 			if (recordsPaginated.length === 0) {
@@ -156,7 +147,7 @@ const service = (dependencies: BaseDependencies) => {
 
 			const totalRecords = await getTotalRecordsByCategoryIdAndOrganization(categoryId, organization, {
 				sql: sqonQuery,
-				entityNames: entityNameArray,
+				entityNames: filterOptions?.entityName,
 			});
 
 			logger.info(
