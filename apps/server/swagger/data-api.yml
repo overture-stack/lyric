@@ -10,6 +10,15 @@
         schema:
           type: string
         description: ID of the category
+      - name: entityName
+        description: Array of strings to filter by entity names
+        in: query
+        required: false
+        schema:
+          collectionFormat: multi
+          type: array
+          items:
+            type: string
       - name: page
         in: query
         required: false
@@ -58,6 +67,15 @@
         schema:
           type: string
         description: Organization name
+      - name: entityName
+        description: Array of strings to filter by entity names
+        in: query
+        required: false
+        schema:
+          collectionFormat: multi
+          type: array
+          items:
+            type: string
       - name: page
         in: query
         required: false
@@ -106,6 +124,15 @@
         schema:
           type: string
         description: Organization name
+      - name: entityName
+        description: Array of strings to filter by entity names
+        in: query
+        required: false
+        schema:
+          collectionFormat: multi
+          type: array
+          items:
+            type: string
       - name: page
         in: query
         required: false
