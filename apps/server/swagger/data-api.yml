@@ -163,6 +163,15 @@
                     content:
                       fieldName: 'name'
                       value: ['Bob']
+            not:
+              summary: Not in - Field must not match the provided value or not to be included in the array of values.
+              value:
+                op: 'not'
+                content:
+                  - op: 'in'
+                    content:
+                      fieldName: 'name'
+                      value: ['Tom']
             gt:
               summary: Greater Than - field value must be greater than the given number
               value:
