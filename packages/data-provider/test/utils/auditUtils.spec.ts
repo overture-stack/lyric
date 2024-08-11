@@ -2,17 +2,32 @@ import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
 import { convertToAuditEvent, isAuditEventValid, parseAuditRecords } from '../../src/utils/auditUtils.js';
-import { AuditDataRepository, AuditDataResponse } from '../../src/utils/types.js';
+import { AuditDataResponse, AuditRepositoryRecord } from '../../src/utils/types.js';
 
-describe('Audit functions test', () => {
+describe('Audit utils', () => {
 	describe('Validate Audit Event type', () => {
-		it('should return true if input corresponds to a valid Audit Event', () => {
+		it('should return true if input corresponds to a valid Audit Event in uppercase (UPDATE)', () => {
 			const response = isAuditEventValid('UPDATE');
+			expect(response).to.be.true;
+		});
+
+		it('should return true if input corresponds to a valid Audit Event in lowercase (delete)', () => {
+			const response = isAuditEventValid('delete');
 			expect(response).to.be.true;
 		});
 
 		it('should return false if input does not correspond to an Audit Event', () => {
 			const response = isAuditEventValid('MODIFICATIONS');
+			expect(response).to.be.false;
+		});
+
+		it('should return false if input is a number', () => {
+			const response = isAuditEventValid(123);
+			expect(response).to.be.false;
+		});
+
+		it('should return false if input is an objec', () => {
+			const response = isAuditEventValid({});
 			expect(response).to.be.false;
 		});
 	});
@@ -35,7 +50,7 @@ describe('Audit functions test', () => {
 		it('should return a valid Audit object', () => {
 			const date = new Date();
 
-			const repositoryObject: AuditDataRepository = {
+			const repositoryObject: AuditRepositoryRecord = {
 				action: 'DELETE',
 				comment: null,
 				entityName: 'sport',
