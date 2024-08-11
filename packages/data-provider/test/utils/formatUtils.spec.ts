@@ -1,7 +1,13 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { isArrayWithValues, isEmptyString, isValidIdNumber, uniqueCharacters } from '../../src/utils/formatUtils.js';
+import {
+	isArrayWithValues,
+	isEmptyString,
+	isValidDateFormat,
+	isValidIdNumber,
+	uniqueCharacters,
+} from '../../src/utils/formatUtils.js';
 
 describe('Format Utils', () => {
 	describe('Validate if input is a valid ID number', () => {
@@ -173,6 +179,38 @@ describe('Format Utils', () => {
 			const unknownArray: unknown = ['oranges', null];
 			const response = isArrayWithValues(unknownArray);
 			expect(response).to.be.true;
+		});
+	});
+
+	describe('Validate if input is a valid date', () => {
+		it('should return true if input is a YYYY-MM-DD string date format', () => {
+			const input = '2000-01-01';
+			const response = isValidDateFormat(input);
+			expect(response).to.be.true;
+		});
+
+		it('should return true if input is a YYYY-MM date format', () => {
+			const input = '2000-01';
+			const response = isValidDateFormat(input);
+			expect(response).to.be.true;
+		});
+
+		it('should return true if input is a YYYY date format', () => {
+			const input = '2000';
+			const response = isValidDateFormat(input);
+			expect(response).to.be.true;
+		});
+
+		it('should return false if input contains only letters', () => {
+			const input = 'not_a_date';
+			const response = isValidDateFormat(input);
+			expect(response).to.be.false;
+		});
+
+		it('should return false if input contains only numbers', () => {
+			const input = '20000101';
+			const response = isValidDateFormat(input);
+			expect(response).to.be.false;
 		});
 	});
 });
