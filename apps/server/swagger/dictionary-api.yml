@@ -13,15 +13,15 @@
             properties:
               categoryName:
                 type: string
-                description: Name of the Category
+                description: A user-defined classification to group and organize data based on shared characteristics or criteria
                 required: true
               dictionaryName:
                 type: string
-                description: Name of the Dictionary
+                description: A matching Dictionary Name defined on Dictionary Manager (Lectern)
                 required: true
               version:
                 type: string
-                description: Version of the Dictionary
+                description: A matching Dictionary Version defined on Dictionary Manager (Lectern)
                 required: true
     responses:
       200:
