@@ -254,7 +254,7 @@ const service = (dependencies: BaseDependencies) => {
 		const { categoryId, organization, userName } = params;
 
 		// Parse file data
-		const filesDataProcessed = await submissionEntitiesFromFiles(files, userName);
+		const filesDataProcessed = await submissionEntitiesFromFiles(files);
 
 		// Get Active Submission from database
 		const activeSubmission = await getActiveSubmission({ categoryId, userName, organization });

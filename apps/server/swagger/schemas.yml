@@ -69,9 +69,6 @@ components:
               additionalProperties:
                 type: object
                 properties:
-                  creator:
-                    type: string
-                    description: Name of user who created the submission
                   records:
                     type: array
                     items:
@@ -168,9 +165,6 @@ components:
                   batchName:
                     type: string
                     description: Original filename  of the submission
-                  creator:
-                    type: string
-                    description: Name of user who created the submission
                   recordsCount:
                     type: number
                     description: Number Of Records

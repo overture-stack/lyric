@@ -14,7 +14,6 @@ export const submissionStatusEnum = pgEnum('submission_status', ['OPEN', 'VALID'
 
 export type SubmissionInsertData = {
 	batchName: string;
-	creator: string;
 	records: SchemaData;
 };
 

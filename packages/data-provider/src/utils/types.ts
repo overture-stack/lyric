@@ -170,7 +170,6 @@ export type PaginationOptions = {
 
 export type DataInsertsActiveSubmissionSummary = {
 	batchName: string;
-	creator: string;
 	recordsCount: number;
 };
 

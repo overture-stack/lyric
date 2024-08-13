@@ -311,12 +311,10 @@ const utils = (dependencies: BaseDependencies) => {
 		/**
 		 * Construct a SubmissionInsertData object per each file returning a Record type based on entityName
 		 * @param {Record<string, Express.Multer.File>} files
-		 * @param {string} userName
 		 * @returns {Promise<Record<string, SubmissionInsertData>>}
 		 */
 		submissionEntitiesFromFiles: async (
 			files: Record<string, Express.Multer.File>,
-			userName: string,
 		): Promise<Record<string, SubmissionInsertData>> => {
 			const filesDataProcessed: Record<string, SubmissionInsertData> = {};
 			await Promise.all(
@@ -324,7 +322,6 @@ const utils = (dependencies: BaseDependencies) => {
 					const parsedFileData = await tsvToJson(file.path);
 					filesDataProcessed[entityName] = {
 						batchName: file.originalname,
-						creator: userName,
 						records: parsedFileData,
 					} as SubmissionInsertData;
 				}),
