@@ -1,6 +1,6 @@
 import * as _ from 'lodash-es';
 
-import { NewSubmission, Submission, SubmissionData } from '@overture-stack/lyric-data-model';
+import { NewSubmission, Submission, SubmissionData, type SubmissionInsertData } from '@overture-stack/lyric-data-model';
 import {
 	SchemaData,
 	SchemasDictionary,
@@ -20,8 +20,10 @@ import {
 	BATCH_ERROR_TYPE,
 	BatchError,
 	CategoryActiveSubmission,
-	DataActiveSubmissionSummary,
+	type DataDeletesActiveSubmissionSummary,
+	DataInsertsActiveSubmissionSummary,
 	DataRecordReference,
+	type DataUpdatesActiveSubmissionSummary,
 	DictionaryActiveSubmission,
 	MERGE_REFERENCE_TYPE,
 	SUBMISSION_STATUS,
@@ -207,15 +209,15 @@ const utils = (dependencies: BaseDependencies) => {
 		 * and maps it to it's original reference Id
 		 * The result mapping is used to perform the cross schema validation
 		 * @param {number | undefined} activeSubmissionId
-		 * @param {Record<string, SubmissionData>} activeSubmissionDataEntities
+		 * @param {Record<string, SubmissionInsertData>} activeSubmissionInsertDataEntities
 		 * @returns {Record<string, DataRecordReference[]>}
 		 */
 		mapSubmissionSchemaDataByEntityName: (
 			activeSubmissionId: number | undefined,
-			activeSubmissionDataEntities: Record<string, SubmissionData>,
+			activeSubmissionInsertDataEntities: Record<string, SubmissionInsertData>,
 		): Record<string, DataRecordReference[]> => {
-			return _.mapValues(activeSubmissionDataEntities, (submissionData) =>
-				submissionData.records.map((record, index) => {
+			return _.mapValues(activeSubmissionInsertDataEntities, (submissionInsertData) =>
+				submissionInsertData.records.map((record, index) => {
 					return {
 						dataRecord: record,
 						reference: {
@@ -257,17 +259,39 @@ const utils = (dependencies: BaseDependencies) => {
 		parseActiveSubmissionSummaryResponse: (
 			submission: ActiveSubmissionSummaryRepository,
 		): ActiveSubmissionSummaryResponse => {
-			const dataSummary = Object.entries(submission.data).reduce(
-				(acc, [entityName, entityData]) => {
-					acc[entityName] = { ..._.omit(entityData, 'records'), recordsCount: entityData.records.length };
-					return acc;
-				},
-				{} as Record<string, DataActiveSubmissionSummary>,
-			);
+			const dataInsertsSummary =
+				submission.data?.inserts &&
+				Object.entries(submission.data?.inserts).reduce(
+					(acc, [entityName, entityData]) => {
+						acc[entityName] = { ..._.omit(entityData, 'records'), recordsCount: entityData.records.length };
+						return acc;
+					},
+					{} as Record<string, DataInsertsActiveSubmissionSummary>,
+				);
+
+			const dataUpdatesSummary =
+				submission.data.updates &&
+				Object.entries(submission.data?.updates).reduce(
+					(acc, [entityName, entityData]) => {
+						acc[entityName] = { recordsCount: entityData.length };
+						return acc;
+					},
+					{} as Record<string, DataUpdatesActiveSubmissionSummary>,
+				);
+
+			const dataDeletesSummary =
+				submission.data.deletes &&
+				Object.entries(submission.data?.deletes).reduce(
+					(acc, [entityName, entityData]) => {
+						acc[entityName] = { recordsCount: entityData.length };
+						return acc;
+					},
+					{} as Record<string, DataDeletesActiveSubmissionSummary>,
+				);
 
 			return {
 				id: submission.id,
-				data: dataSummary,
+				data: { inserts: dataInsertsSummary, updates: dataUpdatesSummary, deletes: dataDeletesSummary },
 				dictionary: submission.dictionary as DictionaryActiveSubmission,
 				dictionaryCategory: submission.dictionaryCategory as CategoryActiveSubmission,
 				errors: submission.errors,
@@ -280,21 +304,21 @@ const utils = (dependencies: BaseDependencies) => {
 			};
 		},
 
-		removeEntityFromSubmission: (submissionData: Record<string, SubmissionData>, entityName: string) => {
+		removeEntityFromSubmission: (submissionData: Record<string, SubmissionInsertData>, entityName: string) => {
 			return _.omit(submissionData, entityName);
 		},
 
 		/**
-		 * Construct a SubmissionData object per each file returning a Record type based on entityName
+		 * Construct a SubmissionInsertData object per each file returning a Record type based on entityName
 		 * @param {Record<string, Express.Multer.File>} files
 		 * @param {string} userName
-		 * @returns {Promise<Record<string, SubmissionData>>}
+		 * @returns {Promise<Record<string, SubmissionInsertData>>}
 		 */
 		submissionEntitiesFromFiles: async (
 			files: Record<string, Express.Multer.File>,
 			userName: string,
-		): Promise<Record<string, SubmissionData>> => {
-			const filesDataProcessed: Record<string, SubmissionData> = {};
+		): Promise<Record<string, SubmissionInsertData>> => {
+			const filesDataProcessed: Record<string, SubmissionInsertData> = {};
 			await Promise.all(
 				Object.entries(files).map(async ([entityName, file]) => {
 					const parsedFileData = await tsvToJson(file.path);
@@ -302,7 +326,7 @@ const utils = (dependencies: BaseDependencies) => {
 						batchName: file.originalname,
 						creator: userName,
 						records: parsedFileData,
-					} as SubmissionData;
+					} as SubmissionInsertData;
 				}),
 			);
 			return filesDataProcessed;
@@ -312,7 +336,7 @@ const utils = (dependencies: BaseDependencies) => {
 		 * Update Active Submission in database
 		 * @param {Object} input
 		 * @param {number} input.dictionaryId The Dictionary ID of the Submission
-		 * @param {Record<string, SubmissionData>} input.entityMap Map of Entities with Entity Types as keys
+		 * @param {SubmissionData} input.submissionData Data to be submitted grouped on inserts, updates and deletes
 		 * @param {number} input.idActiveSubmission ID of the Active Submission
 		 * @param {Record<string, SchemaValidationError[]>} input.schemaErrors Array of schemaErrors
 		 * @param {string} input.userName User updating the active submission
@@ -320,17 +344,17 @@ const utils = (dependencies: BaseDependencies) => {
 		 */
 		updateActiveSubmission: async (input: {
 			dictionaryId: number;
-			entityMap: Record<string, SubmissionData>;
+			submissionData: SubmissionData;
 			idActiveSubmission: number;
 			schemaErrors: Record<string, SchemaValidationError[]>;
 			userName: string;
 		}): Promise<Submission> => {
-			const { dictionaryId, entityMap, idActiveSubmission, schemaErrors, userName } = input;
+			const { dictionaryId, submissionData, idActiveSubmission, schemaErrors, userName } = input;
 			const newStatusSubmission =
 				Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
 			// Update with new data
 			const updatedActiveSubmission = await submissionRepo.update(idActiveSubmission, {
-				data: entityMap,
+				data: submissionData,
 				status: newStatusSubmission,
 				dictionaryId: dictionaryId,
 				updatedBy: userName,

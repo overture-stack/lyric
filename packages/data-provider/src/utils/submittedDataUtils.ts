@@ -52,19 +52,19 @@ const utils = (dependencies: BaseDependencies) => {
 
 		/**
 		 * Creates a list of SubmittedData grouped by entities and a matching list with only schema data
-		 * @param {Array<NewSubmittedData>} data
+		 * @param {Array<NewSubmittedData | SubmittedData>} data
 		 * @returns
 		 */
 		groupSchemaDataByEntityName: (
-			data: Array<NewSubmittedData>,
+			data: Array<NewSubmittedData | SubmittedData>,
 		): {
-			submittedDataByEntityName: Record<string, NewSubmittedData[]>;
+			submittedDataByEntityName: Record<string, Array<NewSubmittedData | SubmittedData>>;
 			schemaDataByEntityName: Record<string, SchemaData>;
 		} => {
 			return data.reduce(
 				(
 					result: {
-						submittedDataByEntityName: Record<string, NewSubmittedData[]>;
+						submittedDataByEntityName: Record<string, Array<NewSubmittedData | SubmittedData>>;
 						schemaDataByEntityName: Record<string, SchemaData>;
 					},
 					submittedDataObject,

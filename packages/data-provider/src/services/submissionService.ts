@@ -1,6 +1,12 @@
 import * as _ from 'lodash-es';
 
-import { NewSubmittedData, Submission, SubmissionData, SubmittedData } from '@overture-stack/lyric-data-model';
+import {
+	NewSubmittedData,
+	Submission,
+	SubmissionData,
+	type SubmissionInsertData,
+	SubmittedData,
+} from '@overture-stack/lyric-data-model';
 import {
 	BatchProcessingResult,
 	SchemasDictionary,
@@ -81,13 +87,13 @@ const service = (dependencies: BaseDependencies) => {
 	 * The returned Object is a collection of the raw Schema Data with it's reference ID grouped by entity name.
 	 * @param {SubmittedData[]} submittedData An array of Submitted Data
 	 * @param {Object} activeSubmission
-	 * @param {Record<string, SubmissionData>} activeSubmission.data Collection of Data records of the Active Submission
+	 * @param {Record<string, SubmissionInsertData>} activeSubmission.insertData Collection of Data records of the Active Submission
 	 * @param {number} activeSubmission.id ID of the Active Submission
 	 * @returns {Record<string, DataRecordReference[]>}
 	 */
 	const mergeActiveSubmissionAndSubmittedData = (
 		submittedData: SubmittedData[],
-		activeSubmission: { data: Record<string, SubmissionData>; id: number },
+		activeSubmission: { insertData?: Record<string, SubmissionInsertData>; id: number },
 	): Record<string, DataRecordReference[]> => {
 		const { mapSubmissionSchemaDataByEntityName } = submissionUtils(dependencies);
 		const { mapSubmittedDataSchemaByEntityName } = submittedDataUtils(dependencies);
@@ -95,7 +101,8 @@ const service = (dependencies: BaseDependencies) => {
 		// This object will merge existing data + new data for validation (Submitted data + active Submission)
 		return _.mergeWith(
 			mapSubmittedDataSchemaByEntityName(submittedData),
-			mapSubmissionSchemaDataByEntityName(activeSubmission.id, activeSubmission.data),
+			activeSubmission.insertData &&
+				mapSubmissionSchemaDataByEntityName(activeSubmission.id, activeSubmission.insertData),
 			(objValue, srcValue) => {
 				if (Array.isArray(objValue)) {
 					// If both values are arrays, concatenate them
@@ -108,9 +115,9 @@ const service = (dependencies: BaseDependencies) => {
 	/**
 	 * This function validates whole data together against a dictionary
 	 * @param {object} params
-	 * @param {Array<NewSubmittedData>} data Data to be validated
-	 * @param {SchemasDictionary & { id: number }} dictionary Dictionary to validata data
-	 * @param {Submission} submission Active Submission object
+	 * @param {Array<NewSubmittedData>} params.data Data to be validated
+	 * @param {SchemasDictionary & { id: number }} params.dictionary Dictionary to validata data
+	 * @param {Submission} params.submission Active Submission object
 	 * @returns void
 	 */
 	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<void> => {
@@ -171,16 +178,16 @@ const service = (dependencies: BaseDependencies) => {
 	 * Returns the Active Submission updated
 	 * @param {Object} input
 	 * @param {Submission} input.originalSubmission Active Submission
-	 * @param {Record<string, SubmissionData>} input.newSubmissionData New Schema data
+	 * @param {SubmissionData} input.submissionData New Submission data
 	 * @param {string} input.username User who performs the action
 	 * @returns {Promise<Submission>}
 	 */
 	const performDataValidation = async (input: {
 		originalSubmission: Submission;
-		newSubmissionData: Record<string, SubmissionData>;
+		submissionData: SubmissionData;
 		userName: string;
 	}): Promise<Submission> => {
-		const { originalSubmission, newSubmissionData, userName } = input;
+		const { originalSubmission, submissionData, userName } = input;
 
 		const { extractSchemaDataFromMergedDataRecords, updateActiveSubmission } = submissionUtils(dependencies);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
@@ -195,7 +202,7 @@ const service = (dependencies: BaseDependencies) => {
 
 		// Merge Submitted Data with Active Submission keepping reference of each record ID
 		const dataMergedByEntityName = mergeActiveSubmissionAndSubmittedData(submittedData, {
-			data: newSubmissionData,
+			insertData: submissionData.inserts,
 			id: originalSubmission.id,
 		});
 
@@ -223,7 +230,7 @@ const service = (dependencies: BaseDependencies) => {
 		// Update Active Submission
 		return await updateActiveSubmission({
 			idActiveSubmission: originalSubmission.id,
-			entityMap: newSubmissionData,
+			submissionData: { inserts: submissionData.inserts },
 			schemaErrors: submissionSchemaErrors,
 			dictionaryId: currentDictionary.id,
 			userName: userName,
@@ -256,15 +263,15 @@ const service = (dependencies: BaseDependencies) => {
 		}
 
 		// Merge Active Submission data with incoming TSV file data processed
-		const updatedActiveSubmissionData: Record<string, SubmissionData> = {
-			...activeSubmission.data,
+		const updatedActiveSubmissionData: Record<string, SubmissionInsertData> = {
+			...activeSubmission.data.inserts,
 			...filesDataProcessed,
 		};
 
 		// Perform Schema Data validation Async.
 		performDataValidation({
 			originalSubmission: activeSubmission,
-			newSubmissionData: updatedActiveSubmissionData,
+			submissionData: { inserts: updatedActiveSubmissionData },
 			userName,
 		});
 	};
@@ -305,29 +312,34 @@ const service = (dependencies: BaseDependencies) => {
 			}
 
 			const entitiesToProcess: string[] = [];
+			const submissionsToValidate: (NewSubmittedData | SubmittedData)[] = [];
 
 			const submittedDataArray = await getSubmittedDataByCategoryIdAndOrganization(
 				categoryId,
 				submission?.organization,
 			);
 
-			const submissionsToValidate = Object.entries(submission.data).flatMap(([entityName, submissionData]) => {
-				entitiesToProcess.push(entityName);
-				return submissionData.records.map((record) => {
-					const newSubmittedData: NewSubmittedData = {
-						data: record,
-						dictionaryCategoryId: categoryId,
-						entityName,
-						isValid: false, // By default New Submitted Data is created as invalid until validation process proves otherwise
-						organization: submission.organization,
-						originalSchemaId: submission.dictionaryId,
-						lastValidSchemaId: submission.dictionaryId,
-						systemId: generateIdentifier(entityName, record),
-						createdBy: '', // TODO: get User from auth
-					};
-					return newSubmittedData;
+			if (submission.data?.inserts) {
+				Object.entries(submission.data.inserts).forEach(([entityName, submissionData]) => {
+					entitiesToProcess.push(entityName);
+					submissionsToValidate.push(
+						...submissionData.records.map((record) => {
+							const newSubmittedData: NewSubmittedData = {
+								data: record,
+								dictionaryCategoryId: categoryId,
+								entityName,
+								isValid: false, // By default New Submitted Data is created as invalid until validation process proves otherwise
+								organization: submission.organization,
+								originalSchemaId: submission.dictionaryId,
+								lastValidSchemaId: submission.dictionaryId,
+								systemId: generateIdentifier(entityName, record),
+								createdBy: '', // TODO: get User from auth
+							};
+							return newSubmittedData;
+						}),
+					);
 				});
-			}, {});
+			}
 
 			if (Array.isArray(submittedDataArray) && submittedDataArray.length > 0) {
 				logger.info(LOG_MODULE, `Found submitted data to be revalidated`);
@@ -409,16 +421,16 @@ const service = (dependencies: BaseDependencies) => {
 				throw new BadRequest(`Submission '${submissionId}' not found`);
 			}
 
-			if (!_.has(submission.data, entityName)) {
+			if (!_.has(submission.data.inserts, entityName)) {
 				throw new BadRequest(`Entity '${entityName}' not found on Submission`);
 			}
 
 			// Remove entity from the Submission
-			const updatedActiveSubmissionData = removeEntityFromSubmission(submission.data, entityName);
+			const updatedActiveSubmissionData = removeEntityFromSubmission(submission.data.inserts, entityName);
 
 			const updatedRecord = await performDataValidation({
 				originalSubmission: submission,
-				newSubmissionData: updatedActiveSubmissionData,
+				submissionData: { inserts: updatedActiveSubmissionData },
 				userName,
 			});
 
