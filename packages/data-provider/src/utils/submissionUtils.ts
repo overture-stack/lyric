@@ -261,32 +261,32 @@ const utils = (dependencies: BaseDependencies) => {
 		): ActiveSubmissionSummaryResponse => {
 			const dataInsertsSummary =
 				submission.data?.inserts &&
-				Object.entries(submission.data?.inserts).reduce(
+				Object.entries(submission.data?.inserts).reduce<Record<string, DataInsertsActiveSubmissionSummary>>(
 					(acc, [entityName, entityData]) => {
 						acc[entityName] = { ..._.omit(entityData, 'records'), recordsCount: entityData.records.length };
 						return acc;
 					},
-					{} as Record<string, DataInsertsActiveSubmissionSummary>,
+					{},
 				);
 
 			const dataUpdatesSummary =
 				submission.data.updates &&
-				Object.entries(submission.data?.updates).reduce(
+				Object.entries(submission.data?.updates).reduce<Record<string, DataUpdatesActiveSubmissionSummary>>(
 					(acc, [entityName, entityData]) => {
 						acc[entityName] = { recordsCount: entityData.length };
 						return acc;
 					},
-					{} as Record<string, DataUpdatesActiveSubmissionSummary>,
+					{},
 				);
 
 			const dataDeletesSummary =
 				submission.data.deletes &&
-				Object.entries(submission.data?.deletes).reduce(
+				Object.entries(submission.data?.deletes).reduce<Record<string, DataDeletesActiveSubmissionSummary>>(
 					(acc, [entityName, entityData]) => {
 						acc[entityName] = { recordsCount: entityData.length };
 						return acc;
 					},
-					{} as Record<string, DataDeletesActiveSubmissionSummary>,
+					{},
 				);
 
 			return {
@@ -316,17 +316,18 @@ const utils = (dependencies: BaseDependencies) => {
 		submissionEntitiesFromFiles: async (
 			files: Record<string, Express.Multer.File>,
 		): Promise<Record<string, SubmissionInsertData>> => {
-			const filesDataProcessed: Record<string, SubmissionInsertData> = {};
-			await Promise.all(
-				Object.entries(files).map(async ([entityName, file]) => {
+			return await Object.entries(files).reduce<Promise<Record<string, SubmissionInsertData>>>(
+				async (accPromise, [entityName, file]) => {
+					const acc = await accPromise;
 					const parsedFileData = await tsvToJson(file.path);
-					filesDataProcessed[entityName] = {
+					acc[entityName] = {
 						batchName: file.originalname,
 						records: parsedFileData,
-					} as SubmissionInsertData;
-				}),
+					};
+					return Promise.resolve(acc);
+				},
+				Promise.resolve({}),
 			);
-			return filesDataProcessed;
 		},
 
 		/**
