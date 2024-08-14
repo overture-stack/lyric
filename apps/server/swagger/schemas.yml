@@ -63,20 +63,44 @@ components:
           description: ID of the Submission
         data:
           type: object
-          additionalProperties:
-            type: object
-            properties:
-              creator:
-                type: string
-                description: Name of user who created the submission
-              records:
+          properties:
+            inserts:
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  records:
+                    type: array
+                    items:
+                      type: object
+                      description: Content of the file in JSON format
+                  batchName:
+                    type: string
+                    description: Original filename  of the submission
+            updates:
+              type: object
+              additionalProperties:
                 type: array
                 items:
                   type: object
-                  description: Content of the file in JSON format
-              batchName:
-                type: string
-                description: Original filename  of the submission
+                  properties:
+                    systemId:
+                      type: string
+                    oldData:
+                      type: object
+                      description: Old Content
+                    newData:
+                      type: object
+                      description: New content
+            deletes:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    systemId:
+                      type: string
         dictionary:
           type: object
           description: Dictionary used to validate the submission
@@ -132,18 +156,32 @@ components:
           description: ID of the Submission
         data:
           type: object
-          additionalProperties:
-            type: object
-            properties:
-              batchName:
-                type: string
-                description: Original filename  of the submission
-              creator:
-                type: string
-                description: Name of user who created the submission
-              recordsCount:
-                type: number
-                description: Number Of Records
+          properties:
+            inserts:
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  batchName:
+                    type: string
+                    description: Original filename  of the submission
+                  recordsCount:
+                    type: number
+                    description: Number Of Records
+            updates:
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  recordsCount:
+                    type: number
+            deletes:
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  recordsCount:
+                    type: number
         dictionary:
           type: object
           description: Dictionary used to validate the submission

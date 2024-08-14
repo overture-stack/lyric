@@ -1,7 +1,7 @@
 import { DeepReadonly } from 'deep-freeze';
 import { z } from 'zod';
 
-import { NewSubmittedData, Submission, SubmissionData } from '@overture-stack/lyric-data-model';
+import { NewSubmittedData, Submission, SubmissionData, type SubmittedData } from '@overture-stack/lyric-data-model';
 import {
 	DataRecord,
 	SchemasDictionary,
@@ -151,7 +151,7 @@ export interface ValidateFilesParams {
 }
 
 export interface CommitSubmissionParams {
-	data: Array<NewSubmittedData>;
+	data: Array<NewSubmittedData | SubmittedData>;
 	dictionary: SchemasDictionary & { id: number };
 	submission: Submission;
 }
@@ -168,9 +168,16 @@ export type PaginationOptions = {
 	pageSize: number;
 };
 
-export type DataActiveSubmissionSummary = {
+export type DataInsertsActiveSubmissionSummary = {
 	batchName: string;
-	creator: string;
+	recordsCount: number;
+};
+
+export type DataUpdatesActiveSubmissionSummary = {
+	recordsCount: number;
+};
+
+export type DataDeletesActiveSubmissionSummary = {
 	recordsCount: number;
 };
 
@@ -189,7 +196,7 @@ export type CategoryActiveSubmission = {
  */
 export type ActiveSubmissionResponse = {
 	id: number;
-	data: Record<string, SubmissionData>;
+	data: SubmissionData;
 	dictionary: DictionaryActiveSubmission | null;
 	dictionaryCategory: CategoryActiveSubmission | null;
 	errors: Record<string, SchemaValidationError[]> | null;
@@ -206,7 +213,11 @@ export type ActiveSubmissionResponse = {
  * override 'data' object to contain a summary of records
  */
 export type ActiveSubmissionSummaryResponse = Omit<ActiveSubmissionResponse, 'data'> & {
-	data: Record<string, DataActiveSubmissionSummary>;
+	data: {
+		inserts?: Record<string, DataInsertsActiveSubmissionSummary>;
+		updates?: Record<string, DataUpdatesActiveSubmissionSummary>;
+		deletes?: Record<string, DataDeletesActiveSubmissionSummary>;
+	};
 };
 
 /**
@@ -214,7 +225,7 @@ export type ActiveSubmissionSummaryResponse = Omit<ActiveSubmissionResponse, 'da
  */
 export type ActiveSubmissionSummaryRepository = {
 	id: number;
-	data: Record<string, SubmissionData>;
+	data: SubmissionData;
 	dictionary: object | null;
 	dictionaryCategory: object | null;
 	errors: Record<string, SchemaValidationError[]> | null;
