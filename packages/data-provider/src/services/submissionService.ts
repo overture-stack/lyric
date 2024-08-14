@@ -96,11 +96,11 @@ const service = (dependencies: BaseDependencies) => {
 		activeSubmission: { insertData?: Record<string, SubmissionInsertData>; id: number },
 	): Record<string, DataRecordReference[]> => {
 		const { mapSubmissionSchemaDataByEntityName } = submissionUtils(dependencies);
-		const { mapSubmittedDataSchemaByEntityName } = submittedDataUtils(dependencies);
+		const { transformSubmittedDataSchemaByEntityName } = submittedDataUtils(dependencies);
 
 		// This object will merge existing data + new data for validation (Submitted data + active Submission)
 		return _.mergeWith(
-			mapSubmittedDataSchemaByEntityName(submittedData),
+			transformSubmittedDataSchemaByEntityName(submittedData),
 			activeSubmission.insertData &&
 				mapSubmissionSchemaDataByEntityName(activeSubmission.id, activeSubmission.insertData),
 			(objValue, srcValue) => {

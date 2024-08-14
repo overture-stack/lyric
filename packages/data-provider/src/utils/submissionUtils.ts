@@ -231,6 +231,23 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
+		 * Merge two `Record<string, T[]>` objects into a single `Record<string, T[]>` object.
+		 * For each key in the records, the corresponding arrays from both records are concatenated.
+		 * @param record1 The first `Record<string, T[]>` object. If `undefined`, it is treated as an empty record.
+		 * @param record2 The second `Record<string, T[]>` object. If `undefined`, it is treated as an empty record.
+		 * @returns
+		 */
+		mergeRecords: <T>(
+			record1: Record<string, T[]> | undefined,
+			record2: Record<string, T[] | undefined>,
+		): Record<string, T[]> => {
+			return Object.keys({ ...record1, ...record2 }).reduce<Record<string, T[]>>((acc, key) => {
+				acc[key] = [...(record1?.[key] || []), ...(record2?.[key] || [])];
+				return acc;
+			}, {});
+		},
+
+		/**
 		 * Utility to parse a raw Active Submission to a Response type
 		 * @param {ActiveSubmissionSummaryRepository} submission
 		 * @returns {ActiveSubmissionResponse}

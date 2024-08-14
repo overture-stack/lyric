@@ -20,13 +20,6 @@ const categoryIdSchema = z
 
 const commentSchema = z.string().trim().min(1);
 
-const dryRunSchema = z
-	.string()
-	.toLowerCase()
-	.refine((value) => value === 'true' || value === 'false', {
-		message: 'Value must be a boolean',
-	});
-
 const endDateSchema = z
 	.string()
 	.trim()
@@ -271,20 +264,7 @@ export interface dataDeleteBySystemIdPathParams extends ParamsDictionary {
 	systemId: string;
 }
 
-export interface dataDeleteBySystemIdQueryParams extends ParsedQs {
-	dryRun?: string;
-	comment: string;
-}
-
-export const dataDeleteBySystemIdRequestSchema: RequestValidation<
-	object,
-	dataDeleteBySystemIdQueryParams,
-	dataDeleteBySystemIdPathParams
-> = {
-	query: z.object({
-		dryRun: dryRunSchema.optional(),
-		comment: commentSchema,
-	}),
+export const dataDeleteBySystemIdRequestSchema: RequestValidation<object, ParsedQs, dataDeleteBySystemIdPathParams> = {
 	pathParams: z.object({
 		systemId: systemIdSchema,
 	}),

@@ -224,7 +224,7 @@
 
 /data/{systemId}:
   delete:
-    summary: Delete Submitted Data by System ID
+    summary: Delete Submitted Data by System ID. Returns an Active Submission with the records to be deleted
     tags:
       - admin
     parameters:
@@ -233,26 +233,13 @@
         required: true
         schema:
           type: string
-      - name: dryRun
-        description: If true won't execute the deletion, but will return what will be deleted, default is false.
-        in: query
-        required: false
-        schema:
-          default: false
-          type: boolean
-      - name: comment
-        description: Comment explaining the reason for deletion.
-        in: query
-        required: false
-        schema:
-          type: string
     responses:
       200:
-        description: Submitted Data cleared successfully. Returns the delete Submitted Data
+        description: Returns an Active Submission with the records to be deleted
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GetSubmittedDataResult'
+              $ref: '#/components/schemas/DeleteDataActiveSubmission'
       400:
         $ref: '#/components/responses/BadRequest'
       401:

@@ -1,6 +1,6 @@
 import { groupBy, has } from 'lodash-es';
 
-import { NewSubmittedData, SubmittedData } from '@overture-stack/lyric-data-model';
+import { NewSubmittedData, type SubmissionDeleteData, SubmittedData } from '@overture-stack/lyric-data-model';
 import { functions } from '@overturebio-stack/lectern-client';
 import {
 	SchemaData,
@@ -9,7 +9,7 @@ import {
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 import { BaseDependencies } from '../config/config.js';
-import { DataRecordReference, MERGE_REFERENCE_TYPE, SubmittedDataReference, SubmittedDataResponse } from './types.js';
+import { DataRecordReference, MERGE_REFERENCE_TYPE, type SubmittedDataResponse } from './types.js';
 
 const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_UTILS';
@@ -113,34 +113,50 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Organize any array of Submitted Data by entityName.
-		 * @param {SubmittedData[] | undefined} submittedData
+		 * Transforms an array of `SubmittedData` into a `Record<string, DataRecordReference[]>`,
+		 * where each key is the `entityName` from the `SubmittedData`, and the value is an array of
+		 * `DataRecordReference` objects associated with that `entityName`.
+		 * @param {SubmittedData[] | undefined} submittedData An array of `SubmittedData` objects to be transformed.
 		 * @returns {Record<string, DataRecordReference[]>}
 		 */
-		mapSubmittedDataSchemaByEntityName: (
+		transformSubmittedDataSchemaByEntityName: (
 			submittedData: SubmittedData[] | undefined,
 		): Record<string, DataRecordReference[]> => {
 			if (!submittedData) return {};
 
-			const mappingDataRecords: Record<string, DataRecordReference[]> = {};
+			return submittedData.reduce<Record<string, DataRecordReference[]>>((acc, entityData) => {
+				const record = {
+					dataRecord: entityData.data,
+					reference: {
+						submittedDataId: entityData.id,
+						type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
+					},
+				};
 
-			const dataRecordGroupedByEntityName = groupBy(submittedData, 'entityName');
+				acc[entityData.entityName] = [...(acc[entityData.entityName] || [])].concat(record);
+				return acc;
+			}, {});
+		},
 
-			Object.entries(dataRecordGroupedByEntityName).map(([entityName, submittedDataEntities]) => {
-				logger.info(LOG_MODULE, `found submittedData for entity: ${entityName}`);
-				submittedDataEntities.map((entity) => {
-					mappingDataRecords[entityName] = mappingDataRecords[entityName] || [];
-					mappingDataRecords[entityName].push({
-						dataRecord: entity.data,
-						reference: {
-							submittedDataId: entity.id,
-							type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
-						} as SubmittedDataReference,
-					});
-				});
-			});
-
-			return mappingDataRecords;
+		/**
+		 * Transforms an array of `SubmittedData` into a `Record<string, SubmissionDeleteData[]>`,
+		 * where each key is the `entityName` from the `SubmittedData`, and the value is an array of
+		 * `SubmissionDeleteData` objects associated with that `entityName`.
+		 * @param submittedData An array of `SubmittedData` objects to be transformed.
+		 * @returns
+		 */
+		transformmSubmittedDataToSubmissionDeleteData: (submittedData: SubmittedData[]) => {
+			return submittedData.reduce<Record<string, SubmissionDeleteData[]>>((acc, entityData) => {
+				const record = {
+					data: entityData.data,
+					entityName: entityData.entityName,
+					isValid: entityData.isValid,
+					organization: entityData.organization,
+					systemId: entityData.systemId,
+				};
+				acc[entityData.entityName] = [...(acc[entityData.entityName] || [])].concat(record);
+				return acc;
+			}, {});
 		},
 
 		/**

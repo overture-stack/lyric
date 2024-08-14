@@ -400,6 +400,17 @@ components:
           type: string
           description: ID of the Submission
 
+    DeleteDataActiveSubmission:
+      type: object
+      properties:
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubmittedDataRecord'
+        submissionId:
+          type: string
+          description: ID of the Submission
+
     GetSubmittedDataResult:
       type: object
       properties:

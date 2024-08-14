@@ -1,4 +1,4 @@
-import { SubmittedData } from '@overture-stack/lyric-data-model';
+import { type SubmissionDeleteData, SubmittedData } from '@overture-stack/lyric-data-model';
 import { SQON } from '@overture-stack/sqon-builder';
 
 import { BaseDependencies } from '../config/config.js';
@@ -8,6 +8,7 @@ import submittedRepository from '../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations, SchemaChildNode } from '../utils/dictionarySchemaRelations.js';
 import { BadRequest } from '../utils/errors.js';
+import submissionUtils from '../utils/submissionUtils.js';
 import submittedUtils from '../utils/submittedDataUtils.js';
 import { PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
 
@@ -165,28 +166,25 @@ const service = (dependencies: BaseDependencies) => {
 
 		deleteSubmittedDataBySystemId: async (
 			systemId: string,
-			dryRun: boolean,
-			comment: string,
 			userName: string,
-		): Promise<SubmittedDataResponse[]> => {
+		): Promise<{ submissionId: string; data: SubmissionDeleteData[] }> => {
 			const { getSubmittedDataBySystemId } = submittedDataRepo;
 			const { getDictionaryById } = dictionaryRepo;
-			const { mapRecordsSubmittedDataResponse } = submittedUtils(dependencies);
+			const { getOrCreateActiveSubmission, updateActiveSubmission, mergeRecords } = submissionUtils(dependencies);
+			const { mapRecordsSubmittedDataResponse, transformmSubmittedDataToSubmissionDeleteData } =
+				submittedUtils(dependencies);
 
 			// get SubmittedData by SystemId
-			const submittedData = await getSubmittedDataBySystemId(systemId);
+			const foundRecordToDelete = await getSubmittedDataBySystemId(systemId);
 
-			if (!submittedData) {
+			if (!foundRecordToDelete) {
 				throw new BadRequest(`No Submitted data found with systemId '${systemId}'`);
 			}
 
 			logger.info(LOG_MODULE, `Found Submitted Data with system ID '${systemId}'`);
 
-			// create array with records to be updated
-			const recordsToUpdate: SubmittedData[] = [submittedData];
-
 			// get dictionary
-			const dictionary = await getDictionaryById(submittedData.lastValidSchemaId);
+			const dictionary = await getDictionaryById(foundRecordToDelete.lastValidSchemaId);
 
 			if (!dictionary) {
 				throw new BadRequest(`Dictionary not found`);
@@ -195,25 +193,36 @@ const service = (dependencies: BaseDependencies) => {
 			// get dictionary relations
 			const dictionaryRelations = getDictionarySchemaRelations(dictionary);
 
-			const recordDependency = await searchDirectDependents(dictionaryRelations, submittedData);
+			const recordDependents = await searchDirectDependents(dictionaryRelations, foundRecordToDelete);
 
-			if (recordDependency && recordDependency.length > 0) {
-				recordsToUpdate.push(...recordDependency);
-			}
+			const submittedDataToDelete = [foundRecordToDelete, ...recordDependents];
 
-			if (dryRun === false) {
-				recordsToUpdate.forEach((record) => {
-					submittedDataRepo.delete(record, comment, userName);
-				});
-			}
+			const recordsToDeleteMap = transformmSubmittedDataToSubmissionDeleteData(submittedDataToDelete);
 
-			logger.info(
-				LOG_MODULE,
-				`Dry-Run '${dryRun}'`,
-				`Delete Submitted Data. Total records '${recordsToUpdate.length}'`,
-			);
+			// Get Active Submission or Open a new one
+			const activeSubmission = await getOrCreateActiveSubmission({
+				categoryId: foundRecordToDelete.dictionaryCategoryId,
+				userName,
+				organization: foundRecordToDelete.organization,
+			});
 
-			return mapRecordsSubmittedDataResponse(recordsToUpdate);
+			const mergedSubmissionDeletes = mergeRecords(activeSubmission.data.deletes, recordsToDeleteMap);
+
+			// update active submission
+			const activeSubmissionUpdated = await updateActiveSubmission({
+				dictionaryId: activeSubmission.dictionaryCategoryId,
+				idActiveSubmission: activeSubmission.id,
+				schemaErrors: activeSubmission.errors ?? {},
+				submissionData: { ...activeSubmission.data, deletes: mergedSubmissionDeletes },
+				userName: userName,
+			});
+
+			logger.info(LOG_MODULE, `Added '${submittedDataToDelete.length}' records to be deleted on the Active Submission`);
+
+			return {
+				submissionId: activeSubmissionUpdated.id.toString(),
+				data: mapRecordsSubmittedDataResponse(submittedDataToDelete),
+			};
 		},
 	};
 };
