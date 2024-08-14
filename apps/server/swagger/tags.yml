@@ -1,0 +1,17 @@
+tags:
+  - name: Admin
+    description: Admin operations to manipulate Submitted Data
+  - name: Audit
+    description: Retrieves a list of changes made to Submitted Data records
+  - name: Category
+    description: Operations related to Categories management. Categories are used to organize and clasify Dictionaries
+  - name: Data
+    description: Retrieve Submitted Data using filters and pagination
+  - name: Dictionary
+    description: Dictionary registration. Uses Lectern as a Data Dictionary Schema Manager
+  - name: Health
+    description: Service status monitoring
+  - name: Ping
+    description: Test reachability
+  - name: Submission
+    description: Create, View, Edit and Commit a Submission. A Submission represents a collection of data that is staged for validation before finalization

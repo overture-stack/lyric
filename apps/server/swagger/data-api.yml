@@ -2,7 +2,7 @@
   get:
     summary: Retrieve Submitted Data for a specific Category
     tags:
-      - data
+      - Data
     parameters:
       - name: categoryId
         in: path
@@ -53,7 +53,7 @@
   get:
     summary: Retrieve Submitted Data for a specific Category and Organization
     tags:
-      - data
+      - Data
     parameters:
       - name: categoryId
         in: path
@@ -110,7 +110,7 @@
   post:
     summary: Retrieve Submitted Data filtered by search parameters provided in the request body
     tags:
-      - data
+      - Data
     parameters:
       - name: categoryId
         in: path
@@ -226,7 +226,7 @@
   delete:
     summary: Delete Submitted Data by System ID. Returns an Active Submission with the records to be deleted
     tags:
-      - admin
+      - Admin
     parameters:
       - name: systemId
         in: path
