@@ -5,6 +5,7 @@ import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import dictionaryRepository from '../repository/dictionaryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
+import submissionService from '../services/submissionService.js';
 import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations, SchemaChildNode } from '../utils/dictionarySchemaRelations.js';
 import { BadRequest } from '../utils/errors.js';
@@ -170,9 +171,10 @@ const service = (dependencies: BaseDependencies) => {
 		): Promise<{ submissionId: string; data: SubmissionDeleteData[] }> => {
 			const { getSubmittedDataBySystemId } = submittedDataRepo;
 			const { getDictionaryById } = dictionaryRepo;
-			const { getOrCreateActiveSubmission, updateActiveSubmission, mergeRecords } = submissionUtils(dependencies);
+			const { getOrCreateActiveSubmission, mergeRecords } = submissionUtils(dependencies);
 			const { mapRecordsSubmittedDataResponse, transformmSubmittedDataToSubmissionDeleteData } =
 				submittedUtils(dependencies);
+			const { performDataValidation } = submissionService(dependencies);
 
 			// get SubmittedData by SystemId
 			const foundRecordToDelete = await getSubmittedDataBySystemId(systemId);
@@ -206,21 +208,20 @@ const service = (dependencies: BaseDependencies) => {
 				organization: foundRecordToDelete.organization,
 			});
 
+			// Merge current Active Submission delete entities
 			const mergedSubmissionDeletes = mergeRecords(activeSubmission.data.deletes, recordsToDeleteMap);
 
-			// update active submission
-			const activeSubmissionUpdated = await updateActiveSubmission({
-				dictionaryId: activeSubmission.dictionaryCategoryId,
-				idActiveSubmission: activeSubmission.id,
-				schemaErrors: activeSubmission.errors ?? {},
-				submissionData: { ...activeSubmission.data, deletes: mergedSubmissionDeletes },
-				userName: userName,
+			// Validate and update Active Submission
+			const updatedRecord = await performDataValidation({
+				originalSubmission: activeSubmission,
+				submissionData: { inserts: activeSubmission.data.inserts, deletes: mergedSubmissionDeletes },
+				userName,
 			});
 
 			logger.info(LOG_MODULE, `Added '${submittedDataToDelete.length}' records to be deleted on the Active Submission`);
 
 			return {
-				submissionId: activeSubmissionUpdated.id.toString(),
+				submissionId: updatedRecord.id.toString(),
 				data: mapRecordsSubmittedDataResponse(submittedDataToDelete),
 			};
 		},
