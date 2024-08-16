@@ -124,6 +124,12 @@ export type RegisterDictionaryResult = {
 };
 
 /**
+ * Enum matching Audit Action in database
+ */
+export const SUBMISSION_ACTION_TYPE = z.enum(['INSERTS', 'UPDATES', 'DELETES']);
+export type SubmissionActionType = z.infer<typeof SUBMISSION_ACTION_TYPE>;
+
+/**
  * File upload validation error types
  */
 export const BATCH_ERROR_TYPE = {

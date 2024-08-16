@@ -14,7 +14,7 @@ import {
 	submissionDeleteRequestSchema,
 	uploadSubmissionRequestSchema,
 } from '../utils/schemas.js';
-import { BATCH_ERROR_TYPE, BatchError } from '../utils/types.js';
+import { BATCH_ERROR_TYPE, BatchError, SUBMISSION_ACTION_TYPE } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
 	const service = submissionService(dependencies);
@@ -58,14 +58,24 @@ const controller = (dependencies: BaseDependencies) => {
 		deleteEntityName: validateRequest(submissionDeleteEntityNameRequestSchema, async (req, res, next) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
-				const entityName = req.params.entityName;
+				const actionType = SUBMISSION_ACTION_TYPE.parse(req.params.actionType.toUpperCase());
 
-				logger.info(LOG_MODULE, `Request Delete entity '${entityName}' on Active Submission '${submissionId}'`);
+				const entityName = req.query.entityName;
+				const index = req.query.index ? parseInt(req.query.index) : undefined;
+
+				logger.info(
+					LOG_MODULE,
+					`Request Delete '${entityName ? entityName : 'all'}' records on '{${actionType}}' Active Submission '${submissionId}'`,
+				);
 
 				// TODO: get userName from auth
 				const userName = '';
 
-				const activeSubmission = await service.deleteActiveSubmissionEntity(submissionId, entityName, userName);
+				const activeSubmission = await service.deleteActiveSubmissionEntity(submissionId, userName, {
+					actionType,
+					entityName,
+					index,
+				});
 
 				if (isEmpty(activeSubmission)) {
 					throw new NotFound('Active Submission not found');

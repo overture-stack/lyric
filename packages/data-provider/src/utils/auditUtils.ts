@@ -1,6 +1,12 @@
 import * as _ from 'lodash-es';
 
-import { AUDIT_ACTION, AuditAction, AuditDataResponse, AuditRepositoryRecord } from './types.js';
+import {
+	AUDIT_ACTION,
+	AuditAction,
+	AuditDataResponse,
+	AuditRepositoryRecord,
+	SUBMISSION_ACTION_TYPE,
+} from './types.js';
 
 /**
  * Returns `true` if input value matches with a valid Audit Event type.
@@ -10,6 +16,9 @@ import { AUDIT_ACTION, AuditAction, AuditDataResponse, AuditRepositoryRecord } f
  */
 export const isAuditEventValid = (value: unknown): boolean =>
 	typeof value === 'string' && AUDIT_ACTION.safeParse(value.toUpperCase()).success;
+
+export const isSubmissionActionTypeValid = (value: unknown): boolean =>
+	typeof value === 'string' && SUBMISSION_ACTION_TYPE.safeParse(value.toUpperCase()).success;
 
 /**
  * Convert a value string into it's Audit event type if it matches.

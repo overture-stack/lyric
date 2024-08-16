@@ -28,7 +28,9 @@ import {
 	CREATE_SUBMISSION_STATUS,
 	CreateSubmissionResult,
 	DataRecordReference,
+	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
+	type SubmissionActionType,
 	ValidateFilesParams,
 } from '../utils/types.js';
 
@@ -169,27 +171,50 @@ const service = (dependencies: BaseDependencies) => {
 	 */
 	const deleteActiveSubmissionEntity = async (
 		submissionId: number,
-		entityName: string,
 		userName: string,
+		filter: {
+			actionType: SubmissionActionType;
+			entityName: string;
+			index?: number;
+		},
 	): Promise<Submission | undefined> => {
 		const { getSubmissionById } = submissionRepository(dependencies);
-		const { removeEntityFromSubmission } = submissionUtils(dependencies);
+		const { removeItemsFromSubmission } = submissionUtils(dependencies);
 
 		const submission = await getSubmissionById(submissionId);
 		if (!submission) {
 			throw new BadRequest(`Submission '${submissionId}' not found`);
 		}
 
-		if (!_.has(submission.data.inserts, entityName)) {
-			throw new BadRequest(`Entity '${entityName}' not found on Submission`);
+		if (
+			SUBMISSION_ACTION_TYPE.Values.INSERTS.includes(filter.actionType) &&
+			!_.has(submission.data.inserts, filter.entityName)
+		) {
+			throw new BadRequest(`Entity '${filter.entityName}' not found on '${filter.actionType}' Submission`);
+		}
+
+		if (
+			SUBMISSION_ACTION_TYPE.Values.UPDATES.includes(filter.actionType) &&
+			!_.has(submission.data.updates, filter.entityName)
+		) {
+			throw new BadRequest(`Entity '${filter.entityName}' not found on '${filter.actionType}' Submission`);
+		}
+
+		if (
+			SUBMISSION_ACTION_TYPE.Values.DELETES.includes(filter.actionType) &&
+			!_.has(submission.data.deletes, filter.entityName)
+		) {
+			throw new BadRequest(`Entity '${filter.entityName}' not found on '${filter.actionType}' Submission`);
 		}
 
 		// Remove entity from the Submission
-		const updatedActiveSubmissionData = removeEntityFromSubmission(submission.data.inserts, entityName);
+		const updatedActiveSubmissionData = removeItemsFromSubmission(submission.data, {
+			...filter,
+		});
 
 		const updatedRecord = await performDataValidation({
 			originalSubmission: submission,
-			submissionData: { inserts: updatedActiveSubmissionData, deletes: submission.data.deletes },
+			submissionData: updatedActiveSubmissionData,
 			userName,
 		});
 
