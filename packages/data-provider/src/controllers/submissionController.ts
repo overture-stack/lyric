@@ -26,9 +26,12 @@ const controller = (dependencies: BaseDependencies) => {
 				const categoryId = Number(req.params.categoryId);
 				const submissionId = Number(req.params.submissionId);
 
+				// TODO: get userName from auth
+				const userName = '';
+
 				logger.info(LOG_MODULE, `Request Commit Active Submission '${submissionId}' on category '${categoryId}'`);
 
-				const commitSubmission = await service.commitSubmission(categoryId, submissionId);
+				const commitSubmission = await service.commitSubmission(categoryId, submissionId, userName);
 
 				return res.status(200).send(commitSubmission);
 			} catch (error) {

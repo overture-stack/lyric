@@ -44,7 +44,11 @@ const service = (dependencies: BaseDependencies) => {
 	 * @param {number} submissionId
 	 * @returns {Promise<CommitSubmissionResult>}
 	 */
-	const commitSubmission = async (categoryId: number, submissionId: number): Promise<CommitSubmissionResult> => {
+	const commitSubmission = async (
+		categoryId: number,
+		submissionId: number,
+		userName: string,
+	): Promise<CommitSubmissionResult> => {
 		const { getSubmissionById } = submissionRepository(dependencies);
 		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
@@ -63,24 +67,25 @@ const service = (dependencies: BaseDependencies) => {
 			throw new StatusConflict('Submission does not have status VALID and cannot be committed');
 		}
 
-		if (!categoryId) {
-			throw new BadRequest(`Active Submission does not belong to any Category`);
-		}
-
 		const currentDictionary = await getActiveDictionaryByCategory(categoryId);
 		if (_.isEmpty(currentDictionary)) {
 			throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
 		}
 
-		const entitiesToProcess: string[] = [];
-		const submissionsToValidate: (NewSubmittedData | SubmittedData)[] = [];
+		const submittedDataToValidate = await getSubmittedDataByCategoryIdAndOrganization(
+			categoryId,
+			submission?.organization,
+		);
 
-		const submittedDataArray = await getSubmittedDataByCategoryIdAndOrganization(categoryId, submission?.organization);
+		const entitiesToProcess = new Set<string>();
 
-		if (submission.data?.inserts) {
-			Object.entries(submission.data.inserts).forEach(([entityName, submissionData]) => {
-				entitiesToProcess.push(entityName);
-				submissionsToValidate.push(
+		submittedDataToValidate?.forEach((data) => entitiesToProcess.add(data.entityName));
+
+		const insertsToValidate =
+			submission.data?.inserts &&
+			Object.entries(submission.data.inserts).reduce<NewSubmittedData[]>((acc, [entityName, submissionData]) => {
+				entitiesToProcess.add(entityName);
+				acc.push(
 					...submissionData.records.map((record) => {
 						const newSubmittedData: NewSubmittedData = {
 							data: record,
@@ -91,29 +96,30 @@ const service = (dependencies: BaseDependencies) => {
 							originalSchemaId: submission.dictionaryId,
 							lastValidSchemaId: submission.dictionaryId,
 							systemId: generateIdentifier(entityName, record),
-							createdBy: '', // TODO: get User from auth
+							createdBy: userName,
 						};
 						return newSubmittedData;
 					}),
 				);
-			});
-		}
+				return acc;
+			}, []);
 
-		if (Array.isArray(submittedDataArray) && submittedDataArray.length > 0) {
-			logger.info(LOG_MODULE, `Found submitted data to be revalidated`);
-			submittedDataArray.forEach((data) => {
-				submissionsToValidate.push(data);
-				if (!_.includes(entitiesToProcess, data.entityName)) {
-					entitiesToProcess.push(data.entityName);
-				}
-			});
-		}
+		const deleteDataArray =
+			submission.data?.deletes &&
+			Object.values(submission.data.deletes).flatMap((submissionDeleteData) =>
+				submissionDeleteData.map((data) => data.systemId),
+			);
 
 		// To Commit Active Submission we need to validate SubmittedData + Active Submission
 		performCommitSubmissionAsync({
-			data: submissionsToValidate,
+			dataToValidate: {
+				inserts: insertsToValidate,
+				submittedData: submittedDataToValidate,
+				deletes: deleteDataArray,
+			},
 			submission,
 			dictionary: currentDictionary,
+			userName: userName,
 		});
 
 		return {
@@ -122,7 +128,7 @@ const service = (dependencies: BaseDependencies) => {
 				name: currentDictionary.name,
 				version: currentDictionary.version,
 			},
-			processedEntities: entitiesToProcess,
+			processedEntities: Array.from(entitiesToProcess.values()),
 		};
 	};
 
@@ -371,10 +377,13 @@ const service = (dependencies: BaseDependencies) => {
 
 	/**
 	 * This function validates whole data together against a dictionary
-	 * @param {object} params
-	 * @param {Array<NewSubmittedData>} params.data Data to be validated
-	 * @param {SchemasDictionary & { id: number }} params.dictionary Dictionary to validata data
-	 * @param {Submission} params.submission Active Submission object
+	 * @param params
+	 * @param params.dataToValidate Data to be validated, This object contains:
+	 * - `inserts`: An array of new records to be commited. Optional
+	 * - `submittedData`: An array of existing Submitted Data. Optional
+	 * - `deletes`: An array of `systemId`s representing items that should be deleted. Optional
+	 * @param params.dictionary A `Dictionary` object for Data Validation
+	 * @param params.submission A `Submission` object representing the Active Submission
 	 * @returns void
 	 */
 	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<void> => {
@@ -383,9 +392,16 @@ const service = (dependencies: BaseDependencies) => {
 		const { groupSchemaDataByEntityName, validateSchemas, groupErrorsByIndex, hasErrorsByIndex } =
 			submittedDataUtils(dependencies);
 
-		const { dictionary, data, submission } = params;
+		const { dictionary, dataToValidate, submission, userName } = params;
 
-		const schemasDataToValidate = groupSchemaDataByEntityName(data);
+		// Exclude items that are marked for deletion
+		const deletesSet = dataToValidate?.deletes ? new Set<string>(dataToValidate.deletes) : new Set<string>();
+		const submittedDataToValidate = dataToValidate.submittedData?.filter((item) => !deletesSet.has(item.systemId));
+
+		const schemasDataToValidate = groupSchemaDataByEntityName({
+			inserts: dataToValidate.inserts,
+			submittedData: submittedDataToValidate,
+		});
 
 		const resultValidation = validateSchemas(dictionary, schemasDataToValidate.schemaDataByEntityName);
 
@@ -400,7 +416,7 @@ const service = (dependencies: BaseDependencies) => {
 						dataSubmittedRepo.update(data.id, {
 							isValid: data.isValid,
 							lastValidSchemaId: data.lastValidSchemaId,
-							updatedBy: data.updatedBy,
+							updatedBy: userName,
 						});
 					} else {
 						logger.error(
@@ -409,7 +425,7 @@ const service = (dependencies: BaseDependencies) => {
 						);
 						dataSubmittedRepo.update(data.id, {
 							isValid: data.isValid,
-							updatedBy: data.updatedBy,
+							updatedBy: userName,
 						});
 					}
 				} else {
@@ -420,6 +436,10 @@ const service = (dependencies: BaseDependencies) => {
 					dataSubmittedRepo.save(data);
 				}
 			});
+		});
+
+		deletesSet.forEach((systemIdToDelete) => {
+			dataSubmittedRepo.deleteBySystemId(systemIdToDelete, userName);
 		});
 
 		logger.info(LOG_MODULE, `Active submission '${submission.id} updated to status '${SUBMISSION_STATUS.COMMITED}'`);

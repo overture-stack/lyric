@@ -1,6 +1,11 @@
 import { groupBy, has } from 'lodash-es';
 
-import { NewSubmittedData, type SubmissionDeleteData, SubmittedData } from '@overture-stack/lyric-data-model';
+import {
+	NewSubmittedData,
+	type SubmissionDeleteData,
+	submittedData,
+	SubmittedData,
+} from '@overture-stack/lyric-data-model';
 import { functions } from '@overturebio-stack/lectern-client';
 import {
 	SchemaData,
@@ -9,7 +14,12 @@ import {
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 import { BaseDependencies } from '../config/config.js';
-import { DataRecordReference, MERGE_REFERENCE_TYPE, type SubmittedDataResponse } from './types.js';
+import {
+	DataRecordReference,
+	MERGE_REFERENCE_TYPE,
+	type GroupedDataSubmission,
+	type SubmittedDataResponse,
+} from './types.js';
 
 const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_UTILS';
@@ -51,30 +61,28 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Creates a list of SubmittedData grouped by entities and a matching list with only schema data
-		 * @param {Array<NewSubmittedData | SubmittedData>} data
-		 * @returns
+		 * Groups `NewSubmittedData` and `SubmittedData` objects by their `entityName` field.
+		 * @param data An object containing arrays of `NewSubmittedData` and `SubmittedData` objects.
+		 * @returns An object containing two properties:
+		 * - `submittedDataByEntityName`: A record where each key is an `entityName` and the value is an array of
+		 *   `NewSubmittedData` or `SubmittedData` objects associated with that entity.
+		 * - `schemaDataByEntityName`: A record where each key is an `entityName` and the value is an array of
+		 *   `SchemaData` objects primarily intended for schema validation.
+		 *
 		 */
-		groupSchemaDataByEntityName: (
-			data: Array<NewSubmittedData | SubmittedData>,
-		): {
-			submittedDataByEntityName: Record<string, Array<NewSubmittedData | SubmittedData>>;
-			schemaDataByEntityName: Record<string, SchemaData>;
-		} => {
-			return data.reduce(
-				(
-					result: {
-						submittedDataByEntityName: Record<string, Array<NewSubmittedData | SubmittedData>>;
-						schemaDataByEntityName: Record<string, SchemaData>;
-					},
-					submittedDataObject,
-				) => {
-					result.schemaDataByEntityName[submittedDataObject.entityName] = [
-						...(result.schemaDataByEntityName[submittedDataObject.entityName] || []),
-						{ ...submittedDataObject.data },
+		groupSchemaDataByEntityName: (data: { inserts?: NewSubmittedData[]; submittedData?: SubmittedData[] }) => {
+			const combinedData = [...(data?.inserts || []), ...(data?.submittedData || [])];
+			return combinedData.reduce<GroupedDataSubmission>(
+				(result, submittedDataObject) => {
+					const { entityName, data: recordData } = submittedDataObject;
+
+					result.schemaDataByEntityName[entityName] = [
+						...(result.schemaDataByEntityName[entityName] || []),
+						{ ...recordData },
 					];
-					result.submittedDataByEntityName[submittedDataObject.entityName] = [
-						...(result.submittedDataByEntityName[submittedDataObject.entityName] || []),
+
+					result.submittedDataByEntityName[entityName] = [
+						...(result.submittedDataByEntityName[entityName] || []),
 						{ ...submittedDataObject },
 					];
 					return result;
