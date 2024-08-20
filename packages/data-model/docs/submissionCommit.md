@@ -1,6 +1,6 @@
 ```mermaid
 ---
-title: State Diagram Submission Statuses
+title: Commit Submission Sequence Diagram
 ---
 sequenceDiagram
     actor User
