@@ -9,6 +9,7 @@ import {
 } from '@overture-stack/lyric-data-model';
 import {
 	BatchProcessingResult,
+	type DataRecord,
 	SchemasDictionary,
 	SchemaValidationError,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
@@ -107,7 +108,7 @@ const service = (dependencies: BaseDependencies) => {
 		const deleteDataArray =
 			submission.data?.deletes &&
 			Object.values(submission.data.deletes).flatMap((submissionDeleteData) =>
-				submissionDeleteData.map((data) => data.systemId),
+				submissionDeleteData.map((item) => ({ systemId: item.systemId, data: item.data })),
 			);
 
 		// To Commit Active Submission we need to validate SubmittedData + Active Submission
@@ -389,14 +390,16 @@ const service = (dependencies: BaseDependencies) => {
 	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<void> => {
 		const submissionRepo = submissionRepository(dependencies);
 		const dataSubmittedRepo = submittedRepository(dependencies);
-		const { groupSchemaDataByEntityName, validateSchemas, groupErrorsByIndex, hasErrorsByIndex } =
+		const { groupSchemaDataByEntityName, validateSchemas, groupErrorsByIndex, hasErrorsByIndex, computeDataDiff } =
 			submittedDataUtils(dependencies);
 
 		const { dictionary, dataToValidate, submission, userName } = params;
 
 		// Exclude items that are marked for deletion
-		const deletesSet = dataToValidate?.deletes ? new Set<string>(dataToValidate.deletes) : new Set<string>();
-		const submittedDataToValidate = dataToValidate.submittedData?.filter((item) => !deletesSet.has(item.systemId));
+		const systemIdsToDelete = new Set<string>(dataToValidate?.deletes?.map((item) => item.systemId) || []);
+		const submittedDataToValidate = dataToValidate.submittedData?.filter(
+			(item) => !systemIdsToDelete.has(item.systemId),
+		);
 
 		const schemasDataToValidate = groupSchemaDataByEntityName({
 			inserts: dataToValidate.inserts,
@@ -438,8 +441,14 @@ const service = (dependencies: BaseDependencies) => {
 			});
 		});
 
-		deletesSet.forEach((systemIdToDelete) => {
-			dataSubmittedRepo.deleteBySystemId(systemIdToDelete, userName);
+		// iterate if there are any record to be deleted
+		dataToValidate?.deletes?.forEach((item) => {
+			dataSubmittedRepo.deleteBySystemId({
+				submissionId: submission.id,
+				systemId: item.systemId,
+				diff: computeDataDiff(item.data as DataRecord, null),
+				userName,
+			});
 		});
 
 		logger.info(LOG_MODULE, `Active submission '${submission.id} updated to status '${SUBMISSION_STATUS.COMMITED}'`);

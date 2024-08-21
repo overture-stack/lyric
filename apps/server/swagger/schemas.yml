@@ -101,6 +101,9 @@ components:
                   properties:
                     systemId:
                       type: string
+                    data:
+                      type: object
+                      description: Content to be deleted
         dictionary:
           type: object
           description: Dictionary used to validate the submission
@@ -307,37 +310,35 @@ components:
     ChangeHistoryRecord:
       type: object
       properties:
-        comment:
-          type: string
-          description: Comment of the event
         entityName:
           type: string
           description: Name of the Entity
         event:
           type: string
           description: Type of event
-        newData:
+          enum: ['UPDATE', 'DELETE']
+        dataDiff:
           type: object
-          description: New content of the record in JSON format
+          description: Captures the state of the data before the change as `old` and after the change as `new`
         newIsValid:
           type: boolean
-          description: New isValid value
-        oldData:
-          type: object
-          description: Old content of the record in JSON format
+          description: New  data isValid value
         oldIsValid:
           type: boolean
-          description: Old isValid value
+          description: Old data isValid value
         organization:
           type: string
           description: Name of the Organization
+        submissionId:
+          type: string
+          description: Submission ID the change belongs to
         systemId:
           type: string
-          description: System ID
-        updatedAt:
+          description: The unique identifier of the record changed
+        createdAt:
           type: string
           description: Date and time of creation
-        updatedBy:
+        createdBy:
           type: string
           description: User name who updated the submission
 

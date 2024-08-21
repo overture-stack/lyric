@@ -14,19 +14,18 @@ enum submission_status {
 table audit_submitted_data {
   id serial [pk, not null, increment]
   action audit_action [not null]
-  comment varchar
   dictionary_category_id integer [not null]
+  data_diff jsonb
   entity_name varchar [not null]
   last_valid_schema_id integer [not null]
-  new_data jsonb
   new_data_is_valid boolean [not null]
-  old_data jsonb
   old_data_is_valid boolean [not null]
   organization varchar [not null]
   original_schema_id integer [not null]
+  submission_id integer [not null]
   system_id varchar [not null]
-  updatedAt timestamp
-  updatedBy varchar
+  created_at timestamp
+  created_by varchar
 }
 
 table dictionaries {
@@ -87,6 +86,8 @@ ref: audit_submitted_data.dictionary_category_id - dictionary_categories.id
 ref: audit_submitted_data.last_valid_schema_id - dictionaries.id
 
 ref: audit_submitted_data.original_schema_id - dictionaries.id
+
+ref: audit_submitted_data.submission_id - submissions.id
 
 ref: dictionary_categories.active_dictionary_id - dictionaries.id
 

@@ -2,6 +2,7 @@ import { and, count, eq, or, SQL, sql } from 'drizzle-orm/sql';
 
 import {
 	auditSubmittedData,
+	type DataDiff,
 	NewAuditSubmittedData,
 	NewSubmittedData,
 	SubmittedData,
@@ -16,26 +17,29 @@ const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTEDDATA_REPOSITORY';
 	const { db, logger, features } = dependencies;
 
-	const auditDeleteSubmittedData = async (datas: SubmittedData[], userName: string) => {
-		datas.forEach(async (data) => {
-			const newAudit: NewAuditSubmittedData = {
-				action: AUDIT_ACTION.Values.DELETE,
-				comment: '',
-				dictionaryCategoryId: data.dictionaryCategoryId,
-				entityName: data.entityName,
-				lastValidSchemaId: data.lastValidSchemaId,
-				newData: null, // on delete event, new data is set to null and not valid
-				newDataIsValid: false,
-				oldData: data.data,
-				oldDataIsValid: data.isValid,
-				organization: data.organization,
-				originalSchemaId: data.originalSchemaId,
-				systemId: data.systemId,
-				updatedAt: new Date(),
-				updatedBy: userName,
-			};
-			await db.insert(auditSubmittedData).values(newAudit);
-		});
+	const auditDeleteSubmittedData = async (input: {
+		recordDeleted: SubmittedData;
+		diff: DataDiff;
+		submissionId: number;
+		userName: string;
+	}) => {
+		const { recordDeleted, diff, submissionId, userName } = input;
+		const newAudit: NewAuditSubmittedData = {
+			action: AUDIT_ACTION.Values.DELETE,
+			dictionaryCategoryId: recordDeleted.dictionaryCategoryId,
+			entityName: recordDeleted.entityName,
+			lastValidSchemaId: recordDeleted.lastValidSchemaId,
+			newDataIsValid: false,
+			dataDiff: diff,
+			oldDataIsValid: recordDeleted.isValid,
+			organization: recordDeleted.organization,
+			originalSchemaId: recordDeleted.originalSchemaId,
+			submissionId: submissionId,
+			systemId: recordDeleted.systemId,
+			createdAt: new Date(),
+			createdBy: userName,
+		};
+		return await db.insert(auditSubmittedData).values(newAudit);
 	};
 
 	// Column name on the database used to build JSONB query
@@ -66,11 +70,22 @@ const repository = (dependencies: BaseDependencies) => {
 	};
 
 	return {
-		deleteBySystemId: async (systemId: string, userName: string) => {
+		/**
+		 * Deletes a submitted data record by its system ID, logs the deletion, and optionally audits the deletion if auditing is enabled.
+		 * @param params The parameters for the deletion operation.
+		 * @param params.diff The difference between the old and new data, used for auditing
+		 * @param params.submissionId The ID of the Submission associated with the record
+		 * @param params.systemId The unique identifier of the record to delete
+		 * @param params.userName The name of the user performing the deletion
+		 * @returns The deleted record
+		 */
+		deleteBySystemId: async (params: { diff: DataDiff; submissionId: number; systemId: string; userName: string }) => {
+			const { diff, systemId, submissionId, userName } = params;
 			const deletedRecord = await db.delete(submittedData).where(eq(submittedData.systemId, systemId)).returning();
+			logger.info(LOG_MODULE, `Deleting SubmittedData with system ID '${systemId}' succesfully`);
 
-			if (features?.audit?.enabled && deletedRecord) {
-				await auditDeleteSubmittedData(deletedRecord, userName);
+			if (features?.audit?.enabled) {
+				await auditDeleteSubmittedData({ recordDeleted: deletedRecord[0], submissionId, diff, userName });
 			}
 
 			return deletedRecord;

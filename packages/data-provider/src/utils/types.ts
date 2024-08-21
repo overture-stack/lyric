@@ -1,12 +1,18 @@
 import { DeepReadonly } from 'deep-freeze';
 import { z } from 'zod';
 
-import { NewSubmittedData, Submission, SubmissionData, type SubmittedData } from '@overture-stack/lyric-data-model';
+import {
+	type DataDiff,
+	NewSubmittedData,
+	Submission,
+	SubmissionData,
+	type SubmittedData,
+} from '@overture-stack/lyric-data-model';
 import {
 	DataRecord,
+	type SchemaData,
 	SchemasDictionary,
 	SchemaValidationError,
-	type SchemaData,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 type ObjectValues<T> = T[keyof T];
@@ -33,34 +39,32 @@ export type AuditAction = z.infer<typeof AUDIT_ACTION>;
  * Audit Raw Data from Repository
  */
 export type AuditRepositoryRecord = {
-	comment: string | null;
 	entityName: string;
 	action: AuditAction;
-	newData: DataRecord | null;
+	dataDiff: DataDiff | null;
 	newDataIsValid: boolean;
-	oldData: DataRecord | null;
 	oldDataIsValid: boolean;
 	organization: string;
+	submissionId: number;
 	systemId: string;
-	updatedAt: Date | null;
-	updatedBy: string | null;
+	createdAt: Date | null;
+	createdBy: string | null;
 };
 
 /**
  * Audit Data Response formatted
  */
 export type AuditDataResponse = {
-	comment: string;
 	entityName: string;
 	event: AuditAction;
-	newData: DataRecord | null;
+	dataDiff: DataDiff | null;
 	newIsValid: boolean;
-	oldData: DataRecord | null;
 	oldIsValid: boolean;
 	organization: string;
+	submissionId: number;
 	systemId: string;
-	updatedAt: string;
-	updatedBy: string;
+	createdAt: string;
+	createdBy: string;
 };
 
 /**
@@ -158,7 +162,7 @@ export interface ValidateFilesParams {
 }
 
 export interface CommitSubmissionParams {
-	dataToValidate: { inserts?: NewSubmittedData[]; submittedData?: SubmittedData[]; deletes?: string[] };
+	dataToValidate: { inserts?: NewSubmittedData[]; submittedData?: SubmittedData[]; deletes?: DeleteSubmittedData[] };
 	dictionary: SchemasDictionary & { id: number };
 	submission: Submission;
 	userName: string;
@@ -261,6 +265,11 @@ export type CategoryDetailsResponse = {
 	updatedBy: string;
 };
 
+export type DeleteSubmittedData = {
+	systemId: string;
+	data: DataRecord;
+};
+
 export type ListAllCategoriesResponse = {
 	id: number;
 	name: string;
@@ -312,6 +321,15 @@ export const MERGE_REFERENCE_TYPE = {
 	SUBMISSION: 'submission',
 } as const;
 export type MergeReferenceType = ObjectValues<typeof MERGE_REFERENCE_TYPE>;
+
+type Mutable<T> = {
+	-readonly [P in keyof T]: T[P];
+};
+
+export type MutableDataDiff = {
+	old: Mutable<DataRecord>;
+	new: Mutable<DataRecord>;
+};
 
 export interface SubmittedDataReference {
 	type: typeof MERGE_REFERENCE_TYPE.SUBMITTED_DATA;

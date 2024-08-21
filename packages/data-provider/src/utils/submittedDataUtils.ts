@@ -1,13 +1,14 @@
 import { groupBy, has } from 'lodash-es';
 
 import {
+	type DataDiff,
 	NewSubmittedData,
 	type SubmissionDeleteData,
-	submittedData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model';
 import { functions } from '@overturebio-stack/lectern-client';
 import {
+	type DataRecord,
 	SchemaData,
 	SchemasDictionary,
 	SchemaValidationError,
@@ -16,8 +17,9 @@ import {
 import { BaseDependencies } from '../config/config.js';
 import {
 	DataRecordReference,
-	MERGE_REFERENCE_TYPE,
 	type GroupedDataSubmission,
+	MERGE_REFERENCE_TYPE,
+	type MutableDataDiff,
 	type SubmittedDataResponse,
 } from './types.js';
 
@@ -25,6 +27,64 @@ const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_UTILS';
 	const { logger } = dependencies;
 	return {
+		/**
+		 * Compares two `DataRecord` objects and returns the differences between them.
+		 * @param oldRecord The original `DataRecord` object to compare.
+		 * @param newRecord The new `DataRecord` object to compare against the original.
+		 * @returns An object of type `DataDiff` containing the differences between `oldRecord` and `newRecord`.
+		 * 	The differing values are recorded with the `old` object containing the values
+		 * 	from `oldRecord` and the `new` object containing the corresponding values from `newRecord`.
+		 */
+		computeDataDiff: (oldRecord: DataRecord | null, newRecord: DataRecord | null): DataDiff => {
+			const diff: MutableDataDiff = { old: {}, new: {} };
+
+			if (!oldRecord && !newRecord) {
+				// Both records are null, no differences to return
+				return diff;
+			}
+
+			if (!oldRecord) {
+				// oldRecord is null, all keys in newRecord are new
+				for (const key in newRecord) {
+					if (Object.prototype.hasOwnProperty.call(newRecord, key)) {
+						diff.new[key] = newRecord[key];
+					}
+				}
+				return diff;
+			}
+
+			if (!newRecord) {
+				// newRecord is null, all keys in oldRecord are removed
+				for (const key in oldRecord) {
+					if (Object.prototype.hasOwnProperty.call(oldRecord, key)) {
+						diff.old[key] = oldRecord[key];
+					}
+				}
+				return diff;
+			}
+
+			// Both records are non-null, compare them
+			for (const key in oldRecord) {
+				if (Object.prototype.hasOwnProperty.call(oldRecord, key)) {
+					const oldValue = oldRecord[key];
+					const newValue = newRecord[key];
+
+					if (oldValue !== newValue) {
+						diff.old[key] = oldValue;
+						diff.new[key] = newValue ?? '';
+					}
+				}
+			}
+
+			// Handle new keys in newRecord that were not in oldRecord
+			for (const key in newRecord) {
+				if (!Object.prototype.hasOwnProperty.call(oldRecord, key)) {
+					diff.new[key] = newRecord[key];
+				}
+			}
+
+			return diff;
+		},
 		/**
 		 * Abstract Error response
 		 * @param error
