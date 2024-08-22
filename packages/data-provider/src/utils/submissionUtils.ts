@@ -325,7 +325,7 @@ const utils = (dependencies: BaseDependencies) => {
 
 		removeItemsFromSubmission: (
 			submissionData: SubmissionData,
-			filter: { actionType: SubmissionActionType; entityName: string; index?: number },
+			filter: { actionType: SubmissionActionType; entityName: string; index: number | null },
 		): SubmissionData => {
 			const filteredSubmissionData = _.cloneDeep(submissionData);
 			switch (filter.actionType) {
