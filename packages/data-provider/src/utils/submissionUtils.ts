@@ -244,7 +244,7 @@ const utils = (dependencies: BaseDependencies) => {
 			record2: Record<string, T[] | undefined>,
 		): Record<string, T[]> => {
 			return Object.keys({ ...record1, ...record2 }).reduce<Record<string, T[]>>((acc, key) => {
-				acc[key] = [...(record1?.[key] || []), ...(record2?.[key] || [])];
+				acc[key] = (record1?.[key] || []).concat(record2?.[key] || []);
 				return acc;
 			}, {});
 		},
