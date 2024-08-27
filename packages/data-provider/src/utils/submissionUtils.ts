@@ -241,7 +241,7 @@ const utils = (dependencies: BaseDependencies) => {
 		 */
 		mergeRecords: <T>(
 			record1: Record<string, T[]> | undefined,
-			record2: Record<string, T[] | undefined>,
+			record2: Record<string, T[]> | undefined,
 		): Record<string, T[]> => {
 			return Object.keys({ ...record1, ...record2 }).reduce<Record<string, T[]>>((acc, key) => {
 				acc[key] = (record1?.[key] || []).concat(record2?.[key] || []);
