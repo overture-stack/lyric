@@ -9,27 +9,22 @@ sequenceDiagram
     Lyric->>+DB: get Submission by submissionId
     DB-->>-Lyric: Return Submission
 
-    Lyric->>Lyric: Check if submission exists
-    alt
-    
-        Lyric->>User: 400 Bad Request:<br />Submission '$submissionId}' not found
+    alt No Submission found
+        Lyric->>User: 400 Bad Request:<br />Submission '${submissionId}' not found
     end
 
-    Lyric->>Lyric: Check submission category matches `categoryId` param
-    alt
+    alt Found Submission category doesn't match the `categoryId` in the request parameter.
         Lyric->>User: 400 Bad Request:<br />Category ID provided does not match the category for the Submission
     end
 
-    Lyric->>Lyric: Check submission status is `valid`
-    alt
-        Lyric->>User: 407 State Conflict:<br />Only Submissions with statuses "OPEN", "VALID", "INVALID" can be deleted
+    alt Found Submission status is not `valid`
+        Lyric->>User: 407 State Conflict:<br />Submission does not have status VALID and cannot be committed
     end
 
     Lyric->>+DB: get Dictionary by `categoryId`
     DB-->>-Lyric: Return Dictionary
 
-    Lyric->>Lyric: Check dictionary exists
-    alt
+    alt No Dictionary found
         Lyric->>User: 400 Bad Request:<br />Dictionary in category '${categoryId}' not found
     end
 
