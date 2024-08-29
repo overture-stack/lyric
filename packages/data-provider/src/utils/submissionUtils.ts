@@ -26,7 +26,9 @@ import {
 	type DataUpdatesActiveSubmissionSummary,
 	DictionaryActiveSubmission,
 	MERGE_REFERENCE_TYPE,
+	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
+	type SubmissionActionType,
 	SubmissionReference,
 	SubmissionStatus,
 	SubmittedDataReference,
@@ -231,6 +233,23 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
+		 * Merge two `Record<string, T[]>` objects into a single `Record<string, T[]>` object.
+		 * For each key in the records, the corresponding arrays from both records are concatenated.
+		 * @param record1 The first `Record<string, T[]>` object. If `undefined`, it is treated as an empty record.
+		 * @param record2 The second `Record<string, T[]>` object. If `undefined`, it is treated as an empty record.
+		 * @returns
+		 */
+		mergeRecords: <T>(
+			record1: Record<string, T[]> | undefined,
+			record2: Record<string, T[]> | undefined,
+		): Record<string, T[]> => {
+			return Object.keys({ ...record1, ...record2 }).reduce<Record<string, T[]>>((acc, key) => {
+				acc[key] = (record1?.[key] || []).concat(record2?.[key] || []);
+				return acc;
+			}, {});
+		},
+
+		/**
 		 * Utility to parse a raw Active Submission to a Response type
 		 * @param {ActiveSubmissionSummaryRepository} submission
 		 * @returns {ActiveSubmissionResponse}
@@ -304,8 +323,60 @@ const utils = (dependencies: BaseDependencies) => {
 			};
 		},
 
-		removeEntityFromSubmission: (submissionData: Record<string, SubmissionInsertData>, entityName: string) => {
-			return _.omit(submissionData, entityName);
+		removeItemsFromSubmission: (
+			submissionData: SubmissionData,
+			filter: { actionType: SubmissionActionType; entityName: string; index: number | null },
+		): SubmissionData => {
+			const filteredSubmissionData = _.cloneDeep(submissionData);
+			switch (filter.actionType) {
+				case SUBMISSION_ACTION_TYPE.Values.INSERTS:
+					if (filter.index) {
+						filteredSubmissionData.inserts = _.mapValues(
+							submissionData.inserts,
+							(insertSubmissionData, insertsEntityName) =>
+								insertsEntityName === filter.entityName
+									? {
+											...insertSubmissionData,
+											records: insertSubmissionData.records.filter((_, recordIndex) => recordIndex !== filter.index),
+										}
+									: insertSubmissionData,
+						);
+					} else {
+						filteredSubmissionData.inserts = _.omit(submissionData.inserts, filter.entityName);
+					}
+					break;
+				case SUBMISSION_ACTION_TYPE.Values.UPDATES:
+					if (submissionData.updates) {
+						if (filter.index) {
+							filteredSubmissionData.updates = _.mapValues(
+								submissionData.updates,
+								(updatesSubmissionData, updatesEntityName) =>
+									updatesEntityName === filter.entityName
+										? updatesSubmissionData.filter((_, recordIndex) => recordIndex !== filter.index)
+										: updatesSubmissionData,
+							);
+						} else {
+							filteredSubmissionData.updates = _.omit(submissionData.updates, filter.entityName);
+						}
+					}
+					break;
+				case SUBMISSION_ACTION_TYPE.Values.DELETES:
+					if (submissionData.deletes) {
+						if (filter.index) {
+							filteredSubmissionData.deletes = _.mapValues(
+								submissionData.deletes,
+								(deletesSubmsisionData, deletesEntityName) =>
+									deletesEntityName === filter.entityName
+										? deletesSubmsisionData.filter((_, recordIndex) => recordIndex !== filter.index)
+										: deletesSubmsisionData,
+							);
+						} else {
+							filteredSubmissionData.deletes = _.omit(submissionData.deletes, filter.entityName);
+						}
+					}
+					break;
+			}
+			return filteredSubmissionData;
 		},
 
 		/**

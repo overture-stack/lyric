@@ -2,7 +2,7 @@
   get:
     summary: List all categories
     tags:
-      - category
+      - Category
     responses:
       200:
         description: List all categories
@@ -25,7 +25,7 @@
   get:
     summary: Retrieve details of a specific category
     tags:
-      - category
+      - Category
     parameters:
       - name: categoryId
         in: path

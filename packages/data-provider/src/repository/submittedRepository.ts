@@ -16,24 +16,26 @@ const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTEDDATA_REPOSITORY';
 	const { db, logger, features } = dependencies;
 
-	const auditDeleteSubmittedData = async (data: SubmittedData, comment: string, userName: string) => {
-		const newAudit: NewAuditSubmittedData = {
-			action: AUDIT_ACTION.Values.DELETE,
-			comment: comment,
-			dictionaryCategoryId: data.dictionaryCategoryId,
-			entityName: data.entityName,
-			lastValidSchemaId: data.lastValidSchemaId,
-			newData: null, // on delete event, new data is set to null and not valid
-			newDataIsValid: false,
-			oldData: data.data,
-			oldDataIsValid: data.isValid,
-			organization: data.organization,
-			originalSchemaId: data.originalSchemaId,
-			systemId: data.systemId,
-			updatedAt: new Date(),
-			updatedBy: userName,
-		};
-		return await db.insert(auditSubmittedData).values(newAudit);
+	const auditDeleteSubmittedData = async (datas: SubmittedData[], userName: string) => {
+		datas.forEach(async (data) => {
+			const newAudit: NewAuditSubmittedData = {
+				action: AUDIT_ACTION.Values.DELETE,
+				comment: '',
+				dictionaryCategoryId: data.dictionaryCategoryId,
+				entityName: data.entityName,
+				lastValidSchemaId: data.lastValidSchemaId,
+				newData: null, // on delete event, new data is set to null and not valid
+				newDataIsValid: false,
+				oldData: data.data,
+				oldDataIsValid: data.isValid,
+				organization: data.organization,
+				originalSchemaId: data.originalSchemaId,
+				systemId: data.systemId,
+				updatedAt: new Date(),
+				updatedBy: userName,
+			};
+			await db.insert(auditSubmittedData).values(newAudit);
+		});
 	};
 
 	// Column name on the database used to build JSONB query
@@ -64,11 +66,11 @@ const repository = (dependencies: BaseDependencies) => {
 	};
 
 	return {
-		delete: async (data: SubmittedData, comment: string, userName: string) => {
-			const deletedRecord = await db.delete(submittedData).where(eq(submittedData.id, data.id));
+		deleteBySystemId: async (systemId: string, userName: string) => {
+			const deletedRecord = await db.delete(submittedData).where(eq(submittedData.systemId, systemId)).returning();
 
-			if (features?.audit?.enabled) {
-				await auditDeleteSubmittedData(data, comment, userName);
+			if (features?.audit?.enabled && deletedRecord) {
+				await auditDeleteSubmittedData(deletedRecord, userName);
 			}
 
 			return deletedRecord;

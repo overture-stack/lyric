@@ -28,13 +28,276 @@ import {
 	CREATE_SUBMISSION_STATUS,
 	CreateSubmissionResult,
 	DataRecordReference,
+	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
+	type SubmissionActionType,
 	ValidateFilesParams,
 } from '../utils/types.js';
 
 const service = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_SERVICE';
 	const { logger } = dependencies;
+
+	/**
+	 * Runs Schema validation asynchronously and moves the Active Submission to Submitted Data
+	 * @param {number} categoryId
+	 * @param {number} submissionId
+	 * @returns {Promise<CommitSubmissionResult>}
+	 */
+	const commitSubmission = async (
+		categoryId: number,
+		submissionId: number,
+		userName: string,
+	): Promise<CommitSubmissionResult> => {
+		const { getSubmissionById } = submissionRepository(dependencies);
+		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
+		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
+		const { generateIdentifier } = systemIdGenerator(dependencies);
+
+		const submission = await getSubmissionById(submissionId);
+		if (!submission) {
+			throw new BadRequest(`Submission '${submissionId}' not found`);
+		}
+
+		if (submission.dictionaryCategoryId !== categoryId) {
+			throw new BadRequest(`Category ID provided does not match the category for the Submission`);
+		}
+
+		if (submission.status !== SUBMISSION_STATUS.VALID) {
+			throw new StatusConflict('Submission does not have status VALID and cannot be committed');
+		}
+
+		const currentDictionary = await getActiveDictionaryByCategory(categoryId);
+		if (_.isEmpty(currentDictionary)) {
+			throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+		}
+
+		const submittedDataToValidate = await getSubmittedDataByCategoryIdAndOrganization(
+			categoryId,
+			submission?.organization,
+		);
+
+		const entitiesToProcess = new Set<string>();
+
+		submittedDataToValidate?.forEach((data) => entitiesToProcess.add(data.entityName));
+
+		const insertsToValidate =
+			submission.data?.inserts &&
+			Object.entries(submission.data.inserts).reduce<NewSubmittedData[]>((acc, [entityName, submissionData]) => {
+				entitiesToProcess.add(entityName);
+				acc.push(
+					...submissionData.records.map((record) => {
+						const newSubmittedData: NewSubmittedData = {
+							data: record,
+							dictionaryCategoryId: categoryId,
+							entityName,
+							isValid: false, // By default New Submitted Data is created as invalid until validation process proves otherwise
+							organization: submission.organization,
+							originalSchemaId: submission.dictionaryId,
+							lastValidSchemaId: submission.dictionaryId,
+							systemId: generateIdentifier(entityName, record),
+							createdBy: userName,
+						};
+						return newSubmittedData;
+					}),
+				);
+				return acc;
+			}, []);
+
+		const deleteDataArray =
+			submission.data?.deletes &&
+			Object.values(submission.data.deletes).flatMap((submissionDeleteData) =>
+				submissionDeleteData.map((data) => data.systemId),
+			);
+
+		// To Commit Active Submission we need to validate SubmittedData + Active Submission
+		performCommitSubmissionAsync({
+			dataToValidate: {
+				inserts: insertsToValidate,
+				submittedData: submittedDataToValidate,
+				deletes: deleteDataArray,
+			},
+			submission,
+			dictionary: currentDictionary,
+			userName: userName,
+		});
+
+		return {
+			status: CREATE_SUBMISSION_STATUS.PROCESSING,
+			dictionary: {
+				name: currentDictionary.name,
+				version: currentDictionary.version,
+			},
+			processedEntities: Array.from(entitiesToProcess.values()),
+		};
+	};
+
+	/**
+	 * Updates Submission status to CLOSED
+	 * This action is allowed only if current Submission Status as OPEN, VALID or INVALID
+	 * Returns the resulting Active Submission with its status
+	 * @param {number} submissionId
+	 * @param {string} userName
+	 * @returns {Promise<Submission | undefined>}
+	 */
+	const deleteActiveSubmissionById = async (
+		submissionId: number,
+		userName: string,
+	): Promise<Submission | undefined> => {
+		const { getSubmissionById, update } = submissionRepository(dependencies);
+		const { canTransitionToClosed } = submissionUtils(dependencies);
+
+		const submission = await getSubmissionById(submissionId);
+		if (!submission) {
+			throw new BadRequest(`Submission '${submissionId}' not found`);
+		}
+
+		if (!canTransitionToClosed(submission.status)) {
+			throw new StatusConflict('Only Submissions with statuses "OPEN", "VALID", "INVALID" can be deleted');
+		}
+
+		const updatedRecord = await update(submission.id, {
+			status: SUBMISSION_STATUS.CLOSED,
+			updatedBy: userName,
+		});
+
+		logger.info(LOG_MODULE, `Submission '${submissionId}' updated with new status '${SUBMISSION_STATUS.CLOSED}'`);
+
+		return updatedRecord;
+	};
+
+	/**
+	 * Function to remove an entity from an Active Submission by given Submission ID
+	 * It validates resulting Active Submission running cross schema validation along with the existing Submitted Data
+	 * Returns the resulting Active Submission with its status
+	 * @param {number} submissionId
+	 * @param {string} entityName
+	 * @param {string} userName
+	 * @returns { Promise<Submission | undefined>} Resulting Active Submittion
+	 */
+	const deleteActiveSubmissionEntity = async (
+		submissionId: number,
+		userName: string,
+		filter: {
+			actionType: SubmissionActionType;
+			entityName: string;
+			index: number | null;
+		},
+	): Promise<Submission | undefined> => {
+		const { getSubmissionById } = submissionRepository(dependencies);
+		const { removeItemsFromSubmission } = submissionUtils(dependencies);
+
+		const submission = await getSubmissionById(submissionId);
+		if (!submission) {
+			throw new BadRequest(`Submission '${submissionId}' not found`);
+		}
+
+		if (
+			SUBMISSION_ACTION_TYPE.Values.INSERTS.includes(filter.actionType) &&
+			!_.has(submission.data.inserts, filter.entityName)
+		) {
+			throw new BadRequest(`Entity '${filter.entityName}' not found on '${filter.actionType}' Submission`);
+		}
+
+		if (
+			SUBMISSION_ACTION_TYPE.Values.UPDATES.includes(filter.actionType) &&
+			!_.has(submission.data.updates, filter.entityName)
+		) {
+			throw new BadRequest(`Entity '${filter.entityName}' not found on '${filter.actionType}' Submission`);
+		}
+
+		if (
+			SUBMISSION_ACTION_TYPE.Values.DELETES.includes(filter.actionType) &&
+			!_.has(submission.data.deletes, filter.entityName)
+		) {
+			throw new BadRequest(`Entity '${filter.entityName}' not found on '${filter.actionType}' Submission`);
+		}
+
+		// Remove entity from the Submission
+		const updatedActiveSubmissionData = removeItemsFromSubmission(submission.data, {
+			...filter,
+		});
+
+		const updatedRecord = await performDataValidation({
+			originalSubmission: submission,
+			submissionData: updatedActiveSubmissionData,
+			userName,
+		});
+
+		logger.info(LOG_MODULE, `Submission '${updatedRecord.id}' updated with new status '${updatedRecord.status}'`);
+
+		return updatedRecord;
+	};
+
+	/**
+	 * Get an active Submission by Category
+	 * @param {Object} params
+	 * @param {number} params.categoryId
+	 * @param {string} params.userName
+	 * @returns  One Active Submission
+	 */
+	const getActiveSubmissionsByCategory = async ({
+		categoryId,
+		userName,
+	}: {
+		categoryId: number;
+		userName: string;
+	}): Promise<ActiveSubmissionSummaryResponse[] | undefined> => {
+		const { getActiveSubmissionsWithRelationsByCategory } = submissionRepository(dependencies);
+		const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
+
+		const submissions = await getActiveSubmissionsWithRelationsByCategory({ userName, categoryId });
+		if (!submissions || submissions.length === 0) {
+			return;
+		}
+
+		return submissions.map((response) => parseActiveSubmissionSummaryResponse(response));
+	};
+
+	/**
+	 * Get Active Submission by Submission ID
+	 * @param {number} submissionId A Submission ID
+	 * @returns One Active Submission
+	 */
+	const getActiveSubmissionById = async (submissionId: number) => {
+		const { getActiveSubmissionWithRelationsById } = submissionRepository(dependencies);
+		const { parseActiveSubmissionResponse } = submissionUtils(dependencies);
+
+		const submission = await getActiveSubmissionWithRelationsById(submissionId);
+		if (_.isEmpty(submission)) {
+			return;
+		}
+
+		return parseActiveSubmissionResponse(submission);
+	};
+
+	/**
+	 * Get an active Submission by Organization
+	 * @param {Object} params
+	 * @param {number} params.categoryId
+	 * @param {string} params.userName
+	 * @param {string} params.organization
+	 * @returns One Active Submission
+	 */
+	const getActiveSubmissionByOrganization = async ({
+		categoryId,
+		userName,
+		organization,
+	}: {
+		categoryId: number;
+		userName: string;
+		organization: string;
+	}): Promise<ActiveSubmissionSummaryResponse | undefined> => {
+		const { getActiveSubmissionWithRelationsByOrganization } = submissionRepository(dependencies);
+		const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
+
+		const submission = await getActiveSubmissionWithRelationsByOrganization({ organization, userName, categoryId });
+		if (_.isEmpty(submission)) {
+			return;
+		}
+
+		return parseActiveSubmissionSummaryResponse(submission);
+	};
 
 	/**
 	 * Returns only the schema errors corresponding to the Active Submission.
@@ -96,11 +359,11 @@ const service = (dependencies: BaseDependencies) => {
 		activeSubmission: { insertData?: Record<string, SubmissionInsertData>; id: number },
 	): Record<string, DataRecordReference[]> => {
 		const { mapSubmissionSchemaDataByEntityName } = submissionUtils(dependencies);
-		const { mapSubmittedDataSchemaByEntityName } = submittedDataUtils(dependencies);
+		const { transformSubmittedDataSchemaByEntityName } = submittedDataUtils(dependencies);
 
 		// This object will merge existing data + new data for validation (Submitted data + active Submission)
 		return _.mergeWith(
-			mapSubmittedDataSchemaByEntityName(submittedData),
+			transformSubmittedDataSchemaByEntityName(submittedData),
 			activeSubmission.insertData &&
 				mapSubmissionSchemaDataByEntityName(activeSubmission.id, activeSubmission.insertData),
 			(objValue, srcValue) => {
@@ -114,10 +377,13 @@ const service = (dependencies: BaseDependencies) => {
 
 	/**
 	 * This function validates whole data together against a dictionary
-	 * @param {object} params
-	 * @param {Array<NewSubmittedData>} params.data Data to be validated
-	 * @param {SchemasDictionary & { id: number }} params.dictionary Dictionary to validata data
-	 * @param {Submission} params.submission Active Submission object
+	 * @param params
+	 * @param params.dataToValidate Data to be validated, This object contains:
+	 * - `inserts`: An array of new records to be commited. Optional
+	 * - `submittedData`: An array of existing Submitted Data. Optional
+	 * - `deletes`: An array of `systemId`s representing items that should be deleted. Optional
+	 * @param params.dictionary A `Dictionary` object for Data Validation
+	 * @param params.submission A `Submission` object representing the Active Submission
 	 * @returns void
 	 */
 	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<void> => {
@@ -126,9 +392,16 @@ const service = (dependencies: BaseDependencies) => {
 		const { groupSchemaDataByEntityName, validateSchemas, groupErrorsByIndex, hasErrorsByIndex } =
 			submittedDataUtils(dependencies);
 
-		const { dictionary, data, submission } = params;
+		const { dictionary, dataToValidate, submission, userName } = params;
 
-		const schemasDataToValidate = groupSchemaDataByEntityName(data);
+		// Exclude items that are marked for deletion
+		const deletesSet = dataToValidate?.deletes ? new Set<string>(dataToValidate.deletes) : new Set<string>();
+		const submittedDataToValidate = dataToValidate.submittedData?.filter((item) => !deletesSet.has(item.systemId));
+
+		const schemasDataToValidate = groupSchemaDataByEntityName({
+			inserts: dataToValidate.inserts,
+			submittedData: submittedDataToValidate,
+		});
 
 		const resultValidation = validateSchemas(dictionary, schemasDataToValidate.schemaDataByEntityName);
 
@@ -143,7 +416,7 @@ const service = (dependencies: BaseDependencies) => {
 						dataSubmittedRepo.update(data.id, {
 							isValid: data.isValid,
 							lastValidSchemaId: data.lastValidSchemaId,
-							updatedBy: data.updatedBy,
+							updatedBy: userName,
 						});
 					} else {
 						logger.error(
@@ -152,7 +425,7 @@ const service = (dependencies: BaseDependencies) => {
 						);
 						dataSubmittedRepo.update(data.id, {
 							isValid: data.isValid,
-							updatedBy: data.updatedBy,
+							updatedBy: userName,
 						});
 					}
 				} else {
@@ -163,6 +436,10 @@ const service = (dependencies: BaseDependencies) => {
 					dataSubmittedRepo.save(data);
 				}
 			});
+		});
+
+		deletesSet.forEach((systemIdToDelete) => {
+			dataSubmittedRepo.deleteBySystemId(systemIdToDelete, userName);
 		});
 
 		logger.info(LOG_MODULE, `Active submission '${submission.id} updated to status '${SUBMISSION_STATUS.COMMITED}'`);
@@ -200,8 +477,14 @@ const service = (dependencies: BaseDependencies) => {
 			originalSubmission.organization,
 		);
 
+		const systemsIdsToRemove = submissionData.deletes
+			? Object.values(submissionData.deletes).flatMap((entityData) => entityData.map(({ systemId }) => systemId))
+			: [];
+
+		const filteredSubmittedData = submittedData.filter(({ systemId }) => !systemsIdsToRemove.includes(systemId));
+
 		// Merge Submitted Data with Active Submission keepping reference of each record ID
-		const dataMergedByEntityName = mergeActiveSubmissionAndSubmittedData(submittedData, {
+		const dataMergedByEntityName = mergeActiveSubmissionAndSubmittedData(filteredSubmittedData, {
 			insertData: submissionData.inserts,
 			id: originalSubmission.id,
 		});
@@ -230,11 +513,106 @@ const service = (dependencies: BaseDependencies) => {
 		// Update Active Submission
 		return await updateActiveSubmission({
 			idActiveSubmission: originalSubmission.id,
-			submissionData: { inserts: submissionData.inserts },
+			submissionData: { inserts: submissionData.inserts, deletes: submissionData.deletes },
 			schemaErrors: submissionSchemaErrors,
 			dictionaryId: currentDictionary.id,
 			userName: userName,
 		});
+	};
+
+	/**
+	 * Validates and Creates the Entities Schemas of the Active Submission and stores it in the database
+	 * @param {object} params
+	 * @param {Express.Multer.File[]} params.files An array of files
+	 * @param {number} params.categoryId Category ID of the Submission
+	 * @param {string} params.organization Organization name
+	 * @param {string} params.userName User name creating the Submission
+	 * @returns The Active Submission created or Updated
+	 */
+	const uploadSubmission = async ({
+		files,
+		categoryId,
+		organization,
+		userName,
+	}: {
+		files: Express.Multer.File[];
+		categoryId: number;
+		organization: string;
+		userName: string;
+	}): Promise<CreateSubmissionResult> => {
+		logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
+		const { checkFileNames, checkEntityFieldNames, getOrCreateActiveSubmission } = submissionUtils(dependencies);
+		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
+
+		if (files.length === 0) {
+			return {
+				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				description: 'No valid files for submission',
+				batchErrors: [],
+				inProcessEntities: [],
+			};
+		}
+
+		const currentDictionary = await getActiveDictionaryByCategory(categoryId);
+
+		if (_.isEmpty(currentDictionary)) {
+			throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+		}
+
+		const schemasDictionary: SchemasDictionary = {
+			name: currentDictionary.name,
+			version: currentDictionary.version,
+			schemas: currentDictionary.schemas,
+		};
+
+		// step 1 Validation. Validate entity type (filename matches dictionary entities, remove duplicates)
+		const schemaNames: string[] = schemasDictionary.schemas.map((item) => item.name);
+		const { validFileEntity, batchErrors: fileNamesErrors } = await checkFileNames(files, schemaNames);
+
+		// step 2 Validation. Validate fieldNames (missing required fields based on schema)
+		const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
+
+		const batchErrors = [...fileNamesErrors, ...fieldNameErrors];
+		const entitiesToProcess = Object.keys(checkedEntities);
+
+		if (_.isEmpty(checkedEntities)) {
+			return {
+				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				description: 'No valid entities in submission',
+				batchErrors,
+				inProcessEntities: entitiesToProcess,
+			};
+		}
+
+		// Get Active Submission or Open a new one
+		const activeSubmission = await getOrCreateActiveSubmission({ categoryId, userName, organization });
+		const activeSubmissionId = activeSubmission.id;
+
+		// Running Schema validation in the background do not need to wait
+		// Result of validations will be stored in database
+		validateFilesAsync(checkedEntities, {
+			categoryId,
+			organization,
+			userName,
+		});
+
+		if (batchErrors.length === 0) {
+			return {
+				status: CREATE_SUBMISSION_STATUS.PROCESSING,
+				description: 'Submission files are being processed',
+				submissionId: activeSubmissionId,
+				batchErrors,
+				inProcessEntities: entitiesToProcess,
+			};
+		}
+
+		return {
+			status: CREATE_SUBMISSION_STATUS.PARTIAL_SUBMISSION,
+			description: 'Some Submission files are being processed while others were unable to process',
+			submissionId: activeSubmissionId,
+			batchErrors,
+			inProcessEntities: entitiesToProcess,
+		};
 	};
 
 	/**
@@ -271,338 +649,20 @@ const service = (dependencies: BaseDependencies) => {
 		// Perform Schema Data validation Async.
 		performDataValidation({
 			originalSubmission: activeSubmission,
-			submissionData: { inserts: updatedActiveSubmissionData },
+			submissionData: { inserts: updatedActiveSubmissionData, deletes: activeSubmission.data.deletes },
 			userName,
 		});
 	};
 
 	return {
-		/**
-		 * Runs Schema validation asynchronously and moves the Active Submission to Submitted Data
-		 * @param {number} categoryId
-		 * @param {number} submissionId
-		 * @returns {Promise<CommitSubmissionResult>}
-		 */
-		commitSubmission: async (categoryId: number, submissionId: number): Promise<CommitSubmissionResult> => {
-			const { getSubmissionById } = submissionRepository(dependencies);
-			const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
-			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-			const { generateIdentifier } = systemIdGenerator(dependencies);
-
-			const submission = await getSubmissionById(submissionId);
-			if (!submission) {
-				throw new BadRequest(`Submission '${submissionId}' not found`);
-			}
-
-			if (submission.dictionaryCategoryId !== categoryId) {
-				throw new BadRequest(`Category ID provided does not match the category for the Submission`);
-			}
-
-			if (submission.status !== SUBMISSION_STATUS.VALID) {
-				throw new StatusConflict('Submission does not have status VALID and cannot be committed');
-			}
-
-			if (!categoryId) {
-				throw new BadRequest(`Active Submission does not belong to any Category`);
-			}
-
-			const currentDictionary = await getActiveDictionaryByCategory(categoryId);
-			if (_.isEmpty(currentDictionary)) {
-				throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
-			}
-
-			const entitiesToProcess: string[] = [];
-			const submissionsToValidate: (NewSubmittedData | SubmittedData)[] = [];
-
-			const submittedDataArray = await getSubmittedDataByCategoryIdAndOrganization(
-				categoryId,
-				submission?.organization,
-			);
-
-			if (submission.data?.inserts) {
-				Object.entries(submission.data.inserts).forEach(([entityName, submissionData]) => {
-					entitiesToProcess.push(entityName);
-					submissionsToValidate.push(
-						...submissionData.records.map((record) => {
-							const newSubmittedData: NewSubmittedData = {
-								data: record,
-								dictionaryCategoryId: categoryId,
-								entityName,
-								isValid: false, // By default New Submitted Data is created as invalid until validation process proves otherwise
-								organization: submission.organization,
-								originalSchemaId: submission.dictionaryId,
-								lastValidSchemaId: submission.dictionaryId,
-								systemId: generateIdentifier(entityName, record),
-								createdBy: '', // TODO: get User from auth
-							};
-							return newSubmittedData;
-						}),
-					);
-				});
-			}
-
-			if (Array.isArray(submittedDataArray) && submittedDataArray.length > 0) {
-				logger.info(LOG_MODULE, `Found submitted data to be revalidated`);
-				submittedDataArray.forEach((data) => {
-					submissionsToValidate.push(data);
-					if (!_.includes(entitiesToProcess, data.entityName)) {
-						entitiesToProcess.push(data.entityName);
-					}
-				});
-			}
-
-			// To Commit Active Submission we need to validate SubmittedData + Active Submission
-			performCommitSubmissionAsync({
-				data: submissionsToValidate,
-				submission,
-				dictionary: currentDictionary,
-			});
-
-			return {
-				status: CREATE_SUBMISSION_STATUS.PROCESSING,
-				dictionary: {
-					name: currentDictionary.name,
-					version: currentDictionary.version,
-				},
-				processedEntities: entitiesToProcess,
-			};
-		},
-
-		/**
-		 * Updates Submission status to CLOSED
-		 * This action is allowed only if current Submission Status as OPEN, VALID or INVALID
-		 * Returns the resulting Active Submission with its status
-		 * @param {number} submissionId
-		 * @param {string} userName
-		 * @returns {Promise<Submission | undefined>}
-		 */
-		deleteActiveSubmissionById: async (submissionId: number, userName: string): Promise<Submission | undefined> => {
-			const { getSubmissionById, update } = submissionRepository(dependencies);
-			const { canTransitionToClosed } = submissionUtils(dependencies);
-
-			const submission = await getSubmissionById(submissionId);
-			if (!submission) {
-				throw new BadRequest(`Submission '${submissionId}' not found`);
-			}
-
-			if (!canTransitionToClosed(submission.status)) {
-				throw new StatusConflict('Only Submissions with statuses "OPEN", "VALID", "INVALID" can be deleted');
-			}
-
-			const updatedRecord = await update(submission.id, {
-				status: SUBMISSION_STATUS.CLOSED,
-				updatedBy: userName,
-			});
-
-			logger.info(LOG_MODULE, `Submission '${submissionId}' updated with new status '${SUBMISSION_STATUS.CLOSED}'`);
-
-			return updatedRecord;
-		},
-
-		/**
-		 * Function to remove an entity from an Active Submission by given Submission ID
-		 * It validates resulting Active Submission running cross schema validation along with the existing Submitted Data
-		 * Returns the resulting Active Submission with its status
-		 * @param {number} submissionId
-		 * @param {string} entityName
-		 * @param {string} userName
-		 * @returns { Promise<Submission | undefined>} Resulting Active Submittion
-		 */
-		deleteActiveSubmissionEntity: async (
-			submissionId: number,
-			entityName: string,
-			userName: string,
-		): Promise<Submission | undefined> => {
-			const { getSubmissionById } = submissionRepository(dependencies);
-			const { removeEntityFromSubmission } = submissionUtils(dependencies);
-
-			const submission = await getSubmissionById(submissionId);
-			if (!submission) {
-				throw new BadRequest(`Submission '${submissionId}' not found`);
-			}
-
-			if (!_.has(submission.data.inserts, entityName)) {
-				throw new BadRequest(`Entity '${entityName}' not found on Submission`);
-			}
-
-			// Remove entity from the Submission
-			const updatedActiveSubmissionData = removeEntityFromSubmission(submission.data.inserts, entityName);
-
-			const updatedRecord = await performDataValidation({
-				originalSubmission: submission,
-				submissionData: { inserts: updatedActiveSubmissionData },
-				userName,
-			});
-
-			logger.info(LOG_MODULE, `Submission '${updatedRecord.id}' updated with new status '${updatedRecord.status}'`);
-
-			return updatedRecord;
-		},
-
-		/**
-		 * Get an active Submission by Category
-		 * @param {Object} params
-		 * @param {number} params.categoryId
-		 * @param {string} params.userName
-		 * @returns  One Active Submission
-		 */
-		getActiveSubmissionsByCategory: async ({
-			categoryId,
-			userName,
-		}: {
-			categoryId: number;
-			userName: string;
-		}): Promise<ActiveSubmissionSummaryResponse[] | undefined> => {
-			const { getActiveSubmissionsWithRelationsByCategory } = submissionRepository(dependencies);
-			const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
-
-			const submissions = await getActiveSubmissionsWithRelationsByCategory({ userName, categoryId });
-			if (!submissions || submissions.length === 0) {
-				return;
-			}
-
-			return submissions.map((response) => parseActiveSubmissionSummaryResponse(response));
-		},
-
-		/**
-		 * Get Active Submission by Submission ID
-		 * @param {number} submissionId A Submission ID
-		 * @returns One Active Submission
-		 */
-		getActiveSubmissionById: async (submissionId: number) => {
-			const { getActiveSubmissionWithRelationsById } = submissionRepository(dependencies);
-			const { parseActiveSubmissionResponse } = submissionUtils(dependencies);
-
-			const submission = await getActiveSubmissionWithRelationsById(submissionId);
-			if (_.isEmpty(submission)) {
-				return;
-			}
-
-			return parseActiveSubmissionResponse(submission);
-		},
-
-		/**
-		 * Get an active Submission by Organization
-		 * @param {Object} params
-		 * @param {number} params.categoryId
-		 * @param {string} params.userName
-		 * @param {string} params.organization
-		 * @returns One Active Submission
-		 */
-		getActiveSubmissionByOrganization: async ({
-			categoryId,
-			userName,
-			organization,
-		}: {
-			categoryId: number;
-			userName: string;
-			organization: string;
-		}): Promise<ActiveSubmissionSummaryResponse | undefined> => {
-			const { getActiveSubmissionWithRelationsByOrganization } = submissionRepository(dependencies);
-			const { parseActiveSubmissionSummaryResponse } = submissionUtils(dependencies);
-
-			const submission = await getActiveSubmissionWithRelationsByOrganization({ organization, userName, categoryId });
-			if (_.isEmpty(submission)) {
-				return;
-			}
-
-			return parseActiveSubmissionSummaryResponse(submission);
-		},
-
-		/**
-		 * Validates and Creates the Entities Schemas of the Active Submission and stores it in the database
-		 * @param {object} params
-		 * @param {Express.Multer.File[]} params.files An array of files
-		 * @param {number} params.categoryId Category ID of the Submission
-		 * @param {string} params.organization Organization name
-		 * @param {string} params.userName User name creating the Submission
-		 * @returns The Active Submission created or Updated
-		 */
-		uploadSubmission: async ({
-			files,
-			categoryId,
-			organization,
-			userName,
-		}: {
-			files: Express.Multer.File[];
-			categoryId: number;
-			organization: string;
-			userName: string;
-		}): Promise<CreateSubmissionResult> => {
-			logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
-			const { checkFileNames, checkEntityFieldNames, getOrCreateActiveSubmission } = submissionUtils(dependencies);
-			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-
-			if (files.length === 0) {
-				return {
-					status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-					description: 'No valid files for submission',
-					batchErrors: [],
-					inProcessEntities: [],
-				};
-			}
-
-			const currentDictionary = await getActiveDictionaryByCategory(categoryId);
-
-			if (_.isEmpty(currentDictionary)) {
-				throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
-			}
-
-			const schemasDictionary: SchemasDictionary = {
-				name: currentDictionary.name,
-				version: currentDictionary.version,
-				schemas: currentDictionary.schemas,
-			};
-
-			// step 1 Validation. Validate entity type (filename matches dictionary entities, remove duplicates)
-			const schemaNames: string[] = schemasDictionary.schemas.map((item) => item.name);
-			const { validFileEntity, batchErrors: fileNamesErrors } = await checkFileNames(files, schemaNames);
-
-			// step 2 Validation. Validate fieldNames (missing required fields based on schema)
-			const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
-
-			const batchErrors = [...fileNamesErrors, ...fieldNameErrors];
-			const entitiesToProcess = Object.keys(checkedEntities);
-
-			if (_.isEmpty(checkedEntities)) {
-				return {
-					status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-					description: 'No valid entities in submission',
-					batchErrors,
-					inProcessEntities: entitiesToProcess,
-				};
-			}
-
-			// Get Active Submission or Open a new one
-			const activeSubmission = await getOrCreateActiveSubmission({ categoryId, userName, organization });
-			const activeSubmissionId = activeSubmission.id;
-
-			// Running Schema validation in the background do not need to wait
-			// Result of validations will be stored in database
-			validateFilesAsync(checkedEntities, {
-				categoryId,
-				organization,
-				userName,
-			});
-
-			if (batchErrors.length === 0) {
-				return {
-					status: CREATE_SUBMISSION_STATUS.PROCESSING,
-					description: 'Submission files are being processed',
-					submissionId: activeSubmissionId,
-					batchErrors,
-					inProcessEntities: entitiesToProcess,
-				};
-			}
-
-			return {
-				status: CREATE_SUBMISSION_STATUS.PARTIAL_SUBMISSION,
-				description: 'Some Submission files are being processed while others were unable to process',
-				submissionId: activeSubmissionId,
-				batchErrors,
-				inProcessEntities: entitiesToProcess,
-			};
-		},
+		commitSubmission,
+		deleteActiveSubmissionById,
+		deleteActiveSubmissionEntity,
+		getActiveSubmissionsByCategory,
+		getActiveSubmissionById,
+		getActiveSubmissionByOrganization,
+		performDataValidation,
+		uploadSubmission,
 	};
 };
 

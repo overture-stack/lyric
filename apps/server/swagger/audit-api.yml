@@ -2,7 +2,7 @@
   get:
     summary: Retrive change history of stored data
     tags:
-      - audit
+      - Audit
     parameters:
       - name: categoryId
         in: path

@@ -1,6 +1,11 @@
 import { groupBy, has } from 'lodash-es';
 
-import { NewSubmittedData, SubmittedData } from '@overture-stack/lyric-data-model';
+import {
+	NewSubmittedData,
+	type SubmissionDeleteData,
+	submittedData,
+	SubmittedData,
+} from '@overture-stack/lyric-data-model';
 import { functions } from '@overturebio-stack/lectern-client';
 import {
 	SchemaData,
@@ -9,7 +14,12 @@ import {
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 import { BaseDependencies } from '../config/config.js';
-import { DataRecordReference, MERGE_REFERENCE_TYPE, SubmittedDataReference, SubmittedDataResponse } from './types.js';
+import {
+	DataRecordReference,
+	MERGE_REFERENCE_TYPE,
+	type GroupedDataSubmission,
+	type SubmittedDataResponse,
+} from './types.js';
 
 const utils = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_UTILS';
@@ -51,30 +61,28 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Creates a list of SubmittedData grouped by entities and a matching list with only schema data
-		 * @param {Array<NewSubmittedData | SubmittedData>} data
-		 * @returns
+		 * Groups `NewSubmittedData` and `SubmittedData` objects by their `entityName` field.
+		 * @param data An object containing arrays of `NewSubmittedData` and `SubmittedData` objects.
+		 * @returns An object containing two properties:
+		 * - `submittedDataByEntityName`: A record where each key is an `entityName` and the value is an array of
+		 *   `NewSubmittedData` or `SubmittedData` objects associated with that entity.
+		 * - `schemaDataByEntityName`: A record where each key is an `entityName` and the value is an array of
+		 *   `SchemaData` objects primarily intended for schema validation.
+		 *
 		 */
-		groupSchemaDataByEntityName: (
-			data: Array<NewSubmittedData | SubmittedData>,
-		): {
-			submittedDataByEntityName: Record<string, Array<NewSubmittedData | SubmittedData>>;
-			schemaDataByEntityName: Record<string, SchemaData>;
-		} => {
-			return data.reduce(
-				(
-					result: {
-						submittedDataByEntityName: Record<string, Array<NewSubmittedData | SubmittedData>>;
-						schemaDataByEntityName: Record<string, SchemaData>;
-					},
-					submittedDataObject,
-				) => {
-					result.schemaDataByEntityName[submittedDataObject.entityName] = [
-						...(result.schemaDataByEntityName[submittedDataObject.entityName] || []),
-						{ ...submittedDataObject.data },
+		groupSchemaDataByEntityName: (data: { inserts?: NewSubmittedData[]; submittedData?: SubmittedData[] }) => {
+			const combinedData = [...(data?.inserts || []), ...(data?.submittedData || [])];
+			return combinedData.reduce<GroupedDataSubmission>(
+				(result, submittedDataObject) => {
+					const { entityName, data: recordData } = submittedDataObject;
+
+					result.schemaDataByEntityName[entityName] = [
+						...(result.schemaDataByEntityName[entityName] || []),
+						{ ...recordData },
 					];
-					result.submittedDataByEntityName[submittedDataObject.entityName] = [
-						...(result.submittedDataByEntityName[submittedDataObject.entityName] || []),
+
+					result.submittedDataByEntityName[entityName] = [
+						...(result.submittedDataByEntityName[entityName] || []),
 						{ ...submittedDataObject },
 					];
 					return result;
@@ -113,34 +121,50 @@ const utils = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Organize any array of Submitted Data by entityName.
-		 * @param {SubmittedData[] | undefined} submittedData
+		 * Transforms an array of `SubmittedData` into a `Record<string, DataRecordReference[]>`,
+		 * where each key is the `entityName` from the `SubmittedData`, and the value is an array of
+		 * `DataRecordReference` objects associated with that `entityName`.
+		 * @param {SubmittedData[] | undefined} submittedData An array of `SubmittedData` objects to be transformed.
 		 * @returns {Record<string, DataRecordReference[]>}
 		 */
-		mapSubmittedDataSchemaByEntityName: (
+		transformSubmittedDataSchemaByEntityName: (
 			submittedData: SubmittedData[] | undefined,
 		): Record<string, DataRecordReference[]> => {
 			if (!submittedData) return {};
 
-			const mappingDataRecords: Record<string, DataRecordReference[]> = {};
+			return submittedData.reduce<Record<string, DataRecordReference[]>>((acc, entityData) => {
+				const record = {
+					dataRecord: entityData.data,
+					reference: {
+						submittedDataId: entityData.id,
+						type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
+					},
+				};
 
-			const dataRecordGroupedByEntityName = groupBy(submittedData, 'entityName');
+				acc[entityData.entityName] = [...(acc[entityData.entityName] || [])].concat(record);
+				return acc;
+			}, {});
+		},
 
-			Object.entries(dataRecordGroupedByEntityName).map(([entityName, submittedDataEntities]) => {
-				logger.info(LOG_MODULE, `found submittedData for entity: ${entityName}`);
-				submittedDataEntities.map((entity) => {
-					mappingDataRecords[entityName] = mappingDataRecords[entityName] || [];
-					mappingDataRecords[entityName].push({
-						dataRecord: entity.data,
-						reference: {
-							submittedDataId: entity.id,
-							type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
-						} as SubmittedDataReference,
-					});
-				});
-			});
-
-			return mappingDataRecords;
+		/**
+		 * Transforms an array of `SubmittedData` into a `Record<string, SubmissionDeleteData[]>`,
+		 * where each key is the `entityName` from the `SubmittedData`, and the value is an array of
+		 * `SubmissionDeleteData` objects associated with that `entityName`.
+		 * @param submittedData An array of `SubmittedData` objects to be transformed.
+		 * @returns
+		 */
+		transformmSubmittedDataToSubmissionDeleteData: (submittedData: SubmittedData[]) => {
+			return submittedData.reduce<Record<string, SubmissionDeleteData[]>>((acc, entityData) => {
+				const record = {
+					data: entityData.data,
+					entityName: entityData.entityName,
+					isValid: entityData.isValid,
+					organization: entityData.organization,
+					systemId: entityData.systemId,
+				};
+				acc[entityData.entityName] = [...(acc[entityData.entityName] || [])].concat(record);
+				return acc;
+			}, {});
 		},
 
 		/**

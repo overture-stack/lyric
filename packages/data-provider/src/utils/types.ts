@@ -6,6 +6,7 @@ import {
 	DataRecord,
 	SchemasDictionary,
 	SchemaValidationError,
+	type SchemaData,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 type ObjectValues<T> = T[keyof T];
@@ -124,6 +125,12 @@ export type RegisterDictionaryResult = {
 };
 
 /**
+ * Enum matching Audit Action in database
+ */
+export const SUBMISSION_ACTION_TYPE = z.enum(['INSERTS', 'UPDATES', 'DELETES']);
+export type SubmissionActionType = z.infer<typeof SUBMISSION_ACTION_TYPE>;
+
+/**
  * File upload validation error types
  */
 export const BATCH_ERROR_TYPE = {
@@ -151,10 +158,16 @@ export interface ValidateFilesParams {
 }
 
 export interface CommitSubmissionParams {
-	data: Array<NewSubmittedData | SubmittedData>;
+	dataToValidate: { inserts?: NewSubmittedData[]; submittedData?: SubmittedData[]; deletes?: string[] };
 	dictionary: SchemasDictionary & { id: number };
 	submission: Submission;
+	userName: string;
 }
+
+export type GroupedDataSubmission = {
+	submittedDataByEntityName: Record<string, Array<NewSubmittedData | SubmittedData>>;
+	schemaDataByEntityName: Record<string, SchemaData>;
+};
 
 export type BooleanTrueObject = {
 	[key: string]: true;

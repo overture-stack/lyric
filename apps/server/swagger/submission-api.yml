@@ -4,7 +4,7 @@
   get:
     summary: Get active submission by ID
     tags:
-      - submission
+      - Submission
     parameters:
       - name: submissionId
         in: path
@@ -30,7 +30,7 @@
   delete:
     summary: Clear an Active Submission by ID
     tags:
-      - submission
+      - Submission
     parameters:
       - name: submissionId
         in: path
@@ -56,20 +56,35 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
-/submission/{submissionId}/{entityName}:
+/submission/{submissionId}/{actionType}:
   delete:
     summary: Clear Active Submission by entity name
     tags:
-      - submission
+      - Submission
     parameters:
       - name: submissionId
         in: path
         type: string
         required: true
-      - name: entityName
+        description: The ID of the Submission
+      - name: actionType
         in: path
+        required: true
+        schema:
+          type: string
+          enum: [inserts, updates, deletes]
+        description: Parameter to specify the type of record to remove from the Submission. Must be one of `inserts`, `updates`, or `deletes` (case insensitive)
+      - name: entityName
+        in: query
         type: string
         required: true
+        description: The name of the entity
+      - name: index
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: An optional query parameter used to specify the index of the item within the submission type to be deleted. <br />If not provided all the items within the submission type will be deleted.
     responses:
       200:
         description: Submission cleared successfully. Returns the current Active Submission
@@ -94,7 +109,7 @@
   get:
     summary: Retrieve the Active Submissions for a category in this user session
     tags:
-      - submission
+      - Submission
     parameters:
       - name: categoryId
         in: path
@@ -121,7 +136,7 @@
   get:
     summary: Retrieve the Active Submission for a category and organization in this user session
     tags:
-      - submission
+      - Submission
     parameters:
       - name: categoryId
         in: path
@@ -152,7 +167,7 @@
   post:
     summary: Upload submission files
     tags:
-      - submission
+      - Submission
     consumes:
       - multipart/form-data
     parameters:
@@ -193,7 +208,7 @@
   post:
     summary: Commit Active Submission
     tags:
-      - submission
+      - Submission
     parameters:
       - name: categoryId
         in: path

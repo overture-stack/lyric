@@ -4,10 +4,16 @@ import { z } from 'zod';
 
 import type { SQON } from '@overture-stack/sqon-builder';
 
-import { isAuditEventValid } from './auditUtils.js';
+import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js';
 import { parseSQON } from './convertSqonToQuery.js';
 import { isValidDateFormat, isValidIdNumber } from './formatUtils.js';
 import { RequestValidation } from './requestValidation.js';
+
+const auditEventTypeSchema = z
+	.string()
+	.trim()
+	.min(1)
+	.refine((value) => isAuditEventValid(value), 'invalid Event Type');
 
 const categoryIdSchema = z
 	.string()
@@ -16,34 +22,19 @@ const categoryIdSchema = z
 	.refine((value) => {
 		const parsed = parseInt(value);
 		return isValidIdNumber(parsed);
-	}, 'Request provided an invalid category ID');
-
-const commentSchema = z.string().trim().min(1);
-
-const dryRunSchema = z
-	.string()
-	.toLowerCase()
-	.refine((value) => value === 'true' || value === 'false', {
-		message: 'Value must be a boolean',
-	});
+	}, 'invalid category ID');
 
 const endDateSchema = z
 	.string()
 	.trim()
 	.min(1)
-	.refine((value) => isValidDateFormat(value), 'Invalid `endDate` parameter');
+	.refine((value) => isValidDateFormat(value), 'invalid `endDate` parameter');
 
 const entityNameSchema = z.string().trim().min(1);
 
-const eventTypeSchema = z
-	.string()
-	.trim()
-	.min(1)
-	.refine((value) => isAuditEventValid(value), 'Request provided an invalid Event Type');
-
 const organizationSchema = z.string().trim().min(1);
 
-const pageSchema = z.string().superRefine((value, ctx) => {
+const pageSizeSchema = z.string().superRefine((value, ctx) => {
 	const parsed = parseInt(value);
 	if (isNaN(parsed)) {
 		ctx.addIssue({
@@ -63,7 +54,18 @@ const pageSchema = z.string().superRefine((value, ctx) => {
 	}
 });
 
-const pageSizeSchema = z.string().superRefine((value, ctx) => {
+const indexIntegerSchema = z.string().superRefine((value, ctx) => {
+	const parsed = parseInt(value);
+	if (isNaN(parsed)) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.invalid_type,
+			expected: 'number',
+			received: 'nan',
+		});
+	}
+});
+
+const positiveInteger = z.string().superRefine((value, ctx) => {
 	const parsed = parseInt(value);
 	if (isNaN(parsed)) {
 		ctx.addIssue({
@@ -90,13 +92,19 @@ const sqonSchema = z.custom<SQON>((value) => {
 	} catch (error) {
 		return false;
 	}
-}, 'Invalid SQON format');
+}, 'invalid SQON format');
 
 const startDateSchema = z
 	.string()
 	.trim()
 	.min(1)
-	.refine((value) => isValidDateFormat(value), 'Invalid `startDate` parameter');
+	.refine((value) => isValidDateFormat(value), 'invalid `startDate` parameter');
+
+const submissionActionTypeSchema = z
+	.string()
+	.trim()
+	.min(1)
+	.refine((value) => isSubmissionActionTypeValid(value), 'invalid Submission Action Type');
 
 const submissionIdSchema = z
 	.string()
@@ -105,9 +113,9 @@ const submissionIdSchema = z
 	.refine((value) => {
 		const parsed = parseInt(value);
 		return isValidIdNumber(parsed);
-	}, 'Request provided an invalid submission ID');
+	}, 'invalid submission ID');
 
-const systemIdSchema = z.string().trim().min(1);
+const stringNotEmpty = z.string().trim().min(1);
 
 // Common Category Path Params
 export interface categoryPathParams extends ParamsDictionary {
@@ -148,7 +156,7 @@ export interface paginationQueryParams extends ParsedQs {
 }
 
 const paginationQuerySchema = z.object({
-	page: pageSchema.optional(),
+	page: positiveInteger.optional(),
 	pageSize: pageSizeSchema.optional(),
 });
 
@@ -165,8 +173,8 @@ export interface auditQueryParams extends ParsedQs {
 const auditQuerySchema = z
 	.object({
 		entityName: entityNameSchema.optional(),
-		eventType: eventTypeSchema.optional(),
-		systemId: systemIdSchema.optional(),
+		eventType: auditEventTypeSchema.optional(),
+		systemId: stringNotEmpty.optional(),
 		startDate: startDateSchema.optional(),
 		endDate: endDateSchema.optional(),
 	})
@@ -201,9 +209,9 @@ export const dictionaryRegisterRequestSchema: RequestValidation<
 	ParamsDictionary
 > = {
 	body: z.object({
-		categoryName: z.string().trim().min(1),
-		dictionaryName: z.string().trim().min(1),
-		version: z.string().trim().min(1),
+		categoryName: stringNotEmpty,
+		dictionaryName: stringNotEmpty,
+		version: stringNotEmpty,
 	}),
 };
 
@@ -242,18 +250,27 @@ export const submissionDeleteRequestSchema: RequestValidation<object, ParsedQs, 
 };
 
 export interface submissionDeleteEntityNameParams extends ParamsDictionary {
+	actionType: string;
 	submissionId: string;
+}
+
+export interface submissionDeleteEntityNameQueryParams extends ParsedQs {
 	entityName: string;
+	index?: string;
 }
 
 export const submissionDeleteEntityNameRequestSchema: RequestValidation<
 	object,
-	ParsedQs,
+	submissionDeleteEntityNameQueryParams,
 	submissionDeleteEntityNameParams
 > = {
-	pathParams: z.object({
-		submissionId: submissionIdSchema,
+	query: z.object({
 		entityName: entityNameSchema,
+		index: indexIntegerSchema.optional(),
+	}),
+	pathParams: z.object({
+		actionType: submissionActionTypeSchema,
+		submissionId: submissionIdSchema,
 	}),
 };
 
@@ -271,22 +288,9 @@ export interface dataDeleteBySystemIdPathParams extends ParamsDictionary {
 	systemId: string;
 }
 
-export interface dataDeleteBySystemIdQueryParams extends ParsedQs {
-	dryRun?: string;
-	comment: string;
-}
-
-export const dataDeleteBySystemIdRequestSchema: RequestValidation<
-	object,
-	dataDeleteBySystemIdQueryParams,
-	dataDeleteBySystemIdPathParams
-> = {
-	query: z.object({
-		dryRun: dryRunSchema.optional(),
-		comment: commentSchema,
-	}),
+export const dataDeleteBySystemIdRequestSchema: RequestValidation<object, ParsedQs, dataDeleteBySystemIdPathParams> = {
 	pathParams: z.object({
-		systemId: systemIdSchema,
+		systemId: stringNotEmpty,
 	}),
 };
 
