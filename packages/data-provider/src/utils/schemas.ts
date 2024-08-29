@@ -13,7 +13,7 @@ const auditEventTypeSchema = z
 	.string()
 	.trim()
 	.min(1)
-	.refine((value) => isAuditEventValid(value), 'Request provided an invalid Event Type');
+	.refine((value) => isAuditEventValid(value), 'invalid Event Type');
 
 const categoryIdSchema = z
 	.string()
@@ -22,13 +22,13 @@ const categoryIdSchema = z
 	.refine((value) => {
 		const parsed = parseInt(value);
 		return isValidIdNumber(parsed);
-	}, 'Request provided an invalid category ID');
+	}, 'invalid category ID');
 
 const endDateSchema = z
 	.string()
 	.trim()
 	.min(1)
-	.refine((value) => isValidDateFormat(value), 'Invalid `endDate` parameter');
+	.refine((value) => isValidDateFormat(value), 'invalid `endDate` parameter');
 
 const entityNameSchema = z.string().trim().min(1);
 
@@ -92,19 +92,19 @@ const sqonSchema = z.custom<SQON>((value) => {
 	} catch (error) {
 		return false;
 	}
-}, 'Invalid SQON format');
+}, 'invalid SQON format');
 
 const startDateSchema = z
 	.string()
 	.trim()
 	.min(1)
-	.refine((value) => isValidDateFormat(value), 'Invalid `startDate` parameter');
+	.refine((value) => isValidDateFormat(value), 'invalid `startDate` parameter');
 
 const submissionActionTypeSchema = z
 	.string()
 	.trim()
 	.min(1)
-	.refine((value) => isSubmissionActionTypeValid(value), 'Request provided an invalid Submission Action Type');
+	.refine((value) => isSubmissionActionTypeValid(value), 'invalid Submission Action Type');
 
 const submissionIdSchema = z
 	.string()
@@ -113,7 +113,7 @@ const submissionIdSchema = z
 	.refine((value) => {
 		const parsed = parseInt(value);
 		return isValidIdNumber(parsed);
-	}, 'Request provided an invalid submission ID');
+	}, 'invalid submission ID');
 
 const stringNotEmpty = z.string().trim().min(1);
 

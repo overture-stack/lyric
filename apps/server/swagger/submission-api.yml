@@ -73,7 +73,7 @@
         schema:
           type: string
           enum: [inserts, updates, deletes]
-        description: Optional query parameter to specify the type of submission to delete
+        description: Parameter to specify the type of record to remove from the Submission. Must be one of `inserts`, `updates`, or `deletes` (case insensitive)
       - name: entityName
         in: query
         type: string

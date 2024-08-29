@@ -241,10 +241,10 @@ const utils = (dependencies: BaseDependencies) => {
 		 */
 		mergeRecords: <T>(
 			record1: Record<string, T[]> | undefined,
-			record2: Record<string, T[] | undefined>,
+			record2: Record<string, T[]> | undefined,
 		): Record<string, T[]> => {
 			return Object.keys({ ...record1, ...record2 }).reduce<Record<string, T[]>>((acc, key) => {
-				acc[key] = [...(record1?.[key] || []), ...(record2?.[key] || [])];
+				acc[key] = (record1?.[key] || []).concat(record2?.[key] || []);
 				return acc;
 			}, {});
 		},
@@ -325,7 +325,7 @@ const utils = (dependencies: BaseDependencies) => {
 
 		removeItemsFromSubmission: (
 			submissionData: SubmissionData,
-			filter: { actionType: SubmissionActionType; entityName: string; index?: number },
+			filter: { actionType: SubmissionActionType; entityName: string; index: number | null },
 		): SubmissionData => {
 			const filteredSubmissionData = _.cloneDeep(submissionData);
 			switch (filter.actionType) {

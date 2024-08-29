@@ -182,7 +182,7 @@ const service = (dependencies: BaseDependencies) => {
 		filter: {
 			actionType: SubmissionActionType;
 			entityName: string;
-			index?: number;
+			index: number | null;
 		},
 	): Promise<Submission | undefined> => {
 		const { getSubmissionById } = submissionRepository(dependencies);
