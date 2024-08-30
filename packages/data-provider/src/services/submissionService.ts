@@ -5,6 +5,7 @@ import {
 	Submission,
 	SubmissionData,
 	type SubmissionInsertData,
+	type SubmissionUpdateData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model';
 import {
@@ -477,7 +478,7 @@ const service = (dependencies: BaseDependencies) => {
 
 		const { extractSchemaDataFromMergedDataRecords, updateActiveSubmission } = submissionUtils(dependencies);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { validateSchemas } = submittedDataUtils(dependencies);
+		const { validateSchemas, updateSubmittedDataArray } = submittedDataUtils(dependencies);
 		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
 
 		// Get Submitted Data from database
@@ -490,10 +491,17 @@ const service = (dependencies: BaseDependencies) => {
 			? Object.values(submissionData.deletes).flatMap((entityData) => entityData.map(({ systemId }) => systemId))
 			: [];
 
+		// Remove Submitted Data array
 		const filteredSubmittedData = submittedData.filter(({ systemId }) => !systemsIdsToRemove.includes(systemId));
 
+		// Edit Submitted Data array
+		const submissionDataToUpdate = submissionData.updates
+			? Object.values(submissionData.updates).flatMap((entityData) => entityData)
+			: [];
+		const editedSubmittedData = updateSubmittedDataArray(filteredSubmittedData, submissionDataToUpdate);
+
 		// Merge Submitted Data with Active Submission keepping reference of each record ID
-		const dataMergedByEntityName = mergeActiveSubmissionAndSubmittedData(filteredSubmittedData, {
+		const dataMergedByEntityName = mergeActiveSubmissionAndSubmittedData(editedSubmittedData, {
 			insertData: submissionData.inserts,
 			id: originalSubmission.id,
 		});
@@ -522,7 +530,11 @@ const service = (dependencies: BaseDependencies) => {
 		// Update Active Submission
 		return await updateActiveSubmission({
 			idActiveSubmission: originalSubmission.id,
-			submissionData: { inserts: submissionData.inserts, deletes: submissionData.deletes },
+			submissionData: {
+				inserts: submissionData.inserts,
+				deletes: submissionData.deletes,
+				updates: submissionData.updates,
+			},
 			schemaErrors: submissionSchemaErrors,
 			dictionaryId: currentDictionary.id,
 			userName: userName,
@@ -626,6 +638,46 @@ const service = (dependencies: BaseDependencies) => {
 
 	/**
 	 * Void function to process and validate uploaded files on an Active Submission.
+	 * Performs the schema data validation of data to be edited combined with all Submitted Data.
+	 * @param params
+	 * @param params.submission A `Submission` object representing the Active Submission
+	 * @param params.files Uploaded files to be processed
+	 * @param params.userName User who performs the action
+	 */
+	const processEditFilesAsync = async ({
+		submission,
+		files,
+		userName,
+	}: {
+		submission: Submission;
+		files: Record<string, Express.Multer.File>;
+		userName: string;
+	}): Promise<void> => {
+		const { submissionUpdateDataFromFiles } = submissionUtils(dependencies);
+
+		// // Parse file data
+		const filesDataProcessed = await submissionUpdateDataFromFiles(files);
+
+		// Merge Active Submission data with incoming TSV file data processed
+		const updatedActiveSubmissionData: Record<string, SubmissionUpdateData[]> = {
+			...submission.data.updates,
+			...filesDataProcessed,
+		};
+
+		// Perform Schema Data validation Async.
+		performDataValidation({
+			originalSubmission: submission,
+			submissionData: {
+				inserts: submission.data.inserts,
+				deletes: submission.data.deletes,
+				updates: updatedActiveSubmissionData,
+			},
+			userName,
+		});
+	};
+
+	/**
+	 * Void function to process and validate uploaded files on an Active Submission.
 	 * Performs the schema data validation combined with all Submitted Data.
 	 * @param {Record<string, Express.Multer.File>} files Uploaded files to be processed
 	 * @param {Object} params
@@ -636,12 +688,12 @@ const service = (dependencies: BaseDependencies) => {
 	 */
 	const validateFilesAsync = async (files: Record<string, Express.Multer.File>, params: ValidateFilesParams) => {
 		const { getActiveSubmission } = submissionRepository(dependencies);
-		const { submissionEntitiesFromFiles } = submissionUtils(dependencies);
+		const { submissionInsertDataFromFiles } = submissionUtils(dependencies);
 
 		const { categoryId, organization, userName } = params;
 
 		// Parse file data
-		const filesDataProcessed = await submissionEntitiesFromFiles(files);
+		const filesDataProcessed = await submissionInsertDataFromFiles(files);
 
 		// Get Active Submission from database
 		const activeSubmission = await getActiveSubmission({ categoryId, userName, organization });
@@ -658,7 +710,11 @@ const service = (dependencies: BaseDependencies) => {
 		// Perform Schema Data validation Async.
 		performDataValidation({
 			originalSubmission: activeSubmission,
-			submissionData: { inserts: updatedActiveSubmissionData, deletes: activeSubmission.data.deletes },
+			submissionData: {
+				inserts: updatedActiveSubmissionData,
+				deletes: activeSubmission.data.deletes,
+				updates: activeSubmission.data.updates,
+			},
 			userName,
 		});
 	};
@@ -671,6 +727,7 @@ const service = (dependencies: BaseDependencies) => {
 		getActiveSubmissionById,
 		getActiveSubmissionByOrganization,
 		performDataValidation,
+		processEditFilesAsync,
 		uploadSubmission,
 	};
 };

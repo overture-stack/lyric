@@ -327,9 +327,11 @@ type Mutable<T> = {
 };
 
 export type MutableDataDiff = {
-	old: Mutable<DataRecord>;
-	new: Mutable<DataRecord>;
+	old: MutableDataRecord;
+	new: MutableDataRecord;
 };
+
+export type MutableDataRecord = Mutable<DataRecord>;
 
 export interface SubmittedDataReference {
 	type: typeof MERGE_REFERENCE_TYPE.SUBMITTED_DATA;

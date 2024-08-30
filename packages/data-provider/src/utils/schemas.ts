@@ -294,6 +294,13 @@ export const dataDeleteBySystemIdRequestSchema: RequestValidation<object, Parsed
 	}),
 };
 
+export const dataEditRequestSchema: RequestValidation<{ organization: string }, ParsedQs, categoryPathParams> = {
+	body: z.object({
+		organization: organizationSchema,
+	}),
+	pathParams: categoryPathParamsSchema,
+};
+
 export interface dataQueryParams extends paginationQueryParams {
 	entityName?: string | string[];
 }

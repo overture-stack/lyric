@@ -19,8 +19,8 @@ export type SubmissionInsertData = {
 
 export type SubmissionUpdateData = {
 	systemId: string;
-	oldData: DataRecord;
-	newData: DataRecord;
+	old: DataRecord;
+	new: DataRecord;
 };
 
 export type SubmissionDeleteData = {

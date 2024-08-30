@@ -1,18 +1,21 @@
+import { NextFunction, Request, Response } from 'express';
 import * as _ from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
 import submittedDataService from '../services/submittedDataService.js';
 import { parseSQON } from '../utils/convertSqonToQuery.js';
-import { NotFound } from '../utils/errors.js';
+import { BadRequest, NotFound } from '../utils/errors.js';
+import { hasTsvExtension } from '../utils/fileUtils.js';
 import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
 	dataDeleteBySystemIdRequestSchema,
+	dataEditRequestSchema,
 	dataGetByCategoryRequestSchema,
 	dataGetByOrganizationRequestSchema,
 	dataGetByQueryRequestschema,
 } from '../utils/schemas.js';
-import { SubmittedDataPaginatedResponse } from '../utils/types.js';
+import { BATCH_ERROR_TYPE, type BatchError, SubmittedDataPaginatedResponse } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
 	const service = submittedDataService(dependencies);
@@ -35,6 +38,70 @@ const controller = (dependencies: BaseDependencies) => {
 				const response = {
 					submissionId: deletedRecords.submissionId,
 					records: deletedRecords.data,
+				};
+
+				return res.status(200).send(response);
+			} catch (error) {
+				next(error);
+			}
+		}),
+
+		editSubmittedData: validateRequest(dataEditRequestSchema, async (req, res, next) => {
+			try {
+				const categoryId = Number(req.params.categoryId);
+				const files = req.files as Express.Multer.File[];
+				const organization = req.body.organization;
+
+				logger.info(LOG_MODULE, `Request Edit Submitted Data`);
+
+				// TODO: get userName from auth
+				const userName = '';
+
+				if (!files || files.length == 0) {
+					throw new BadRequest(
+						'The "files" parameter is missing or empty. Please include files in the request for processing.',
+					);
+				}
+
+				// sort files into validFiles and fileErrors based on correct file extension
+				const { validFiles, fileErrors } = files.reduce<{
+					validFiles: Express.Multer.File[];
+					fileErrors: BatchError[];
+				}>(
+					(acc, file) => {
+						if (hasTsvExtension(file)) {
+							acc.validFiles.push(file);
+						} else {
+							const batchError: BatchError = {
+								type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
+								message: `File '${file.originalname}' has invalid file extension. File extension must be '.tsv'.`,
+								batchName: file.originalname,
+							};
+							acc.fileErrors.push(batchError);
+						}
+						return acc;
+					},
+					{ validFiles: [], fileErrors: [] },
+				);
+
+				if (fileErrors.length == 0) {
+					logger.info(LOG_MODULE, `File uploaded successfully`);
+				} else {
+					logger.info(LOG_MODULE, 'Found some errors processing this request');
+				}
+
+				const editSubmittedDataResult = await service.editSubmittedData({
+					files: validFiles,
+					categoryId,
+					organization,
+					userName,
+				});
+
+				const response = {
+					status: editSubmittedDataResult.status,
+					submissionId: editSubmittedDataResult.submissionId,
+					inProcessEntities: editSubmittedDataResult.inProcessEntities,
+					batchErrors: [...fileErrors, ...editSubmittedDataResult.batchErrors],
 				};
 
 				return res.status(200).send(response);

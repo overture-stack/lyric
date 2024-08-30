@@ -1,5 +1,8 @@
-import { type SubmissionDeleteData, SubmittedData } from '@overture-stack/lyric-data-model';
+import * as _ from 'lodash-es';
+
+import { type Submission, type SubmissionDeleteData, SubmittedData } from '@overture-stack/lyric-data-model';
 import { SQON } from '@overture-stack/sqon-builder';
+import type { SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
@@ -11,7 +14,7 @@ import { getDictionarySchemaRelations, SchemaChildNode } from '../utils/dictiona
 import { BadRequest } from '../utils/errors.js';
 import submissionUtils from '../utils/submissionUtils.js';
 import submittedUtils from '../utils/submittedDataUtils.js';
-import { PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
+import { type BatchError, CREATE_SUBMISSION_STATUS, PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
 
 const PAGINATION_ERROR_MESSAGES = {
 	INVALID_CATEGORY_ID: 'Invalid Category ID',
@@ -78,6 +81,95 @@ const service = (dependencies: BaseDependencies) => {
 	};
 
 	return {
+		editSubmittedData: async ({
+			categoryId,
+			files,
+			organization,
+			userName,
+		}: {
+			categoryId: number;
+			files: Express.Multer.File[];
+			organization: string;
+			userName: string;
+		}): Promise<{
+			batchErrors: BatchError[];
+			description?: string;
+			inProcessEntities: string[];
+			submissionId?: number;
+			status: string;
+		}> => {
+			const { checkFileNames, checkEntityFieldNames, getOrCreateActiveSubmission } = submissionUtils(dependencies);
+			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
+			const { processEditFilesAsync } = submissionService(dependencies);
+			if (files.length === 0) {
+				return {
+					status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+					description: 'No valid files for submission',
+					batchErrors: [],
+					inProcessEntities: [],
+				};
+			}
+
+			const currentDictionary = await getActiveDictionaryByCategory(categoryId);
+
+			if (_.isEmpty(currentDictionary)) {
+				throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+			}
+
+			const schemasDictionary: SchemasDictionary = {
+				name: currentDictionary.name,
+				version: currentDictionary.version,
+				schemas: currentDictionary.schemas,
+			};
+
+			// step 1 Validation. Validate entity type (filename matches dictionary entities, remove duplicates)
+			const schemaNames: string[] = schemasDictionary.schemas.map((item) => item.name);
+			const { validFileEntity, batchErrors: fileNamesErrors } = await checkFileNames(files, schemaNames);
+
+			// step 2 Validation. Validate fieldNames (missing required fields based on schema)
+			const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
+
+			const batchErrors = [...fileNamesErrors, ...fieldNameErrors];
+			const entitiesToProcess = Object.keys(checkedEntities);
+
+			if (_.isEmpty(checkedEntities)) {
+				return {
+					status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+					description: 'No valid entities in submission',
+					batchErrors,
+					inProcessEntities: entitiesToProcess,
+				};
+			}
+
+			// Get Active Submission or Open a new one
+			const activeSubmission = await getOrCreateActiveSubmission({ categoryId, userName, organization });
+
+			// Running Schema validation in the background do not need to wait
+			// Result of validations will be stored in database
+			processEditFilesAsync({
+				submission: activeSubmission,
+				files: checkedEntities,
+				userName,
+			});
+
+			if (batchErrors.length === 0) {
+				return {
+					status: CREATE_SUBMISSION_STATUS.PROCESSING,
+					description: 'Submission files are being processed',
+					submissionId: activeSubmission.id,
+					batchErrors,
+					inProcessEntities: entitiesToProcess,
+				};
+			}
+
+			return {
+				status: CREATE_SUBMISSION_STATUS.PARTIAL_SUBMISSION,
+				description: 'Some Submission files are being processed while others were unable to process',
+				submissionId: activeSubmission.id,
+				batchErrors,
+				inProcessEntities: entitiesToProcess,
+			};
+		},
 		getSubmittedDataByCategory: async (
 			categoryId: number,
 			paginationOptions: PaginationOptions,

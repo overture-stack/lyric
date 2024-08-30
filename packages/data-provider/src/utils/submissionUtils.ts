@@ -1,6 +1,12 @@
 import * as _ from 'lodash-es';
 
-import { NewSubmission, Submission, SubmissionData, type SubmissionInsertData } from '@overture-stack/lyric-data-model';
+import {
+	NewSubmission,
+	Submission,
+	SubmissionData,
+	type SubmissionInsertData,
+	type SubmissionUpdateData,
+} from '@overture-stack/lyric-data-model';
 import {
 	SchemaData,
 	SchemasDictionary,
@@ -10,9 +16,11 @@ import {
 import { BaseDependencies } from '../config/config.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
+import submittedRepository from '../repository/submittedRepository.js';
 import dictionaryUtils from './dictionaryUtils.js';
 import { InternalServerError } from './errors.js';
 import { readHeaders, tsvToJson } from './fileUtils.js';
+import submittedDataUtils from './submittedDataUtils.js';
 import {
 	ActiveSubmissionResponse,
 	ActiveSubmissionSummaryRepository,
@@ -362,7 +370,7 @@ const utils = (dependencies: BaseDependencies) => {
 					break;
 				case SUBMISSION_ACTION_TYPE.Values.DELETES:
 					if (submissionData.deletes) {
-						if (filter.index) {
+						if (filter.index !== undefined) {
 							filteredSubmissionData.deletes = _.mapValues(
 								submissionData.deletes,
 								(deletesSubmsisionData, deletesEntityName) =>
@@ -384,7 +392,7 @@ const utils = (dependencies: BaseDependencies) => {
 		 * @param {Record<string, Express.Multer.File>} files
 		 * @returns {Promise<Record<string, SubmissionInsertData>>}
 		 */
-		submissionEntitiesFromFiles: async (
+		submissionInsertDataFromFiles: async (
 			files: Record<string, Express.Multer.File>,
 		): Promise<Record<string, SubmissionInsertData>> => {
 			return await Object.entries(files).reduce<Promise<Record<string, SubmissionInsertData>>>(
@@ -399,6 +407,53 @@ const utils = (dependencies: BaseDependencies) => {
 				},
 				Promise.resolve({}),
 			);
+		},
+
+		/**
+		 * Construct a SubmissionUpdateData object per each file returning a Record type based on entityName
+		 * @param {Record<string, Express.Multer.File>} files
+		 * @returns {Promise<Record<string, SubmissionUpdateData>>}
+		 */
+		submissionUpdateDataFromFiles: async (
+			files: Record<string, Express.Multer.File>,
+		): Promise<Record<string, SubmissionUpdateData[]>> => {
+			const { computeDataDiff } = submittedDataUtils(dependencies);
+			const { getSubmittedDataBySystemId } = submittedRepository(dependencies);
+			const results: Record<string, SubmissionUpdateData[]> = {};
+
+			// Process files in parallel using Promise.all
+			await Promise.all(
+				Object.entries(files).map(async ([entityName, file]) => {
+					const parsedFileData = await tsvToJson(file.path);
+
+					// Initialize an array for each entityName
+					if (!results[entityName]) {
+						results[entityName] = [];
+					}
+
+					// Process records concurrently using Promise.all
+					const recordPromises = parsedFileData.map(async (record) => {
+						const systemId = record['systemId']?.toString();
+						const changeData = _.omit(record, 'systemId');
+						if (!systemId) return;
+
+						const foundSubmittedData = await getSubmittedDataBySystemId(systemId);
+						if (foundSubmittedData?.data) {
+							const diffData = computeDataDiff(foundSubmittedData.data, changeData);
+							results[entityName].push({
+								systemId: systemId,
+								old: diffData.old,
+								new: diffData.new,
+							});
+						}
+					});
+
+					// Wait for all records of the current file to be processed
+					await Promise.all(recordPromises);
+				}),
+			);
+
+			return results;
 		},
 
 		/**

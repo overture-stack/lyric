@@ -4,6 +4,7 @@ import {
 	type DataDiff,
 	NewSubmittedData,
 	type SubmissionDeleteData,
+	type SubmissionUpdateData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model';
 import { functions } from '@overturebio-stack/lectern-client';
@@ -20,6 +21,7 @@ import {
 	type GroupedDataSubmission,
 	MERGE_REFERENCE_TYPE,
 	type MutableDataDiff,
+	type MutableDataRecord,
 	type SubmittedDataResponse,
 } from './types.js';
 
@@ -225,6 +227,21 @@ const utils = (dependencies: BaseDependencies) => {
 				acc[entityData.entityName] = [...(acc[entityData.entityName] || [])].concat(record);
 				return acc;
 			}, {});
+		},
+
+		updateSubmittedDataArray: (submittedData: SubmittedData[], editData: SubmissionUpdateData[]) => {
+			return submittedData.map((existingSubmittedData) => {
+				const found = editData.find((e) => e.systemId == existingSubmittedData.systemId);
+				if (found) {
+					const newData: MutableDataRecord = existingSubmittedData.data;
+					for (const key of Object.keys(found.old)) {
+						newData[key] = found.new[key];
+					}
+					existingSubmittedData.data = newData;
+					return existingSubmittedData;
+				}
+				return existingSubmittedData;
+			});
 		},
 
 		/**
