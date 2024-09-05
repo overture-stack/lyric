@@ -11,4 +11,4 @@ export { default as submittedDataRouter } from './src/routers/submittedDataRoute
 // utils
 export { default as getDictionaryUtils } from './src/utils/dictionaryUtils.js';
 export { default as submissionUtils } from './src/utils/submissionUtils.js';
-export { default as submittedDataUtils } from './src/utils/submittedDataUtils.js';
+export * from './src/utils/submittedDataUtils.js';

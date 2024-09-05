@@ -7,9 +7,11 @@ import {
 	type SubmissionInsertData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model';
+import { functions } from '@overturebio-stack/lectern-client';
 import {
 	BatchProcessingResult,
 	type DataRecord,
+	type SchemaData,
 	SchemasDictionary,
 	SchemaValidationError,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
@@ -21,7 +23,13 @@ import categoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
 import { BadRequest, StatusConflict } from '../utils/errors.js';
 import submissionUtils from '../utils/submissionUtils.js';
-import submittedDataUtils from '../utils/submittedDataUtils.js';
+import {
+	computeDataDiff,
+	groupErrorsByIndex,
+	groupSchemaDataByEntityName,
+	hasErrorsByIndex,
+	transformSubmittedDataSchemaByEntityName,
+} from '../utils/submittedDataUtils.js';
 import {
 	ActiveSubmissionSummaryResponse,
 	CommitSubmissionParams,
@@ -314,12 +322,11 @@ const service = (dependencies: BaseDependencies) => {
 	}): Record<string, SchemaValidationError[]> => {
 		const { resultValidation, dataValidated } = input;
 
-		const { groupErrorsByIndex } = submittedDataUtils(dependencies);
 		const { determineIfIsSubmission } = submissionUtils(dependencies);
 
 		const submissionSchemaErrors: Record<string, SchemaValidationError[]> = {};
 		Object.entries(resultValidation).forEach(([entityName, { validationErrors }]) => {
-			const hasErrorByIndex = groupErrorsByIndex(validationErrors, entityName);
+			const hasErrorByIndex = groupErrorsByIndex(validationErrors);
 
 			if (!_.isEmpty(hasErrorByIndex)) {
 				Object.entries(hasErrorByIndex).map(([indexBasedOnCrossSchemas, schemaValidationErrors]) => {
@@ -360,7 +367,6 @@ const service = (dependencies: BaseDependencies) => {
 		activeSubmission: { insertData?: Record<string, SubmissionInsertData>; id: number },
 	): Record<string, DataRecordReference[]> => {
 		const { mapSubmissionSchemaDataByEntityName } = submissionUtils(dependencies);
-		const { transformSubmittedDataSchemaByEntityName } = submittedDataUtils(dependencies);
 
 		// This object will merge existing data + new data for validation (Submitted data + active Submission)
 		return _.mergeWith(
@@ -390,8 +396,6 @@ const service = (dependencies: BaseDependencies) => {
 	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<void> => {
 		const submissionRepo = submissionRepository(dependencies);
 		const dataSubmittedRepo = submittedRepository(dependencies);
-		const { groupSchemaDataByEntityName, validateSchemas, groupErrorsByIndex, hasErrorsByIndex, computeDataDiff } =
-			submittedDataUtils(dependencies);
 
 		const { dictionary, dataToValidate, submission, userName } = params;
 
@@ -409,7 +413,7 @@ const service = (dependencies: BaseDependencies) => {
 		const resultValidation = validateSchemas(dictionary, schemasDataToValidate.schemaDataByEntityName);
 
 		Object.entries(resultValidation).forEach(([entityName, { validationErrors }]) => {
-			const hasErrorByIndex = groupErrorsByIndex(validationErrors, entityName);
+			const hasErrorByIndex = groupErrorsByIndex(validationErrors);
 
 			schemasDataToValidate.submittedDataByEntityName[entityName].map((data, index) => {
 				data.isValid = !hasErrorsByIndex(hasErrorByIndex, index);
@@ -477,7 +481,6 @@ const service = (dependencies: BaseDependencies) => {
 
 		const { extractSchemaDataFromMergedDataRecords, updateActiveSubmission } = submissionUtils(dependencies);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { validateSchemas } = submittedDataUtils(dependencies);
 		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
 
 		// Get Submitted Data from database
@@ -661,6 +664,27 @@ const service = (dependencies: BaseDependencies) => {
 			submissionData: { inserts: updatedActiveSubmissionData, deletes: activeSubmission.data.deletes },
 			userName,
 		});
+	};
+
+	/**
+	 * Validate a full set of Schema Data using a Dictionary
+	 * @param {SchemasDictionary & {id: number }} dictionary
+	 * @param {Record<string, SchemaData>} schemasData
+	 * @returns an array of processedRecords and validationErrors for each Schema
+	 */
+	const validateSchemas = (
+		dictionary: SchemasDictionary & {
+			id: number;
+		},
+		schemasData: Record<string, SchemaData>,
+	) => {
+		const schemasDictionary: SchemasDictionary = {
+			name: dictionary.name,
+			version: dictionary.version,
+			schemas: dictionary.schemas,
+		};
+
+		return functions.processSchemas(schemasDictionary, schemasData);
 	};
 
 	return {
