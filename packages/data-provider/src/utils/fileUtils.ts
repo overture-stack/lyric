@@ -5,6 +5,7 @@ import fs from 'fs';
 import { DataRecord, SchemaData } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 import { notEmpty } from './formatUtils.js';
+import { BATCH_ERROR_TYPE, type BatchError } from './types.js';
 
 const fsPromises = fs.promises;
 
@@ -77,4 +78,37 @@ export function getSizeInBytes(size: string | number): number {
 	// Parse the string value into an integer in bytes.
 	// If value is a number it is assumed is in bytes.
 	return bytes.parse(size);
+}
+
+// sort files into validFiles and fileErrors based on correct file extension
+export async function processFiles(files: Express.Multer.File[]) {
+	const result = {
+		validFiles: [] as Express.Multer.File[],
+		fileErrors: [] as BatchError[],
+	};
+
+	for (const file of files) {
+		if (hasTsvExtension(file)) {
+			const fileHeaders = await readHeaders(file); // Wait for the async operation
+			if (fileHeaders.includes('systemId')) {
+				result.validFiles.push(file);
+			} else {
+				const batchError: BatchError = {
+					type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
+					message: `File '${file.originalname}' is missing the column 'systemId'`,
+					batchName: file.originalname,
+				};
+				result.fileErrors.push(batchError);
+			}
+		} else {
+			const batchError: BatchError = {
+				type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
+				message: `File '${file.originalname}' has invalid file extension. File extension must be '.tsv'`,
+				batchName: file.originalname,
+			};
+			result.fileErrors.push(batchError);
+		}
+	}
+
+	return result;
 }

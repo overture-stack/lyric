@@ -186,10 +186,70 @@ const utils = (dependencies: BaseDependencies) => {
 		 * Transforms an array of `SubmittedData` into a `Record<string, DataRecordReference[]>`,
 		 * where each key is the `entityName` from the `SubmittedData`, and the value is an array of
 		 * `DataRecordReference` objects associated with that `entityName`.
+		 * Edits each record that is marked to be edited on the Submission
+		 * @param {SubmittedData[] | undefined} submittedData An array of `SubmittedData` objects to be transformed.
+		 * @param {Record<string, SubmissionUpdateData[]>} editSubmittedData An Array of `SubmittedData` objects to be updated
+		 * @returns {Record<string, DataRecordReference[]>}
+		 */
+		mapAndMergeSubmittedDataToRecordReferences: (
+			submittedData?: SubmittedData[],
+			editSubmittedData?: Record<string, SubmissionUpdateData[]>,
+		): Record<string, DataRecordReference[]> => {
+			if (!submittedData) return {};
+
+			const submissionDataToUpdate = editSubmittedData ? Object.values(editSubmittedData).flat() : [];
+
+			return submittedData.reduce<Record<string, DataRecordReference[]>>((acc, entityData) => {
+				const foundRecordToUpdate = submissionDataToUpdate.find((item) => item.systemId === entityData.systemId);
+				let record: DataRecordReference;
+				if (foundRecordToUpdate) {
+					const newDataToUpdate: MutableDataRecord = entityData.data;
+					for (const key of Object.keys(foundRecordToUpdate.old)) {
+						if (entityData.data[key] !== foundRecordToUpdate.old[key]) {
+							// What to do if record on Submission doesn't match with current SubmittedData?
+							logger.error(
+								`Record with System ID '${entityData.systemId}' marked for update in the submission does not match the current state.`,
+							);
+						}
+						newDataToUpdate[key] = foundRecordToUpdate.new[key];
+					}
+					record = {
+						dataRecord: newDataToUpdate,
+						reference: {
+							type: MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA,
+							systemId: entityData.systemId,
+							submissionId: 1, // TODO
+							index: 0, // TODO
+						},
+					};
+				} else {
+					record = {
+						dataRecord: entityData.data,
+						reference: {
+							submittedDataId: entityData.id,
+							type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
+							systemId: entityData.systemId,
+						},
+					};
+				}
+				// Initialize the array if it doesn't exist and directly push the new record
+				if (!acc[entityData.entityName]) {
+					acc[entityData.entityName] = [];
+				}
+
+				acc[entityData.entityName].push(record);
+				return acc;
+			}, {});
+		},
+
+		/**
+		 * Transforms an array of `SubmittedData` into a `Record<string, DataRecordReference[]>`,
+		 * where each key is the `entityName` from the `SubmittedData`, and the value is an array of
+		 * `DataRecordReference` objects associated with that `entityName`.
 		 * @param {SubmittedData[] | undefined} submittedData An array of `SubmittedData` objects to be transformed.
 		 * @returns {Record<string, DataRecordReference[]>}
 		 */
-		transformSubmittedDataSchemaByEntityName: (
+		transformEditSubmittedDataSchemaByEntityName: (
 			submittedData: SubmittedData[] | undefined,
 		): Record<string, DataRecordReference[]> => {
 			if (!submittedData) return {};
@@ -200,6 +260,7 @@ const utils = (dependencies: BaseDependencies) => {
 					reference: {
 						submittedDataId: entityData.id,
 						type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
+						systemId: entityData.systemId,
 					},
 				};
 
@@ -229,7 +290,7 @@ const utils = (dependencies: BaseDependencies) => {
 			}, {});
 		},
 
-		updateSubmittedDataArray: (submittedData: SubmittedData[], editData: SubmissionUpdateData[]) => {
+		updateSubmittedDataArray: (submittedData: SubmittedData[], editData: SubmissionUpdateData[]): SubmittedData[] => {
 			return submittedData.map((existingSubmittedData) => {
 				const found = editData.find((e) => e.systemId == existingSubmittedData.systemId);
 				if (found) {

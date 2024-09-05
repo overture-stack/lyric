@@ -122,10 +122,25 @@ components:
               type: string
         errors:
           type: object
-          additionalProperties:
-            type: array
-            items:
-              $ref: '#/components/schemas/ValidationError'
+          properties:
+            inserts:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationError'
+            updates:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationError'
+            deletes:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationError'
         organization:
           type: string
           description: Organization the Submission belongs to
@@ -203,10 +218,25 @@ components:
               type: string
         errors:
           type: object
-          additionalProperties:
-            type: array
-            items:
-              $ref: '#/components/schemas/ValidationError'
+          properties:
+            inserts:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationError'
+            updates:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationError'
+            deletes:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationError'
         organization:
           type: string
           description: Organization the Submission belongs to

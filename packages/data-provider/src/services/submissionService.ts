@@ -1,7 +1,6 @@
 import * as _ from 'lodash-es';
 
 import {
-	NewSubmittedData,
 	Submission,
 	SubmissionData,
 	type SubmissionInsertData,
@@ -30,6 +29,7 @@ import {
 	CREATE_SUBMISSION_STATUS,
 	CreateSubmissionResult,
 	DataRecordReference,
+	MERGE_REFERENCE_TYPE,
 	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
@@ -83,33 +83,49 @@ const service = (dependencies: BaseDependencies) => {
 
 		submittedDataToValidate?.forEach((data) => entitiesToProcess.add(data.entityName));
 
-		const insertsToValidate =
-			submission.data?.inserts &&
-			Object.entries(submission.data.inserts).reduce<NewSubmittedData[]>((acc, [entityName, submissionData]) => {
-				entitiesToProcess.add(entityName);
-				acc.push(
-					...submissionData.records.map((record) => {
-						const newSubmittedData: NewSubmittedData = {
-							data: record,
-							dictionaryCategoryId: categoryId,
-							entityName,
-							isValid: false, // By default New Submitted Data is created as invalid until validation process proves otherwise
-							organization: submission.organization,
-							originalSchemaId: submission.dictionaryId,
-							lastValidSchemaId: submission.dictionaryId,
-							systemId: generateIdentifier(entityName, record),
-							createdBy: userName,
-						};
-						return newSubmittedData;
-					}),
-				);
-				return acc;
-			}, []);
+		const insertsToValidate = submission.data?.inserts
+			? Object.entries(submission.data.inserts).flatMap(([entityName, submissionData]) => {
+					entitiesToProcess.add(entityName);
 
-		const deleteDataArray =
-			submission.data?.deletes &&
-			Object.values(submission.data.deletes).flatMap((submissionDeleteData) =>
-				submissionDeleteData.map((item) => ({ systemId: item.systemId, data: item.data })),
+					return submissionData.records.map((record) => ({
+						data: record,
+						dictionaryCategoryId: categoryId,
+						entityName,
+						isValid: false, // By default, New Submitted Data is created as invalid until validation proves otherwise
+						organization: submission.organization,
+						originalSchemaId: submission.dictionaryId,
+						lastValidSchemaId: submission.dictionaryId,
+						systemId: generateIdentifier(entityName, record),
+						createdBy: userName,
+					}));
+				})
+			: [];
+
+		// TODO: Detect Conflict on SystemId's. Cases to consider:
+		// same user edits or deletes same record
+		// two users have edits to different fields in the same entity
+		// two users have edits to the SAME field in the same entity
+		// two users are submitting entities with the same unique key values
+		// multiple users delete the same entity
+
+		const deleteDataArray = submission.data?.deletes
+			? Object.entries(submission.data.deletes).flatMap(([entityName, submissionDeleteData]) => {
+					entitiesToProcess.add(entityName);
+					return submissionDeleteData;
+				})
+			: [];
+
+		const updateDataArray =
+			submission.data?.updates &&
+			Object.entries(submission.data.updates).reduce<Record<string, SubmissionUpdateData>>(
+				(acc, [entityName, submissionUpdateData]) => {
+					entitiesToProcess.add(entityName);
+					submissionUpdateData.forEach((record) => {
+						acc[record.systemId] = record;
+					});
+					return acc;
+				},
+				{},
 			);
 
 		// To Commit Active Submission we need to validate SubmittedData + Active Submission
@@ -118,6 +134,7 @@ const service = (dependencies: BaseDependencies) => {
 				inserts: insertsToValidate,
 				submittedData: submittedDataToValidate,
 				deletes: deleteDataArray,
+				updates: updateDataArray,
 			},
 			submission,
 			dictionary: currentDictionary,
@@ -312,13 +329,13 @@ const service = (dependencies: BaseDependencies) => {
 	const groupSchemaErrorsByEntity = (input: {
 		resultValidation: Record<string, BatchProcessingResult>;
 		dataValidated: Record<string, DataRecordReference[]>;
-	}): Record<string, SchemaValidationError[]> => {
+	}): Record<string, Record<string, SchemaValidationError[]>> => {
 		const { resultValidation, dataValidated } = input;
 
 		const { groupErrorsByIndex } = submittedDataUtils(dependencies);
 		const { determineIfIsSubmission } = submissionUtils(dependencies);
 
-		const submissionSchemaErrors: Record<string, SchemaValidationError[]> = {};
+		const submissionSchemaErrors: Record<string, Record<string, SchemaValidationError[]>> = {};
 		Object.entries(resultValidation).forEach(([entityName, { validationErrors }]) => {
 			const hasErrorByIndex = groupErrorsByIndex(validationErrors, entityName);
 
@@ -327,7 +344,12 @@ const service = (dependencies: BaseDependencies) => {
 					const mapping = dataValidated[entityName][Number(indexBasedOnCrossSchemas)];
 					if (determineIfIsSubmission(mapping.reference)) {
 						const submissionIndex = mapping.reference.index;
-						logger.debug(LOG_MODULE, `Error on submission entity: ${entityName} index: ${submissionIndex}`);
+						const actionType =
+							mapping.reference.type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA ? 'inserts' : 'updates';
+						logger.error(
+							LOG_MODULE,
+							`Error found on '${actionType}' entity '${entityName}' index '${submissionIndex}'`,
+						);
 
 						const mutableSchemaValidationErrors: SchemaValidationError[] = schemaValidationErrors.map((errors) => {
 							return {
@@ -336,9 +358,15 @@ const service = (dependencies: BaseDependencies) => {
 							};
 						});
 
-						submissionSchemaErrors[entityName] = (submissionSchemaErrors[entityName] || []).concat(
-							mutableSchemaValidationErrors,
-						);
+						if (!submissionSchemaErrors[actionType]) {
+							submissionSchemaErrors[actionType] = {};
+						}
+
+						if (!submissionSchemaErrors[actionType][entityName]) {
+							submissionSchemaErrors[actionType][entityName] = [];
+						}
+
+						submissionSchemaErrors[actionType][entityName].push(...mutableSchemaValidationErrors);
 					}
 				});
 			}
@@ -353,28 +381,49 @@ const service = (dependencies: BaseDependencies) => {
 	 * @param {SubmittedData[]} submittedData An array of Submitted Data
 	 * @param {Object} activeSubmission
 	 * @param {Record<string, SubmissionInsertData>} activeSubmission.insertData Collection of Data records of the Active Submission
+	 * @param {Record<string, SubmissionUpdateData[]>} activeSubmission.updateData Collection of Data records of the Active Submission
+	 * @param {Record<string, SubmissionDeleteData[]>} activeSubmission.deleteData Collection of Data records of the Active Submission
 	 * @param {number} activeSubmission.id ID of the Active Submission
 	 * @returns {Record<string, DataRecordReference[]>}
 	 */
-	const mergeActiveSubmissionAndSubmittedData = (
-		submittedData: SubmittedData[],
-		activeSubmission: { insertData?: Record<string, SubmissionInsertData>; id: number },
-	): Record<string, DataRecordReference[]> => {
-		const { mapSubmissionSchemaDataByEntityName } = submissionUtils(dependencies);
-		const { transformSubmittedDataSchemaByEntityName } = submittedDataUtils(dependencies);
+	const mergeAndReferenceEntityData = ({
+		originalSubmission,
+		submissionData,
+		submittedData,
+	}: {
+		originalSubmission: Submission;
+		submissionData: SubmissionData;
+		submittedData: SubmittedData[];
+	}): Record<string, DataRecordReference[]> => {
+		const { mapInsertDataToRecordReferences } = submissionUtils(dependencies);
+		const { mapAndMergeSubmittedDataToRecordReferences } = submittedDataUtils(dependencies);
+
+		const systemsIdsToRemove = submissionData.deletes
+			? Object.values(submissionData.deletes).flatMap((entityData) => entityData.map(({ systemId }) => systemId))
+			: [];
+
+		// Exclude items that are marked for deletion
+		const submittedDataFiltered =
+			systemsIdsToRemove.length > 0
+				? submittedData.filter(({ systemId }) => !systemsIdsToRemove.includes(systemId))
+				: submittedData;
+
+		const submittedDataWithRef = mapAndMergeSubmittedDataToRecordReferences(
+			submittedDataFiltered,
+			submissionData.updates,
+		);
+
+		const insertDataWithRef = submissionData.inserts
+			? mapInsertDataToRecordReferences(originalSubmission.id, submissionData.inserts)
+			: {};
 
 		// This object will merge existing data + new data for validation (Submitted data + active Submission)
-		return _.mergeWith(
-			transformSubmittedDataSchemaByEntityName(submittedData),
-			activeSubmission.insertData &&
-				mapSubmissionSchemaDataByEntityName(activeSubmission.id, activeSubmission.insertData),
-			(objValue, srcValue) => {
-				if (Array.isArray(objValue)) {
-					// If both values are arrays, concatenate them
-					return objValue.concat(srcValue);
-				}
-			},
-		);
+		return _.mergeWith(submittedDataWithRef, insertDataWithRef, (objValue, srcValue) => {
+			if (Array.isArray(objValue)) {
+				// If both values are arrays, concatenate them
+				return objValue.concat(srcValue);
+			}
+		});
 	};
 
 	/**
@@ -384,24 +433,44 @@ const service = (dependencies: BaseDependencies) => {
 	 * - `inserts`: An array of new records to be commited. Optional
 	 * - `submittedData`: An array of existing Submitted Data. Optional
 	 * - `deletes`: An array of `systemId`s representing items that should be deleted. Optional
+	 * - `updates`: An array of records to be updated. Optional
 	 * @param params.dictionary A `Dictionary` object for Data Validation
 	 * @param params.submission A `Submission` object representing the Active Submission
+	 * @param params.userName User who performs the action
 	 * @returns void
 	 */
 	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<void> => {
 		const submissionRepo = submissionRepository(dependencies);
 		const dataSubmittedRepo = submittedRepository(dependencies);
-		const { groupSchemaDataByEntityName, validateSchemas, groupErrorsByIndex, hasErrorsByIndex, computeDataDiff } =
-			submittedDataUtils(dependencies);
+		const {
+			groupSchemaDataByEntityName,
+			validateSchemas,
+			groupErrorsByIndex,
+			hasErrorsByIndex,
+			computeDataDiff,
+			updateSubmittedDataArray,
+		} = submittedDataUtils(dependencies);
 
 		const { dictionary, dataToValidate, submission, userName } = params;
 
-		// Exclude items that are marked for deletion
+		// Merge Submitted Data with items to be inserted, updated or deleted consist on 3 steps
+		// Step 1: Exclude items that are marked for deletion
 		const systemIdsToDelete = new Set<string>(dataToValidate?.deletes?.map((item) => item.systemId) || []);
-		const submittedDataToValidate = dataToValidate.submittedData?.filter(
-			(item) => !systemIdsToDelete.has(item.systemId),
-		);
+		logger.info(LOG_MODULE, `Found '${systemIdsToDelete.size}' Records to delete on Submission '${submission.id}'`);
+		const submittedData = dataToValidate.submittedData?.filter((item) => !systemIdsToDelete.has(item.systemId));
 
+		// Step 2: Modify items marked for update
+		const systemIdsToUpdate = new Set<string>(dataToValidate.updates ? Object.keys(dataToValidate.updates) : []);
+		logger.info(LOG_MODULE, `Found '${systemIdsToUpdate.size}' Records to update on Submission '${submission.id}'`);
+		const submittedDataToValidate = dataToValidate.updates
+			? updateSubmittedDataArray(submittedData, Object.values(dataToValidate.updates))
+			: submittedData;
+
+		// Step 3: Add items marked for insertion
+		logger.info(
+			LOG_MODULE,
+			`Found '${dataToValidate.inserts.length}' Records to insert on Submission '${submission.id}'`,
+		);
 		const schemasDataToValidate = groupSchemaDataByEntityName({
 			inserts: dataToValidate.inserts,
 			submittedData: submittedDataToValidate,
@@ -413,30 +482,40 @@ const service = (dependencies: BaseDependencies) => {
 			const hasErrorByIndex = groupErrorsByIndex(validationErrors, entityName);
 
 			schemasDataToValidate.submittedDataByEntityName[entityName].map((data, index) => {
-				data.isValid = !hasErrorsByIndex(hasErrorByIndex, index);
+				const oldIsValid = data.isValid;
+				const newIsValid = !hasErrorsByIndex(hasErrorByIndex, index);
 				if (data.id) {
-					if (data.isValid) {
-						logger.debug(LOG_MODULE, `Updating submittedData system ID '${data.systemId}' in entity '${entityName}'`);
-						dataSubmittedRepo.update(data.id, {
-							isValid: data.isValid,
-							lastValidSchemaId: data.lastValidSchemaId,
-							updatedBy: userName,
-						});
-					} else {
-						logger.error(
+					const inputUpdate: Partial<SubmittedData> = {};
+					if (systemIdsToUpdate.has(data.systemId)) {
+						logger.info(LOG_MODULE, `Updating submittedData system ID '${data.systemId}' in entity '${entityName}'`);
+						inputUpdate.data = data.data;
+					}
+
+					if (oldIsValid !== newIsValid) {
+						inputUpdate.isValid = newIsValid;
+						if (newIsValid) {
+							logger.info(
+								LOG_MODULE,
+								`Updating submittedData system ID '${data.systemId}' as Valid in entity '${entityName}'`,
+							);
+							inputUpdate.lastValidSchemaId = dictionary.id;
+						}
+						logger.info(
 							LOG_MODULE,
-							`Updating submittedData system ID '${data.systemId}' as Invalid in entity '${entityName}'`,
+							`Updating submittedData system ID '${data.systemId}' as invalid in entity '${entityName}'`,
 						);
-						dataSubmittedRepo.update(data.id, {
-							isValid: data.isValid,
-							updatedBy: userName,
-						});
+					}
+
+					if (Object.values(inputUpdate)) {
+						inputUpdate.updatedBy = userName;
+						dataSubmittedRepo.update(data.id, inputUpdate);
 					}
 				} else {
 					logger.info(
 						LOG_MODULE,
 						`Creating new submittedData in entity '${entityName}' with system ID '${data.systemId}'`,
 					);
+					data.isValid = newIsValid;
 					dataSubmittedRepo.save(data);
 				}
 			});
@@ -478,7 +557,7 @@ const service = (dependencies: BaseDependencies) => {
 
 		const { extractSchemaDataFromMergedDataRecords, updateActiveSubmission } = submissionUtils(dependencies);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { validateSchemas, updateSubmittedDataArray } = submittedDataUtils(dependencies);
+		const { validateSchemas } = submittedDataUtils(dependencies);
 		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
 
 		// Get Submitted Data from database
@@ -487,23 +566,11 @@ const service = (dependencies: BaseDependencies) => {
 			originalSubmission.organization,
 		);
 
-		const systemsIdsToRemove = submissionData.deletes
-			? Object.values(submissionData.deletes).flatMap((entityData) => entityData.map(({ systemId }) => systemId))
-			: [];
-
-		// Remove Submitted Data array
-		const filteredSubmittedData = submittedData.filter(({ systemId }) => !systemsIdsToRemove.includes(systemId));
-
-		// Edit Submitted Data array
-		const submissionDataToUpdate = submissionData.updates
-			? Object.values(submissionData.updates).flatMap((entityData) => entityData)
-			: [];
-		const editedSubmittedData = updateSubmittedDataArray(filteredSubmittedData, submissionDataToUpdate);
-
 		// Merge Submitted Data with Active Submission keepping reference of each record ID
-		const dataMergedByEntityName = mergeActiveSubmissionAndSubmittedData(editedSubmittedData, {
-			insertData: submissionData.inserts,
-			id: originalSubmission.id,
+		const dataMergedByEntityName = mergeAndReferenceEntityData({
+			originalSubmission,
+			submissionData,
+			submittedData,
 		});
 
 		const currentDictionary = await getActiveDictionaryByCategory(originalSubmission.dictionaryCategoryId);
@@ -655,8 +722,12 @@ const service = (dependencies: BaseDependencies) => {
 	}): Promise<void> => {
 		const { submissionUpdateDataFromFiles } = submissionUtils(dependencies);
 
-		// // Parse file data
+		// Parse file data
 		const filesDataProcessed = await submissionUpdateDataFromFiles(files);
+		logger.info(
+			LOG_MODULE,
+			`Read '${Object.values(filesDataProcessed).length}' records in total on files '${Object.keys(files)}'`,
+		);
 
 		// Merge Active Submission data with incoming TSV file data processed
 		const updatedActiveSubmissionData: Record<string, SubmissionUpdateData[]> = {

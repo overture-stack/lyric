@@ -33,11 +33,12 @@ import {
 	DataRecordReference,
 	type DataUpdatesActiveSubmissionSummary,
 	DictionaryActiveSubmission,
+	type EditSubmittedDataReference,
 	MERGE_REFERENCE_TYPE,
+	type NewSubmittedDataReference,
 	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
-	SubmissionReference,
 	SubmissionStatus,
 	SubmittedDataReference,
 } from './types.js';
@@ -153,13 +154,14 @@ const utils = (dependencies: BaseDependencies) => {
 
 		/**
 		 * Checks if object is a Submission or a SubmittedData
-		 * @param {SubmittedDataReference | SubmissionReference} toBeDetermined
+		 * @param {SubmittedDataReference | NewSubmittedDataReference | EditSubmittedDataReference} toBeDetermined
 		 * @returns {boolean}
 		 */
 		determineIfIsSubmission: (
-			toBeDetermined: SubmittedDataReference | SubmissionReference,
-		): toBeDetermined is SubmissionReference => {
-			return (toBeDetermined as SubmissionReference).type === MERGE_REFERENCE_TYPE.SUBMISSION;
+			toBeDetermined: SubmittedDataReference | NewSubmittedDataReference | EditSubmittedDataReference,
+		): toBeDetermined is NewSubmittedDataReference | EditSubmittedDataReference => {
+			const type = (toBeDetermined as NewSubmittedDataReference | EditSubmittedDataReference).type;
+			return type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA || type === MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA;
 		},
 
 		/**
@@ -222,7 +224,7 @@ const utils = (dependencies: BaseDependencies) => {
 		 * @param {Record<string, SubmissionInsertData>} activeSubmissionInsertDataEntities
 		 * @returns {Record<string, DataRecordReference[]>}
 		 */
-		mapSubmissionSchemaDataByEntityName: (
+		mapInsertDataToRecordReferences: (
 			activeSubmissionId: number | undefined,
 			activeSubmissionInsertDataEntities: Record<string, SubmissionInsertData>,
 		): Record<string, DataRecordReference[]> => {
@@ -232,9 +234,9 @@ const utils = (dependencies: BaseDependencies) => {
 						dataRecord: record,
 						reference: {
 							submissionId: activeSubmissionId,
-							type: MERGE_REFERENCE_TYPE.SUBMISSION,
+							type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
 							index: index,
-						} as SubmissionReference,
+						} as NewSubmittedDataReference,
 					};
 				}),
 			);
@@ -426,11 +428,6 @@ const utils = (dependencies: BaseDependencies) => {
 				Object.entries(files).map(async ([entityName, file]) => {
 					const parsedFileData = await tsvToJson(file.path);
 
-					// Initialize an array for each entityName
-					if (!results[entityName]) {
-						results[entityName] = [];
-					}
-
 					// Process records concurrently using Promise.all
 					const recordPromises = parsedFileData.map(async (record) => {
 						const systemId = record['systemId']?.toString();
@@ -440,11 +437,18 @@ const utils = (dependencies: BaseDependencies) => {
 						const foundSubmittedData = await getSubmittedDataBySystemId(systemId);
 						if (foundSubmittedData?.data) {
 							const diffData = computeDataDiff(foundSubmittedData.data, changeData);
-							results[entityName].push({
-								systemId: systemId,
-								old: diffData.old,
-								new: diffData.new,
-							});
+							if (!_.isEmpty(diffData.old) && !_.isEmpty(diffData.new)) {
+								// Initialize an array for each entityName
+								if (!results[entityName]) {
+									results[entityName] = [];
+								}
+
+								results[entityName].push({
+									systemId: systemId,
+									old: diffData.old,
+									new: diffData.new,
+								});
+							}
 						}
 					});
 
@@ -462,7 +466,7 @@ const utils = (dependencies: BaseDependencies) => {
 		 * @param {number} input.dictionaryId The Dictionary ID of the Submission
 		 * @param {SubmissionData} input.submissionData Data to be submitted grouped on inserts, updates and deletes
 		 * @param {number} input.idActiveSubmission ID of the Active Submission
-		 * @param {Record<string, SchemaValidationError[]>} input.schemaErrors Array of schemaErrors
+		 * @param {Record<string, Record<string, SchemaValidationError[]>>} input.schemaErrors Array of schemaErrors
 		 * @param {string} input.userName User updating the active submission
 		 * @returns {Promise<Submission>} An Active Submission updated
 		 */
@@ -470,7 +474,7 @@ const utils = (dependencies: BaseDependencies) => {
 			dictionaryId: number;
 			submissionData: SubmissionData;
 			idActiveSubmission: number;
-			schemaErrors: Record<string, SchemaValidationError[]>;
+			schemaErrors: Record<string, Record<string, SchemaValidationError[]>>;
 			userName: string;
 		}): Promise<Submission> => {
 			const { dictionaryId, submissionData, idActiveSubmission, schemaErrors, userName } = input;

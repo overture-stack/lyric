@@ -43,7 +43,7 @@ export const submissions = pgTable('submissions', {
 	dictionaryId: integer('dictionary_id')
 		.references(() => dictionaries.id)
 		.notNull(),
-	errors: jsonb('errors').$type<Record<string, SchemaValidationError[]>>(),
+	errors: jsonb('errors').$type<Record<string, Record<string, SchemaValidationError[]>>>(),
 	organization: varchar('organization').notNull(),
 	status: submissionStatusEnum('status').notNull(),
 	createdAt: timestamp('created_at').defaultNow(),

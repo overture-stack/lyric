@@ -1,11 +1,10 @@
-import { NextFunction, Request, Response } from 'express';
 import * as _ from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
 import submittedDataService from '../services/submittedDataService.js';
 import { parseSQON } from '../utils/convertSqonToQuery.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
-import { hasTsvExtension } from '../utils/fileUtils.js';
+import { processFiles } from '../utils/fileUtils.js';
 import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
@@ -15,7 +14,7 @@ import {
 	dataGetByOrganizationRequestSchema,
 	dataGetByQueryRequestschema,
 } from '../utils/schemas.js';
-import { BATCH_ERROR_TYPE, type BatchError, SubmittedDataPaginatedResponse } from '../utils/types.js';
+import { SubmittedDataPaginatedResponse } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
 	const service = submittedDataService(dependencies);
@@ -63,26 +62,7 @@ const controller = (dependencies: BaseDependencies) => {
 					);
 				}
 
-				// sort files into validFiles and fileErrors based on correct file extension
-				const { validFiles, fileErrors } = files.reduce<{
-					validFiles: Express.Multer.File[];
-					fileErrors: BatchError[];
-				}>(
-					(acc, file) => {
-						if (hasTsvExtension(file)) {
-							acc.validFiles.push(file);
-						} else {
-							const batchError: BatchError = {
-								type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
-								message: `File '${file.originalname}' has invalid file extension. File extension must be '.tsv'.`,
-								batchName: file.originalname,
-							};
-							acc.fileErrors.push(batchError);
-						}
-						return acc;
-					},
-					{ validFiles: [], fileErrors: [] },
-				);
+				const { validFiles, fileErrors } = await processFiles(files);
 
 				if (fileErrors.length == 0) {
 					logger.info(LOG_MODULE, `File uploaded successfully`);
