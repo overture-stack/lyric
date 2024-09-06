@@ -1,6 +1,6 @@
 import * as _ from 'lodash-es';
 
-import { type Submission, type SubmissionDeleteData, SubmittedData } from '@overture-stack/lyric-data-model';
+import { type SubmissionDeleteData, SubmittedData } from '@overture-stack/lyric-data-model';
 import { SQON } from '@overture-stack/sqon-builder';
 import type { SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
@@ -12,8 +12,12 @@ import submissionService from '../services/submissionService.js';
 import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations, SchemaChildNode } from '../utils/dictionarySchemaRelations.js';
 import { BadRequest } from '../utils/errors.js';
-import submissionUtils from '../utils/submissionUtils.js';
-import submittedUtils from '../utils/submittedDataUtils.js';
+import { checkEntityFieldNames, checkFileNames, mergeRecords } from '../utils/submissionUtils.js';
+import {
+	fetchDataErrorResponse,
+	mapRecordsSubmittedDataResponse,
+	transformmSubmittedDataToSubmissionDeleteData,
+} from '../utils/submittedDataUtils.js';
 import { type BatchError, CREATE_SUBMISSION_STATUS, PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
 
 const PAGINATION_ERROR_MESSAGES = {
@@ -98,9 +102,8 @@ const service = (dependencies: BaseDependencies) => {
 			submissionId?: number;
 			status: string;
 		}> => {
-			const { checkFileNames, checkEntityFieldNames, getOrCreateActiveSubmission } = submissionUtils(dependencies);
 			const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-			const { processEditFilesAsync } = submissionService(dependencies);
+			const { processEditFilesAsync, getOrCreateActiveSubmission } = submissionService(dependencies);
 			if (files.length === 0) {
 				return {
 					status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
@@ -181,7 +184,6 @@ const service = (dependencies: BaseDependencies) => {
 			const { getSubmittedDataByCategoryIdPaginated, getTotalRecordsByCategoryId } = submittedDataRepo;
 
 			const { categoryIdExists } = categoryRepository(dependencies);
-			const { fetchDataErrorResponse } = submittedUtils(dependencies);
 
 			const isValidCategory = await categoryIdExists(categoryId);
 
@@ -218,7 +220,6 @@ const service = (dependencies: BaseDependencies) => {
 			const { getSubmittedDataByCategoryIdAndOrganizationPaginated, getTotalRecordsByCategoryIdAndOrganization } =
 				submittedDataRepo;
 			const { categoryIdExists } = categoryRepository(dependencies);
-			const { fetchDataErrorResponse } = submittedUtils(dependencies);
 
 			const isValidCategory = await categoryIdExists(categoryId);
 
@@ -263,10 +264,7 @@ const service = (dependencies: BaseDependencies) => {
 		): Promise<{ submissionId: string; data: SubmissionDeleteData[] }> => {
 			const { getSubmittedDataBySystemId } = submittedDataRepo;
 			const { getDictionaryById } = dictionaryRepo;
-			const { getOrCreateActiveSubmission, mergeRecords } = submissionUtils(dependencies);
-			const { mapRecordsSubmittedDataResponse, transformmSubmittedDataToSubmissionDeleteData } =
-				submittedUtils(dependencies);
-			const { performDataValidation } = submissionService(dependencies);
+			const { performDataValidation, getOrCreateActiveSubmission } = submissionService(dependencies);
 
 			// get SubmittedData by SystemId
 			const foundRecordToDelete = await getSubmittedDataBySystemId(systemId);

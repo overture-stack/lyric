@@ -11,9 +11,9 @@ import categoryService from '../services/categoryService.js';
 import dictionaryService from '../services/dictionaryService.js';
 import submissionService from '../services/submissionService.js';
 import submittedDataService from '../services/submittedDataService.js';
-import dictionaryUtils from '../utils/dictionaryUtils.js';
-import submissionUtils from '../utils/submissionUtils.js';
-import submittedDataUtils from '../utils/submittedDataUtils.js';
+import * as dictionaryUtils from '../utils/dictionaryUtils.js';
+import * as submissionUtils from '../utils/submissionUtils.js';
+import * as submittedDataUtils from '../utils/submittedDataUtils.js';
 
 /**
  * The main provider of submission resources
@@ -49,9 +49,9 @@ const provider = (configData: AppConfig) => {
 			submittedData: submittedDataService(baseDeps),
 		},
 		utils: {
-			dictionary: dictionaryUtils(baseDeps),
-			submission: submissionUtils(baseDeps),
-			submittedData: submittedDataUtils(baseDeps),
+			dictionary: dictionaryUtils,
+			submission: submissionUtils,
+			submittedData: submittedDataUtils,
 		},
 	};
 };

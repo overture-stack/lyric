@@ -26,6 +26,9 @@ export type SubmissionUpdateData = {
 export type SubmissionDeleteData = {
 	systemId: string;
 	data: DataRecord;
+	entityName: string;
+	isValid: boolean;
+	organization: string;
 };
 
 export type SubmissionData = {

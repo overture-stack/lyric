@@ -64,7 +64,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const actionType = SUBMISSION_ACTION_TYPE.parse(req.params.actionType.toUpperCase());
 
 				const entityName = req.query.entityName;
-				const index = req.query.index ? parseInt(req.query.index) : undefined;
+				const index = req.query.index ? parseInt(req.query.index) : null;
 
 				logger.info(
 					LOG_MODULE,

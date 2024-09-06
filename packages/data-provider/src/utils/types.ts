@@ -272,6 +272,11 @@ export type CategoryDetailsResponse = {
 	updatedBy: string;
 };
 
+export type DeleteSubmittedData = {
+	systemId: string;
+	data: DataRecord;
+};
+
 export type ListAllCategoriesResponse = {
 	id: number;
 	name: string;
