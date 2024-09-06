@@ -301,7 +301,7 @@ describe('Submitted Data Utils', () => {
 			const response = transformSubmittedDataSchemaByEntityName(undefined);
 			expect(Object.keys(response).length).to.eq(0);
 		});
-		it('should return an object groupd by entity name', () => {
+		it('should return an object grouped by entity name', () => {
 			const submittedDataList: SubmittedData[] = [
 				{
 					id: 1,

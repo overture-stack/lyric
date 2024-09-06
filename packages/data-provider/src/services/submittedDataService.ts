@@ -9,7 +9,7 @@ import submissionService from '../services/submissionService.js';
 import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations, SchemaChildNode } from '../utils/dictionarySchemaRelations.js';
 import { BadRequest } from '../utils/errors.js';
-import submissionUtils from '../utils/submissionUtils.js';
+import { mergeRecords } from '../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
 	mapRecordsSubmittedDataResponse,
@@ -173,8 +173,7 @@ const service = (dependencies: BaseDependencies) => {
 		): Promise<{ submissionId: string; data: SubmissionDeleteData[] }> => {
 			const { getSubmittedDataBySystemId } = submittedDataRepo;
 			const { getDictionaryById } = dictionaryRepo;
-			const { getOrCreateActiveSubmission, mergeRecords } = submissionUtils(dependencies);
-			const { performDataValidation } = submissionService(dependencies);
+			const { performDataValidation, getOrCreateActiveSubmission } = submissionService(dependencies);
 
 			// get SubmittedData by SystemId
 			const foundRecordToDelete = await getSubmittedDataBySystemId(systemId);
