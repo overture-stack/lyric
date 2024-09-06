@@ -60,7 +60,7 @@ export const computeDataDiff = (oldRecord: DataRecord | null, newRecord: DataRec
 
 			if (oldValue !== newValue) {
 				diff.old[key] = oldValue;
-				diff.new[key] = newValue ?? '';
+				diff.new[key] = newValue;
 			}
 		}
 	}

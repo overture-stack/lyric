@@ -57,12 +57,12 @@ describe('Submitted Data Utils', () => {
 			expect(response.old).to.eql({});
 			expect(response.new).to.eql({ description: 'this is a description' });
 		});
-		it('should return fields removed from newRecord', () => {
+		it('should return undefined fields from newRecord', () => {
 			const object1 = { title: 'abc' };
 			const object2 = {};
 			const response = computeDataDiff(object1, object2);
 			expect(response.old).to.eql({ title: 'abc' });
-			expect(response.new).to.eql({ title: '' });
+			expect(response.new).to.eql({ title: undefined });
 		});
 		it('should return fields removed from newRecord when newRecord is null', () => {
 			const object1 = { title: 'abc' };
@@ -92,12 +92,12 @@ describe('Submitted Data Utils', () => {
 			expect(response.old).to.eql({});
 			expect(response.new).to.eql({ title: 'xyz', description: 'this is a description' });
 		});
-		it('should return fields with empty values when compared to null newRecord', () => {
+		it('should return fields with undefined values when compared to null newRecord', () => {
 			const object1 = { title: 'xyz', description: 'this is a description' };
 			const object2 = {};
 			const response = computeDataDiff(object1, object2);
 			expect(response.old).to.eql({ title: 'xyz', description: 'this is a description' });
-			expect(response.new).to.eql({ title: '', description: '' });
+			expect(response.new).to.eql({ title: undefined, description: undefined });
 		});
 		it('should return fields with empty values when compared to empty values newRecord', () => {
 			const object1 = { title: 'xyz', description: 'this is a description' };
