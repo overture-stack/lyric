@@ -42,16 +42,15 @@ export const convertToAuditEvent = (value: string): AuditAction | undefined => {
  */
 export const parseAuditRecords = (data: AuditRepositoryRecord[]): AuditDataResponse[] => {
 	return data.map((record) => ({
-		comment: _.toString(record.comment),
 		entityName: record.entityName,
 		event: record.action,
-		newData: record.newData,
+		dataDiff: record.dataDiff,
 		newIsValid: record.newDataIsValid,
-		oldData: record.oldData,
 		oldIsValid: record.oldDataIsValid,
 		organization: _.toString(record.organization),
+		submissionId: record.submissionId,
 		systemId: record.systemId,
-		updatedAt: _.toString(record.updatedAt?.toISOString()),
-		updatedBy: _.toString(record.updatedBy),
+		createdAt: _.toString(record.createdAt?.toISOString()),
+		createdBy: _.toString(record.createdBy),
 	}));
 };

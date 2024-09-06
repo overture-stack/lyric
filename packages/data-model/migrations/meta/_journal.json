@@ -50,6 +50,13 @@
       "when": 1720559338424,
       "tag": "0006_remove_category_id_from_dictionary",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1724186364799,
+      "tag": "0007_create_audit_diff_column",
+      "breakpoints": true
     }
   ]
 }

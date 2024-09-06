@@ -52,30 +52,28 @@ describe('Audit utils', () => {
 
 			const repositoryObject: AuditRepositoryRecord = {
 				action: 'DELETE',
-				comment: null,
 				entityName: 'sport',
-				newData: null,
+				dataDiff: null,
 				newDataIsValid: false,
-				oldData: null,
 				oldDataIsValid: false,
 				organization: 'fifa',
+				submissionId: 9,
 				systemId: 'xyz123',
-				updatedAt: date,
-				updatedBy: 'user1',
+				createdAt: date,
+				createdBy: 'user1',
 			};
 
 			const expectedObject: AuditDataResponse = {
-				comment: '',
 				entityName: 'sport',
 				event: 'DELETE',
-				newData: null,
+				dataDiff: null,
 				newIsValid: false,
-				oldData: null,
 				oldIsValid: false,
 				organization: 'fifa',
+				submissionId: 9,
 				systemId: 'xyz123',
-				updatedAt: date.toISOString(),
-				updatedBy: 'user1',
+				createdAt: date.toISOString(),
+				createdBy: 'user1',
 			};
 
 			const parsedResponse = parseAuditRecords([repositoryObject]);

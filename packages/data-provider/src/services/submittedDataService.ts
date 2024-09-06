@@ -9,8 +9,12 @@ import submissionService from '../services/submissionService.js';
 import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations, SchemaChildNode } from '../utils/dictionarySchemaRelations.js';
 import { BadRequest } from '../utils/errors.js';
-import submissionUtils from '../utils/submissionUtils.js';
-import submittedUtils from '../utils/submittedDataUtils.js';
+import { mergeRecords } from '../utils/submissionUtils.js';
+import {
+	fetchDataErrorResponse,
+	mapRecordsSubmittedDataResponse,
+	transformmSubmittedDataToSubmissionDeleteData,
+} from '../utils/submittedDataUtils.js';
 import { PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
 
 const PAGINATION_ERROR_MESSAGES = {
@@ -89,7 +93,6 @@ const service = (dependencies: BaseDependencies) => {
 			const { getSubmittedDataByCategoryIdPaginated, getTotalRecordsByCategoryId } = submittedDataRepo;
 
 			const { categoryIdExists } = categoryRepository(dependencies);
-			const { fetchDataErrorResponse } = submittedUtils(dependencies);
 
 			const isValidCategory = await categoryIdExists(categoryId);
 
@@ -126,7 +129,6 @@ const service = (dependencies: BaseDependencies) => {
 			const { getSubmittedDataByCategoryIdAndOrganizationPaginated, getTotalRecordsByCategoryIdAndOrganization } =
 				submittedDataRepo;
 			const { categoryIdExists } = categoryRepository(dependencies);
-			const { fetchDataErrorResponse } = submittedUtils(dependencies);
 
 			const isValidCategory = await categoryIdExists(categoryId);
 
@@ -171,10 +173,7 @@ const service = (dependencies: BaseDependencies) => {
 		): Promise<{ submissionId: string; data: SubmissionDeleteData[] }> => {
 			const { getSubmittedDataBySystemId } = submittedDataRepo;
 			const { getDictionaryById } = dictionaryRepo;
-			const { getOrCreateActiveSubmission, mergeRecords } = submissionUtils(dependencies);
-			const { mapRecordsSubmittedDataResponse, transformmSubmittedDataToSubmissionDeleteData } =
-				submittedUtils(dependencies);
-			const { performDataValidation } = submissionService(dependencies);
+			const { performDataValidation, getOrCreateActiveSubmission } = submissionService(dependencies);
 
 			// get SubmittedData by SystemId
 			const foundRecordToDelete = await getSubmittedDataBySystemId(systemId);

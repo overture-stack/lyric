@@ -13,17 +13,16 @@ const repository = (dependencies: BaseDependencies) => {
 	const { db, logger } = dependencies;
 
 	const paginatedColumns: BooleanTrueObject = {
-		comment: true,
 		entityName: true,
 		action: true,
-		newData: true,
+		dataDiff: true,
 		newDataIsValid: true,
-		oldData: true,
 		oldDataIsValid: true,
 		organization: true,
+		submissionId: true,
 		systemId: true,
-		updatedAt: true,
-		updatedBy: true,
+		createdAt: true,
+		createdBy: true,
 	};
 
 	const getOptionalFilter = ({
@@ -56,11 +55,11 @@ const repository = (dependencies: BaseDependencies) => {
 		}
 
 		if (endDate && isValidDateFormat(endDate)) {
-			filterArray.push(lt(auditSubmittedData.updatedAt, new Date(endDate)));
+			filterArray.push(lt(auditSubmittedData.createdAt, new Date(endDate)));
 		}
 
 		if (startDate && isValidDateFormat(startDate)) {
-			filterArray.push(gt(auditSubmittedData.updatedAt, new Date(startDate)));
+			filterArray.push(gt(auditSubmittedData.createdAt, new Date(startDate)));
 		}
 
 		return filterArray;
@@ -102,7 +101,7 @@ const repository = (dependencies: BaseDependencies) => {
 						...optionalFilter,
 					),
 					columns: paginatedColumns,
-					orderBy: (auditSubmittedData, { asc }) => [asc(auditSubmittedData.updatedAt)],
+					orderBy: (auditSubmittedData, { asc }) => [asc(auditSubmittedData.createdAt)],
 					limit: pageSize,
 					offset: (page - 1) * pageSize,
 				});
