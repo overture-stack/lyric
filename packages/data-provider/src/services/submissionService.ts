@@ -527,6 +527,14 @@ const service = (dependencies: BaseDependencies) => {
 
 		if (_.isEmpty(submissionSchemaErrors)) {
 			logger.info(LOG_MODULE, `No error found on data submission`);
+		} else {
+			const errorMessage = Object.entries(submissionSchemaErrors).flatMap(([submissionType, entitiesError]) =>
+				Object.entries(entitiesError).map(
+					([entityName, errors]) =>
+						` '${errors.length}' error found in the '${entityName}' entity under '${submissionType}'`,
+				),
+			);
+			logger.info(LOG_MODULE, `Errors detected in data submission:${errorMessage}`);
 		}
 
 		// Update Active Submission

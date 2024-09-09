@@ -172,9 +172,10 @@ export const mapAndMergeSubmittedDataToRecordReferences = ({
 }): Record<string, DataRecordReference[]> => {
 	if (!submittedData) return {};
 	return submittedData.reduce<Record<string, DataRecordReference[]>>((acc, entityData) => {
-		const foundRecordToUpdateIndex = editSubmittedData
-			? editSubmittedData[entityData.entityName].findIndex((item) => item.systemId === entityData.systemId)
-			: -1;
+		const foundRecordToUpdateIndex =
+			editSubmittedData && editSubmittedData[entityData.entityName]
+				? editSubmittedData[entityData.entityName].findIndex((item) => item.systemId === entityData.systemId)
+				: -1;
 		let record: DataRecordReference;
 		if (editSubmittedData && foundRecordToUpdateIndex >= 0) {
 			const recordToUpdate = editSubmittedData[entityData.entityName][foundRecordToUpdateIndex];

@@ -99,7 +99,7 @@ const repository = (dependencies: BaseDependencies) => {
 		save: async (data: NewSubmittedData): Promise<SubmittedData> => {
 			try {
 				const savedSubmittedData = await db.insert(submittedData).values(data).returning();
-				logger.info(
+				logger.debug(
 					LOG_MODULE,
 					`Submitting Data with entity name '${data.entityName}' on category '${data.dictionaryCategoryId}' saved successfully`,
 				);
