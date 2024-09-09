@@ -1,13 +1,19 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import type { SubmissionData, SubmissionInsertData } from '@overture-stack/lyric-data-model';
+import type { Submission, SubmissionData, SubmissionInsertData, SubmittedData } from '@overture-stack/lyric-data-model';
+import {
+	BatchProcessingResult,
+	SchemaValidationErrorTypes,
+} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 import {
 	canTransitionToClosed,
 	determineIfIsSubmission,
 	extractSchemaDataFromMergedDataRecords,
+	groupSchemaErrorsByEntity,
 	mapInsertDataToRecordReferences,
+	mergeAndReferenceEntityData,
 	mergeRecords,
 	parseActiveSubmissionResponse,
 	parseActiveSubmissionSummaryResponse,
@@ -116,6 +122,201 @@ describe('Submission Utils', () => {
 			const response = extractSchemaDataFromMergedDataRecords({});
 			expect(Object.keys(response).length).to.eq(0);
 			expect(Object.keys(response)).to.eql([]);
+		});
+	});
+	describe('Group validation errors by entity', () => {
+		it('retuns empty object when no there is no data being processed', () => {
+			const resultValidation: Record<string, BatchProcessingResult> = {
+				sports: { validationErrors: [], processedRecords: [] },
+			};
+			const dataValidated: Record<string, DataRecordReference[]> = {};
+
+			const response = groupSchemaErrorsByEntity({ resultValidation, dataValidated });
+			expect(response).to.eql({});
+		});
+		it('retuns empty object when no there no errors on Submission', () => {
+			const resultValidation: Record<string, BatchProcessingResult> = {
+				sports: {
+					validationErrors: [
+						{
+							info: {},
+							index: 0,
+							message: 'UNRECOGNIZED_FIELD',
+							errorType: SchemaValidationErrorTypes.UNRECOGNIZED_FIELD,
+							fieldName: 'systemId',
+						},
+						{
+							info: {
+								value: ['Homme'],
+							},
+							index: 1,
+							message: 'The value is not permissible for this field.',
+							errorType: SchemaValidationErrorTypes.INVALID_ENUM_VALUE,
+							fieldName: 'sex_at_birth',
+						},
+					],
+					processedRecords: [{ systemId: 'XYZ123' }, { sex_at_birth: 'Homme' }],
+				},
+			};
+			const dataValidated: Record<string, DataRecordReference[]> = {
+				sports: [
+					{
+						dataRecord: { title: 'ABC' },
+						reference: {
+							systemId: 'ABC890',
+							submittedDataId: 9,
+							type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
+						},
+					},
+					{
+						dataRecord: { title: 'XYZ' },
+						reference: {
+							systemId: 'XYZ890',
+							submittedDataId: 10,
+							type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
+						},
+					},
+				],
+			};
+
+			const response = groupSchemaErrorsByEntity({ resultValidation, dataValidated });
+			expect(response).to.eql({});
+		});
+		it('retuns errors found on the Submission new inserts', () => {
+			const resultValidation: Record<string, BatchProcessingResult> = {
+				sports: {
+					validationErrors: [
+						{
+							info: {},
+							index: 0,
+							message: 'UNRECOGNIZED_FIELD',
+							errorType: SchemaValidationErrorTypes.UNRECOGNIZED_FIELD,
+							fieldName: 'systemId',
+						},
+						{
+							info: {
+								value: ['Homme'],
+							},
+							index: 1,
+							message: 'The value is not permissible for this field.',
+							errorType: SchemaValidationErrorTypes.INVALID_ENUM_VALUE,
+							fieldName: 'sex_at_birth',
+						},
+					],
+					processedRecords: [{ systemId: 'XYZ123' }, { sex_at_birth: 'Homme' }],
+				},
+			};
+			const dataValidated: Record<string, DataRecordReference[]> = {
+				sports: [
+					{
+						dataRecord: { title: 'XYZ123' },
+						reference: {
+							index: 12,
+							submissionId: 23,
+							type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
+						},
+					},
+					{
+						dataRecord: { sex_at_birth: 'Homme' },
+						reference: {
+							index: 12,
+							submissionId: 23,
+							type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
+						},
+					},
+				],
+			};
+
+			const response = groupSchemaErrorsByEntity({ resultValidation, dataValidated });
+			expect(Object.keys(response)).to.eql(['inserts']);
+			expect(Object.keys(response['inserts'])).to.eql(['sports']);
+			expect(response['inserts']['sports'].length).to.eq(2);
+			expect(response['inserts']['sports']).to.eql([
+				{
+					info: {},
+					index: 12,
+					message: 'UNRECOGNIZED_FIELD',
+					errorType: SchemaValidationErrorTypes.UNRECOGNIZED_FIELD,
+					fieldName: 'systemId',
+				},
+				{
+					info: {
+						value: ['Homme'],
+					},
+					index: 12,
+					message: 'The value is not permissible for this field.',
+					errorType: SchemaValidationErrorTypes.INVALID_ENUM_VALUE,
+					fieldName: 'sex_at_birth',
+				},
+			]);
+		});
+		it('retuns errors found on the Submission updates', () => {
+			const resultValidation: Record<string, BatchProcessingResult> = {
+				sports: {
+					validationErrors: [
+						{
+							info: {},
+							index: 0,
+							message: 'UNRECOGNIZED_FIELD',
+							errorType: SchemaValidationErrorTypes.UNRECOGNIZED_FIELD,
+							fieldName: 'systemId',
+						},
+						{
+							info: {
+								value: ['Homme'],
+							},
+							index: 1,
+							message: 'The value is not permissible for this field.',
+							errorType: SchemaValidationErrorTypes.INVALID_ENUM_VALUE,
+							fieldName: 'sex_at_birth',
+						},
+					],
+					processedRecords: [{ systemId: 'XYZ123' }, { sex_at_birth: 'Homme' }],
+				},
+			};
+			const dataValidated: Record<string, DataRecordReference[]> = {
+				sports: [
+					{
+						dataRecord: { title: 'XYZ123' },
+						reference: {
+							index: 12,
+							submissionId: 23,
+							type: MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA,
+						},
+					},
+					{
+						dataRecord: { sex_at_birth: 'Homme' },
+						reference: {
+							index: 12,
+							submissionId: 23,
+							type: MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA,
+						},
+					},
+				],
+			};
+
+			const response = groupSchemaErrorsByEntity({ resultValidation, dataValidated });
+			expect(Object.keys(response)).to.eql(['updates']);
+			expect(Object.keys(response['updates'])).to.eql(['sports']);
+			expect(response['updates']['sports'].length).to.eq(2);
+			expect(response['updates']['sports']).to.eql([
+				{
+					info: {},
+					index: 12,
+					message: 'UNRECOGNIZED_FIELD',
+					errorType: SchemaValidationErrorTypes.UNRECOGNIZED_FIELD,
+					fieldName: 'systemId',
+				},
+				{
+					info: {
+						value: ['Homme'],
+					},
+					index: 12,
+					message: 'The value is not permissible for this field.',
+					errorType: SchemaValidationErrorTypes.INVALID_ENUM_VALUE,
+					fieldName: 'sex_at_birth',
+				},
+			]);
 		});
 	});
 	describe('Transforms inserts from the Submission object into an Record grouped by entityName', () => {
@@ -260,6 +461,277 @@ describe('Submission Utils', () => {
 			expect(Object.keys(response)).to.eql(['']);
 			expect(response[''].length).to.eq(0);
 			expect(response['']).to.eql([]);
+		});
+	});
+	describe('Combine Active Submission and the Submitted Data with reference', () => {
+		it('returns only SubmittedData data when Submission doesnt contain data', () => {
+			const originalSubmission: Submission = {
+				id: 2,
+				data: {},
+				dictionaryId: 14,
+				dictionaryCategoryId: 20,
+				errors: {},
+				organization: 'zoo',
+				status: SUBMISSION_STATUS.OPEN,
+				createdAt: todaysDate,
+				createdBy: 'me',
+				updatedAt: null,
+				updatedBy: null,
+			};
+			const submissionData: SubmissionData = {};
+			const submittedData: SubmittedData[] = [
+				{
+					id: 5,
+					data: { name: 'tiger', color: 'yellow' },
+					dictionaryCategoryId: 20,
+					entityName: 'animals',
+					isValid: true,
+					lastValidSchemaId: 20,
+					organization: 'zoo',
+					originalSchemaId: 20,
+					systemId: 'TGR1425',
+					createdAt: todaysDate,
+					createdBy: 'me',
+					updatedAt: null,
+					updatedBy: null,
+				},
+			];
+			const response = mergeAndReferenceEntityData({ originalSubmission, submissionData, submittedData });
+			expect(Object.keys(response).length).to.eq(1);
+			expect(Object.keys(response)).to.eql(['animals']);
+			expect(response['animals'].length).eq(1);
+			expect(response['animals']).eql([
+				{
+					dataRecord: { name: 'tiger', color: 'yellow' },
+					reference: {
+						systemId: 'TGR1425',
+						submittedDataId: 5,
+						type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
+					},
+				},
+			]);
+		});
+		it('returns combination of SubmittedData and Submission insert data', () => {
+			const originalSubmission: Submission = {
+				id: 2,
+				data: {},
+				dictionaryId: 14,
+				dictionaryCategoryId: 20,
+				errors: {},
+				organization: 'zoo',
+				status: SUBMISSION_STATUS.OPEN,
+				createdAt: todaysDate,
+				createdBy: 'me',
+				updatedAt: null,
+				updatedBy: null,
+			};
+			const submissionData: SubmissionData = {
+				inserts: {
+					animals: {
+						batchName: 'animals.tsv',
+						records: [
+							{ name: 'elephant', color: 'gray' },
+							{ name: 'beaver', color: 'brown' },
+						],
+					},
+				},
+			};
+			const submittedData: SubmittedData[] = [
+				{
+					id: 5,
+					data: { name: 'tiger', color: 'yellow' },
+					dictionaryCategoryId: 20,
+					entityName: 'animals',
+					isValid: true,
+					lastValidSchemaId: 20,
+					organization: 'zoo',
+					originalSchemaId: 20,
+					systemId: 'TGR1425',
+					createdAt: todaysDate,
+					createdBy: 'me',
+					updatedAt: null,
+					updatedBy: null,
+				},
+			];
+			const response = mergeAndReferenceEntityData({ originalSubmission, submissionData, submittedData });
+			expect(Object.keys(response).length).to.eq(1);
+			expect(Object.keys(response)).to.eql(['animals']);
+			expect(response['animals'].length).eq(3);
+			expect(response['animals']).eql([
+				{
+					dataRecord: { name: 'tiger', color: 'yellow' },
+					reference: {
+						systemId: 'TGR1425',
+						submittedDataId: 5,
+						type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
+					},
+				},
+				{
+					dataRecord: { name: 'elephant', color: 'gray' },
+					reference: {
+						index: 0,
+						submissionId: 2,
+						type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
+					},
+				},
+				{
+					dataRecord: { name: 'beaver', color: 'brown' },
+					reference: {
+						index: 1,
+						submissionId: 2,
+						type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
+					},
+				},
+			]);
+		});
+		it('returns combination of SubmittedData and Submission update data', () => {
+			const originalSubmission: Submission = {
+				id: 2,
+				data: {},
+				dictionaryId: 14,
+				dictionaryCategoryId: 20,
+				errors: {},
+				organization: 'zoo',
+				status: SUBMISSION_STATUS.OPEN,
+				createdAt: todaysDate,
+				createdBy: 'me',
+				updatedAt: null,
+				updatedBy: null,
+			};
+			const submissionData: SubmissionData = {
+				updates: {
+					animals: [
+						{ systemId: 'TGR1425', old: { color: 'yellow' }, new: { color: 'orange' } },
+						{ systemId: 'BR8912', old: { color: 'black' }, new: { color: 'brown' } },
+					],
+				},
+			};
+			const submittedData: SubmittedData[] = [
+				{
+					id: 5,
+					data: { name: 'tiger', color: 'yellow' },
+					dictionaryCategoryId: 20,
+					entityName: 'animals',
+					isValid: true,
+					lastValidSchemaId: 20,
+					organization: 'zoo',
+					originalSchemaId: 20,
+					systemId: 'TGR1425',
+					createdAt: todaysDate,
+					createdBy: 'me',
+					updatedAt: null,
+					updatedBy: null,
+				},
+				{
+					id: 6,
+					data: { name: 'bear', color: 'black' },
+					dictionaryCategoryId: 20,
+					entityName: 'animals',
+					isValid: true,
+					lastValidSchemaId: 20,
+					organization: 'zoo',
+					originalSchemaId: 20,
+					systemId: 'BR8912',
+					createdAt: todaysDate,
+					createdBy: 'me',
+					updatedAt: null,
+					updatedBy: null,
+				},
+			];
+			const response = mergeAndReferenceEntityData({ originalSubmission, submissionData, submittedData });
+			expect(Object.keys(response).length).to.eq(1);
+			expect(Object.keys(response)).to.eql(['animals']);
+			expect(response['animals'].length).eq(2);
+			expect(response['animals']).eql([
+				{
+					dataRecord: { name: 'tiger', color: 'orange' },
+					reference: {
+						systemId: 'TGR1425',
+						submissionId: 2,
+						index: 0,
+						type: MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA,
+					},
+				},
+				{
+					dataRecord: { name: 'bear', color: 'brown' },
+					reference: {
+						systemId: 'BR8912',
+						submissionId: 2,
+						index: 1,
+						type: MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA,
+					},
+				},
+			]);
+		});
+		it('returns combination of SubmittedData and Submission delete data', () => {
+			const originalSubmission: Submission = {
+				id: 2,
+				data: {},
+				dictionaryId: 14,
+				dictionaryCategoryId: 20,
+				errors: {},
+				organization: 'zoo',
+				status: SUBMISSION_STATUS.OPEN,
+				createdAt: todaysDate,
+				createdBy: 'me',
+				updatedAt: null,
+				updatedBy: null,
+			};
+			const submissionData: SubmissionData = {
+				deletes: {
+					animals: [
+						{
+							systemId: 'TGR1425',
+							data: { name: 'tiger', color: 'yellow' },
+							entityName: 'animals',
+							isValid: true,
+							organization: 'zoo',
+						},
+						{
+							systemId: 'BR8912',
+							data: { name: 'bear', color: 'black' },
+							entityName: 'animals',
+							isValid: true,
+							organization: 'zoo',
+						},
+					],
+				},
+			};
+			const submittedData: SubmittedData[] = [
+				{
+					id: 5,
+					data: { name: 'tiger', color: 'yellow' },
+					dictionaryCategoryId: 20,
+					entityName: 'animals',
+					isValid: true,
+					lastValidSchemaId: 20,
+					organization: 'zoo',
+					originalSchemaId: 20,
+					systemId: 'TGR1425',
+					createdAt: todaysDate,
+					createdBy: 'me',
+					updatedAt: null,
+					updatedBy: null,
+				},
+				{
+					id: 6,
+					data: { name: 'bear', color: 'black' },
+					dictionaryCategoryId: 20,
+					entityName: 'animals',
+					isValid: true,
+					lastValidSchemaId: 20,
+					organization: 'zoo',
+					originalSchemaId: 20,
+					systemId: 'BR8912',
+					createdAt: todaysDate,
+					createdBy: 'me',
+					updatedAt: null,
+					updatedBy: null,
+				},
+			];
+			const response = mergeAndReferenceEntityData({ originalSubmission, submissionData, submittedData });
+			expect(Object.keys(response).length).to.eq(0);
+			expect(response).eql({});
 		});
 	});
 	describe('Merge 2 generic Records into a single Record', () => {

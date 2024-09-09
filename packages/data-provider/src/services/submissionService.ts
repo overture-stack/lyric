@@ -9,7 +9,6 @@ import {
 	SubmittedData,
 } from '@overture-stack/lyric-data-model';
 import {
-	BatchProcessingResult,
 	type DataRecord,
 	SchemasDictionary,
 	SchemaValidationError,
@@ -26,9 +25,9 @@ import {
 	canTransitionToClosed,
 	checkEntityFieldNames,
 	checkFileNames,
-	determineIfIsSubmission,
 	extractSchemaDataFromMergedDataRecords,
-	mapInsertDataToRecordReferences,
+	groupSchemaErrorsByEntity,
+	mergeAndReferenceEntityData,
 	parseActiveSubmissionResponse,
 	parseActiveSubmissionSummaryResponse,
 	removeItemsFromSubmission,
@@ -40,7 +39,6 @@ import {
 	groupErrorsByIndex,
 	groupSchemaDataByEntityName,
 	hasErrorsByIndex,
-	mapAndMergeSubmittedDataToRecordReferences,
 	updateSubmittedDataArray,
 } from '../utils/submittedDataUtils.js';
 import {
@@ -49,8 +47,6 @@ import {
 	CommitSubmissionResult,
 	CREATE_SUBMISSION_STATUS,
 	CreateSubmissionResult,
-	DataRecordReference,
-	MERGE_REFERENCE_TYPE,
 	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
@@ -373,108 +369,6 @@ const service = (dependencies: BaseDependencies) => {
 		};
 
 		return submissionRepo.save(newSubmissionInput);
-	};
-
-	/**
-	 * Returns only the schema errors corresponding to the Active Submission.
-	 * Schema errors are grouped by Entity name.
-	 * @param {object} input
-	 * @param {Record<string, BatchProcessingResult>} input.resultValidation
-	 * @param {Record<string, DataRecordReference[]>} input.dataValidated
-	 * @returns {Record<string, Record<string, SchemaValidationError[]>>}
-	 */
-	const groupSchemaErrorsByEntity = (input: {
-		resultValidation: Record<string, BatchProcessingResult>;
-		dataValidated: Record<string, DataRecordReference[]>;
-	}): Record<string, Record<string, SchemaValidationError[]>> => {
-		const { resultValidation, dataValidated } = input;
-
-		const submissionSchemaErrors: Record<string, Record<string, SchemaValidationError[]>> = {};
-		Object.entries(resultValidation).forEach(([entityName, { validationErrors }]) => {
-			const hasErrorByIndex = groupErrorsByIndex(validationErrors);
-
-			if (!_.isEmpty(hasErrorByIndex)) {
-				Object.entries(hasErrorByIndex).map(([indexBasedOnCrossSchemas, schemaValidationErrors]) => {
-					const mapping = dataValidated[entityName][Number(indexBasedOnCrossSchemas)];
-					if (determineIfIsSubmission(mapping.reference)) {
-						const submissionIndex = mapping.reference.index;
-						const actionType =
-							mapping.reference.type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA ? 'inserts' : 'updates';
-						logger.error(
-							LOG_MODULE,
-							`Error found on '${actionType}' entity '${entityName}' index '${submissionIndex}'`,
-						);
-
-						const mutableSchemaValidationErrors: SchemaValidationError[] = schemaValidationErrors.map((errors) => {
-							return {
-								...errors,
-								index: submissionIndex,
-							};
-						});
-
-						if (!submissionSchemaErrors[actionType]) {
-							submissionSchemaErrors[actionType] = {};
-						}
-
-						if (!submissionSchemaErrors[actionType][entityName]) {
-							submissionSchemaErrors[actionType][entityName] = [];
-						}
-
-						submissionSchemaErrors[actionType][entityName].push(...mutableSchemaValidationErrors);
-					}
-				});
-			}
-		});
-		return submissionSchemaErrors;
-	};
-
-	/**
-	 * Combines **Active Submission** and the **Submitted Data** recevied as arguments.
-	 * Then, the Schema Data is extracted and mapped with its internal reference ID.
-	 * The returned Object is a collection of the raw Schema Data with it's reference ID grouped by entity name.
-	 * @param {SubmittedData[]} submittedData An array of Submitted Data
-	 * @param {Object} activeSubmission
-	 * @param {Record<string, SubmissionInsertData>} activeSubmission.insertData Collection of Data records of the Active Submission
-	 * @param {Record<string, SubmissionUpdateData[]>} activeSubmission.updateData Collection of Data records of the Active Submission
-	 * @param {Record<string, SubmissionDeleteData[]>} activeSubmission.deleteData Collection of Data records of the Active Submission
-	 * @param {number} activeSubmission.id ID of the Active Submission
-	 * @returns {Record<string, DataRecordReference[]>}
-	 */
-	const mergeAndReferenceEntityData = ({
-		originalSubmission,
-		submissionData,
-		submittedData,
-	}: {
-		originalSubmission: Submission;
-		submissionData: SubmissionData;
-		submittedData: SubmittedData[];
-	}): Record<string, DataRecordReference[]> => {
-		const systemsIdsToRemove = submissionData.deletes
-			? Object.values(submissionData.deletes).flatMap((entityData) => entityData.map(({ systemId }) => systemId))
-			: [];
-
-		// Exclude items that are marked for deletion
-		const submittedDataFiltered =
-			systemsIdsToRemove.length > 0
-				? submittedData.filter(({ systemId }) => !systemsIdsToRemove.includes(systemId))
-				: submittedData;
-
-		const submittedDataWithRef = mapAndMergeSubmittedDataToRecordReferences(
-			submittedDataFiltered,
-			submissionData.updates,
-		);
-
-		const insertDataWithRef = submissionData.inserts
-			? mapInsertDataToRecordReferences(originalSubmission.id, submissionData.inserts)
-			: {};
-
-		// This object will merge existing data + new data for validation (Submitted data + active Submission)
-		return _.mergeWith(submittedDataWithRef, insertDataWithRef, (objValue, srcValue) => {
-			if (Array.isArray(objValue)) {
-				// If both values are arrays, concatenate them
-				return objValue.concat(srcValue);
-			}
-		});
 	};
 
 	/**

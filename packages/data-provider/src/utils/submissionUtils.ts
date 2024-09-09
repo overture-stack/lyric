@@ -1,16 +1,24 @@
 import * as _ from 'lodash-es';
 
 import {
+	type Submission,
 	SubmissionData,
 	type SubmissionDeleteData,
 	type SubmissionInsertData,
 	type SubmissionUpdateData,
+	type SubmittedData,
 } from '@overture-stack/lyric-data-model';
-import { SchemaData, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import {
+	type BatchProcessingResult,
+	SchemaData,
+	SchemasDictionary,
+	type SchemaValidationError,
+} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { processSchemas } from '@overturebio-stack/lectern-client/lib/schema-functions.js';
 
 import { getSchemaFieldNames } from './dictionaryUtils.js';
 import { readHeaders, tsvToJson } from './fileUtils.js';
+import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
 	ActiveSubmissionResponse,
 	ActiveSubmissionSummaryRepository,
@@ -85,32 +93,6 @@ export const checkEntityFieldNames = async (
 };
 
 /**
- * This function extracts the Schema Data from the Active Submission
- * and maps it to it's original reference Id
- * The result mapping is used to perform the cross schema validation
- * @param {number | undefined} activeSubmissionId
- * @param {Record<string, SubmissionInsertData>} activeSubmissionInsertDataEntities
- * @returns {Record<string, DataRecordReference[]>}
- */
-export const mapInsertDataToRecordReferences = (
-	activeSubmissionId: number | undefined,
-	activeSubmissionInsertDataEntities: Record<string, SubmissionInsertData>,
-): Record<string, DataRecordReference[]> => {
-	return _.mapValues(activeSubmissionInsertDataEntities, (submissionInsertData) =>
-		submissionInsertData.records.map((record, index) => {
-			return {
-				dataRecord: record,
-				reference: {
-					submissionId: activeSubmissionId,
-					type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
-					index: index,
-				} as NewSubmittedDataReference,
-			};
-		}),
-	);
-};
-
-/**
  * Removes invalid/duplicated files
  * @param {Express.Multer.File[]} files An array of files
  * @param {string[]} dictionarySchemaNames Schema names in the dictionary
@@ -172,6 +154,131 @@ export const extractSchemaDataFromMergedDataRecords = (
 	mergeDataRecordsByEntityName: Record<string, DataRecordReference[]>,
 ): Record<string, SchemaData> => {
 	return _.mapValues(mergeDataRecordsByEntityName, (mappingArray) => mappingArray.map((o) => o.dataRecord));
+};
+
+/**
+ * Returns only the schema errors corresponding to the Active Submission.
+ * Schema errors are grouped by Entity name.
+ * @param {object} input
+ * @param {Record<string, BatchProcessingResult>} input.resultValidation
+ * @param {Record<string, DataRecordReference[]>} input.dataValidated
+ * @returns {Record<string, Record<string, SchemaValidationError[]>>}
+ */
+export const groupSchemaErrorsByEntity = (input: {
+	resultValidation: Record<string, BatchProcessingResult>;
+	dataValidated: Record<string, DataRecordReference[]>;
+}): Record<string, Record<string, SchemaValidationError[]>> => {
+	const { resultValidation, dataValidated } = input;
+
+	const submissionSchemaErrors: Record<string, Record<string, SchemaValidationError[]>> = {};
+	Object.entries(resultValidation).forEach(([entityName, { validationErrors }]) => {
+		const hasErrorByIndex = groupErrorsByIndex(validationErrors);
+
+		if (!_.isEmpty(hasErrorByIndex)) {
+			Object.entries(hasErrorByIndex).map(([indexBasedOnCrossSchemas, schemaValidationErrors]) => {
+				const mapping = dataValidated[entityName][Number(indexBasedOnCrossSchemas)];
+				if (determineIfIsSubmission(mapping.reference)) {
+					const submissionIndex = mapping.reference.index;
+					const actionType = mapping.reference.type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA ? 'inserts' : 'updates';
+
+					const mutableSchemaValidationErrors: SchemaValidationError[] = schemaValidationErrors.map((errors) => {
+						return {
+							...errors,
+							index: submissionIndex,
+						};
+					});
+
+					if (!submissionSchemaErrors[actionType]) {
+						submissionSchemaErrors[actionType] = {};
+					}
+
+					if (!submissionSchemaErrors[actionType][entityName]) {
+						submissionSchemaErrors[actionType][entityName] = [];
+					}
+
+					submissionSchemaErrors[actionType][entityName].push(...mutableSchemaValidationErrors);
+				}
+			});
+		}
+	});
+	return submissionSchemaErrors;
+};
+
+/**
+ * This function extracts the Schema Data from the Active Submission
+ * and maps it to it's original reference Id
+ * The result mapping is used to perform the cross schema validation
+ * @param {number | undefined} activeSubmissionId
+ * @param {Record<string, SubmissionInsertData>} activeSubmissionInsertDataEntities
+ * @returns {Record<string, DataRecordReference[]>}
+ */
+export const mapInsertDataToRecordReferences = (
+	activeSubmissionId: number | undefined,
+	activeSubmissionInsertDataEntities: Record<string, SubmissionInsertData>,
+): Record<string, DataRecordReference[]> => {
+	return _.mapValues(activeSubmissionInsertDataEntities, (submissionInsertData) =>
+		submissionInsertData.records.map((record, index) => {
+			return {
+				dataRecord: record,
+				reference: {
+					submissionId: activeSubmissionId,
+					type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
+					index: index,
+				} as NewSubmittedDataReference,
+			};
+		}),
+	);
+};
+
+/**
+ * Combines **Active Submission** and the **Submitted Data** recevied as arguments.
+ * Then, the Schema Data is extracted and mapped with its internal reference ID.
+ * The returned Object is a collection of the raw Schema Data with it's reference ID grouped by entity name.
+ * @param {Submission} originalSubmission The Active Submission to be merged
+ * @param {Object} submissionData
+ * @param {Record<string, SubmissionInsertData>} submissionData.insertData Collection of Data records of the Active Submission
+ * @param {Record<string, SubmissionUpdateData[]>} submissionData.updateData Collection of Data records of the Active Submission
+ * @param {Record<string, SubmissionDeleteData[]>} submissionData.deleteData Collection of Data records of the Active Submission
+ * @param {number} submissionData.id ID of the Active Submission
+ * @param {SubmittedData[]} submittedData An array of Submitted Data
+ * @returns {Record<string, DataRecordReference[]>}
+ */
+export const mergeAndReferenceEntityData = ({
+	originalSubmission,
+	submissionData,
+	submittedData,
+}: {
+	originalSubmission: Submission;
+	submissionData: SubmissionData;
+	submittedData: SubmittedData[];
+}): Record<string, DataRecordReference[]> => {
+	const systemsIdsToRemove = submissionData.deletes
+		? Object.values(submissionData.deletes).flatMap((entityData) => entityData.map(({ systemId }) => systemId))
+		: [];
+
+	// Exclude items that are marked for deletion
+	const submittedDataFiltered =
+		systemsIdsToRemove.length > 0
+			? submittedData.filter(({ systemId }) => !systemsIdsToRemove.includes(systemId))
+			: submittedData;
+
+	const submittedDataWithRef = mapAndMergeSubmittedDataToRecordReferences({
+		submittedData: submittedDataFiltered,
+		editSubmittedData: submissionData.updates,
+		submissionId: originalSubmission.id,
+	});
+
+	const insertDataWithRef = submissionData.inserts
+		? mapInsertDataToRecordReferences(originalSubmission.id, submissionData.inserts)
+		: {};
+
+	// This object will merge existing data + new data for validation (Submitted data + active Submission)
+	return _.mergeWith(submittedDataWithRef, insertDataWithRef, (objValue, srcValue) => {
+		if (Array.isArray(objValue)) {
+			// If both values are arrays, concatenate them
+			return objValue.concat(srcValue);
+		}
+	});
 };
 
 /**
