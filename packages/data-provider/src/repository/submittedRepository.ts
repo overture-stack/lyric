@@ -1,3 +1,4 @@
+import * as _ from 'lodash-es';
 import { and, count, eq, or, SQL, sql } from 'drizzle-orm/sql';
 
 import {
@@ -38,6 +39,35 @@ const repository = (dependencies: BaseDependencies) => {
 			systemId: recordDeleted.systemId,
 			createdAt: new Date(),
 			createdBy: userName,
+		};
+		return await db.insert(auditSubmittedData).values(newAudit);
+	};
+
+	const auditUpdateSubmittedData = async ({
+		dataDiff,
+		oldIsValid,
+		recordUpdated,
+		submissionId,
+	}: {
+		dataDiff: DataDiff;
+		oldIsValid: boolean;
+		recordUpdated: SubmittedData;
+		submissionId: number;
+	}) => {
+		const newAudit: NewAuditSubmittedData = {
+			action: AUDIT_ACTION.Values.UPDATE,
+			dictionaryCategoryId: recordUpdated.dictionaryCategoryId,
+			entityName: recordUpdated.entityName,
+			lastValidSchemaId: recordUpdated.lastValidSchemaId,
+			newDataIsValid: recordUpdated.isValid,
+			dataDiff: dataDiff,
+			oldDataIsValid: oldIsValid,
+			organization: recordUpdated.organization,
+			originalSchemaId: recordUpdated.originalSchemaId,
+			submissionId: submissionId,
+			systemId: recordUpdated.systemId,
+			createdAt: new Date(),
+			createdBy: recordUpdated.updatedBy,
 		};
 		return await db.insert(auditSubmittedData).values(newAudit);
 	};
@@ -291,16 +321,35 @@ const repository = (dependencies: BaseDependencies) => {
 		/**
 		 * Update a SubmittedData record in database
 		 * @param submittedDataId Submitted Data ID
+		 * @param dataDiff Difference before and after the updata
 		 * @param newData Set fields to update
+		 * @param oldIsValid Previous isValid value
+		 * @param submissionId Submission ID
 		 * @returns An updated record
 		 */
-		update: async (submittedDataId: number, newData: Partial<SubmittedData>): Promise<SubmittedData> => {
+		update: async ({
+			submittedDataId,
+			dataDiff,
+			newData,
+			oldIsValid,
+			submissionId,
+		}: {
+			submittedDataId: number;
+			dataDiff: DataDiff;
+			newData: Partial<SubmittedData>;
+			oldIsValid: boolean;
+			submissionId: number;
+		}): Promise<SubmittedData> => {
 			try {
 				const updated = await db
 					.update(submittedData)
 					.set({ ...newData, updatedAt: new Date() })
 					.where(eq(submittedData.id, submittedDataId))
 					.returning();
+
+				if (features?.audit?.enabled && !_.isEmpty(dataDiff.new) && !_.isEmpty(dataDiff.old)) {
+					await auditUpdateSubmittedData({ recordUpdated: updated[0], submissionId, dataDiff, oldIsValid });
+				}
 				return updated[0];
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed updating SubmittedData`, error);

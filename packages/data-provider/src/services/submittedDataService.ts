@@ -304,7 +304,11 @@ const service = (dependencies: BaseDependencies) => {
 			// Validate and update Active Submission
 			const updatedRecord = await performDataValidation({
 				originalSubmission: activeSubmission,
-				submissionData: { inserts: activeSubmission.data.inserts, deletes: mergedSubmissionDeletes },
+				submissionData: {
+					inserts: activeSubmission.data.inserts,
+					updates: activeSubmission.data.updates,
+					deletes: mergedSubmissionDeletes,
+				},
 				userName,
 			});
 

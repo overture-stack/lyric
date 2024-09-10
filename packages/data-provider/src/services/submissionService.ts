@@ -423,7 +423,8 @@ const service = (dependencies: BaseDependencies) => {
 				const newIsValid = !hasErrorsByIndex(hasErrorByIndex, index);
 				if (data.id) {
 					const inputUpdate: Partial<SubmittedData> = {};
-					if (systemIdsToUpdate.has(data.systemId)) {
+					const submisionUpdateData = dataToValidate.updates && dataToValidate.updates[data.systemId];
+					if (submisionUpdateData) {
 						logger.info(LOG_MODULE, `Updating submittedData system ID '${data.systemId}' in entity '${entityName}'`);
 						inputUpdate.data = data.data;
 					}
@@ -445,7 +446,13 @@ const service = (dependencies: BaseDependencies) => {
 
 					if (Object.values(inputUpdate)) {
 						inputUpdate.updatedBy = userName;
-						dataSubmittedRepo.update(data.id, inputUpdate);
+						dataSubmittedRepo.update({
+							submittedDataId: data.id,
+							newData: inputUpdate,
+							dataDiff: { old: submisionUpdateData?.old ?? {}, new: submisionUpdateData?.new ?? {} },
+							oldIsValid: oldIsValid,
+							submissionId: submission.id,
+						});
 					}
 				} else {
 					logger.info(
