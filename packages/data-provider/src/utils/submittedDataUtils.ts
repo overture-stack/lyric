@@ -98,6 +98,15 @@ export const fetchDataErrorResponse = (
 };
 
 /**
+ * Groupd Submitted Data by entityName
+ * @param dataArray Array of data to group
+ * @returns
+ */
+export const groupByEntityName = (dataArray: SubmittedData[]): Record<string, SubmittedData[]> => {
+	return groupBy(dataArray, 'entityName');
+};
+
+/**
  * Get all the schema errors grouped by the index of the record
  * @param {SchemaValidationError[]} schemaValidationErrors
  * @returns
@@ -228,6 +237,16 @@ export const mapRecordsSubmittedDataResponse = (submittedData: SubmittedData[]):
 		organization: data.organization,
 		systemId: data.systemId,
 	}));
+};
+
+/**
+ * Merges multiple arrays of `SubmittedData` and ensures uniqueness based on `id`.
+ *
+ * @param objects An arbitrary number of arrays of `SubmittedData`.
+ * @returns
+ */
+export const mergeSubmittedDataAndDeduplicateById = (...objects: SubmittedData[][]): SubmittedData[] => {
+	return Array.from(new Map(objects.flat().map((item) => [item.id, item])).values());
 };
 
 /**

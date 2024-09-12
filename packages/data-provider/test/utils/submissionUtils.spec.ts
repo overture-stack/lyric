@@ -4,6 +4,7 @@ import { describe, it } from 'mocha';
 import type { Submission, SubmissionData, SubmissionInsertData, SubmittedData } from '@overture-stack/lyric-data-model';
 import {
 	BatchProcessingResult,
+	type DataRecord,
 	SchemaValidationErrorTypes,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
@@ -12,8 +13,10 @@ import {
 	determineIfIsSubmission,
 	extractSchemaDataFromMergedDataRecords,
 	groupSchemaErrorsByEntity,
+	mapGroupedUpdateSubmissionData,
 	mapInsertDataToRecordReferences,
 	mergeAndReferenceEntityData,
+	mergeInsertsRecords,
 	mergeRecords,
 	parseActiveSubmissionResponse,
 	parseActiveSubmissionSummaryResponse,
@@ -319,7 +322,7 @@ describe('Submission Utils', () => {
 			]);
 		});
 	});
-	describe('Transforms inserts from the Submission object into an Record grouped by entityName', () => {
+	describe('Transforms inserts from the Submission object into a Record grouped by entityName', () => {
 		it('should return an object grouped by entity name with 2 records', () => {
 			const submissionInsertData: SubmissionInsertData = {
 				batchName: 'cars.tsv',
@@ -461,6 +464,48 @@ describe('Submission Utils', () => {
 			expect(Object.keys(response)).to.eql(['']);
 			expect(response[''].length).to.eq(0);
 			expect(response['']).to.eql([]);
+		});
+	});
+	describe('Transforms updates from the Submission object into a Record grouped by entityName', () => {
+		it('should return an object grouped by entity name with 1 udpated record', () => {
+			const dependant1: SubmittedData = {
+				id: 5,
+				data: { name: 'tiger', scientificName: 'tigris' },
+				dictionaryCategoryId: 20,
+				entityName: 'animals',
+				isValid: true,
+				lastValidSchemaId: 20,
+				organization: 'zoo',
+				originalSchemaId: 20,
+				systemId: 'TGR1425',
+				createdAt: todaysDate,
+				createdBy: 'me',
+				updatedAt: null,
+				updatedBy: null,
+			};
+
+			const dependentData: Record<string, SubmittedData[]> = { animals: [dependant1] };
+			const filterEntity: {
+				entityName: string;
+				dataField: string;
+				dataValue: string;
+			}[] = [
+				{ entityName: 'animals', dataField: 'scientificName', dataValue: 'tigris' },
+				{ entityName: 'plants', dataField: 'scientificName', dataValue: 'tigris' },
+			];
+			const newDataRecord: DataRecord = {
+				scientificName: 'Panthera Tigris',
+				description: 'something here',
+			};
+			const response = mapGroupedUpdateSubmissionData({ dependentData, filterEntity, newDataRecord });
+			expect(Object.keys(response).length).to.eq(1);
+			expect(Object.keys(response)).to.eql(['animals']);
+			expect(response['animals'].length).to.eq(1);
+			expect(response['animals'][0]).to.eql({
+				systemId: 'TGR1425',
+				old: { scientificName: 'tigris' },
+				new: { scientificName: 'Panthera Tigris' },
+			});
 		});
 	});
 	describe('Combine Active Submission and the Submitted Data with reference', () => {
@@ -760,6 +805,46 @@ describe('Submission Utils', () => {
 			expect(Object.keys(response)).to.eql(['name']);
 			expect(response['name'].length).to.eq(4);
 			expect(response['name']).to.eql(['Tom', 'Jerry', 'Bob', 'Patrick']);
+		});
+	});
+
+	describe('Merge 2 Submission insert records', () => {
+		it('should return a record object with one key and merged array items', () => {
+			const obj1: Record<string, SubmissionInsertData> = {
+				sports: { batchName: 'sports.tsv', records: [{ title: 'footbal' }] },
+			};
+			const obj2: Record<string, SubmissionInsertData> = {
+				sports: { batchName: 'sports', records: [{ title: 'basketball' }] },
+			};
+			const result = mergeInsertsRecords(obj1, obj2);
+			expect(Object.keys(result).length).to.eq(1);
+			expect(result['sports'].records.length).eql(2);
+		});
+
+		it('should return a record object with two different keys', () => {
+			const obj1: Record<string, SubmissionInsertData> = {
+				food: { batchName: 'food.tsv', records: [{ title: 'apple' }] },
+			};
+			const obj2: Record<string, SubmissionInsertData> = {
+				sports: { batchName: 'sports', records: [{ title: 'basketball' }] },
+			};
+			const result = mergeInsertsRecords(obj1, obj2);
+			expect(Object.keys(result).length).to.eq(2);
+			expect(result['sports'].records.length).eql(1);
+			expect(result['food'].records.length).eql(1);
+		});
+
+		it('should return a record object with one key and merged array items without duplication', () => {
+			const obj1: Record<string, SubmissionInsertData> = {
+				sports: { batchName: 'sports.tsv', records: [{ title: 'snowboarding' }] },
+			};
+			const obj2: Record<string, SubmissionInsertData> = {
+				sports: { batchName: 'sports.csv', records: [{ title: 'snowboarding' }] },
+			};
+			const result = mergeInsertsRecords(obj1, obj2);
+			expect(Object.keys(result).length).to.eq(1);
+			expect(result['sports'].records.length).to.eq(1);
+			expect(result['sports'].records[0]).eql({ title: 'snowboarding' });
 		});
 	});
 	describe('Parse a Submisison object to a response format', () => {

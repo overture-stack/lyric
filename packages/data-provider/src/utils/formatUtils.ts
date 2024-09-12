@@ -67,3 +67,33 @@ export function isValidDateFormat(value: string): boolean {
  * @return an array
  */
 export const asArray = <T>(val: T | T[]): T[] => (Array.isArray(val) ? val : [val]);
+
+/**
+ * Performs a deep comparison between two values to determine if they are deeply equal.
+ * @param obj1 The first value to compare.
+ * @param obj2 The second value to compare.
+ * @returns
+ */
+export const deepCompare = (obj1: unknown, obj2: unknown): boolean => {
+	if (obj1 === obj2) return true; // Handle primitives and reference equality
+
+	if (typeof obj1 !== 'object' || typeof obj2 !== 'object' || obj1 === null || obj2 === null) {
+		return false; // Ensure both are non-null objects
+	}
+
+	const keys1 = Object.keys(obj1);
+	const keys2 = Object.keys(obj2);
+
+	if (keys1.length !== keys2.length) return false; // Different number of keys
+
+	for (const key of keys1) {
+		const val1 = (obj1 as Record<string, unknown>)[key];
+		const val2 = (obj2 as Record<string, unknown>)[key];
+
+		if (!keys2.includes(key) || !deepCompare(val1, val2)) {
+			return false;
+		}
+	}
+
+	return true;
+};

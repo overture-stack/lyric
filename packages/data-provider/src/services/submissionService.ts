@@ -4,6 +4,7 @@ import {
 	type NewSubmission,
 	Submission,
 	SubmissionData,
+	type SubmissionDeleteData,
 	type SubmissionInsertData,
 	type SubmissionUpdateData,
 	SubmittedData,
@@ -18,7 +19,9 @@ import { BaseDependencies } from '../config/config.js';
 import systemIdGenerator from '../external/systemIdGenerator.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
+import dictionaryRepository from '../repository/dictionaryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
+import { getDictionarySchemaRelations, type SchemaChildNode } from '../utils/dictionarySchemaRelations.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../utils/errors.js';
 import { tsvToJson } from '../utils/fileUtils.js';
 import {
@@ -26,19 +29,27 @@ import {
 	checkEntityFieldNames,
 	checkFileNames,
 	extractSchemaDataFromMergedDataRecords,
+	getDependentsFilteronSubmissionUpdate,
 	groupSchemaErrorsByEntity,
+	mapGroupedUpdateSubmissionData,
 	mergeAndReferenceEntityData,
+	mergeDeleteRecords,
+	mergeInsertsRecords,
+	mergeUpdatesBySystemId,
 	parseActiveSubmissionResponse,
 	parseActiveSubmissionSummaryResponse,
 	removeItemsFromSubmission,
+	segregateFieldChangeRecords,
 	submissionInsertDataFromFiles,
 	validateSchemas,
 } from '../utils/submissionUtils.js';
 import {
 	computeDataDiff,
+	groupByEntityName,
 	groupErrorsByIndex,
 	groupSchemaDataByEntityName,
 	hasErrorsByIndex,
+	mergeSubmittedDataAndDeduplicateById,
 	updateSubmittedDataArray,
 } from '../utils/submittedDataUtils.js';
 import {
@@ -52,6 +63,7 @@ import {
 	type SubmissionActionType,
 	ValidateFilesParams,
 } from '../utils/types.js';
+import submittedDataService from './submittedDataService.js';
 
 const service = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_SERVICE';
@@ -264,6 +276,89 @@ const service = (dependencies: BaseDependencies) => {
 	};
 
 	/**
+	 * Finds and returns the dependent updates based on the provided submission update data.
+	 *
+	 * This function processes submission update data to identify dependencies between entities
+	 * as defined in the `dictionaryRelations`. It checks if updates in one entity impact other
+	 * related entities, and retrieves those dependent updates. The result is a collection of
+	 * update data, grouped by entity, that represents the cascading changes needed for the
+	 * submission process.
+	 *
+	 * @param dictionaryRelations - A mapping of entity names to their schema child nodes, representing relationships between entities.
+	 * @param organization - The organization identifier associated with the submission data.
+	 * @param submissionUpdateData - The submission data containing updates for various entities, mapped by entity names.
+	 * @returns A Promise that resolves to an object with the records that has dependents and an object where each key is an entity name,
+	 * and the value is an array of `SubmissionUpdateData` representing the dependent updates for that entity.
+	 */
+	const findUpdateDependents = async ({
+		dictionaryRelations,
+		organization,
+		submissionUpdateData,
+	}: {
+		dictionaryRelations: Record<string, SchemaChildNode[]>;
+		organization: string;
+		submissionUpdateData: Record<string, SubmissionUpdateData[]>;
+	}): Promise<{ submissionUpdateData: SubmissionUpdateData; dependents: Record<string, SubmissionUpdateData[]> }[]> => {
+		const { getSubmittedDataFiltered } = submittedRepository(dependencies);
+		const { searchDirectDependents } = submittedDataService(dependencies);
+
+		const dependentUpdates = Object.entries(submissionUpdateData).reduce<
+			Promise<{ submissionUpdateData: SubmissionUpdateData; dependents: Record<string, SubmissionUpdateData[]> }[]>
+		>(async (accPromise, [submissionUpdateEntityName, submissionUpdateRecords]) => {
+			const acc = await accPromise;
+
+			const result = await Promise.all(
+				submissionUpdateRecords.map(async (submissionUpdateRecord) => {
+					if (!Object.prototype.hasOwnProperty.call(dictionaryRelations, submissionUpdateEntityName)) {
+						return { submissionUpdateData: submissionUpdateRecord, dependents: {} };
+					}
+
+					// Finds if updates are impacting dependant records based on it's foreign keys
+					const filterDependents = getDependentsFilteronSubmissionUpdate(
+						dictionaryRelations[submissionUpdateEntityName],
+						submissionUpdateRecord,
+					);
+
+					if (filterDependents.length === 0) return { submissionUpdateData: submissionUpdateRecord, dependents: {} };
+
+					const directDependents = await getSubmittedDataFiltered(organization, filterDependents);
+
+					const additionalDepends = (
+						await Promise.all(
+							directDependents.map((record) =>
+								searchDirectDependents({
+									data: record.data,
+									dictionaryRelations,
+									entityName: record.entityName,
+									organization: record.organization,
+									systemId: record.systemId,
+								}),
+							),
+						)
+					).flat();
+
+					const uniqueDependents = mergeSubmittedDataAndDeduplicateById(directDependents, additionalDepends);
+
+					const groupedDependents = groupByEntityName(uniqueDependents);
+
+					const groupedSubmissionUpdateDependents = mapGroupedUpdateSubmissionData({
+						dependentData: groupedDependents,
+						filterEntity: filterDependents,
+						newDataRecord: submissionUpdateRecord.new,
+					});
+
+					return { submissionUpdateData: submissionUpdateRecord, dependents: groupedSubmissionUpdateDependents };
+				}),
+			);
+
+			acc.push(...result);
+			return acc;
+		}, Promise.resolve([]));
+
+		return dependentUpdates;
+	};
+
+	/**
 	 * Get an active Submission by Category
 	 * @param {Object} params
 	 * @param {number} params.categoryId
@@ -369,6 +464,63 @@ const service = (dependencies: BaseDependencies) => {
 		};
 
 		return submissionRepo.save(newSubmissionInput);
+	};
+
+	/**
+	 * This function iterates over records that are changing ID fields and fetches existing submitted data by `systemId`,
+	 * then generates a record to be deleted and to be inserted.
+	 * The resulting inserts and deletes are organized by entity names.
+	 * @param idFieldChangeRecord Records that are changing ID fields
+	 * @returns
+	 */
+	const handleIdFieldChanges = async (idFieldChangeRecord: Record<string, SubmissionUpdateData[]>) => {
+		const { getSubmittedDataBySystemId } = submittedRepository(dependencies);
+		return Object.entries(idFieldChangeRecord).reduce<
+			Promise<{
+				inserts: Record<string, SubmissionInsertData>;
+				deletes: Record<string, SubmissionDeleteData[]>;
+			}>
+		>(
+			async (accPromise, [entityName, updRecord]) => {
+				const acc = await accPromise;
+
+				// iterate each record on this entity
+				const result = await updRecord.reduce<
+					Promise<{
+						inserts: DataRecord[];
+						deletes: SubmissionDeleteData[];
+					}>
+				>(
+					async (acc2Promise, u) => {
+						const acc2 = await acc2Promise;
+						const foundSubmittedData = await getSubmittedDataBySystemId(u.systemId);
+
+						if (!foundSubmittedData) return acc2;
+
+						const deleteRecord: SubmissionDeleteData = {
+							systemId: foundSubmittedData.systemId,
+							data: foundSubmittedData.data,
+							entityName: foundSubmittedData.entityName,
+							isValid: foundSubmittedData.isValid,
+							organization: foundSubmittedData.organization,
+						};
+
+						const insertDataRecord: DataRecord = { ...foundSubmittedData.data, ...u.new };
+
+						acc2.inserts.push(insertDataRecord);
+						acc2.deletes.push(deleteRecord);
+						return acc2;
+					},
+					Promise.resolve({ inserts: [], deletes: [] }),
+				);
+
+				acc.deletes[entityName] = result.deletes;
+				acc.inserts[entityName] = { batchName: entityName, records: result.inserts };
+
+				return acc;
+			},
+			Promise.resolve({ inserts: {}, deletes: {} }),
+		);
 	};
 
 	/**
@@ -508,17 +660,17 @@ const service = (dependencies: BaseDependencies) => {
 			originalSubmission.organization,
 		);
 
+		const currentDictionary = await getActiveDictionaryByCategory(originalSubmission.dictionaryCategoryId);
+		if (!currentDictionary) {
+			throw new BadRequest(`Dictionary in category '${originalSubmission.dictionaryCategoryId}' not found`);
+		}
+
 		// Merge Submitted Data with Active Submission keepping reference of each record ID
 		const dataMergedByEntityName = mergeAndReferenceEntityData({
 			originalSubmission,
 			submissionData,
 			submittedData,
 		});
-
-		const currentDictionary = await getActiveDictionaryByCategory(originalSubmission.dictionaryCategoryId);
-		if (!currentDictionary) {
-			throw new BadRequest(`Dictionary in category '${originalSubmission.dictionaryCategoryId}' not found`);
-		}
 
 		// Prepare data to validate. Extract schema data from merged data
 		const crossSchemasDataToValidate = extractSchemaDataFromMergedDataRecords(dataMergedByEntityName);
@@ -759,6 +911,8 @@ const service = (dependencies: BaseDependencies) => {
 		files: Record<string, Express.Multer.File>;
 		userName: string;
 	}): Promise<void> => {
+		const { getDictionaryById } = dictionaryRepository(dependencies);
+
 		// Parse file data
 		const filesDataProcessed = await submissionUpdateDataFromFiles(files);
 		logger.info(
@@ -766,18 +920,58 @@ const service = (dependencies: BaseDependencies) => {
 			`Read '${Object.values(filesDataProcessed).length}' records in total on files '${Object.keys(files)}'`,
 		);
 
-		// Merge Active Submission data with incoming TSV file data processed
-		const updatedActiveSubmissionData: Record<string, SubmissionUpdateData[]> = {
-			...submission.data.updates,
-			...filesDataProcessed,
-		};
+		const currentDictionary = await getDictionaryById(submission.dictionaryId);
+		if (!currentDictionary) {
+			throw new BadRequest(`Dictionary in category '${submission.dictionaryCategoryId}' not found`);
+		}
+
+		// get dictionary relations
+		const dictionaryRelations = getDictionarySchemaRelations(currentDictionary);
+
+		const foundDependentUpdates = await findUpdateDependents({
+			dictionaryRelations,
+			organization: submission.organization,
+			submissionUpdateData: filesDataProcessed,
+		});
+
+		logger.info(
+			LOG_MODULE,
+			`Direct dependency found: ${foundDependentUpdates.map(({ submissionUpdateData, dependents }) => `'${Object.values(dependents).length}' dependents on system ID '${submissionUpdateData.systemId}'`)}`,
+		);
+
+		const totalDependants = foundDependentUpdates.reduce<Record<string, SubmissionUpdateData[]>>((acc, o) => {
+			return mergeUpdatesBySystemId(acc, o.dependents);
+		}, {});
+
+		// Identify what requested updates involves ID and nonID field changes
+		const { idFieldChangeRecord, nonIdFieldChangeRecord } = segregateFieldChangeRecords(
+			foundDependentUpdates,
+			filesDataProcessed,
+		);
+
+		// Aggegates all Update changes on Submission
+		// Note: We do not include records involving primary ID fields changes in here. We would rather do a DELETE and an INSERT
+		const updatedActiveSubmissionData: Record<string, SubmissionUpdateData[]> = mergeUpdatesBySystemId(
+			submission.data.updates ?? {},
+			totalDependants,
+			nonIdFieldChangeRecord,
+		);
+
+		// Creates insert and delete records based on primary ID field change records.
+		const additions = await handleIdFieldChanges(idFieldChangeRecord);
+
+		// Merge Active Submission Inserts with Edit generated new Inserts
+		const mergedInserts = mergeInsertsRecords(submission.data.inserts ?? {}, additions.inserts);
+
+		// Merge Active Submission Deletes with Edit generated new Deletes
+		const mergedDeletes = mergeDeleteRecords(submission.data.deletes ?? {}, additions.deletes);
 
 		// Perform Schema Data validation Async.
 		performDataValidation({
 			originalSubmission: submission,
 			submissionData: {
-				inserts: submission.data.inserts,
-				deletes: submission.data.deletes,
+				inserts: mergedInserts,
+				deletes: mergedDeletes,
 				updates: updatedActiveSubmissionData,
 			},
 			userName,
@@ -809,10 +1003,7 @@ const service = (dependencies: BaseDependencies) => {
 		}
 
 		// Merge Active Submission data with incoming TSV file data processed
-		const insertActiveSubmissionData: Record<string, SubmissionInsertData> = {
-			...activeSubmission.data.inserts,
-			...filesDataProcessed,
-		};
+		const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, filesDataProcessed);
 
 		// Perform Schema Data validation Async.
 		performDataValidation({

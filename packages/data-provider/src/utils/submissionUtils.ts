@@ -10,14 +10,17 @@ import {
 } from '@overture-stack/lyric-data-model';
 import {
 	type BatchProcessingResult,
+	type DataRecord,
 	SchemaData,
 	SchemasDictionary,
 	type SchemaValidationError,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 import { processSchemas } from '@overturebio-stack/lectern-client/lib/schema-functions.js';
 
+import type { SchemaChildNode } from './dictionarySchemaRelations.js';
 import { getSchemaFieldNames } from './dictionaryUtils.js';
 import { readHeaders, tsvToJson } from './fileUtils.js';
+import { deepCompare } from './formatUtils.js';
 import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
 	ActiveSubmissionResponse,
@@ -157,6 +160,36 @@ export const extractSchemaDataFromMergedDataRecords = (
 };
 
 /**
+ * Returns a filter to query the database used to find dependents records when the update record involves changes of an primary ID field
+ *
+ * @param schemaRelations An array of `SchemaChildNode` representing the schema relations for the entity. Each node contains information about parent-child relationships.
+ * @param updateRecord The update record containing old and new data. The function checks the `old` data to identify fields involved in the relationship.
+ * @returns
+ */
+export const getDependentsFilteronSubmissionUpdate = (
+	schemaRelations: SchemaChildNode[],
+	updateRecord: SubmissionUpdateData,
+): {
+	entityName: string;
+	dataField: string;
+	dataValue: string;
+}[] => {
+	return (
+		schemaRelations
+			.filter((childNode) => childNode.parent?.fieldName)
+			// To identify if the update involves an ID field
+			.filter((childNode) => updateRecord.old && updateRecord.old[childNode.fieldName])
+			.map((childNode) => {
+				return {
+					entityName: childNode.schemaName,
+					dataField: childNode.fieldName,
+					dataValue: updateRecord.old[childNode.fieldName].toString(),
+				};
+			})
+	);
+};
+
+/**
  * Returns only the schema errors corresponding to the Active Submission.
  * Schema errors are grouped by Entity name.
  * @param {object} input
@@ -231,6 +264,43 @@ export const mapInsertDataToRecordReferences = (
 };
 
 /**
+ * This function takes a collection of dependent data grouped by entity name, applies a filter to each entity,
+ * and creates a mapping of `SubmissionUpdateData` based on the specified filter and new data values.
+ *
+ * @param params
+ * @param param.dependentData A record where each key is an entity name and each value is an array of `SubmittedData` objects.
+ * @param param.filterEntity An array of filter criteria where each entry contains an `entityName`, `dataField`, and `dataValue` to filter.
+ * @param param.newDataRecord A record containing new data values to be applied to the filtered entities.
+ * @returns
+ */
+export const mapGroupedUpdateSubmissionData = ({
+	dependentData,
+	filterEntity,
+	newDataRecord,
+}: {
+	dependentData: Record<string, SubmittedData[]>;
+	filterEntity: {
+		entityName: string;
+		dataField: string;
+		dataValue: string;
+	}[];
+	newDataRecord: DataRecord;
+}): Record<string, SubmissionUpdateData[]> => {
+	return Object.entries(dependentData).reduce<Record<string, SubmissionUpdateData[]>>(
+		(acc, [entityName, dependentRecords]) => {
+			acc[entityName] = dependentRecords.map((item) => {
+				const filter = filterEntity.find((filter) => filter.entityName === item.entityName);
+				const oldValue = filter ? { [filter.dataField]: filter.dataValue } : {};
+				const newValue = filter ? { [filter.dataField]: newDataRecord[filter.dataField] } : {};
+				return { systemId: item.systemId, old: oldValue, new: newValue };
+			});
+			return acc;
+		},
+		{},
+	);
+};
+
+/**
  * Combines **Active Submission** and the **Submitted Data** recevied as arguments.
  * Then, the Schema Data is extracted and mapped with its internal reference ID.
  * The returned Object is a collection of the raw Schema Data with it's reference ID grouped by entity name.
@@ -296,6 +366,125 @@ export const mergeRecords = <T>(
 		acc[key] = (record1?.[key] || []).concat(record2?.[key] || []);
 		return acc;
 	}, {});
+};
+
+/**
+ * Merges multiple `Record<string, SubmissionInsertData>` objects into a single object.
+ * If there are duplicate keys between the objects, the `records` arrays of `SubmissionInsertData`
+ * are concatenated for the matching keys, ensuring no duplicates.
+ *
+ * @param objects An array of objects where each object is a `Record<string, SubmissionInsertData>`.
+ * Each key represents the entityName, and the value is an object of type `SubmissionInsertData`.
+ *
+ * @returns A new `Record<string, SubmissionInsertData>` where:
+ * - If a key is unique across all objects, its value is directly included.
+ * - If a key appears in multiple objects, the `records` arrays are concatenated for that key, avoiding duplicates.
+ */
+export const mergeInsertsRecords = (
+	...objects: Record<string, SubmissionInsertData>[]
+): Record<string, SubmissionInsertData> => {
+	const result: Record<string, SubmissionInsertData> = {};
+
+	let seen: SchemaData = [];
+	// Iterate over all objects
+	objects.forEach((obj) => {
+		// Iterate over each key in the current object
+		Object.entries(obj).forEach(([key, value]) => {
+			if (result[key]) {
+				// The key already exists in the result, concatenate the `records` arrays, avoiding duplicates
+				let uniqueData: SchemaData = [];
+
+				result[key].records.concat(value.records).forEach((item) => {
+					if (!seen.some((existingItem) => deepCompare(existingItem, item))) {
+						uniqueData = uniqueData.concat(item);
+						seen = seen.concat(item);
+					}
+				});
+
+				result[key].records = uniqueData;
+				return;
+			} else {
+				// The key doesn't exists in the result, create as it comes
+				result[key] = value;
+				return;
+			}
+		});
+	});
+
+	return result;
+};
+
+/**
+ * Merges multiple `Record<string, SubmissionDeleteData[]>` objects into a single object.
+ * For each key, the `SubmissionDeleteData[]` arrays are concatenated, ensuring no duplicate
+ * `SubmissionDeleteData` objects based on the `systemId` field.
+ *
+ * @param objects Multiple `Record<string, SubmissionDeleteData[]>` objects to be merged.
+ * Each key represents an identifier, and the value is an array of `SubmissionDeleteData`.
+ *
+ * @returns
+ */
+export const mergeDeleteRecords = (
+	...objects: Record<string, SubmissionDeleteData[]>[]
+): Record<string, SubmissionDeleteData[]> => {
+	const result: Record<string, SubmissionDeleteData[]> = {};
+
+	// Iterate over all objects
+	objects.forEach((obj) => {
+		// Iterate over each key in the current object
+		Object.entries(obj).forEach(([key, value]) => {
+			if (!result[key]) {
+				result[key] = [];
+			}
+			const uniqueRecords = new Map<string, SubmissionDeleteData>();
+
+			// Add existing records to the map
+			result[key].forEach((record) => uniqueRecords.set(record.systemId, record));
+
+			// Add new records, overriding duplicates based on systemId
+			value.forEach((record) => uniqueRecords.set(record.systemId, record));
+
+			// Convert the map back to an array
+			result[key] = Array.from(uniqueRecords.values());
+		});
+	});
+
+	return result;
+};
+
+/**
+ * Merge Active Submission data with incoming TSV file data processed
+ *
+ * @param objects
+ * @returns An arbitrary number of arrays of Record<string, SubmissionUpdateData[]>
+ */
+export const mergeUpdatesBySystemId = (
+	...objects: Record<string, SubmissionUpdateData[]>[]
+): Record<string, SubmissionUpdateData[]> => {
+	const result: Record<string, SubmissionUpdateData[]> = {};
+
+	// Iterate over all objects
+	objects.forEach((obj) => {
+		// Iterate over each key in the current object
+		Object.entries(obj).forEach(([key, value]) => {
+			// Initialize a map to track unique systemIds for this key
+			if (!result[key]) {
+				result[key] = [];
+			}
+
+			const existingIds = new Map<string, SubmissionUpdateData>(result[key].map((item) => [item.systemId, item]));
+
+			// Add or update entries based on systemId uniqueness
+			value.forEach((item) => {
+				existingIds.set(item.systemId, item);
+			});
+
+			// Convert the map back to an array and store it in the result
+			result[key] = Array.from(existingIds.values());
+		});
+	});
+
+	return result;
 };
 
 /**
@@ -470,6 +659,65 @@ export const removeItemsFromSubmission = (
 			break;
 	}
 	return filteredSubmissionData;
+};
+
+/**
+ * Processes the `foundDependentUpdates` array and segregates the updates based on
+ * whether they involve ID fields (dependent fields) or non-ID fields.
+ *
+ * @param foundDependentUpdates - Array of updates to be processed.
+ * @param filesDataProcessed - Record where the key is a string (representing an entity name) and
+ * each value is an array of `SubmissionUpdateData`. These are the processed data files to match against.
+ * @returns An object containing two records:
+ * - `idFieldChangeRecord`: A record of updates involving ID fields.
+ * - `nonIdFieldChangeRecord`: A record of updates involving non-ID fields.
+ */
+export const segregateFieldChangeRecords = (
+	foundDependentUpdates: {
+		submissionUpdateData: SubmissionUpdateData;
+		dependents: Record<string, SubmissionUpdateData[]>;
+	}[],
+	filesDataProcessed: Record<string, SubmissionUpdateData[]>,
+): {
+	idFieldChangeRecord: Record<string, SubmissionUpdateData[]>;
+	nonIdFieldChangeRecord: Record<string, SubmissionUpdateData[]>;
+} => {
+	// Helper function to process and accumulate records
+	const accumulateChanges = (
+		recordKey: keyof typeof acc,
+		acc: {
+			idFieldChangeRecord: Record<string, SubmissionUpdateData[]>;
+			nonIdFieldChangeRecord: Record<string, SubmissionUpdateData[]>;
+		},
+		entityName: string,
+		foundData: SubmissionUpdateData,
+	) => {
+		if (!acc[recordKey][entityName]) {
+			acc[recordKey][entityName] = [];
+		}
+		acc[recordKey][entityName].push(foundData);
+	};
+
+	// Main reduce function
+	return foundDependentUpdates.reduce<{
+		idFieldChangeRecord: Record<string, SubmissionUpdateData[]>;
+		nonIdFieldChangeRecord: Record<string, SubmissionUpdateData[]>;
+	}>(
+		(acc, { submissionUpdateData, dependents }) => {
+			const hasDependents = Object.keys(dependents).length > 0;
+			const recordKey = hasDependents ? 'idFieldChangeRecord' : 'nonIdFieldChangeRecord';
+
+			Object.entries(filesDataProcessed).forEach(([fileEntityName, fileData]) => {
+				const foundIndex = fileData.findIndex((data) => data.systemId === submissionUpdateData.systemId);
+				if (foundIndex >= 0) {
+					accumulateChanges(recordKey, acc, fileEntityName, fileData[foundIndex]);
+				}
+			});
+
+			return acc;
+		},
+		{ idFieldChangeRecord: {}, nonIdFieldChangeRecord: {} },
+	);
 };
 
 /**
