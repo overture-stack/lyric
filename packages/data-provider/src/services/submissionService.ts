@@ -945,8 +945,8 @@ const service = (dependencies: BaseDependencies) => {
 
 		// Identify what requested updates involves ID and nonID field changes
 		const { idFieldChangeRecord, nonIdFieldChangeRecord } = segregateFieldChangeRecords(
-			foundDependentUpdates,
 			filesDataProcessed,
+			dictionaryRelations,
 		);
 
 		// Aggegates all Update changes on Submission

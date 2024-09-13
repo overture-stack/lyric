@@ -673,46 +673,31 @@ export const removeItemsFromSubmission = (
  * - `nonIdFieldChangeRecord`: A record of updates involving non-ID fields.
  */
 export const segregateFieldChangeRecords = (
-	foundDependentUpdates: {
-		submissionUpdateData: SubmissionUpdateData;
-		dependents: Record<string, SubmissionUpdateData[]>;
-	}[],
-	filesDataProcessed: Record<string, SubmissionUpdateData[]>,
+	submissionUpdateRecords: Record<string, SubmissionUpdateData[]>,
+	dictionaryRelations: Record<string, SchemaChildNode[]>,
 ): {
 	idFieldChangeRecord: Record<string, SubmissionUpdateData[]>;
 	nonIdFieldChangeRecord: Record<string, SubmissionUpdateData[]>;
 } => {
-	// Helper function to process and accumulate records
-	const accumulateChanges = (
-		recordKey: keyof typeof acc,
-		acc: {
-			idFieldChangeRecord: Record<string, SubmissionUpdateData[]>;
-			nonIdFieldChangeRecord: Record<string, SubmissionUpdateData[]>;
-		},
-		entityName: string,
-		foundData: SubmissionUpdateData,
-	) => {
-		if (!acc[recordKey][entityName]) {
-			acc[recordKey][entityName] = [];
-		}
-		acc[recordKey][entityName].push(foundData);
-	};
-
 	// Main reduce function
-	return foundDependentUpdates.reduce<{
+	return Object.entries(submissionUpdateRecords).reduce<{
 		idFieldChangeRecord: Record<string, SubmissionUpdateData[]>;
 		nonIdFieldChangeRecord: Record<string, SubmissionUpdateData[]>;
 	}>(
-		(acc, { submissionUpdateData, dependents }) => {
-			const hasDependents = Object.keys(dependents).length > 0;
-			const recordKey = hasDependents ? 'idFieldChangeRecord' : 'nonIdFieldChangeRecord';
+		(acc, [entityName, submissionUpdateDataArray]) => {
+			const schemaRelations = dictionaryRelations[entityName];
+			if (schemaRelations) {
+				submissionUpdateDataArray.map((submissionUpdateData) => {
+					const foundIdFieldUpdated = getDependentsFilteronSubmissionUpdate(schemaRelations, submissionUpdateData);
+					const recordKey =
+						foundIdFieldUpdated && foundIdFieldUpdated.length > 0 ? 'idFieldChangeRecord' : 'nonIdFieldChangeRecord';
 
-			Object.entries(filesDataProcessed).forEach(([fileEntityName, fileData]) => {
-				const foundIndex = fileData.findIndex((data) => data.systemId === submissionUpdateData.systemId);
-				if (foundIndex >= 0) {
-					accumulateChanges(recordKey, acc, fileEntityName, fileData[foundIndex]);
-				}
-			});
+					if (!acc[recordKey][entityName]) {
+						acc[recordKey][entityName] = [];
+					}
+					acc[recordKey][entityName].push(submissionUpdateData);
+				});
+			}
 
 			return acc;
 		},

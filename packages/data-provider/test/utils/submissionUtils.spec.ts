@@ -1,26 +1,38 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import type { Submission, SubmissionData, SubmissionInsertData, SubmittedData } from '@overture-stack/lyric-data-model';
+import type {
+	Submission,
+	SubmissionData,
+	SubmissionDeleteData,
+	SubmissionInsertData,
+	SubmissionUpdateData,
+	SubmittedData,
+} from '@overture-stack/lyric-data-model';
 import {
 	BatchProcessingResult,
 	type DataRecord,
 	SchemaValidationErrorTypes,
 } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
+import type { SchemaChildNode } from '../../src/utils/dictionarySchemaRelations.js';
 import {
 	canTransitionToClosed,
 	determineIfIsSubmission,
 	extractSchemaDataFromMergedDataRecords,
+	getDependentsFilteronSubmissionUpdate,
 	groupSchemaErrorsByEntity,
 	mapGroupedUpdateSubmissionData,
 	mapInsertDataToRecordReferences,
 	mergeAndReferenceEntityData,
+	mergeDeleteRecords,
 	mergeInsertsRecords,
 	mergeRecords,
+	mergeUpdatesBySystemId,
 	parseActiveSubmissionResponse,
 	parseActiveSubmissionSummaryResponse,
 	removeItemsFromSubmission,
+	segregateFieldChangeRecords,
 } from '../../src/utils/submissionUtils.js';
 import {
 	type ActiveSubmissionSummaryRepository,
@@ -125,6 +137,51 @@ describe('Submission Utils', () => {
 			const response = extractSchemaDataFromMergedDataRecords({});
 			expect(Object.keys(response).length).to.eq(0);
 			expect(Object.keys(response)).to.eql([]);
+		});
+	});
+	describe('Finds the filter to search for Child Dependencies', () => {
+		it('should return a shema relation when record is changing its primary ID field', () => {
+			const schemaRelations: SchemaChildNode[] = [
+				{
+					schemaName: 'employee',
+					fieldName: 'personId',
+					parent: {
+						schemaName: 'person',
+						fieldName: 'personId',
+					},
+				},
+			];
+			const updateRecord: SubmissionUpdateData = {
+				systemId: 'SSS001',
+				new: { personId: 'PPPPP001' },
+				old: { personId: 'RRRRR001' },
+			};
+			const result = getDependentsFilteronSubmissionUpdate(schemaRelations, updateRecord);
+			expect(result.length).to.eq(1);
+			expect(result[0]).to.eql({
+				dataField: 'personId',
+				dataValue: 'RRRRR001',
+				entityName: 'employee',
+			});
+		});
+		it('should return empty filter when record is not changing a primary ID field', () => {
+			const schemaRelations: SchemaChildNode[] = [
+				{
+					schemaName: 'employee',
+					fieldName: 'personId',
+					parent: {
+						schemaName: 'person',
+						fieldName: 'personId',
+					},
+				},
+			];
+			const updateRecord: SubmissionUpdateData = {
+				systemId: 'SSS001',
+				new: { name: 'Pedro' },
+				old: { name: 'Pedro Pedro Pedro' },
+			};
+			const result = getDependentsFilteronSubmissionUpdate(schemaRelations, updateRecord);
+			expect(result.length).to.eq(0);
 		});
 	});
 	describe('Group validation errors by entity', () => {
@@ -807,8 +864,7 @@ describe('Submission Utils', () => {
 			expect(response['name']).to.eql(['Tom', 'Jerry', 'Bob', 'Patrick']);
 		});
 	});
-
-	describe('Merge 2 Submission insert records', () => {
+	describe('Merge multiple Submission insert records', () => {
 		it('should return a record object with one key and merged array items', () => {
 			const obj1: Record<string, SubmissionInsertData> = {
 				sports: { batchName: 'sports.tsv', records: [{ title: 'footbal' }] },
@@ -845,6 +901,154 @@ describe('Submission Utils', () => {
 			expect(Object.keys(result).length).to.eq(1);
 			expect(result['sports'].records.length).to.eq(1);
 			expect(result['sports'].records[0]).eql({ title: 'snowboarding' });
+		});
+	});
+	describe('Merge multiple Submission delete records', () => {
+		it('should return an object with 2 records within the same key', () => {
+			const deletes1: Record<string, SubmissionDeleteData[]> = {
+				food: [
+					{ data: { name: 'pizza' }, entityName: 'food', isValid: true, organization: 'kitchen', systemId: 'PZ8900' },
+				],
+			};
+			const deletes2: Record<string, SubmissionDeleteData[]> = {
+				food: [
+					{
+						data: { name: 'pizza' },
+						entityName: 'hamburger',
+						isValid: true,
+						organization: 'kitchen',
+						systemId: 'HG1234',
+					},
+				],
+			};
+			const response = mergeDeleteRecords(deletes1, deletes2);
+			expect(Object.keys(response).length).eq(1);
+			expect(Object.keys(response)[0]).eql('food');
+			expect(response['food'].length).eq(2);
+			expect(response['food']).eql([
+				{ data: { name: 'pizza' }, entityName: 'food', isValid: true, organization: 'kitchen', systemId: 'PZ8900' },
+				{
+					data: { name: 'pizza' },
+					entityName: 'hamburger',
+					isValid: true,
+					organization: 'kitchen',
+					systemId: 'HG1234',
+				},
+			]);
+		});
+		it('should return an object with 2 records with different key', () => {
+			const deletes1: Record<string, SubmissionDeleteData[]> = {
+				food: [
+					{ data: { name: 'pizza' }, entityName: 'food', isValid: true, organization: 'kitchen', systemId: 'PZ8900' },
+				],
+			};
+			const deletes2: Record<string, SubmissionDeleteData[]> = {
+				animal: [
+					{
+						data: { name: 'lion' },
+						entityName: 'animal',
+						isValid: false,
+						organization: 'zoo',
+						systemId: 'LN5566',
+					},
+				],
+			};
+			const response = mergeDeleteRecords(deletes1, deletes2);
+			expect(Object.keys(response).length).eq(2);
+			expect(Object.keys(response)).eql(['food', 'animal']);
+			expect(response['food'].length).eq(1);
+			expect(response['animal'].length).eq(1);
+			expect(response['food'][0]).eql({
+				data: { name: 'pizza' },
+				entityName: 'food',
+				isValid: true,
+				organization: 'kitchen',
+				systemId: 'PZ8900',
+			});
+			expect(response['animal'][0]).eql({
+				data: { name: 'lion' },
+				entityName: 'animal',
+				isValid: false,
+				organization: 'zoo',
+				systemId: 'LN5566',
+			});
+		});
+		it('should avoid duplication and return an object with 1 record', () => {
+			const deletes1: Record<string, SubmissionDeleteData[]> = {
+				food: [
+					{ data: { name: 'Paella' }, entityName: 'food', isValid: true, organization: 'kitchen', systemId: 'PAE344' },
+				],
+			};
+			const deletes2: Record<string, SubmissionDeleteData[]> = {
+				food: [
+					{ data: { name: 'Paella' }, entityName: 'food', isValid: true, organization: 'kitchen', systemId: 'PAE344' },
+				],
+			};
+			const deletes3: Record<string, SubmissionDeleteData[]> = {
+				food: [
+					{ data: { name: 'Paella' }, entityName: 'food', isValid: true, organization: 'kitchen', systemId: 'PAE344' },
+				],
+			};
+			const response = mergeDeleteRecords(deletes1, deletes2, deletes3);
+			expect(Object.keys(response).length).eq(1);
+			expect(Object.keys(response)).eql(['food']);
+			expect(response['food'].length).eq(1);
+			expect(response['food'][0]).eql({
+				data: { name: 'Paella' },
+				entityName: 'food',
+				isValid: true,
+				organization: 'kitchen',
+				systemId: 'PAE344',
+			});
+		});
+	});
+	describe('Merge multiple Submission Update records', () => {
+		it('should return an object with 2 recrods withing the same key', () => {
+			const update1: Record<string, SubmissionUpdateData[]> = {
+				animal: [{ systemId: 'GRL3839', new: { name: 'Gorilla' }, old: { name: 'alliroG' } }],
+			};
+			const update2: Record<string, SubmissionUpdateData[]> = {
+				animal: [{ systemId: 'CAM1929', new: { name: 'Cammel' }, old: { name: 'lemmaC' } }],
+			};
+			const result = mergeUpdatesBySystemId(update1, update2);
+			expect(Object.keys(result).length).eq(1);
+			expect(Object.keys(result)[0]).eql('animal');
+			expect(result['animal'].length).eq(2);
+			expect(result['animal']).eql([
+				{ systemId: 'GRL3839', new: { name: 'Gorilla' }, old: { name: 'alliroG' } },
+				{ systemId: 'CAM1929', new: { name: 'Cammel' }, old: { name: 'lemmaC' } },
+			]);
+		});
+		it('should return an object with 2 records with different key', () => {
+			const update1: Record<string, SubmissionUpdateData[]> = {
+				animal: [{ systemId: 'GRL3839', new: { name: 'Gorilla' }, old: { name: 'alliroG' } }],
+			};
+			const update2: Record<string, SubmissionUpdateData[]> = {
+				movies: [{ systemId: 'SPD001', new: { name: 'Spiderman' }, old: { name: 'Spidey' } }],
+			};
+			const result = mergeUpdatesBySystemId(update1, update2);
+			expect(Object.keys(result).length).eq(2);
+			expect(Object.keys(result)).eql(['animal', 'movies']);
+			expect(result['animal'].length).eq(1);
+			expect(result['animal'][0]).eql({ systemId: 'GRL3839', new: { name: 'Gorilla' }, old: { name: 'alliroG' } });
+			expect(result['movies'].length).eq(1);
+			expect(result['movies'][0]).eql({ systemId: 'SPD001', new: { name: 'Spiderman' }, old: { name: 'Spidey' } });
+		});
+		it('should avoid duplication and return an object with 1 record', () => {
+			const update1: Record<string, SubmissionUpdateData[]> = {
+				movies: [{ systemId: 'SPD001', new: { name: 'Spiderman' }, old: { name: 'Spidey' } }],
+			};
+			const update2: Record<string, SubmissionUpdateData[]> = {
+				movies: [{ systemId: 'SPD001', new: { name: 'Spiderman' }, old: { name: 'Spidey' } }],
+			};
+			const update3: Record<string, SubmissionUpdateData[]> = {
+				movies: [{ systemId: 'SPD001', new: { name: 'Spiderman' }, old: { name: 'Spidey' } }],
+			};
+			const result = mergeUpdatesBySystemId(update1, update2, update3);
+			expect(Object.keys(result).length).eq(1);
+			expect(Object.keys(result)[0]).eql('movies');
+			expect(result['movies'].length).eq(1);
+			expect(result['movies'][0]).eql({ systemId: 'SPD001', new: { name: 'Spiderman' }, old: { name: 'Spidey' } });
 		});
 	});
 	describe('Parse a Submisison object to a response format', () => {
@@ -1463,6 +1667,108 @@ describe('Submission Utils', () => {
 			};
 			const response = removeItemsFromSubmission(deleteOneSubmission, filter);
 			expect(response).to.eql({});
+		});
+	});
+	describe('Segregate the updates based on whether they involve ID fields (dependent fields) or non-ID fields', () => {
+		it('returns 1 record on idFieldChangeRecord when change involves an ID field', () => {
+			const submissionUpdateRecord: Record<string, SubmissionUpdateData[]> = {
+				person: [{ systemId: 'PER987', new: { personId: '4' }, old: { personId: '1' } }],
+			};
+
+			const dictionaryRelations: Record<string, SchemaChildNode[]> = {
+				person: [
+					{
+						schemaName: 'employee',
+						fieldName: 'personId',
+						parent: {
+							schemaName: 'person',
+							fieldName: 'personId',
+						},
+					},
+				],
+				employee: [],
+			};
+
+			const result = segregateFieldChangeRecords(submissionUpdateRecord, dictionaryRelations);
+			expect(Object.keys(result).length).eq(2);
+			expect(Object.keys(result)).eql(['idFieldChangeRecord', 'nonIdFieldChangeRecord']);
+			expect(Object.keys(result['idFieldChangeRecord']).length).eq(1);
+			expect(Object.keys(result['nonIdFieldChangeRecord']).length).eq(0);
+			expect(Object.keys(result['idFieldChangeRecord'])[0]).eql('person');
+			expect(result['idFieldChangeRecord']['person'][0]).eql({
+				systemId: 'PER987',
+				new: { personId: '4' },
+				old: { personId: '1' },
+			});
+		});
+		it('returns 1 record on nonIdFieldChangeRecord when change does not involve an ID field', () => {
+			const submissionUpdateRecord: Record<string, SubmissionUpdateData[]> = {
+				person: [{ systemId: 'PER987', new: { name: 'Pedro' }, old: { name: 'Pepe' } }],
+			};
+			const dictionaryRelations: Record<string, SchemaChildNode[]> = {
+				person: [
+					{
+						schemaName: 'employee',
+						fieldName: 'personId',
+						parent: {
+							schemaName: 'person',
+							fieldName: 'personId',
+						},
+					},
+				],
+				employee: [],
+			};
+
+			const result = segregateFieldChangeRecords(submissionUpdateRecord, dictionaryRelations);
+			expect(Object.keys(result).length).eq(2);
+			expect(Object.keys(result)).eql(['idFieldChangeRecord', 'nonIdFieldChangeRecord']);
+			expect(Object.keys(result['idFieldChangeRecord']).length).eq(0);
+			expect(Object.keys(result['nonIdFieldChangeRecord']).length).eq(1);
+			expect(Object.keys(result['nonIdFieldChangeRecord'])[0]).eql('person');
+			expect(result['nonIdFieldChangeRecord']['person'][0]).eql({
+				systemId: 'PER987',
+				new: { name: 'Pedro' },
+				old: { name: 'Pepe' },
+			});
+		});
+		it('returns 1 record on idFieldChangeRecord and 1 on nonIdFieldChangeRecord', () => {
+			const submissionUpdateRecord: Record<string, SubmissionUpdateData[]> = {
+				person: [
+					{ systemId: 'PER987', new: { name: 'Pedro' }, old: { name: 'Pepe' } },
+					{ systemId: 'PER432', new: { personId: '4' }, old: { personId: '1' } },
+				],
+			};
+			const dictionaryRelations: Record<string, SchemaChildNode[]> = {
+				person: [
+					{
+						schemaName: 'employee',
+						fieldName: 'personId',
+						parent: {
+							schemaName: 'person',
+							fieldName: 'personId',
+						},
+					},
+				],
+				employee: [],
+			};
+
+			const result = segregateFieldChangeRecords(submissionUpdateRecord, dictionaryRelations);
+			expect(Object.keys(result).length).eq(2);
+			expect(Object.keys(result)).eql(['idFieldChangeRecord', 'nonIdFieldChangeRecord']);
+			expect(Object.keys(result['idFieldChangeRecord']).length).eq(1);
+			expect(Object.keys(result['idFieldChangeRecord'])[0]).eql('person');
+			expect(result['idFieldChangeRecord']['person'][0]).eql({
+				systemId: 'PER432',
+				new: { personId: '4' },
+				old: { personId: '1' },
+			});
+			expect(Object.keys(result['nonIdFieldChangeRecord']).length).eq(1);
+			expect(Object.keys(result['nonIdFieldChangeRecord'])[0]).eql('person');
+			expect(result['nonIdFieldChangeRecord']['person'][0]).eql({
+				systemId: 'PER987',
+				new: { name: 'Pedro' },
+				old: { name: 'Pepe' },
+			});
 		});
 	});
 });
