@@ -130,13 +130,6 @@ const service = (dependencies: BaseDependencies) => {
 				})
 			: [];
 
-		// TODO: Detect Conflict on SystemId's. Cases to consider:
-		// same user edits or deletes same record
-		// two users have edits to different fields in the same entity
-		// two users have edits to the SAME field in the same entity
-		// two users are submitting entities with the same unique key values
-		// multiple users delete the same entity
-
 		const deleteDataArray = submission.data?.deletes
 			? Object.entries(submission.data.deletes).flatMap(([entityName, submissionDeleteData]) => {
 					entitiesToProcess.add(entityName);
