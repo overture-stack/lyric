@@ -1,11 +1,8 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
+import { type DictionaryValidationRecordErrorDetails, type SchemaRecordError } from '@overture-stack/lectern-client';
 import type { NewSubmittedData, SubmittedData } from '@overture-stack/lyric-data-model';
-import {
-	type SchemaValidationError,
-	SchemaValidationErrorTypes,
-} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 import {
 	computeDataDiff,
@@ -121,50 +118,51 @@ describe('Submitted Data Utils', () => {
 	});
 	describe('Group validation errors by index', () => {
 		it('should return the errors by index', () => {
-			const listOfErrors: SchemaValidationError[] = [
+			const listOfErrors: SchemaRecordError<DictionaryValidationRecordErrorDetails>[] = [
 				{
-					info: {},
-					index: 0,
-					message: 'UNRECOGNIZED_FIELD',
-					errorType: SchemaValidationErrorTypes.UNRECOGNIZED_FIELD,
-					fieldName: 'systemId',
+					recordIndex: 0,
+					recordErrors: [
+						{
+							fieldName: 'systemId',
+							reason: 'INVALID_BY_RESTRICTION',
+							fieldValue: '',
+							errors: [],
+						},
+					],
 				},
 				{
-					info: {
-						value: ['Homme'],
-					},
-					index: 1,
-					message: 'The value is not permissible for this field.',
-					errorType: SchemaValidationErrorTypes.INVALID_ENUM_VALUE,
-					fieldName: 'sex_at_birth',
+					recordIndex: 1,
+					recordErrors: [
+						{
+							reason: `INVALID_BY_RESTRICTION`,
+							fieldName: 'sex_at_birth',
+							fieldValue: 'Homme',
+							errors: [],
+						},
+					],
 				},
 			];
-
 			const response = groupErrorsByIndex(listOfErrors);
 			expect(Object.keys(response).length).to.eq(2);
 			expect(response[0]).to.eql([
 				{
-					info: {},
-					index: 0,
-					message: 'UNRECOGNIZED_FIELD',
-					errorType: SchemaValidationErrorTypes.UNRECOGNIZED_FIELD,
 					fieldName: 'systemId',
+					reason: 'INVALID_BY_RESTRICTION',
+					fieldValue: '',
+					errors: [],
 				},
 			]);
 			expect(response[1]).to.eql([
 				{
-					info: {
-						value: ['Homme'],
-					},
-					index: 1,
-					message: 'The value is not permissible for this field.',
-					errorType: SchemaValidationErrorTypes.INVALID_ENUM_VALUE,
+					reason: `INVALID_BY_RESTRICTION`,
 					fieldName: 'sex_at_birth',
+					fieldValue: 'Homme',
+					errors: [],
 				},
 			]);
 		});
 		it('should return an empty array if no errors are passed', () => {
-			const listOfErrors: SchemaValidationError[] = [];
+			const listOfErrors: SchemaRecordError<DictionaryValidationRecordErrorDetails>[] = [];
 
 			const response = groupErrorsByIndex(listOfErrors);
 			expect(Object.keys(response).length).to.eq(0);
@@ -226,22 +224,27 @@ describe('Submitted Data Utils', () => {
 		});
 	});
 	describe('Finds an error by index', () => {
-		const listOfErrors: SchemaValidationError[] = [
+		const listOfErrors: SchemaRecordError<DictionaryValidationRecordErrorDetails>[] = [
 			{
-				info: {},
-				index: 1,
-				message: 'UNRECOGNIZED_FIELD',
-				errorType: SchemaValidationErrorTypes.UNRECOGNIZED_FIELD,
-				fieldName: 'systemId',
+				recordIndex: 1,
+				recordErrors: [
+					{
+						reason: 'UNRECOGNIZED_FIELD',
+						fieldName: 'systemId',
+						fieldValue: '',
+					},
+				],
 			},
 			{
-				info: {
-					value: ['Homme'],
-				},
-				index: 1,
-				message: 'The value is not permissible for this field.',
-				errorType: SchemaValidationErrorTypes.INVALID_ENUM_VALUE,
-				fieldName: 'sex_at_birth',
+				recordIndex: 1,
+				recordErrors: [
+					{
+						errors: [],
+						reason: `INVALID_BY_RESTRICTION`,
+						fieldName: 'sex_at_birth',
+						fieldValue: 'Homme',
+					},
+				],
 			},
 		];
 		it('should return true if error is found on index', () => {

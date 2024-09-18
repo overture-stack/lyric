@@ -1,6 +1,11 @@
 import * as _ from 'lodash-es';
 
 import {
+	type DataRecord,
+	Dictionary as SchemasDictionary,
+	DictionaryValidationRecordErrorDetails,
+} from '@overture-stack/lectern-client';
+import {
 	type NewSubmission,
 	Submission,
 	SubmissionData,
@@ -9,11 +14,6 @@ import {
 	type SubmissionUpdateData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model';
-import {
-	type DataRecord,
-	SchemasDictionary,
-	SchemaValidationError,
-} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 import { BaseDependencies } from '../config/config.js';
 import systemIdGenerator from '../external/systemIdGenerator.js';
@@ -709,7 +709,7 @@ const service = (dependencies: BaseDependencies) => {
 	 * @param {number} input.dictionaryId The Dictionary ID of the Submission
 	 * @param {SubmissionData} input.submissionData Data to be submitted grouped on inserts, updates and deletes
 	 * @param {number} input.idActiveSubmission ID of the Active Submission
-	 * @param {Record<string, SchemaValidationError[]>} input.schemaErrors Array of schemaErrors
+	 * @param {Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>>} input.schemaErrors Array of schemaErrors
 	 * @param {string} input.userName User updating the active submission
 	 * @returns {Promise<Submission>} An Active Submission updated
 	 */
@@ -717,7 +717,7 @@ const service = (dependencies: BaseDependencies) => {
 		dictionaryId: number;
 		submissionData: SubmissionData;
 		idActiveSubmission: number;
-		schemaErrors: Record<string, Record<string, SchemaValidationError[]>>;
+		schemaErrors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>>;
 		userName: string;
 	}): Promise<Submission> => {
 		const { dictionaryId, submissionData, idActiveSubmission, schemaErrors, userName } = input;

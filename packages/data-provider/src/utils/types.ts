@@ -2,6 +2,11 @@ import { DeepReadonly } from 'deep-freeze';
 import { z } from 'zod';
 
 import {
+	type DataRecord,
+	Dictionary as SchemasDictionary,
+	DictionaryValidationRecordErrorDetails,
+} from '@overture-stack/lectern-client';
+import {
 	type DataDiff,
 	NewSubmittedData,
 	Submission,
@@ -10,12 +15,6 @@ import {
 	type SubmissionUpdateData,
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model';
-import {
-	DataRecord,
-	type SchemaData,
-	SchemasDictionary,
-	SchemaValidationError,
-} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 type ObjectValues<T> = T[keyof T];
 
@@ -177,7 +176,7 @@ export interface CommitSubmissionParams {
 
 export type GroupedDataSubmission = {
 	submittedDataByEntityName: Record<string, Array<NewSubmittedData | SubmittedData>>;
-	schemaDataByEntityName: Record<string, SchemaData>;
+	schemaDataByEntityName: Record<string, DataRecord[]>;
 };
 
 export type BooleanTrueObject = {
@@ -223,7 +222,7 @@ export type ActiveSubmissionResponse = {
 	data: SubmissionData;
 	dictionary: DictionaryActiveSubmission | null;
 	dictionaryCategory: CategoryActiveSubmission | null;
-	errors: Record<string, Record<string, SchemaValidationError[]>> | null;
+	errors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> | null;
 	organization: string;
 	status: SubmissionStatus | null;
 	createdAt: string | null;
@@ -252,7 +251,7 @@ export type ActiveSubmissionSummaryRepository = {
 	data: SubmissionData;
 	dictionary: object | null;
 	dictionaryCategory: object | null;
-	errors: Record<string, Record<string, SchemaValidationError[]>> | null;
+	errors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> | null;
 	organization: string | null;
 	status: SubmissionStatus | null;
 	createdAt: Date | null;
@@ -276,6 +275,8 @@ export type DeleteSubmittedData = {
 	systemId: string;
 	data: DataRecord;
 };
+
+export type FieldNamesByPriorityMap = { required: string[]; optional: string[] };
 
 export type ListAllCategoriesResponse = {
 	id: number;

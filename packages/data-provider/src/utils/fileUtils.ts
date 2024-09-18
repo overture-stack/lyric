@@ -2,7 +2,7 @@ import bytes from 'bytes';
 import firstline from 'firstline';
 import fs from 'fs';
 
-import { DataRecord, SchemaData } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import { type DataRecord } from '@overture-stack/lectern-client';
 
 import { notEmpty } from './formatUtils.js';
 import { BATCH_ERROR_TYPE, type BatchError } from './types.js';
@@ -33,13 +33,13 @@ export const readHeaders = async (file: Express.Multer.File) => {
  * @param {string} fileName
  * @returns a JSON format objet
  */
-export const tsvToJson = async (fileName: string): Promise<SchemaData> => {
+export const tsvToJson = async (fileName: string): Promise<DataRecord[]> => {
 	const contents = await fsPromises.readFile(fileName, 'utf-8');
 	const arr = parseTsvToJson(contents);
 	return arr;
 };
 
-const parseTsvToJson = (content: string): SchemaData => {
+const parseTsvToJson = (content: string): DataRecord[] => {
 	const lines = content.split('\n');
 	const headers = lines.slice(0, 1)[0].trim().split('\t');
 	const rows = lines
@@ -47,17 +47,24 @@ const parseTsvToJson = (content: string): SchemaData => {
 		.filter((line) => line && line.trim() !== '')
 		.map((line) => {
 			const data = line.split('\t');
-			return headers.reduce((obj: { [k: string]: string | string[] }, nextKey, index) => {
-				const dataStr = data[index] || '';
-				const formattedData = formatForExcelCompatibility(dataStr);
-				const dataAsArray: string[] = formattedData
-					.trim()
-					.split(ARRAY_DELIMITER_CHAR)
-					.map((s) => s.trim());
+			return headers.reduce(
+				(
+					obj: { [k: string]: string | string[] | number | number[] | boolean | boolean[] | undefined },
+					nextKey,
+					index,
+				) => {
+					const dataStr = data[index] || '';
+					const formattedData = formatForExcelCompatibility(dataStr);
+					const dataAsArray: string[] = formattedData
+						.trim()
+						.split(ARRAY_DELIMITER_CHAR)
+						.map((s) => s.trim());
 
-				obj[nextKey] = dataAsArray.length === 1 ? dataAsArray[0] : dataAsArray;
-				return obj as DataRecord;
-			}, {});
+					obj[nextKey] = dataAsArray.length === 1 ? dataAsArray[0] : dataAsArray;
+					return obj as DataRecord;
+				},
+				{},
+			);
 		});
 	return rows.filter(notEmpty);
 };

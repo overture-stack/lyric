@@ -111,9 +111,9 @@ importers:
 
   packages/data-model:
     dependencies:
-      '@overturebio-stack/lectern-client':
-        specifier: ^1.5.0
-        version: 1.5.0(typescript@5.5.3)
+      '@overture-stack/lectern-client':
+        specifier: 2.0.0-beta.1
+        version: 2.0.0-beta.1
       dotenv:
         specifier: ^16.4.5
         version: 16.4.5
@@ -142,15 +142,15 @@ importers:
 
   packages/data-provider:
     dependencies:
+      '@overture-stack/lectern-client':
+        specifier: 2.0.0-beta.1
+        version: 2.0.0-beta.1
       '@overture-stack/lyric-data-model':
         specifier: workspace:^
         version: link:../data-model
       '@overture-stack/sqon-builder':
         specifier: ^1.1.0
         version: 1.1.0
-      '@overturebio-stack/lectern-client':
-        specifier: ^1.5.0
-        version: 1.5.0(typescript@5.5.3)
       bytes:
         specifier: ^3.1.2
         version: 3.1.2
@@ -1038,27 +1038,41 @@ packages:
       fastq: 1.17.1
     dev: true
 
+  /@overture-stack/lectern-client@2.0.0-beta.1:
+    resolution: {integrity: sha512-MdDtbzA2zLWpracicFj2KFiTdYb1A0xxLmFfrvn1Eo6gt28p8YPg5CUNO2y6K+mOaPoKnBfmAqEUVtHGGorIdA==}
+    dependencies:
+      '@overture-stack/lectern-dictionary': 2.0.0-beta.1
+      '@overture-stack/lectern-validation': 2.0.0-beta.1
+      cd: 0.3.3
+      lodash: 4.17.21
+      node-fetch: 2.7.0
+      promise-tools: 2.1.0
+      winston: 3.13.1
+    transitivePeerDependencies:
+      - encoding
+    dev: false
+
+  /@overture-stack/lectern-dictionary@2.0.0-beta.1:
+    resolution: {integrity: sha512-5L0R6Ghne35GQ8YbJ2TP+o0shiA9Q11uzDeDmj54VXa+/PfkTpNpvGSm3/egQiAzvBqM932M6Yw2Eu8FYs7Clg==}
+    dependencies:
+      immer: 10.1.1
+      lodash: 4.17.21
+      zod: 3.23.8
+    dev: false
+
+  /@overture-stack/lectern-validation@2.0.0-beta.1:
+    resolution: {integrity: sha512-3O/7d/yDNEZiYb7EpTb5rIUPds9Mg0m0mXDncQ3ZU/EsSLDF7CBe2CjWw9DxJUQFTd163HqIwj8J6NpvcFbDwg==}
+    dependencies:
+      '@overture-stack/lectern-dictionary': 2.0.0-beta.1
+      lodash: 4.17.21
+      zod: 3.23.8
+    dev: false
+
   /@overture-stack/sqon-builder@1.1.0:
     resolution: {integrity: sha512-HpxJBbhN2FIIpSKOHoezua7/2by9S7qpnuaG5qgpm69nLUX0KnW2fwGVELJ3PMW1DpU8qg74kASozUnST0F+cQ==}
     dependencies:
       lodash.clonedeep: 4.5.0
       zod: 3.23.8
-    dev: false
-
-  /@overturebio-stack/lectern-client@1.5.0(typescript@5.5.3):
-    resolution: {integrity: sha512-WYLwlWE09yR/SG6FqhAbbFynY3+ViclVbGJO0PO6Uspe5Pe7YKOfzWO9udlO4f40y+ZnwDlzkaJgMsk/AocyhQ==}
-    dependencies:
-      cd: 0.3.3
-      deep-freeze: 0.0.1
-      lodash: 4.17.21
-      node-fetch: 2.7.0
-      node-worker-threads-pool: 1.5.1
-      promise-tools: 2.1.0
-      ts-node: 9.1.1(typescript@5.5.3)
-      winston: 3.13.1
-    transitivePeerDependencies:
-      - encoding
-      - typescript
     dev: false
 
   /@pkgjs/parseargs@0.11.0:
@@ -1445,10 +1459,6 @@ packages:
     resolution: {integrity: sha512-klpgFSWLW1ZEs8svjfb7g4qWY0YS5imI82dTg+QahUvJ8YqAY0P10Uk8tTyh9ZGuYEZEMaeJYCF5BFuX552hsw==}
     dev: false
 
-  /arg@4.1.3:
-    resolution: {integrity: sha512-58S9QDqG0Xx27YwPSt9fJxivjYl432YCwfDMfZ+71RAqUrZef7LrKQZ3LHLOwCS4FLNBplP533Zx895SeOCHvA==}
-    dev: false
-
   /argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
 
@@ -1777,10 +1787,6 @@ packages:
   /core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
 
-  /create-require@1.1.1:
-    resolution: {integrity: sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==}
-    dev: false
-
   /cross-spawn@7.0.3:
     resolution: {integrity: sha512-iRDPJKUPVEND7dHPO8rkbOnPpyDygcDFtWjpeWNCgy8WP2rXcxXL8TskReQl6OrB2G7+UJrags1q15Fudc7G6w==}
     engines: {node: '>= 8'}
@@ -1882,11 +1888,6 @@ packages:
   /destroy@1.2.0:
     resolution: {integrity: sha512-2sJGJTaXIIaR1w4iJSNoN0hnMY7Gpc/n8D4qSCJw8QqFWXf7cuAgnEHxBpweaVcPevC2l3KpjYCx3NypQQgaJg==}
     engines: {node: '>= 0.8', npm: 1.2.8000 || >= 1.4.16}
-    dev: false
-
-  /diff@4.0.2:
-    resolution: {integrity: sha512-58lmxKSA4BNyLz+HHMUzlOEpg09FV+ev6ZMe3vJihgdxzgcwZ8VoEEPmALCZG9LmqfVoNMMKpttIYTVG6uDY7A==}
-    engines: {node: '>=0.3.1'}
     dev: false
 
   /diff@5.2.0:
@@ -2799,6 +2800,10 @@ packages:
     engines: {node: '>= 4'}
     dev: true
 
+  /immer@10.1.1:
+    resolution: {integrity: sha512-s2MPrmjovJcoMaHtx6K11Ra7oD05NT97w1IC5zpMkT6Atjr7H8LjaDd81iIxUYpMKSRRNMJE703M1Fhr/TctHw==}
+    dev: false
+
   /import-fresh@3.3.0:
     resolution: {integrity: sha512-veYYhQa+D1QBKznvhUHxb8faxlrwUnxseDAbAp457E0wLNio2bOSKnjYDhMj+YiAq61xrMGhQk9iXVk5FzgQMw==}
     engines: {node: '>=6'}
@@ -3067,10 +3072,6 @@ packages:
       semver: 7.6.2
     dev: true
 
-  /make-error@1.3.6:
-    resolution: {integrity: sha512-s8UhlNe7vPKomQhC1qFelMokr/Sc3AgNbso3n74mVPA5LTZwkB9NlXf4XPamLxJE8h0gh73rM94xvwRT2CVInw==}
-    dev: false
-
   /media-typer@0.3.0:
     resolution: {integrity: sha512-dq+qelQ9akHpcOl/gUVRTxVIOkAJ1wR3QAvb4RsVjS8oVoFjDGTc679wJYmUmknUF5HwMLOgb5O+a3KxfWapPQ==}
     engines: {node: '>= 0.6'}
@@ -3267,10 +3268,6 @@ packages:
         optional: true
     dependencies:
       whatwg-url: 5.0.0
-    dev: false
-
-  /node-worker-threads-pool@1.5.1:
-    resolution: {integrity: sha512-7TXAhpMm+jO4MfESxYLtMGSnJWv+itdNHMdaFmeZuPXxwFGU90mtEB42BciUULXOUAxYBfXILAuvrSG3rQZ7mw==}
     dev: false
 
   /nodemon@3.1.4:
@@ -3825,10 +3822,12 @@ packages:
     dependencies:
       buffer-from: 1.1.2
       source-map: 0.6.1
+    dev: true
 
   /source-map@0.6.1:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
     engines: {node: '>=0.10.0'}
+    dev: true
 
   /split2@4.2.0:
     resolution: {integrity: sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg==}
@@ -4041,22 +4040,6 @@ packages:
       typescript: 5.5.3
     dev: true
 
-  /ts-node@9.1.1(typescript@5.5.3):
-    resolution: {integrity: sha512-hPlt7ZACERQGf03M253ytLY3dHbGNGrAq9qIHWUY9XHYl1z7wYngSr3OQ5xmui8o2AaxsONxIzjafLUiWBo1Fg==}
-    engines: {node: '>=10.0.0'}
-    hasBin: true
-    peerDependencies:
-      typescript: '>=2.7'
-    dependencies:
-      arg: 4.1.3
-      create-require: 1.1.1
-      diff: 4.0.2
-      make-error: 1.3.6
-      source-map-support: 0.5.21
-      typescript: 5.5.3
-      yn: 3.1.1
-    dev: false
-
   /tslib@2.6.3:
     resolution: {integrity: sha512-xNvxJEOUiWPGhUuUdQgAJPKOOJfGnIyKySOc09XkKsgdUV/3E2zvwZYdejjmRgPCgcym1juLH3226yA7sEFJKQ==}
     dev: true
@@ -4123,6 +4106,7 @@ packages:
     resolution: {integrity: sha512-/hreyEujaB0w76zKo6717l3L0o/qEUtRgdvUBvlkhoWeOVMjMuHNHk0BRBzikzuGDqNmPQbg5ifMEqsHLiIUcQ==}
     engines: {node: '>=14.17'}
     hasBin: true
+    dev: true
 
   /undefsafe@2.0.5:
     resolution: {integrity: sha512-WxONCrssBM8TSPRqN5EmsjVrsv4A8X12J4ArBiiayv3DyyG3ZlIg6yysuuSYdZsVz3TKcTg2fd//Ujd4CHV1iA==}
@@ -4316,11 +4300,6 @@ packages:
       y18n: 5.0.8
       yargs-parser: 21.1.1
     dev: true
-
-  /yn@3.1.1:
-    resolution: {integrity: sha512-Ux4ygGWsu2c7isFWe8Yu1YluJmqVhxqK2cLXNQA5AcC3QfbGNpM7fu0Y8b/z16pXLnFxZYvWhd3fhBY9DLmC6Q==}
-    engines: {node: '>=6'}
-    dev: false
 
   /yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}

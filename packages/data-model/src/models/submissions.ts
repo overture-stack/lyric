@@ -1,11 +1,7 @@
 import { relations } from 'drizzle-orm';
 import { integer, jsonb, pgEnum, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
-import {
-	type DataRecord,
-	SchemaData,
-	SchemaValidationError,
-} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import { type DataRecord, type DictionaryValidationRecordErrorDetails } from '@overture-stack/lectern-client';
 
 import { dictionaries } from './dictionaries.js';
 import { dictionaryCategories } from './dictionary_categories.js';
@@ -14,7 +10,7 @@ export const submissionStatusEnum = pgEnum('submission_status', ['OPEN', 'VALID'
 
 export type SubmissionInsertData = {
 	batchName: string;
-	records: SchemaData;
+	records: DataRecord[];
 };
 
 export type SubmissionUpdateData = {
@@ -46,7 +42,7 @@ export const submissions = pgTable('submissions', {
 	dictionaryId: integer('dictionary_id')
 		.references(() => dictionaries.id)
 		.notNull(),
-	errors: jsonb('errors').$type<Record<string, Record<string, SchemaValidationError[]>>>(),
+	errors: jsonb('errors').$type<Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>>>(),
 	organization: varchar('organization').notNull(),
 	status: submissionStatusEnum('status').notNull(),
 	createdAt: timestamp('created_at').defaultNow(),

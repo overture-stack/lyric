@@ -41,7 +41,7 @@ sequenceDiagram
 
         create participant LecternClient
 
-        Lyric->>LecternClient: Validate merged data with Dictionary Schemas <br />(processSchemas)
+        Lyric->>LecternClient: Validate merged data with Dictionary Schemas <br />(validateDictionary)
         destroy LecternClient
         LecternClient-->>Lyric: Return Validation errors
 

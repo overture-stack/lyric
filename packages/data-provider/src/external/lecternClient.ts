@@ -1,4 +1,4 @@
-import { entities as dictionaryEntities, restClient as dictionaryRestClient } from '@overturebio-stack/lectern-client';
+import { Dictionary as SchemasDictionary, rest as dictionaryRestClient } from '@overture-stack/lectern-client';
 
 import { Logger } from '../config/logger.js';
 import { BadRequest, ServiceUnavailable } from '../utils/errors.js';
@@ -12,7 +12,7 @@ const client = (schemaServiceUrl: string, logger: Logger) => {
 		 * @param version Dictionary version
 		 * @returns A Dictionary found
 		 */
-		async fetchDictionaryByVersion(name: string, version: string): Promise<dictionaryEntities.SchemasDictionary> {
+		async fetchDictionaryByVersion(name: string, version: string): Promise<SchemasDictionary> {
 			let newSchema;
 			try {
 				newSchema = await dictionaryRestClient.fetchSchema(schemaServiceUrl, name, version);

@@ -1,13 +1,17 @@
 import { groupBy, has } from 'lodash-es';
 
 import {
+	type DataRecord,
+	DictionaryValidationRecordErrorDetails,
+	type SchemaRecordError,
+} from '@overture-stack/lectern-client';
+import {
 	type DataDiff,
 	NewSubmittedData,
 	type SubmissionDeleteData,
 	type SubmissionUpdateData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model';
-import { type DataRecord, SchemaValidationError } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 import {
 	DataRecordReference,
@@ -108,11 +112,20 @@ export const groupByEntityName = (dataArray: SubmittedData[]): Record<string, Su
 
 /**
  * Get all the schema errors grouped by the index of the record
- * @param {SchemaValidationError[]} schemaValidationErrors
+ * @param {SchemaRecordError<DictionaryValidationRecordErrorDetails>[]} schemaValidationErrors
  * @returns
  */
-export const groupErrorsByIndex = (schemaValidationErrors: readonly SchemaValidationError[]) => {
-	return groupBy(schemaValidationErrors, 'index');
+export const groupErrorsByIndex = (
+	schemaValidationErrors: SchemaRecordError<DictionaryValidationRecordErrorDetails>[],
+) => {
+	return schemaValidationErrors.reduce<Record<number, DictionaryValidationRecordErrorDetails[]>>((acc, item) => {
+		if (!acc[item.recordIndex]) {
+			acc[item.recordIndex] = [];
+		}
+		acc[item.recordIndex] = acc[item.recordIndex].concat(item.recordErrors);
+
+		return acc;
+	}, {});
 };
 
 /**
@@ -122,7 +135,7 @@ export const groupErrorsByIndex = (schemaValidationErrors: readonly SchemaValida
  * - `submittedDataByEntityName`: A record where each key is an `entityName` and the value is an array of
  *   `NewSubmittedData` or `SubmittedData` objects associated with that entity.
  * - `schemaDataByEntityName`: A record where each key is an `entityName` and the value is an array of
- *   `SchemaData` objects primarily intended for schema validation.
+ *   `DataRecord[]` objects primarily intended for schema validation.
  *
  */
 export const groupSchemaDataByEntityName = (data: {

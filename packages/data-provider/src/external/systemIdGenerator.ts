@@ -1,6 +1,6 @@
 import { customAlphabet } from 'nanoid';
 
-import { DataRecord } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import { DataRecord } from '@overture-stack/lectern-client';
 
 import { BaseDependencies } from '../config/config.js';
 import { NotImplemented } from '../utils/errors.js';
