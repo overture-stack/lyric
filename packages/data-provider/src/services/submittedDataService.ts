@@ -167,6 +167,7 @@ const service = (dependencies: BaseDependencies) => {
 		processEditFilesAsync({
 			submission: activeSubmission,
 			files: checkedEntities,
+			schemasDictionary,
 			userName,
 		});
 

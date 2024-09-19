@@ -17,6 +17,7 @@ export interface SchemaChildNode {
  */
 export const getDictionarySchemaRelations = (dictionary: Dictionary): Record<string, SchemaChildNode[]> => {
 	return dictionary.dictionary.reduce<Record<string, SchemaChildNode[]>>((acc, schemaDefinition) => {
+		// Iterate all children of current schema
 		schemaDefinition.restrictions?.foreignKey?.reduce((acc, foreignKey) => {
 			const parentSchemaName = foreignKey.schema;
 
@@ -34,6 +35,12 @@ export const getDictionarySchemaRelations = (dictionary: Dictionary): Record<str
 				return mappingAccumulator;
 			}, acc);
 		}, acc);
+
+		// if schema doesn't have any children create an empty record
+		if (!acc[schemaDefinition.name]) {
+			acc[schemaDefinition.name] = [];
+		}
+
 		return acc;
 	}, {});
 };

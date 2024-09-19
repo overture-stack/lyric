@@ -1772,6 +1772,49 @@ describe('Submission Utils', () => {
 					description: 'The collection of data elements required to register a sport.',
 					restrictions: {},
 				},
+				{
+					name: 'player',
+					fields: [
+						{
+							name: 'player_id',
+							valueType: 'string',
+							description: 'Unique identifier of the player.',
+							restrictions: {
+								required: true,
+							},
+						},
+						{
+							name: 'name',
+							valueType: 'string',
+							description: 'Name of the player.',
+							restrictions: {
+								required: true,
+							},
+						},
+						{
+							name: 'sport_id',
+							valueType: 'string',
+							description: 'Sport the player plays',
+							restrictions: {
+								required: true,
+							},
+						},
+					],
+					description: 'The collection of data elements required to register a sport.',
+					restrictions: {
+						foreignKey: [
+							{
+								schema: 'sport',
+								mappings: [
+									{
+										local: 'sport_id',
+										foreign: 'sport_id',
+									},
+								],
+							},
+						],
+					},
+				},
 			],
 		};
 		it('returns valid response', () => {
@@ -1857,6 +1900,29 @@ describe('Submission Utils', () => {
 				fieldName: 'extra_field',
 				fieldValue: 'ABC',
 				reason: 'UNRECOGNIZED_FIELD',
+			});
+		});
+		it('returns invalid validation with invalid foreign key', () => {
+			const data: Record<string, DataRecord[]> = {
+				player: [{ player_id: 'PPP01', name: 'Pedro', sport_id: '1234' }],
+			};
+
+			const response = validateSchemas(dictionary, data);
+			expect(response.valid).to.be.false;
+			expect(Object.keys(response)).to.eql(['valid', 'details']);
+			expect(response['details'].length).to.eq(1);
+			expect(response['details'][0]['reason']).to.eql('INVALID_RECORDS');
+			expect(response['details'][0]['schemaName']).to.eql('player');
+			expect(response['details'][0]['invalidRecords'].length).to.eq(1);
+			expect(response['details'][0]['invalidRecords'][0]['recordIndex']).to.eq(0);
+			expect(response['details'][0]['invalidRecords'][0]['recordErrors'][0]).to.eql({
+				fieldName: 'sport_id',
+				fieldValue: '1234',
+				foreignSchema: {
+					fieldName: 'sport_id',
+					schemaName: 'sport',
+				},
+				reason: 'INVALID_BY_FOREIGNKEY',
 			});
 		});
 	});

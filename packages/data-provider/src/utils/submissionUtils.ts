@@ -160,6 +160,29 @@ export const extractSchemaDataFromMergedDataRecords = (
 };
 
 /**
+ * Finds and returns a list of invalid records based on a provided schema name.
+ *
+ * This function checks if the validation results are marked as invalid, and if so,
+ * filters the validation errors to return those related to a specific schema name.
+ *
+ * @param results - The validation results containing details of validation errors.
+ * @param entityName - The name of the schema to filter the invalid records by.
+ *
+ * @returns An array of invalid records for the specified schema, or an empty array if none are found.
+ */
+export const findInvalidRecordErrorsBySchemaName = (
+	results: TestResult<DictionaryValidationError[]>,
+	entityName: string,
+) => {
+	return results.valid === false
+		? results.details
+				.filter((err) => err.reason === 'INVALID_RECORDS')
+				.filter((r) => r.schemaName == entityName)
+				.flatMap((e) => e.invalidRecords)
+		: [];
+};
+
+/**
  * Returns a filter to query the database used to find dependents records when the update record involves changes of an primary ID field
  *
  * @param schemaRelations An array of `SchemaChildNode` representing the schema relations for the entity. Each node contains information about parent-child relationships.
@@ -716,18 +739,24 @@ export const segregateFieldChangeRecords = (
 /**
  * Construct a SubmissionInsertData object per each file returning a Record type based on entityName
  * @param {Record<string, Express.Multer.File>} files
+ * @param {SchemasDictionary} schemasDictionary
  * @returns {Promise<Record<string, SubmissionInsertData>>}
  */
 export const submissionInsertDataFromFiles = async (
 	files: Record<string, Express.Multer.File>,
+	schemasDictionary: SchemasDictionary,
 ): Promise<Record<string, SubmissionInsertData>> => {
 	return await Object.entries(files).reduce<Promise<Record<string, SubmissionInsertData>>>(
 		async (accPromise, [entityName, file]) => {
 			const acc = await accPromise;
-			const parsedFileData = await tsvToJson(file.path);
+			const schema = schemasDictionary.schemas.find((schema) => schema.name === entityName);
+			if (!schema) {
+				throw new Error(`No schema found for : '${entityName}'`);
+			}
+			const parsedFileData = await tsvToJson(file.path, schema);
 			acc[entityName] = {
 				batchName: file.originalname,
-				records: parsedFileData,
+				records: parsedFileData.records,
 			};
 			return Promise.resolve(acc);
 		},

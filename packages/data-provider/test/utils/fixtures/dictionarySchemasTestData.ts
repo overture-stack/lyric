@@ -119,6 +119,14 @@ export const dictionarySportsData: Schema[] = [
 					required: false,
 				},
 			},
+			{
+				name: 'age',
+				valueType: 'integer',
+				description: 'Age of the player',
+				restrictions: {
+					required: true,
+				},
+			},
 		],
 		description: 'The collection of data elements required to register a player.',
 		restrictions: {
@@ -210,4 +218,6 @@ export const dictionarySportStatsNodeGraph = {
 			parent: { schemaName: 'team', fieldName: 'team_id' },
 		},
 	],
+	player: [],
+	game: [],
 } as const;

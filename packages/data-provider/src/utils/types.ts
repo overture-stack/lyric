@@ -157,6 +157,7 @@ export type BatchError = {
 };
 
 export interface ValidateFilesParams {
+	schemasDictionary: SchemasDictionary;
 	categoryId: number;
 	organization: string;
 	userName: string;
