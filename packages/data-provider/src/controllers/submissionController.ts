@@ -103,11 +103,13 @@ const controller = (dependencies: BaseDependencies) => {
 				// TODO: get userName from auth
 				const userName = '';
 
-				const deletedRecords = await dataService.deleteSubmittedDataBySystemId(categoryId, systemId, userName);
+				const deletedRecordsResult = await dataService.deleteSubmittedDataBySystemId(categoryId, systemId, userName);
 
 				const response = {
-					submissionId: deletedRecords.submissionId,
-					records: deletedRecords.data,
+					status: deletedRecordsResult.status,
+					description: deletedRecordsResult.description,
+					inProcessEntities: deletedRecordsResult.inProcessEntities,
+					submissionId: deletedRecordsResult.submissionId,
 				};
 
 				return res.status(200).send(response);

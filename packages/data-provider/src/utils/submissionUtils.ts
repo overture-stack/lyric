@@ -160,6 +160,90 @@ export const extractSchemaDataFromMergedDataRecords = (
 };
 
 /**
+ * Generalized function to filter out conflicting records between two data sets based on `systemId`.
+ *
+ * This function can be used to either filter updates from deletes or deletes from updates, depending on the provided parameters.
+ * It removes records from the `sourceData` that have a matching `systemId` in the `conflictData`.
+ *
+ * @param sourceData - A record of the primary data (e.g., updates or deletes) to be filtered, grouped by entity name.
+ * @param conflictData - A record of data that might conflict (e.g., deletes or updates), grouped by entity name.
+ * @param entitySelector - A function to select the `systemId` from the source records.
+ * @param conflictSelector - A function to select the `systemId` from the conflict records.
+ * @returns A record of filtered source data, excluding records that conflict based on `systemId`.
+ */
+export const filterRecordsByConflicts = <T, U>(
+	sourceData: Record<string, T[]>,
+	conflictData: Record<string, U[]>,
+	entitySelector: (item: T) => string,
+	conflictSelector: (item: U) => string,
+): Record<string, T[]> => {
+	if (!sourceData) {
+		return {};
+	}
+
+	return Object.entries(sourceData).reduce<Record<string, T[]>>((acc, [entityName, sourceItems]) => {
+		const conflicts = conflictData[entityName];
+
+		if (conflicts) {
+			// Create a Set of systemIds from conflict records for faster lookup
+			const conflictIdsSet = new Set(conflicts.map(conflictSelector));
+
+			// Filter source data that does not have a matching systemId in the conflict set
+			const filteredValues = sourceItems.filter((item) => !conflictIdsSet.has(entitySelector(item)));
+
+			if (filteredValues.length > 0) {
+				acc[entityName] = filteredValues;
+			}
+		} else {
+			// If no conflicts, keep the source data as is
+			acc[entityName] = sourceItems;
+		}
+
+		return acc;
+	}, {});
+};
+
+/**
+ * Filters updates from the provided `submissionUpdateData` based on conflicts found in the `submissionDeleteData`.
+ * Conflicts are determined by matching the `systemId` of the items in both records.
+ *
+ * @param submissionUpdateData - A record containing arrays of `SubmissionUpdateData` to be filtered.
+ * @param submissionDeleteData - A record containing arrays of `SubmissionDeleteData` that defines the conflicts.
+ * @returns A filtered record of `SubmissionUpdateData[]` where no items conflict with those in `submissionDeleteData`.
+ */
+export const filterUpdatesFromDeletes = (
+	submissionUpdateData: Record<string, SubmissionUpdateData[]>,
+	submissionDeleteData: Record<string, SubmissionDeleteData[]>,
+): Record<string, SubmissionUpdateData[]> => {
+	return filterRecordsByConflicts(
+		submissionUpdateData,
+		submissionDeleteData,
+		(itemToUpdate) => itemToUpdate.systemId,
+		(itemToDelete) => itemToDelete.systemId,
+	);
+};
+
+/**
+ * Filters deletes from the provided `submissionDeleteData` based on conflicts found in the `submissionUpdateData`.
+ * Conflicts are determined by matching the `systemId` of the items in both records.
+ *
+ * @param submissionDeleteData - A record containing arrays of `SubmissionDeleteData` to be filtered.
+ * @param submissionUpdateData - A record containing arrays of `SubmissionUpdateData` that defines the conflicts.
+ * @returns A filtered record of `SubmissionDeleteData[]` where no items conflict with those in `submissionUpdateData`.
+ */
+export const filterDeletesFromUpdates = (
+	submissionDeleteData: Record<string, SubmissionDeleteData[]>,
+	submissionUpdateData: Record<string, SubmissionUpdateData[]>,
+): Record<string, SubmissionDeleteData[]> => {
+	return filterRecordsByConflicts(
+		submissionDeleteData,
+		submissionUpdateData,
+		(itemToDelete) => itemToDelete.systemId,
+		(itemToUpdate) => itemToUpdate.systemId,
+	);
+};
+
+/**
  * Returns a filter to query the database used to find dependents records when the update record involves changes of an primary ID field
  *
  * @param schemaRelations An array of `SchemaChildNode` representing the schema relations for the entity. Each node contains information about parent-child relationships.

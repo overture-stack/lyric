@@ -29,6 +29,7 @@ import {
 	checkEntityFieldNames,
 	checkFileNames,
 	extractSchemaDataFromMergedDataRecords,
+	filterDeletesFromUpdates,
 	getDependentsFilteronSubmissionUpdate,
 	groupSchemaErrorsByEntity,
 	mapGroupedUpdateSubmissionData,
@@ -959,12 +960,15 @@ const service = (dependencies: BaseDependencies) => {
 		// Merge Active Submission Deletes with Edit generated new Deletes
 		const mergedDeletes = mergeDeleteRecords(submission.data.deletes ?? {}, additions.deletes);
 
+		// filter out delete records found on update records
+		const filteredDeletes = filterDeletesFromUpdates(mergedDeletes, updatedActiveSubmissionData);
+
 		// Perform Schema Data validation Async.
 		performDataValidation({
 			originalSubmission: submission,
 			submissionData: {
 				inserts: mergedInserts,
-				deletes: mergedDeletes,
+				deletes: filteredDeletes,
 				updates: updatedActiveSubmissionData,
 			},
 			userName,

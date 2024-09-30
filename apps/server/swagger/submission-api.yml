@@ -297,11 +297,11 @@
         description: The unique system ID of the data to be deleted
     responses:
       200:
-        description: Returns an Active Submission with the records to be deleted
+        description: Delete Data request accepted
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DeleteDataActiveSubmission'
+              $ref: '#/components/schemas/CreateSubmissionResult'
       400:
         $ref: '#/components/responses/BadRequest'
       401:
