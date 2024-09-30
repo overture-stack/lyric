@@ -2,10 +2,13 @@ import { isEmpty } from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
 import submissionService from '../services/submissionService.js';
+import submittedDataService from '../services/submittedDataService.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
-import { hasTsvExtension } from '../utils/fileUtils.js';
+import { hasTsvExtension, processFiles } from '../utils/fileUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
+	dataDeleteBySystemIdRequestSchema,
+	dataEditRequestSchema,
 	submissionActiveByIdRequestSchema,
 	submissionActiveByOrganizationRequestSchema,
 	submissionActiveyByCategoryRequestSchema,
@@ -18,6 +21,7 @@ import { BATCH_ERROR_TYPE, BatchError, SUBMISSION_ACTION_TYPE } from '../utils/t
 
 const controller = (dependencies: BaseDependencies) => {
 	const service = submissionService(dependencies);
+	const dataService = submittedDataService(dependencies);
 	const { logger } = dependencies;
 	const LOG_MODULE = 'SUBMISSION_CONTROLLER';
 	return {
@@ -85,6 +89,73 @@ const controller = (dependencies: BaseDependencies) => {
 				}
 
 				return res.status(200).send(activeSubmission);
+			} catch (error) {
+				next(error);
+			}
+		}),
+		deleteSubmittedDataBySystemId: validateRequest(dataDeleteBySystemIdRequestSchema, async (req, res, next) => {
+			try {
+				const categoryId = Number(req.params.categoryId);
+				const systemId = req.params.systemId;
+
+				logger.info(LOG_MODULE, `Request Delete Submitted Data systemId '${systemId}' on categoryId '${categoryId}'`);
+
+				// TODO: get userName from auth
+				const userName = '';
+
+				const deletedRecords = await dataService.deleteSubmittedDataBySystemId(categoryId, systemId, userName);
+
+				const response = {
+					submissionId: deletedRecords.submissionId,
+					records: deletedRecords.data,
+				};
+
+				return res.status(200).send(response);
+			} catch (error) {
+				next(error);
+			}
+		}),
+
+		editSubmittedData: validateRequest(dataEditRequestSchema, async (req, res, next) => {
+			try {
+				const categoryId = Number(req.params.categoryId);
+				const files = req.files as Express.Multer.File[];
+				const organization = req.body.organization;
+
+				logger.info(LOG_MODULE, `Request Edit Submitted Data`);
+
+				// TODO: get userName from auth
+				const userName = '';
+
+				if (!files || files.length == 0) {
+					throw new BadRequest(
+						'The "files" parameter is missing or empty. Please include files in the request for processing.',
+					);
+				}
+
+				const { validFiles, fileErrors } = await processFiles(files);
+
+				if (fileErrors.length == 0) {
+					logger.info(LOG_MODULE, `File uploaded successfully`);
+				} else {
+					logger.info(LOG_MODULE, 'Found some errors processing this request');
+				}
+
+				const editSubmittedDataResult = await dataService.editSubmittedData({
+					files: validFiles,
+					categoryId,
+					organization,
+					userName,
+				});
+
+				const response = {
+					status: editSubmittedDataResult.status,
+					submissionId: editSubmittedDataResult.submissionId,
+					inProcessEntities: editSubmittedDataResult.inProcessEntities,
+					batchErrors: [...fileErrors, ...editSubmittedDataResult.batchErrors],
+				};
+
+				return res.status(200).send(response);
 			} catch (error) {
 				next(error);
 			}

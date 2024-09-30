@@ -33,6 +33,7 @@ const service = (dependencies: BaseDependencies) => {
 	const { logger } = dependencies;
 
 	const deleteSubmittedDataBySystemId = async (
+		categoryId: number,
 		systemId: string,
 		userName: string,
 	): Promise<{ submissionId: string; data: SubmissionDeleteData[] }> => {
@@ -46,8 +47,11 @@ const service = (dependencies: BaseDependencies) => {
 		if (!foundRecordToDelete) {
 			throw new BadRequest(`No Submitted data found with systemId '${systemId}'`);
 		}
-
 		logger.info(LOG_MODULE, `Found Submitted Data with system ID '${systemId}'`);
+
+		if (foundRecordToDelete.dictionaryCategoryId !== categoryId) {
+			throw new BadRequest(`Invalid Category ID '${categoryId}' for system ID '${systemId}'`);
+		}
 
 		// get dictionary
 		const dictionary = await getDictionaryById(foundRecordToDelete.lastValidSchemaId);

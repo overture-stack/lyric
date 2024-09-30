@@ -163,9 +163,41 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
-/submission/category/{categoryId}/upload:
+/submission/category/{categoryId}/commit/{submissionId}:
   post:
-    summary: Upload submission files
+    summary: Commit Active Submission
+    tags:
+      - Submission
+    parameters:
+      - name: categoryId
+        in: path
+        type: file
+        required: true
+      - name: submissionId
+        in: path
+        type: string
+        required: true
+    responses:
+      200:
+        description: Commit Submission Result
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommitSubmissionResult'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      409:
+        $ref: '#/components/responses/StatusConflict'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
+/submission/category/{categoryId}/data:
+  post:
+    summary: Add new data to a submission for the specified category. Returns an Active Submission containing the newly created records
     tags:
       - Submission
     consumes:
@@ -203,32 +235,79 @@
         $ref: '#/components/responses/ServerError'
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
+  put:
+    summary: Modifies existing data for a submission. Returns an Active Submission containing the records that will be updated
+    tags:
+      - Submission
+    consumes:
+      - multipart/form-data
+    parameters:
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID of the category
+    requestBody:
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              files:
+                type: array
+                items:
+                  type: string
+                  format: binary
+              organization:
+                type: string
+    responses:
+      200:
+        description: Edit Data request accepted
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubmissionResult'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
 
-/submission/category/{categoryId}/commit/{submissionId}:
-  post:
-    summary: Commit Active Submission
+/submission/category/{categoryId}/data/{systemId}:
+  delete:
+    summary: Removes data from a submission using the System ID. Returns an Active Submission containing the records that will be deleted
     tags:
       - Submission
     parameters:
       - name: categoryId
         in: path
-        type: file
         required: true
-      - name: submissionId
+        schema:
+          type: string
+        description: ID of the category to which the data belongs
+      - name: systemId
         in: path
-        type: string
         required: true
+        schema:
+          type: string
+        description: The unique system ID of the data to be deleted
     responses:
       200:
-        description: Commit Submission Result
+        description: Returns an Active Submission with the records to be deleted
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CommitSubmissionResult'
+              $ref: '#/components/schemas/DeleteDataActiveSubmission'
       400:
         $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
       409:
         $ref: '#/components/responses/StatusConflict'
       500:

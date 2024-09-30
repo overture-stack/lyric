@@ -286,11 +286,13 @@ export const uploadSubmissionRequestSchema: RequestValidation<{ organization: st
 
 export interface dataDeleteBySystemIdPathParams extends ParamsDictionary {
 	systemId: string;
+	categoryId: string;
 }
 
 export const dataDeleteBySystemIdRequestSchema: RequestValidation<object, ParsedQs, dataDeleteBySystemIdPathParams> = {
 	pathParams: z.object({
 		systemId: stringNotEmpty,
+		categoryId: categoryIdSchema,
 	}),
 };
 
