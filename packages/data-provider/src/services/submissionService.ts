@@ -30,7 +30,7 @@ import {
 	checkFileNames,
 	extractSchemaDataFromMergedDataRecords,
 	filterDeletesFromUpdates,
-	getDependentsFilteronSubmissionUpdate,
+	filterRelationsForPrimaryIdUpdate,
 	groupSchemaErrorsByEntity,
 	mapGroupedUpdateSubmissionData,
 	mergeAndReferenceEntityData,
@@ -308,7 +308,7 @@ const service = (dependencies: BaseDependencies) => {
 					}
 
 					// Finds if updates are impacting dependant records based on it's foreign keys
-					const filterDependents = getDependentsFilteronSubmissionUpdate(
+					const filterDependents = filterRelationsForPrimaryIdUpdate(
 						dictionaryRelations[submissionUpdateEntityName],
 						submissionUpdateRecord,
 					);

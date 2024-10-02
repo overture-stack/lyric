@@ -22,7 +22,7 @@ import {
 	extractSchemaDataFromMergedDataRecords,
 	filterDeletesFromUpdates,
 	filterUpdatesFromDeletes,
-	getDependentsFilteronSubmissionUpdate,
+	filterRelationsForPrimaryIdUpdate,
 	groupSchemaErrorsByEntity,
 	mapGroupedUpdateSubmissionData,
 	mapInsertDataToRecordReferences,
@@ -408,7 +408,7 @@ describe('Submission Utils', () => {
 				new: { personId: 'PPPPP001' },
 				old: { personId: 'RRRRR001' },
 			};
-			const result = getDependentsFilteronSubmissionUpdate(schemaRelations, updateRecord);
+			const result = filterRelationsForPrimaryIdUpdate(schemaRelations, updateRecord);
 			expect(result.length).to.eq(1);
 			expect(result[0]).to.eql({
 				dataField: 'personId',
@@ -432,7 +432,7 @@ describe('Submission Utils', () => {
 				new: { name: 'Pedro' },
 				old: { name: 'Pedro Pedro Pedro' },
 			};
-			const result = getDependentsFilteronSubmissionUpdate(schemaRelations, updateRecord);
+			const result = filterRelationsForPrimaryIdUpdate(schemaRelations, updateRecord);
 			expect(result.length).to.eq(0);
 		});
 	});

@@ -142,11 +142,10 @@ export const checkFileNames = async (
  * @returns {boolean}
  */
 export const determineIfIsSubmission = (
-	toBeDetermined: SubmittedDataReference | NewSubmittedDataReference | EditSubmittedDataReference,
-): toBeDetermined is NewSubmittedDataReference | EditSubmittedDataReference => {
-	const type = (toBeDetermined as NewSubmittedDataReference | EditSubmittedDataReference).type;
-	return type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA || type === MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA;
-};
+	reference: SubmittedDataReference | NewSubmittedDataReference | EditSubmittedDataReference,
+) =>
+	reference.type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA ||
+	reference.type === MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA;
 
 /**
  * Creates a Record type of SchemaData grouped by Entity names
@@ -171,17 +170,13 @@ export const extractSchemaDataFromMergedDataRecords = (
  * @param conflictSelector - A function to select the `systemId` from the conflict records.
  * @returns A record of filtered source data, excluding records that conflict based on `systemId`.
  */
-export const filterRecordsByConflicts = <T, U>(
-	sourceData: Record<string, T[]>,
-	conflictData: Record<string, U[]>,
-	entitySelector: (item: T) => string,
-	conflictSelector: (item: U) => string,
-): Record<string, T[]> => {
-	if (!sourceData) {
-		return {};
-	}
-
-	return Object.entries(sourceData).reduce<Record<string, T[]>>((acc, [entityName, sourceItems]) => {
+export const filterRecordsByConflicts = <SourceData, ConflictData>(
+	sourceData: Record<string, SourceData[]>,
+	conflictData: Record<string, ConflictData[]>,
+	entitySelector: (item: SourceData) => string,
+	conflictSelector: (item: ConflictData) => string,
+): Record<string, SourceData[]> => {
+	return Object.entries(sourceData).reduce<Record<string, SourceData[]>>((acc, [entityName, sourceItems]) => {
 		const conflicts = conflictData[entityName];
 
 		if (conflicts) {
@@ -250,7 +245,7 @@ export const filterDeletesFromUpdates = (
  * @param updateRecord The update record containing old and new data. The function checks the `old` data to identify fields involved in the relationship.
  * @returns
  */
-export const getDependentsFilteronSubmissionUpdate = (
+export const filterRelationsForPrimaryIdUpdate = (
 	schemaRelations: SchemaChildNode[],
 	updateRecord: SubmissionUpdateData,
 ): {
@@ -772,7 +767,7 @@ export const segregateFieldChangeRecords = (
 			const schemaRelations = dictionaryRelations[entityName];
 			if (schemaRelations) {
 				submissionUpdateDataArray.map((submissionUpdateData) => {
-					const foundIdFieldUpdated = getDependentsFilteronSubmissionUpdate(schemaRelations, submissionUpdateData);
+					const foundIdFieldUpdated = filterRelationsForPrimaryIdUpdate(schemaRelations, submissionUpdateData);
 					const recordKey =
 						foundIdFieldUpdated && foundIdFieldUpdated.length > 0 ? 'idFieldChangeRecord' : 'nonIdFieldChangeRecord';
 
