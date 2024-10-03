@@ -16,7 +16,7 @@ export const ARRAY_DELIMITER_CHAR = '|';
  * @param {Express.Multer.File} file
  * @returns {boolean}
  */
-export const hasTsvExtension = (file: Express.Multer.File): boolean => !!file.originalname.match(/.*\.tsv$/);
+export const hasTsvExtension = (file: Express.Multer.File): boolean => !!file.originalname.match(/.*\.tsv$/i);
 
 /**
  * Reads only first line of the file
@@ -100,22 +100,31 @@ export async function processFiles(files: Express.Multer.File[]): Promise<FilePr
 	};
 
 	for (const file of files) {
-		if (hasTsvExtension(file)) {
-			const fileHeaders = await readHeaders(file); // Wait for the async operation
-			if (fileHeaders.includes('systemId')) {
-				result.validFiles.push(file);
+		try {
+			if (hasTsvExtension(file)) {
+				const fileHeaders = await readHeaders(file); // Wait for the async operation
+				if (fileHeaders.includes('systemId')) {
+					result.validFiles.push(file);
+				} else {
+					const batchError: BatchError = {
+						type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
+						message: `File '${file.originalname}' is missing the column 'systemId'`,
+						batchName: file.originalname,
+					};
+					result.fileErrors.push(batchError);
+				}
 			} else {
 				const batchError: BatchError = {
-					type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
-					message: `File '${file.originalname}' is missing the column 'systemId'`,
+					type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
+					message: `File '${file.originalname}' has invalid file extension. File extension must be '.tsv'`,
 					batchName: file.originalname,
 				};
 				result.fileErrors.push(batchError);
 			}
-		} else {
+		} catch (error) {
 			const batchError: BatchError = {
-				type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
-				message: `File '${file.originalname}' has invalid file extension. File extension must be '.tsv'`,
+				type: BATCH_ERROR_TYPE.FILE_READ_ERROR,
+				message: `Error reading file '${file.originalname}'`,
 				batchName: file.originalname,
 			};
 			result.fileErrors.push(batchError);

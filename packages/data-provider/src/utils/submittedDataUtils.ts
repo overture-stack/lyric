@@ -259,7 +259,7 @@ export const updateSubmittedDataArray = (
 	editData: SubmissionUpdateData[],
 ): SubmittedData[] => {
 	return submittedData.map((existingSubmittedData) => {
-		const found = editData.find((e) => e.systemId == existingSubmittedData.systemId);
+		const found = editData.find((e) => e.systemId === existingSubmittedData.systemId);
 		if (found) {
 			const newData: MutableDataRecord = existingSubmittedData.data;
 			for (const key of Object.keys(found.old)) {

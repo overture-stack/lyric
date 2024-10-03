@@ -72,21 +72,29 @@ export const checkEntityFieldNames = async (
 	const fieldNameErrors: BatchError[] = [];
 
 	for (const [entityName, file] of Object.entries(entityFileMap)) {
-		const fileHeaders = await readHeaders(file);
+		try {
+			const fileHeaders = await readHeaders(file);
 
-		const schemaFieldNames = await getSchemaFieldNames(dictionary, entityName);
+			const schemaFieldNames = await getSchemaFieldNames(dictionary, entityName);
 
-		const missingRequiredFields = schemaFieldNames.required.filter(
-			(requiredField) => !fileHeaders.includes(requiredField),
-		);
-		if (missingRequiredFields.length > 0) {
+			const missingRequiredFields = schemaFieldNames.required.filter(
+				(requiredField) => !fileHeaders.includes(requiredField),
+			);
+			if (missingRequiredFields.length > 0) {
+				fieldNameErrors.push({
+					type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
+					message: `Missing required fields '${JSON.stringify(missingRequiredFields)}'`,
+					batchName: file.originalname,
+				});
+			} else {
+				checkedEntities[entityName] = file;
+			}
+		} catch (error) {
 			fieldNameErrors.push({
-				type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
-				message: `Missing required fields '${JSON.stringify(missingRequiredFields)}'`,
+				type: BATCH_ERROR_TYPE.FILE_READ_ERROR,
+				message: `Error reading file '${file.originalname}'`,
 				batchName: file.originalname,
 			});
-		} else {
-			checkedEntities[entityName] = file;
 		}
 	}
 	return {

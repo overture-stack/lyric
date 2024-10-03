@@ -140,6 +140,7 @@ export type SubmissionActionType = z.infer<typeof SUBMISSION_ACTION_TYPE>;
  * File upload validation error types
  */
 export const BATCH_ERROR_TYPE = {
+	FILE_READ_ERROR: 'FILE_READ_ERROR',
 	INVALID_FILE_EXTENSION: 'INVALID_FILE_EXTENSION',
 	TSV_PARSING_FAILED: 'TSV_PARSING_FAILED',
 	INVALID_FILE_NAME: 'INVALID_FILE_NAME',
