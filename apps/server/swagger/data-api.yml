@@ -221,34 +221,3 @@
         $ref: '#/components/responses/ServerError'
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
-
-/data/{systemId}:
-  delete:
-    summary: Delete Submitted Data by System ID. Returns an Active Submission with the records to be deleted
-    tags:
-      - Admin
-    parameters:
-      - name: systemId
-        in: path
-        required: true
-        schema:
-          type: string
-    responses:
-      200:
-        description: Returns an Active Submission with the records to be deleted
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DeleteDataActiveSubmission'
-      400:
-        $ref: '#/components/responses/BadRequest'
-      401:
-        $ref: '#/components/responses/UnauthorizedError'
-      404:
-        $ref: '#/components/responses/NotFound'
-      409:
-        $ref: '#/components/responses/StatusConflict'
-      500:
-        $ref: '#/components/responses/ServerError'
-      503:
-        $ref: '#/components/responses/ServiceUnavailableError'

@@ -16,9 +16,7 @@ export const submittedData = pgTable(
 			.notNull(),
 		entityName: varchar('entity_name').notNull(),
 		isValid: boolean('is_valid').notNull(),
-		lastValidSchemaId: integer('last_valid_schema_id')
-			.references(() => dictionaries.id)
-			.notNull(),
+		lastValidSchemaId: integer('last_valid_schema_id').references(() => dictionaries.id),
 		organization: varchar('organization').notNull(),
 		originalSchemaId: integer('original_schema_id')
 			.references(() => dictionaries.id)

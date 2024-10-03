@@ -6,7 +6,7 @@ import { dictionarySportStats, dictionarySportStatsNodeGraph } from './fixtures/
 
 describe('Dictionary Schema Relations', () => {
 	it('should return the schema children nodes on a Dictionary', () => {
-		const result = getDictionarySchemaRelations(dictionarySportStats);
+		const result = getDictionarySchemaRelations(dictionarySportStats.dictionary);
 
 		expect(result).to.deep.equal(dictionarySportStatsNodeGraph);
 	});

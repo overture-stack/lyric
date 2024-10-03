@@ -13,11 +13,8 @@ import {
 	groupErrorsByIndex,
 	groupSchemaDataByEntityName,
 	hasErrorsByIndex,
-	mapRecordsSubmittedDataResponse,
 	transformmSubmittedDataToSubmissionDeleteData,
-	transformSubmittedDataSchemaByEntityName,
 } from '../../src/utils/submittedDataUtils.js';
-import { MERGE_REFERENCE_TYPE } from '../../src/utils/types.js';
 
 describe('Submitted Data Utils', () => {
 	const todaysDate = new Date();
@@ -255,113 +252,6 @@ describe('Submitted Data Utils', () => {
 			const errorsByIndex = groupErrorsByIndex(listOfErrors);
 			const response = hasErrorsByIndex(errorsByIndex, 0);
 			expect(response).to.be.false;
-		});
-	});
-	describe('Transforms SubmittedData objects into a minimized object', () => {
-		it('returns an array of transformed object', () => {
-			const submittedDataList: SubmittedData[] = [
-				{
-					id: 1,
-					data: {
-						name: 'Lamborghini Revuelto',
-					},
-					dictionaryCategoryId: 1,
-					entityName: 'cars',
-					isValid: true,
-					lastValidSchemaId: 1,
-					organization: 'mycollection',
-					originalSchemaId: 1,
-					systemId: 'ABC123',
-					createdAt: todaysDate,
-					createdBy: 'me',
-					updatedAt: null,
-					updatedBy: null,
-				},
-			];
-			const response = mapRecordsSubmittedDataResponse(submittedDataList);
-			expect(response.length).to.eq(1);
-			expect(response[0]).to.eql({
-				data: {
-					name: 'Lamborghini Revuelto',
-				},
-				entityName: 'cars',
-				isValid: true,
-				organization: 'mycollection',
-				systemId: 'ABC123',
-			});
-		});
-		it('returns an empty array if no SubmittedData is passed', () => {
-			const submittedDataList: SubmittedData[] = [];
-			const response = mapRecordsSubmittedDataResponse(submittedDataList);
-			expect(response.length).to.eq(0);
-		});
-	});
-	describe('Transforms SubmittedData objects into an Record grouped by entityName', () => {
-		it('should return an empty object when no SubmittedData is passed', () => {
-			const response = transformSubmittedDataSchemaByEntityName(undefined);
-			expect(Object.keys(response).length).to.eq(0);
-		});
-		it('should return an object grouped by entity name', () => {
-			const submittedDataList: SubmittedData[] = [
-				{
-					id: 1,
-					data: {
-						name: 'Lamborghini Revuelto',
-					},
-					dictionaryCategoryId: 1,
-					entityName: 'cars',
-					isValid: true,
-					lastValidSchemaId: 1,
-					organization: 'mycollection',
-					originalSchemaId: 1,
-					systemId: 'ABC123',
-					createdAt: todaysDate,
-					createdBy: 'me',
-					updatedAt: null,
-					updatedBy: null,
-				},
-				{
-					id: 2,
-					data: {
-						name: 'Bugatti La Voiture Noire',
-					},
-					dictionaryCategoryId: 1,
-					entityName: 'cars',
-					isValid: true,
-					lastValidSchemaId: 1,
-					organization: 'mycollection',
-					originalSchemaId: 1,
-					systemId: 'XZY456',
-					createdAt: todaysDate,
-					createdBy: 'me',
-					updatedAt: null,
-					updatedBy: null,
-				},
-			];
-
-			const response = transformSubmittedDataSchemaByEntityName(submittedDataList);
-			expect(Object.keys(response)).to.eql(['cars']);
-			expect(response['cars'].length).to.eq(2);
-			expect(response['cars']).to.eql([
-				{
-					dataRecord: {
-						name: 'Lamborghini Revuelto',
-					},
-					reference: {
-						submittedDataId: 1,
-						type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
-					},
-				},
-				{
-					dataRecord: {
-						name: 'Bugatti La Voiture Noire',
-					},
-					reference: {
-						submittedDataId: 2,
-						type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
-					},
-				},
-			]);
 		});
 	});
 	describe('Transforms SubmittedData objects into a Record grouped by entityName', () => {

@@ -2,14 +2,14 @@ import * as _ from 'lodash-es';
 
 import {
 	type NewSubmission,
-	NewSubmittedData,
 	Submission,
 	SubmissionData,
+	type SubmissionDeleteData,
 	type SubmissionInsertData,
+	type SubmissionUpdateData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model';
 import {
-	BatchProcessingResult,
 	type DataRecord,
 	SchemasDictionary,
 	SchemaValidationError,
@@ -19,27 +19,39 @@ import { BaseDependencies } from '../config/config.js';
 import systemIdGenerator from '../external/systemIdGenerator.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
+import dictionaryRepository from '../repository/dictionaryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
+import { getDictionarySchemaRelations, type SchemaChildNode } from '../utils/dictionarySchemaRelations.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../utils/errors.js';
+import { tsvToJson } from '../utils/fileUtils.js';
 import {
 	canTransitionToClosed,
 	checkEntityFieldNames,
 	checkFileNames,
-	determineIfIsSubmission,
 	extractSchemaDataFromMergedDataRecords,
-	mapSubmissionSchemaDataByEntityName,
+	filterDeletesFromUpdates,
+	filterRelationsForPrimaryIdUpdate,
+	groupSchemaErrorsByEntity,
+	mapGroupedUpdateSubmissionData,
+	mergeAndReferenceEntityData,
+	mergeDeleteRecords,
+	mergeInsertsRecords,
+	mergeUpdatesBySystemId,
 	parseActiveSubmissionResponse,
 	parseActiveSubmissionSummaryResponse,
 	removeItemsFromSubmission,
-	submissionEntitiesFromFiles,
+	segregateFieldChangeRecords,
+	submissionInsertDataFromFiles,
 	validateSchemas,
 } from '../utils/submissionUtils.js';
 import {
 	computeDataDiff,
+	groupByEntityName,
 	groupErrorsByIndex,
 	groupSchemaDataByEntityName,
 	hasErrorsByIndex,
-	transformSubmittedDataSchemaByEntityName,
+	mergeSubmittedDataAndDeduplicateById,
+	updateSubmittedDataArray,
 } from '../utils/submittedDataUtils.js';
 import {
 	ActiveSubmissionSummaryResponse,
@@ -47,12 +59,12 @@ import {
 	CommitSubmissionResult,
 	CREATE_SUBMISSION_STATUS,
 	CreateSubmissionResult,
-	DataRecordReference,
 	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
 	ValidateFilesParams,
 } from '../utils/types.js';
+import submittedDataService from './submittedDataService.js';
 
 const service = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_SERVICE';
@@ -101,33 +113,41 @@ const service = (dependencies: BaseDependencies) => {
 
 		submittedDataToValidate?.forEach((data) => entitiesToProcess.add(data.entityName));
 
-		const insertsToValidate =
-			submission.data?.inserts &&
-			Object.entries(submission.data.inserts).reduce<NewSubmittedData[]>((acc, [entityName, submissionData]) => {
-				entitiesToProcess.add(entityName);
-				acc.push(
-					...submissionData.records.map((record) => {
-						const newSubmittedData: NewSubmittedData = {
-							data: record,
-							dictionaryCategoryId: categoryId,
-							entityName,
-							isValid: false, // By default New Submitted Data is created as invalid until validation process proves otherwise
-							organization: submission.organization,
-							originalSchemaId: submission.dictionaryId,
-							lastValidSchemaId: submission.dictionaryId,
-							systemId: generateIdentifier(entityName, record),
-							createdBy: userName,
-						};
-						return newSubmittedData;
-					}),
-				);
-				return acc;
-			}, []);
+		const insertsToValidate = submission.data?.inserts
+			? Object.entries(submission.data.inserts).flatMap(([entityName, submissionData]) => {
+					entitiesToProcess.add(entityName);
 
-		const deleteDataArray =
-			submission.data?.deletes &&
-			Object.values(submission.data.deletes).flatMap((submissionDeleteData) =>
-				submissionDeleteData.map((item) => ({ systemId: item.systemId, data: item.data })),
+					return submissionData.records.map((record) => ({
+						data: record,
+						dictionaryCategoryId: categoryId,
+						entityName,
+						isValid: false, // By default, New Submitted Data is created as invalid until validation proves otherwise
+						organization: submission.organization,
+						originalSchemaId: submission.dictionaryId,
+						systemId: generateIdentifier(entityName, record),
+						createdBy: userName,
+					}));
+				})
+			: [];
+
+		const deleteDataArray = submission.data?.deletes
+			? Object.entries(submission.data.deletes).flatMap(([entityName, submissionDeleteData]) => {
+					entitiesToProcess.add(entityName);
+					return submissionDeleteData;
+				})
+			: [];
+
+		const updateDataArray =
+			submission.data?.updates &&
+			Object.entries(submission.data.updates).reduce<Record<string, SubmissionUpdateData>>(
+				(acc, [entityName, submissionUpdateData]) => {
+					entitiesToProcess.add(entityName);
+					submissionUpdateData.forEach((record) => {
+						acc[record.systemId] = record;
+					});
+					return acc;
+				},
+				{},
 			);
 
 		// To Commit Active Submission we need to validate SubmittedData + Active Submission
@@ -136,6 +156,7 @@ const service = (dependencies: BaseDependencies) => {
 				inserts: insertsToValidate,
 				submittedData: submittedDataToValidate,
 				deletes: deleteDataArray,
+				updates: updateDataArray,
 			},
 			submission,
 			dictionary: currentDictionary,
@@ -248,6 +269,89 @@ const service = (dependencies: BaseDependencies) => {
 	};
 
 	/**
+	 * Finds and returns the dependent updates based on the provided submission update data.
+	 *
+	 * This function processes submission update data to identify dependencies between entities
+	 * as defined in the `dictionaryRelations`. It checks if updates in one entity impact other
+	 * related entities, and retrieves those dependent updates. The result is a collection of
+	 * update data, grouped by entity, that represents the cascading changes needed for the
+	 * submission process.
+	 *
+	 * @param dictionaryRelations - A mapping of entity names to their schema child nodes, representing relationships between entities.
+	 * @param organization - The organization identifier associated with the submission data.
+	 * @param submissionUpdateData - The submission data containing updates for various entities, mapped by entity names.
+	 * @returns A Promise that resolves to an object with the records that has dependents and an object where each key is an entity name,
+	 * and the value is an array of `SubmissionUpdateData` representing the dependent updates for that entity.
+	 */
+	const findUpdateDependents = async ({
+		dictionaryRelations,
+		organization,
+		submissionUpdateData,
+	}: {
+		dictionaryRelations: Record<string, SchemaChildNode[]>;
+		organization: string;
+		submissionUpdateData: Record<string, SubmissionUpdateData[]>;
+	}): Promise<{ submissionUpdateData: SubmissionUpdateData; dependents: Record<string, SubmissionUpdateData[]> }[]> => {
+		const { getSubmittedDataFiltered } = submittedRepository(dependencies);
+		const { searchDirectDependents } = submittedDataService(dependencies);
+
+		const dependentUpdates = Object.entries(submissionUpdateData).reduce<
+			Promise<{ submissionUpdateData: SubmissionUpdateData; dependents: Record<string, SubmissionUpdateData[]> }[]>
+		>(async (accPromise, [submissionUpdateEntityName, submissionUpdateRecords]) => {
+			const acc = await accPromise;
+
+			const result = await Promise.all(
+				submissionUpdateRecords.map(async (submissionUpdateRecord) => {
+					if (!Object.prototype.hasOwnProperty.call(dictionaryRelations, submissionUpdateEntityName)) {
+						return { submissionUpdateData: submissionUpdateRecord, dependents: {} };
+					}
+
+					// Finds if updates are impacting dependant records based on it's foreign keys
+					const filterDependents = filterRelationsForPrimaryIdUpdate(
+						dictionaryRelations[submissionUpdateEntityName],
+						submissionUpdateRecord,
+					);
+
+					if (filterDependents.length === 0) return { submissionUpdateData: submissionUpdateRecord, dependents: {} };
+
+					const directDependents = await getSubmittedDataFiltered(organization, filterDependents);
+
+					const additionalDepends = (
+						await Promise.all(
+							directDependents.map((record) =>
+								searchDirectDependents({
+									data: record.data,
+									dictionaryRelations,
+									entityName: record.entityName,
+									organization: record.organization,
+									systemId: record.systemId,
+								}),
+							),
+						)
+					).flat();
+
+					const uniqueDependents = mergeSubmittedDataAndDeduplicateById(directDependents, additionalDepends);
+
+					const groupedDependents = groupByEntityName(uniqueDependents);
+
+					const groupedSubmissionUpdateDependents = mapGroupedUpdateSubmissionData({
+						dependentData: groupedDependents,
+						filterEntity: filterDependents,
+						newDataRecord: submissionUpdateRecord.new,
+					});
+
+					return { submissionUpdateData: submissionUpdateRecord, dependents: groupedSubmissionUpdateDependents };
+				}),
+			);
+
+			acc.push(...result);
+			return acc;
+		}, Promise.resolve([]));
+
+		return dependentUpdates;
+	};
+
+	/**
 	 * Get an active Submission by Category
 	 * @param {Object} params
 	 * @param {number} params.categoryId
@@ -356,72 +460,59 @@ const service = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Returns only the schema errors corresponding to the Active Submission.
-	 * Schema errors are grouped by Entity name.
-	 * @param {object} input
-	 * @param {Record<string, BatchProcessingResult>} input.resultValidation
-	 * @param {Record<string, DataRecordReference[]>} input.dataValidated
-	 * @returns {Record<string, SchemaValidationError[]>}
+	 * This function iterates over records that are changing ID fields and fetches existing submitted data by `systemId`,
+	 * then generates a record to be deleted and to be inserted.
+	 * The resulting inserts and deletes are organized by entity names.
+	 * @param idFieldChangeRecord Records that are changing ID fields
+	 * @returns
 	 */
-	const groupSchemaErrorsByEntity = (input: {
-		resultValidation: Record<string, BatchProcessingResult>;
-		dataValidated: Record<string, DataRecordReference[]>;
-	}): Record<string, SchemaValidationError[]> => {
-		const { resultValidation, dataValidated } = input;
+	const handleIdFieldChanges = async (idFieldChangeRecord: Record<string, SubmissionUpdateData[]>) => {
+		const { getSubmittedDataBySystemId } = submittedRepository(dependencies);
+		return Object.entries(idFieldChangeRecord).reduce<
+			Promise<{
+				inserts: Record<string, SubmissionInsertData>;
+				deletes: Record<string, SubmissionDeleteData[]>;
+			}>
+		>(
+			async (accPromise, [entityName, updRecord]) => {
+				const acc = await accPromise;
 
-		const submissionSchemaErrors: Record<string, SchemaValidationError[]> = {};
-		Object.entries(resultValidation).forEach(([entityName, { validationErrors }]) => {
-			const hasErrorByIndex = groupErrorsByIndex(validationErrors);
+				// iterate each record on this entity
+				const result = await updRecord.reduce<
+					Promise<{
+						inserts: DataRecord[];
+						deletes: SubmissionDeleteData[];
+					}>
+				>(
+					async (acc2Promise, u) => {
+						const acc2 = await acc2Promise;
+						const foundSubmittedData = await getSubmittedDataBySystemId(u.systemId);
 
-			if (!_.isEmpty(hasErrorByIndex)) {
-				Object.entries(hasErrorByIndex).map(([indexBasedOnCrossSchemas, schemaValidationErrors]) => {
-					const mapping = dataValidated[entityName][Number(indexBasedOnCrossSchemas)];
-					if (determineIfIsSubmission(mapping.reference)) {
-						const submissionIndex = mapping.reference.index;
-						logger.debug(LOG_MODULE, `Error on submission entity: ${entityName} index: ${submissionIndex}`);
+						if (!foundSubmittedData) return acc2;
 
-						const mutableSchemaValidationErrors: SchemaValidationError[] = schemaValidationErrors.map((errors) => {
-							return {
-								...errors,
-								index: submissionIndex,
-							};
-						});
+						const deleteRecord: SubmissionDeleteData = {
+							systemId: foundSubmittedData.systemId,
+							data: foundSubmittedData.data,
+							entityName: foundSubmittedData.entityName,
+							isValid: foundSubmittedData.isValid,
+							organization: foundSubmittedData.organization,
+						};
 
-						submissionSchemaErrors[entityName] = (submissionSchemaErrors[entityName] || []).concat(
-							mutableSchemaValidationErrors,
-						);
-					}
-				});
-			}
-		});
-		return submissionSchemaErrors;
-	};
+						const insertDataRecord: DataRecord = { ...foundSubmittedData.data, ...u.new };
 
-	/**
-	 * Combines **Active Submission** and the **Submitted Data** recevied as arguments.
-	 * Then, the Schema Data is extracted and mapped with its internal reference ID.
-	 * The returned Object is a collection of the raw Schema Data with it's reference ID grouped by entity name.
-	 * @param {SubmittedData[]} submittedData An array of Submitted Data
-	 * @param {Object} activeSubmission
-	 * @param {Record<string, SubmissionInsertData>} activeSubmission.insertData Collection of Data records of the Active Submission
-	 * @param {number} activeSubmission.id ID of the Active Submission
-	 * @returns {Record<string, DataRecordReference[]>}
-	 */
-	const mergeActiveSubmissionAndSubmittedData = (
-		submittedData: SubmittedData[],
-		activeSubmission: { insertData?: Record<string, SubmissionInsertData>; id: number },
-	): Record<string, DataRecordReference[]> => {
-		// This object will merge existing data + new data for validation (Submitted data + active Submission)
-		return _.mergeWith(
-			transformSubmittedDataSchemaByEntityName(submittedData),
-			activeSubmission.insertData &&
-				mapSubmissionSchemaDataByEntityName(activeSubmission.id, activeSubmission.insertData),
-			(objValue, srcValue) => {
-				if (Array.isArray(objValue)) {
-					// If both values are arrays, concatenate them
-					return objValue.concat(srcValue);
-				}
+						acc2.inserts.push(insertDataRecord);
+						acc2.deletes.push(deleteRecord);
+						return acc2;
+					},
+					Promise.resolve({ inserts: [], deletes: [] }),
+				);
+
+				acc.deletes[entityName] = result.deletes;
+				acc.inserts[entityName] = { batchName: entityName, records: result.inserts };
+
+				return acc;
 			},
+			Promise.resolve({ inserts: {}, deletes: {} }),
 		);
 	};
 
@@ -432,8 +523,10 @@ const service = (dependencies: BaseDependencies) => {
 	 * - `inserts`: An array of new records to be commited. Optional
 	 * - `submittedData`: An array of existing Submitted Data. Optional
 	 * - `deletes`: An array of `systemId`s representing items that should be deleted. Optional
+	 * - `updates`: An array of records to be updated. Optional
 	 * @param params.dictionary A `Dictionary` object for Data Validation
 	 * @param params.submission A `Submission` object representing the Active Submission
+	 * @param params.userName User who performs the action
 	 * @returns void
 	 */
 	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<void> => {
@@ -442,12 +535,24 @@ const service = (dependencies: BaseDependencies) => {
 
 		const { dictionary, dataToValidate, submission, userName } = params;
 
-		// Exclude items that are marked for deletion
+		// Merge Submitted Data with items to be inserted, updated or deleted consist on 3 steps
+		// Step 1: Exclude items that are marked for deletion
 		const systemIdsToDelete = new Set<string>(dataToValidate?.deletes?.map((item) => item.systemId) || []);
-		const submittedDataToValidate = dataToValidate.submittedData?.filter(
-			(item) => !systemIdsToDelete.has(item.systemId),
-		);
+		logger.info(LOG_MODULE, `Found '${systemIdsToDelete.size}' Records to delete on Submission '${submission.id}'`);
+		const submittedData = dataToValidate.submittedData?.filter((item) => !systemIdsToDelete.has(item.systemId));
 
+		// Step 2: Modify items marked for update
+		const systemIdsToUpdate = new Set<string>(dataToValidate.updates ? Object.keys(dataToValidate.updates) : []);
+		logger.info(LOG_MODULE, `Found '${systemIdsToUpdate.size}' Records to update on Submission '${submission.id}'`);
+		const submittedDataToValidate = dataToValidate.updates
+			? updateSubmittedDataArray(submittedData, Object.values(dataToValidate.updates))
+			: submittedData;
+
+		// Step 3: Add items marked for insertion
+		logger.info(
+			LOG_MODULE,
+			`Found '${dataToValidate.inserts.length}' Records to insert on Submission '${submission.id}'`,
+		);
 		const schemasDataToValidate = groupSchemaDataByEntityName({
 			inserts: dataToValidate.inserts,
 			submittedData: submittedDataToValidate,
@@ -459,23 +564,42 @@ const service = (dependencies: BaseDependencies) => {
 			const hasErrorByIndex = groupErrorsByIndex(validationErrors);
 
 			schemasDataToValidate.submittedDataByEntityName[entityName].map((data, index) => {
-				data.isValid = !hasErrorsByIndex(hasErrorByIndex, index);
+				const oldIsValid = data.isValid;
+				const newIsValid = !hasErrorsByIndex(hasErrorByIndex, index);
 				if (data.id) {
-					if (data.isValid) {
-						logger.debug(LOG_MODULE, `Updating submittedData system ID '${data.systemId}' in entity '${entityName}'`);
-						dataSubmittedRepo.update(data.id, {
-							isValid: data.isValid,
-							lastValidSchemaId: data.lastValidSchemaId,
-							updatedBy: userName,
-						});
-					} else {
-						logger.error(
+					const inputUpdate: Partial<SubmittedData> = {};
+					const submisionUpdateData = dataToValidate.updates && dataToValidate.updates[data.systemId];
+					if (submisionUpdateData) {
+						logger.info(LOG_MODULE, `Updating submittedData system ID '${data.systemId}' in entity '${entityName}'`);
+						inputUpdate.data = data.data;
+					}
+
+					if (oldIsValid !== newIsValid) {
+						inputUpdate.isValid = newIsValid;
+						if (newIsValid) {
+							logger.info(
+								LOG_MODULE,
+								`Updating submittedData system ID '${data.systemId}' as Valid in entity '${entityName}'`,
+							);
+							inputUpdate.lastValidSchemaId = dictionary.id;
+						}
+						logger.info(
 							LOG_MODULE,
-							`Updating submittedData system ID '${data.systemId}' as Invalid in entity '${entityName}'`,
+							`Updating submittedData system ID '${data.systemId}' as invalid in entity '${entityName}'`,
 						);
-						dataSubmittedRepo.update(data.id, {
-							isValid: data.isValid,
-							updatedBy: userName,
+					}
+
+					if (Object.values(inputUpdate)) {
+						inputUpdate.updatedBy = userName;
+						if (newIsValid) {
+							data.lastValidSchemaId = dictionary.id;
+						}
+						dataSubmittedRepo.update({
+							submittedDataId: data.id,
+							newData: inputUpdate,
+							dataDiff: { old: submisionUpdateData?.old ?? {}, new: submisionUpdateData?.new ?? {} },
+							oldIsValid: oldIsValid,
+							submissionId: submission.id,
 						});
 					}
 				} else {
@@ -483,6 +607,10 @@ const service = (dependencies: BaseDependencies) => {
 						LOG_MODULE,
 						`Creating new submittedData in entity '${entityName}' with system ID '${data.systemId}'`,
 					);
+					data.isValid = newIsValid;
+					if (newIsValid) {
+						data.lastValidSchemaId = dictionary.id;
+					}
 					dataSubmittedRepo.save(data);
 				}
 			});
@@ -531,22 +659,17 @@ const service = (dependencies: BaseDependencies) => {
 			originalSubmission.organization,
 		);
 
-		const systemsIdsToRemove = submissionData.deletes
-			? Object.values(submissionData.deletes).flatMap((entityData) => entityData.map(({ systemId }) => systemId))
-			: [];
-
-		const filteredSubmittedData = submittedData.filter(({ systemId }) => !systemsIdsToRemove.includes(systemId));
-
-		// Merge Submitted Data with Active Submission keepping reference of each record ID
-		const dataMergedByEntityName = mergeActiveSubmissionAndSubmittedData(filteredSubmittedData, {
-			insertData: submissionData.inserts,
-			id: originalSubmission.id,
-		});
-
 		const currentDictionary = await getActiveDictionaryByCategory(originalSubmission.dictionaryCategoryId);
 		if (!currentDictionary) {
 			throw new BadRequest(`Dictionary in category '${originalSubmission.dictionaryCategoryId}' not found`);
 		}
+
+		// Merge Submitted Data with Active Submission keepping reference of each record ID
+		const dataMergedByEntityName = mergeAndReferenceEntityData({
+			originalSubmission,
+			submissionData,
+			submittedData,
+		});
 
 		// Prepare data to validate. Extract schema data from merged data
 		const crossSchemasDataToValidate = extractSchemaDataFromMergedDataRecords(dataMergedByEntityName);
@@ -562,12 +685,24 @@ const service = (dependencies: BaseDependencies) => {
 
 		if (_.isEmpty(submissionSchemaErrors)) {
 			logger.info(LOG_MODULE, `No error found on data submission`);
+		} else {
+			const errorMessage = Object.entries(submissionSchemaErrors).flatMap(([submissionType, entitiesError]) =>
+				Object.entries(entitiesError).map(
+					([entityName, errors]) =>
+						` '${errors.length}' error found in the '${entityName}' entity under '${submissionType}'`,
+				),
+			);
+			logger.info(LOG_MODULE, `Errors detected in data submission:${errorMessage}`);
 		}
 
 		// Update Active Submission
 		return await updateActiveSubmission({
 			idActiveSubmission: originalSubmission.id,
-			submissionData: { inserts: submissionData.inserts, deletes: submissionData.deletes },
+			submissionData: {
+				inserts: submissionData.inserts,
+				deletes: submissionData.deletes,
+				updates: submissionData.updates,
+			},
 			schemaErrors: submissionSchemaErrors,
 			dictionaryId: currentDictionary.id,
 			userName: userName,
@@ -588,7 +723,7 @@ const service = (dependencies: BaseDependencies) => {
 		dictionaryId: number;
 		submissionData: SubmissionData;
 		idActiveSubmission: number;
-		schemaErrors: Record<string, SchemaValidationError[]>;
+		schemaErrors: Record<string, Record<string, SchemaValidationError[]>>;
 		userName: string;
 	}): Promise<Submission> => {
 		const { dictionaryId, submissionData, idActiveSubmission, schemaErrors, userName } = input;
@@ -609,6 +744,54 @@ const service = (dependencies: BaseDependencies) => {
 			`Updated Active submission '${updatedActiveSubmission.id}' with status '${newStatusSubmission}' on category '${updatedActiveSubmission.dictionaryCategoryId}'`,
 		);
 		return updatedActiveSubmission;
+	};
+
+	/**
+	 * Construct a SubmissionUpdateData object per each file returning a Record type based on entityName
+	 * @param {Record<string, Express.Multer.File>} files
+	 * @returns {Promise<Record<string, SubmissionUpdateData>>}
+	 */
+	const submissionUpdateDataFromFiles = async (
+		files: Record<string, Express.Multer.File>,
+	): Promise<Record<string, SubmissionUpdateData[]>> => {
+		const { getSubmittedDataBySystemId } = submittedRepository(dependencies);
+		const results: Record<string, SubmissionUpdateData[]> = {};
+
+		// Process files in parallel using Promise.all
+		await Promise.all(
+			Object.entries(files).map(async ([entityName, file]) => {
+				const parsedFileData = await tsvToJson(file.path);
+
+				// Process records concurrently using Promise.all
+				const recordPromises = parsedFileData.map(async (record) => {
+					const systemId = record['systemId']?.toString();
+					const changeData = _.omit(record, 'systemId');
+					if (!systemId) return;
+
+					const foundSubmittedData = await getSubmittedDataBySystemId(systemId);
+					if (foundSubmittedData?.data) {
+						const diffData = computeDataDiff(foundSubmittedData.data, changeData);
+						if (!_.isEmpty(diffData.old) && !_.isEmpty(diffData.new)) {
+							// Initialize an array for each entityName
+							if (!results[entityName]) {
+								results[entityName] = [];
+							}
+
+							results[entityName].push({
+								systemId: systemId,
+								old: diffData.old,
+								new: diffData.new,
+							});
+						}
+					}
+				});
+
+				// Wait for all records of the current file to be processed
+				await Promise.all(recordPromises);
+			}),
+		);
+
+		return results;
 	};
 
 	/**
@@ -712,6 +895,93 @@ const service = (dependencies: BaseDependencies) => {
 
 	/**
 	 * Void function to process and validate uploaded files on an Active Submission.
+	 * Performs the schema data validation of data to be edited combined with all Submitted Data.
+	 * @param params
+	 * @param params.submission A `Submission` object representing the Active Submission
+	 * @param params.files Uploaded files to be processed
+	 * @param params.userName User who performs the action
+	 */
+	const processEditFilesAsync = async ({
+		submission,
+		files,
+		userName,
+	}: {
+		submission: Submission;
+		files: Record<string, Express.Multer.File>;
+		userName: string;
+	}): Promise<void> => {
+		const { getDictionaryById } = dictionaryRepository(dependencies);
+
+		// Parse file data
+		const filesDataProcessed = await submissionUpdateDataFromFiles(files);
+		logger.info(
+			LOG_MODULE,
+			`Read '${Object.values(filesDataProcessed).length}' records in total on files '${Object.keys(files)}'`,
+		);
+
+		const currentDictionary = await getDictionaryById(submission.dictionaryId);
+		if (!currentDictionary) {
+			throw new BadRequest(`Dictionary in category '${submission.dictionaryCategoryId}' not found`);
+		}
+
+		// get dictionary relations
+		const dictionaryRelations = getDictionarySchemaRelations(currentDictionary.dictionary);
+
+		const foundDependentUpdates = await findUpdateDependents({
+			dictionaryRelations,
+			organization: submission.organization,
+			submissionUpdateData: filesDataProcessed,
+		});
+
+		logger.info(
+			LOG_MODULE,
+			`Direct dependency found: ${foundDependentUpdates.map(({ submissionUpdateData, dependents }) => `'${Object.values(dependents).length}' dependents on system ID '${submissionUpdateData.systemId}'`)}`,
+		);
+
+		const totalDependants = foundDependentUpdates.reduce<Record<string, SubmissionUpdateData[]>>((acc, o) => {
+			return mergeUpdatesBySystemId(acc, o.dependents);
+		}, {});
+
+		// Identify what requested updates involves ID and nonID field changes
+		const { idFieldChangeRecord, nonIdFieldChangeRecord } = segregateFieldChangeRecords(
+			filesDataProcessed,
+			dictionaryRelations,
+		);
+
+		// Aggegates all Update changes on Submission
+		// Note: We do not include records involving primary ID fields changes in here. We would rather do a DELETE and an INSERT
+		const updatedActiveSubmissionData: Record<string, SubmissionUpdateData[]> = mergeUpdatesBySystemId(
+			submission.data.updates ?? {},
+			totalDependants,
+			nonIdFieldChangeRecord,
+		);
+
+		// Creates insert and delete records based on primary ID field change records.
+		const additions = await handleIdFieldChanges(idFieldChangeRecord);
+
+		// Merge Active Submission Inserts with Edit generated new Inserts
+		const mergedInserts = mergeInsertsRecords(submission.data.inserts ?? {}, additions.inserts);
+
+		// Merge Active Submission Deletes with Edit generated new Deletes
+		const mergedDeletes = mergeDeleteRecords(submission.data.deletes ?? {}, additions.deletes);
+
+		// filter out delete records found on update records
+		const filteredDeletes = filterDeletesFromUpdates(mergedDeletes, updatedActiveSubmissionData);
+
+		// Perform Schema Data validation Async.
+		performDataValidation({
+			originalSubmission: submission,
+			submissionData: {
+				inserts: mergedInserts,
+				deletes: filteredDeletes,
+				updates: updatedActiveSubmissionData,
+			},
+			userName,
+		});
+	};
+
+	/**
+	 * Void function to process and validate uploaded files on an Active Submission.
 	 * Performs the schema data validation combined with all Submitted Data.
 	 * @param {Record<string, Express.Multer.File>} files Uploaded files to be processed
 	 * @param {Object} params
@@ -726,7 +996,7 @@ const service = (dependencies: BaseDependencies) => {
 		const { categoryId, organization, userName } = params;
 
 		// Parse file data
-		const filesDataProcessed = await submissionEntitiesFromFiles(files);
+		const filesDataProcessed = await submissionInsertDataFromFiles(files);
 
 		// Get Active Submission from database
 		const activeSubmission = await getActiveSubmission({ categoryId, userName, organization });
@@ -735,15 +1005,16 @@ const service = (dependencies: BaseDependencies) => {
 		}
 
 		// Merge Active Submission data with incoming TSV file data processed
-		const updatedActiveSubmissionData: Record<string, SubmissionInsertData> = {
-			...activeSubmission.data.inserts,
-			...filesDataProcessed,
-		};
+		const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, filesDataProcessed);
 
 		// Perform Schema Data validation Async.
 		performDataValidation({
 			originalSubmission: activeSubmission,
-			submissionData: { inserts: updatedActiveSubmissionData, deletes: activeSubmission.data.deletes },
+			submissionData: {
+				inserts: insertActiveSubmissionData,
+				deletes: activeSubmission.data.deletes,
+				updates: activeSubmission.data.updates,
+			},
 			userName,
 		});
 	};
@@ -757,6 +1028,7 @@ const service = (dependencies: BaseDependencies) => {
 		getActiveSubmissionByOrganization,
 		getOrCreateActiveSubmission,
 		performDataValidation,
+		processEditFilesAsync,
 		uploadSubmission,
 	};
 };

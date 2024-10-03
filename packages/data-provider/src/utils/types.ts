@@ -6,6 +6,8 @@ import {
 	NewSubmittedData,
 	Submission,
 	SubmissionData,
+	type SubmissionDeleteData,
+	type SubmissionUpdateData,
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model';
 import {
@@ -138,6 +140,7 @@ export type SubmissionActionType = z.infer<typeof SUBMISSION_ACTION_TYPE>;
  * File upload validation error types
  */
 export const BATCH_ERROR_TYPE = {
+	FILE_READ_ERROR: 'FILE_READ_ERROR',
 	INVALID_FILE_EXTENSION: 'INVALID_FILE_EXTENSION',
 	TSV_PARSING_FAILED: 'TSV_PARSING_FAILED',
 	INVALID_FILE_NAME: 'INVALID_FILE_NAME',
@@ -162,7 +165,12 @@ export interface ValidateFilesParams {
 }
 
 export interface CommitSubmissionParams {
-	dataToValidate: { inserts?: NewSubmittedData[]; submittedData?: SubmittedData[]; deletes?: DeleteSubmittedData[] };
+	dataToValidate: {
+		inserts: NewSubmittedData[];
+		submittedData: SubmittedData[];
+		deletes: SubmissionDeleteData[];
+		updates?: Record<string, SubmissionUpdateData>;
+	};
 	dictionary: SchemasDictionary & { id: number };
 	submission: Submission;
 	userName: string;
@@ -216,7 +224,7 @@ export type ActiveSubmissionResponse = {
 	data: SubmissionData;
 	dictionary: DictionaryActiveSubmission | null;
 	dictionaryCategory: CategoryActiveSubmission | null;
-	errors: Record<string, SchemaValidationError[]> | null;
+	errors: Record<string, Record<string, SchemaValidationError[]>> | null;
 	organization: string;
 	status: SubmissionStatus | null;
 	createdAt: string | null;
@@ -245,7 +253,7 @@ export type ActiveSubmissionSummaryRepository = {
 	data: SubmissionData;
 	dictionary: object | null;
 	dictionaryCategory: object | null;
-	errors: Record<string, SchemaValidationError[]> | null;
+	errors: Record<string, Record<string, SchemaValidationError[]>> | null;
 	organization: string | null;
 	status: SubmissionStatus | null;
 	createdAt: Date | null;
@@ -318,7 +326,8 @@ export type SubmittedDataPaginatedResponse = {
  */
 export const MERGE_REFERENCE_TYPE = {
 	SUBMITTED_DATA: 'submittedData',
-	SUBMISSION: 'submission',
+	EDIT_SUBMITTED_DATA: 'editSubmittedData',
+	NEW_SUBMITTED_DATA: 'newSubmittedData',
 } as const;
 export type MergeReferenceType = ObjectValues<typeof MERGE_REFERENCE_TYPE>;
 
@@ -327,24 +336,34 @@ type Mutable<T> = {
 };
 
 export type MutableDataDiff = {
-	old: Mutable<DataRecord>;
-	new: Mutable<DataRecord>;
+	old: MutableDataRecord;
+	new: MutableDataRecord;
 };
 
+export type MutableDataRecord = Mutable<DataRecord>;
+
 export interface SubmittedDataReference {
-	type: typeof MERGE_REFERENCE_TYPE.SUBMITTED_DATA;
 	submittedDataId: number;
+	systemId: string;
+	type: typeof MERGE_REFERENCE_TYPE.SUBMITTED_DATA;
 }
 
-export interface SubmissionReference {
-	type: typeof MERGE_REFERENCE_TYPE.SUBMISSION;
-	submissionId: number | undefined;
+export interface NewSubmittedDataReference {
 	index: number;
+	submissionId: number;
+	type: typeof MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA;
+}
+
+export interface EditSubmittedDataReference {
+	index: number;
+	systemId?: string;
+	submissionId: number;
+	type: typeof MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA;
 }
 
 export type DataRecordReference = {
 	dataRecord: DataRecord;
-	reference: SubmittedDataReference | SubmissionReference;
+	reference: SubmittedDataReference | NewSubmittedDataReference | EditSubmittedDataReference;
 };
 
 /**

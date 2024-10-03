@@ -4,6 +4,7 @@ import {
 	type DataDiff,
 	NewSubmittedData,
 	type SubmissionDeleteData,
+	type SubmissionUpdateData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model';
 import { type DataRecord, SchemaValidationError } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
@@ -13,7 +14,7 @@ import {
 	type GroupedDataSubmission,
 	MERGE_REFERENCE_TYPE,
 	type MutableDataDiff,
-	type SubmittedDataResponse,
+	type MutableDataRecord,
 } from './types.js';
 
 /**
@@ -96,6 +97,15 @@ export const fetchDataErrorResponse = (
 };
 
 /**
+ * Groupd Submitted Data by entityName
+ * @param dataArray Array of data to group
+ * @returns
+ */
+export const groupByEntityName = (dataArray: SubmittedData[]): Record<string, SubmittedData[]> => {
+	return groupBy(dataArray, 'entityName');
+};
+
+/**
  * Get all the schema errors grouped by the index of the record
  * @param {SchemaValidationError[]} schemaValidationErrors
  * @returns
@@ -149,44 +159,78 @@ export const hasErrorsByIndex = (hasErrorByIndex: object, index: number): boolea
 };
 
 /**
- * Parses an array of SubmittedData objects into a more compact form used as a respone
- * @param {SubmittedData[]} submittedData
- * @returns {SubmittedDataResponse[]}
- */
-export const mapRecordsSubmittedDataResponse = (submittedData: SubmittedData[]): SubmittedDataResponse[] => {
-	return submittedData.map((data) => ({
-		data: data.data,
-		entityName: data.entityName,
-		isValid: data.isValid,
-		organization: data.organization,
-		systemId: data.systemId,
-	}));
-};
-
-/**
  * Transforms an array of `SubmittedData` into a `Record<string, DataRecordReference[]>`,
  * where each key is the `entityName` from the `SubmittedData`, and the value is an array of
  * `DataRecordReference` objects associated with that `entityName`.
- * @param {SubmittedData[] | undefined} submittedData An array of `SubmittedData` objects to be transformed.
+ * Edits each record that is marked to be edited on the Submission
+ * @param {object} params
+ * @param {SubmittedData[] | undefined} params.submittedData An array of `SubmittedData` objects to be transformed.
+ * @param {Record<string, SubmissionUpdateData[]>} params.editSubmittedData An Array of `SubmittedData` objects to be updated
+ * @param {Rnumber} params.submissionId The ID of the Active Submission
  * @returns {Record<string, DataRecordReference[]>}
  */
-export const transformSubmittedDataSchemaByEntityName = (
-	submittedData: SubmittedData[] | undefined,
-): Record<string, DataRecordReference[]> => {
+export const mapAndMergeSubmittedDataToRecordReferences = ({
+	submittedData,
+	editSubmittedData,
+	submissionId,
+}: {
+	submittedData?: SubmittedData[];
+	editSubmittedData?: Record<string, SubmissionUpdateData[]>;
+	submissionId: number;
+}): Record<string, DataRecordReference[]> => {
 	if (!submittedData) return {};
-
 	return submittedData.reduce<Record<string, DataRecordReference[]>>((acc, entityData) => {
-		const record = {
-			dataRecord: entityData.data,
-			reference: {
-				submittedDataId: entityData.id,
-				type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
-			},
-		};
+		const foundRecordToUpdateIndex =
+			editSubmittedData && editSubmittedData[entityData.entityName]
+				? editSubmittedData[entityData.entityName].findIndex((item) => item.systemId === entityData.systemId)
+				: -1;
+		let record: DataRecordReference;
+		if (editSubmittedData && foundRecordToUpdateIndex >= 0) {
+			const recordToUpdate = editSubmittedData[entityData.entityName][foundRecordToUpdateIndex];
+			const newDataToUpdate: MutableDataRecord = entityData.data;
+			for (const key of Object.keys(recordToUpdate.old)) {
+				if (entityData.data[key] !== recordToUpdate.old[key]) {
+					// What to do if record on Submission doesn't match with current SubmittedData?
+				}
+				newDataToUpdate[key] = recordToUpdate.new[key];
+			}
+			record = {
+				dataRecord: newDataToUpdate,
+				reference: {
+					type: MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA,
+					systemId: entityData.systemId,
+					submissionId,
+					index: foundRecordToUpdateIndex,
+				},
+			};
+		} else {
+			record = {
+				dataRecord: entityData.data,
+				reference: {
+					submittedDataId: entityData.id,
+					type: MERGE_REFERENCE_TYPE.SUBMITTED_DATA,
+					systemId: entityData.systemId,
+				},
+			};
+		}
+		// Initialize the array if it doesn't exist and directly push the new record
+		if (!acc[entityData.entityName]) {
+			acc[entityData.entityName] = [];
+		}
 
-		acc[entityData.entityName] = [...(acc[entityData.entityName] || [])].concat(record);
+		acc[entityData.entityName].push(record);
 		return acc;
 	}, {});
+};
+
+/**
+ * Merges multiple arrays of `SubmittedData` and ensures uniqueness based on `id`.
+ *
+ * @param objects An arbitrary number of arrays of `SubmittedData`.
+ * @returns
+ */
+export const mergeSubmittedDataAndDeduplicateById = (...objects: SubmittedData[][]): SubmittedData[] => {
+	return Array.from(new Map(objects.flat().map((item) => [item.id, item])).values());
 };
 
 /**
@@ -208,4 +252,22 @@ export const transformmSubmittedDataToSubmissionDeleteData = (submittedData: Sub
 		acc[entityData.entityName] = [...(acc[entityData.entityName] || [])].concat(record);
 		return acc;
 	}, {});
+};
+
+export const updateSubmittedDataArray = (
+	submittedData: SubmittedData[],
+	editData: SubmissionUpdateData[],
+): SubmittedData[] => {
+	return submittedData.map((existingSubmittedData) => {
+		const found = editData.find((e) => e.systemId === existingSubmittedData.systemId);
+		if (found) {
+			const newData: MutableDataRecord = existingSubmittedData.data;
+			for (const key of Object.keys(found.old)) {
+				newData[key] = found.new[key];
+			}
+			existingSubmittedData.data = newData;
+			return existingSubmittedData;
+		}
+		return existingSubmittedData;
+	});
 };

@@ -7,7 +7,6 @@ import { NotFound } from '../utils/errors.js';
 import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
-	dataDeleteBySystemIdRequestSchema,
 	dataGetByCategoryRequestSchema,
 	dataGetByOrganizationRequestSchema,
 	dataGetByQueryRequestschema,
@@ -21,28 +20,6 @@ const controller = (dependencies: BaseDependencies) => {
 	const defaultPage = 1;
 	const defaultPageSize = 20;
 	return {
-		deleteSubmittedDataBySystemId: validateRequest(dataDeleteBySystemIdRequestSchema, async (req, res, next) => {
-			try {
-				const systemId = req.params.systemId;
-
-				logger.info(LOG_MODULE, `Request Delete Submitted Data systemId '${systemId}'`);
-
-				// TODO: get userName from auth
-				const userName = '';
-
-				const deletedRecords = await service.deleteSubmittedDataBySystemId(systemId, userName);
-
-				const response = {
-					submissionId: deletedRecords.submissionId,
-					records: deletedRecords.data,
-				};
-
-				return res.status(200).send(response);
-			} catch (error) {
-				next(error);
-			}
-		}),
-
 		getSubmittedDataByCategory: validateRequest(dataGetByCategoryRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
