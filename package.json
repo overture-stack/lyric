@@ -1,6 +1,6 @@
 {
 	"name": "lyric",
-	"version": "1.0.0",
+	"version": "1.0.0-beta.1",
 	"description": "Lyric Monorepo",
 	"scripts": {
 		"\n=================  Build  ===============": "",
