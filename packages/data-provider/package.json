@@ -1,6 +1,6 @@
 {
 	"name": "@overture-stack/lyric",
-	"version": "0.2.2",
+	"version": "1.0.0",
 	"description": "Data Submission system",
 	"main": "dist/index.js",
 	"typings": "dist/index.d.ts",
