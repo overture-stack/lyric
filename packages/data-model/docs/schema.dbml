@@ -17,7 +17,7 @@ table audit_submitted_data {
   dictionary_category_id integer [not null]
   data_diff jsonb
   entity_name varchar [not null]
-  last_valid_schema_id integer [not null]
+  last_valid_schema_id integer
   new_data_is_valid boolean [not null]
   old_data_is_valid boolean [not null]
   organization varchar [not null]
@@ -67,7 +67,7 @@ table submitted_data {
   dictionary_category_id integer [not null]
   entity_name varchar [not null]
   is_valid boolean [not null]
-  last_valid_schema_id integer [not null]
+  last_valid_schema_id integer
   organization varchar [not null]
   original_schema_id integer [not null]
   system_id varchar [not null, unique]

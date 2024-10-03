@@ -6,7 +6,6 @@ import type { DataRecord, SchemasDictionary } from '@overturebio-stack/lectern-c
 
 import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
-import dictionaryRepository from '../repository/dictionaryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
 import submissionService from '../services/submissionService.js';
 import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
@@ -38,7 +37,6 @@ const PAGINATION_ERROR_MESSAGES = {
 const service = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_SERVICE';
 	const submittedDataRepo = submittedRepository(dependencies);
-	const dictionaryRepo = dictionaryRepository(dependencies);
 	const { logger } = dependencies;
 
 	const deleteSubmittedDataBySystemId = async (
@@ -52,7 +50,7 @@ const service = (dependencies: BaseDependencies) => {
 		submissionId?: string;
 	}> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepo;
-		const { getDictionaryById } = dictionaryRepo;
+		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { performDataValidation, getOrCreateActiveSubmission } = submissionService(dependencies);
 
 		// get SubmittedData by SystemId
@@ -75,10 +73,10 @@ const service = (dependencies: BaseDependencies) => {
 			};
 		}
 
-		// get dictionary
-		const dictionary = await getDictionaryById(foundRecordToDelete.lastValidSchemaId);
+		// get current dictionary
+		const currentDictionary = await getActiveDictionaryByCategory(categoryId);
 
-		if (!dictionary) {
+		if (!currentDictionary) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: `Dictionary not found`,
@@ -87,7 +85,7 @@ const service = (dependencies: BaseDependencies) => {
 		}
 
 		// get dictionary relations
-		const dictionaryRelations = getDictionarySchemaRelations(dictionary);
+		const dictionaryRelations = getDictionarySchemaRelations(currentDictionary.schemas);
 
 		const recordDependents = await searchDirectDependents({
 			data: foundRecordToDelete.data,

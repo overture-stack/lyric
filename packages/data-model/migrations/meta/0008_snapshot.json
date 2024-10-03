@@ -1,0 +1,539 @@
+{
+  "id": "b83f6dc6-52bf-412a-a8ac-63947ed92eec",
+  "prevId": "f7c61bb4-5f85-4a24-8508-d37a459c7e6e",
+  "version": "5",
+  "dialect": "pg",
+  "tables": {
+    "audit_submitted_data": {
+      "name": "audit_submitted_data",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "audit_action",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dictionary_category_id": {
+          "name": "dictionary_category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "data_diff": {
+          "name": "data_diff",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "entity_name": {
+          "name": "entity_name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_valid_schema_id": {
+          "name": "last_valid_schema_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "new_data_is_valid": {
+          "name": "new_data_is_valid",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "old_data_is_valid": {
+          "name": "old_data_is_valid",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization": {
+          "name": "organization",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "original_schema_id": {
+          "name": "original_schema_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submission_id": {
+          "name": "submission_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "system_id": {
+          "name": "system_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "audit_submitted_data_dictionary_category_id_dictionary_categories_id_fk": {
+          "name": "audit_submitted_data_dictionary_category_id_dictionary_categories_id_fk",
+          "tableFrom": "audit_submitted_data",
+          "tableTo": "dictionary_categories",
+          "columnsFrom": [
+            "dictionary_category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "audit_submitted_data_last_valid_schema_id_dictionaries_id_fk": {
+          "name": "audit_submitted_data_last_valid_schema_id_dictionaries_id_fk",
+          "tableFrom": "audit_submitted_data",
+          "tableTo": "dictionaries",
+          "columnsFrom": [
+            "last_valid_schema_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "audit_submitted_data_original_schema_id_dictionaries_id_fk": {
+          "name": "audit_submitted_data_original_schema_id_dictionaries_id_fk",
+          "tableFrom": "audit_submitted_data",
+          "tableTo": "dictionaries",
+          "columnsFrom": [
+            "original_schema_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "audit_submitted_data_submission_id_submissions_id_fk": {
+          "name": "audit_submitted_data_submission_id_submissions_id_fk",
+          "tableFrom": "audit_submitted_data",
+          "tableTo": "submissions",
+          "columnsFrom": [
+            "submission_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "dictionaries": {
+      "name": "dictionaries",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "dictionary": {
+          "name": "dictionary",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "dictionary_categories": {
+      "name": "dictionary_categories",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "active_dictionary_id": {
+          "name": "active_dictionary_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "dictionary_categories_name_unique": {
+          "name": "dictionary_categories_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        }
+      }
+    },
+    "submissions": {
+      "name": "submissions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dictionary_category_id": {
+          "name": "dictionary_category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dictionary_id": {
+          "name": "dictionary_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "errors": {
+          "name": "errors",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "organization": {
+          "name": "organization",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "submission_status",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "submissions_dictionary_category_id_dictionary_categories_id_fk": {
+          "name": "submissions_dictionary_category_id_dictionary_categories_id_fk",
+          "tableFrom": "submissions",
+          "tableTo": "dictionary_categories",
+          "columnsFrom": [
+            "dictionary_category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "submissions_dictionary_id_dictionaries_id_fk": {
+          "name": "submissions_dictionary_id_dictionaries_id_fk",
+          "tableFrom": "submissions",
+          "tableTo": "dictionaries",
+          "columnsFrom": [
+            "dictionary_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "submitted_data": {
+      "name": "submitted_data",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dictionary_category_id": {
+          "name": "dictionary_category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_name": {
+          "name": "entity_name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_valid": {
+          "name": "is_valid",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_valid_schema_id": {
+          "name": "last_valid_schema_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "organization": {
+          "name": "organization",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "original_schema_id": {
+          "name": "original_schema_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "system_id": {
+          "name": "system_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "organization_index": {
+          "name": "organization_index",
+          "columns": [
+            "organization"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "submitted_data_dictionary_category_id_dictionary_categories_id_fk": {
+          "name": "submitted_data_dictionary_category_id_dictionary_categories_id_fk",
+          "tableFrom": "submitted_data",
+          "tableTo": "dictionary_categories",
+          "columnsFrom": [
+            "dictionary_category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "submitted_data_last_valid_schema_id_dictionaries_id_fk": {
+          "name": "submitted_data_last_valid_schema_id_dictionaries_id_fk",
+          "tableFrom": "submitted_data",
+          "tableTo": "dictionaries",
+          "columnsFrom": [
+            "last_valid_schema_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "submitted_data_original_schema_id_dictionaries_id_fk": {
+          "name": "submitted_data_original_schema_id_dictionaries_id_fk",
+          "tableFrom": "submitted_data",
+          "tableTo": "dictionaries",
+          "columnsFrom": [
+            "original_schema_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "submitted_data_system_id_unique": {
+          "name": "submitted_data_system_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "system_id"
+          ]
+        }
+      }
+    }
+  },
+  "enums": {
+    "audit_action": {
+      "name": "audit_action",
+      "values": {
+        "UPDATE": "UPDATE",
+        "DELETE": "DELETE"
+      }
+    },
+    "submission_status": {
+      "name": "submission_status",
+      "values": {
+        "OPEN": "OPEN",
+        "VALID": "VALID",
+        "INVALID": "INVALID",
+        "CLOSED": "CLOSED",
+        "COMMITTED": "COMMITTED"
+      }
+    }
+  },
+  "schemas": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

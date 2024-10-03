@@ -1,4 +1,4 @@
-import { Dictionary } from '@overture-stack/lyric-data-model';
+import type { SchemaDefinition } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 export interface SchemaParentNode {
 	schemaName: string;
@@ -12,11 +12,13 @@ export interface SchemaChildNode {
 
 /**
  * Returns all the children and it's relations by each schema on a Dictionary
- * @param {Dictionary} dictionary
+ * @param {SchemaDefinition[]} schemaDefinition
  * @returns {Record<string, SchemaChildNode[]>}
  */
-export const getDictionarySchemaRelations = (dictionary: Dictionary): Record<string, SchemaChildNode[]> => {
-	return dictionary.dictionary.reduce<Record<string, SchemaChildNode[]>>((acc, schemaDefinition) => {
+export const getDictionarySchemaRelations = (
+	schemaDefinition: SchemaDefinition[],
+): Record<string, SchemaChildNode[]> => {
+	return schemaDefinition.reduce<Record<string, SchemaChildNode[]>>((acc, schemaDefinition) => {
 		schemaDefinition.restrictions?.foreignKey?.reduce((acc, foreignKey) => {
 			const parentSchemaName = foreignKey.schema;
 

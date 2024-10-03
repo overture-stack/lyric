@@ -22,9 +22,7 @@ export const auditSubmittedData = pgTable('audit_submitted_data', {
 		.notNull(),
 	dataDiff: jsonb('data_diff').$type<DataDiff>(),
 	entityName: varchar('entity_name').notNull(),
-	lastValidSchemaId: integer('last_valid_schema_id')
-		.references(() => dictionaries.id)
-		.notNull(),
+	lastValidSchemaId: integer('last_valid_schema_id').references(() => dictionaries.id),
 	newDataIsValid: boolean('new_data_is_valid').notNull(),
 	oldDataIsValid: boolean('old_data_is_valid').notNull(),
 	organization: varchar('organization').notNull(),

@@ -57,6 +57,13 @@
       "when": 1724186364799,
       "tag": "0007_create_audit_diff_column",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1727965304851,
+      "tag": "0008_set_not_null_last_valid_schema_id",
+      "breakpoints": true
     }
   ]
 }

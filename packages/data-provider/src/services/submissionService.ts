@@ -124,7 +124,6 @@ const service = (dependencies: BaseDependencies) => {
 						isValid: false, // By default, New Submitted Data is created as invalid until validation proves otherwise
 						organization: submission.organization,
 						originalSchemaId: submission.dictionaryId,
-						lastValidSchemaId: submission.dictionaryId,
 						systemId: generateIdentifier(entityName, record),
 						createdBy: userName,
 					}));
@@ -592,6 +591,9 @@ const service = (dependencies: BaseDependencies) => {
 
 					if (Object.values(inputUpdate)) {
 						inputUpdate.updatedBy = userName;
+						if (newIsValid) {
+							data.lastValidSchemaId = dictionary.id;
+						}
 						dataSubmittedRepo.update({
 							submittedDataId: data.id,
 							newData: inputUpdate,
@@ -606,6 +608,9 @@ const service = (dependencies: BaseDependencies) => {
 						`Creating new submittedData in entity '${entityName}' with system ID '${data.systemId}'`,
 					);
 					data.isValid = newIsValid;
+					if (newIsValid) {
+						data.lastValidSchemaId = dictionary.id;
+					}
 					dataSubmittedRepo.save(data);
 				}
 			});
@@ -920,7 +925,7 @@ const service = (dependencies: BaseDependencies) => {
 		}
 
 		// get dictionary relations
-		const dictionaryRelations = getDictionarySchemaRelations(currentDictionary);
+		const dictionaryRelations = getDictionarySchemaRelations(currentDictionary.dictionary);
 
 		const foundDependentUpdates = await findUpdateDependents({
 			dictionaryRelations,
