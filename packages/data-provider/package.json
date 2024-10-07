@@ -1,6 +1,6 @@
 {
 	"name": "@overture-stack/lyric",
-	"version": "0.2.2",
+	"version": "0.3.0",
 	"description": "Data Submission system",
 	"main": "dist/index.js",
 	"typings": "dist/index.d.ts",
@@ -34,7 +34,7 @@
 	"homepage": "https://github.com/overture-stack/lyric#readme",
 	"type": "module",
 	"dependencies": {
-		"@overture-stack/lectern-client": "2.0.0-beta.1",
+		"@overture-stack/lectern-client": "2.0.0-beta.2",
 		"@overture-stack/lyric-data-model": "workspace:^",
 		"@overture-stack/sqon-builder": "^1.1.0",
 		"bytes": "^3.1.2",

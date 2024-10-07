@@ -112,8 +112,8 @@ importers:
   packages/data-model:
     dependencies:
       '@overture-stack/lectern-client':
-        specifier: 2.0.0-beta.1
-        version: 2.0.0-beta.1
+        specifier: 2.0.0-beta.2
+        version: 2.0.0-beta.2
       dotenv:
         specifier: ^16.4.5
         version: 16.4.5
@@ -143,8 +143,8 @@ importers:
   packages/data-provider:
     dependencies:
       '@overture-stack/lectern-client':
-        specifier: 2.0.0-beta.1
-        version: 2.0.0-beta.1
+        specifier: 2.0.0-beta.2
+        version: 2.0.0-beta.2
       '@overture-stack/lyric-data-model':
         specifier: workspace:^
         version: link:../data-model
@@ -1038,11 +1038,11 @@ packages:
       fastq: 1.17.1
     dev: true
 
-  /@overture-stack/lectern-client@2.0.0-beta.1:
-    resolution: {integrity: sha512-MdDtbzA2zLWpracicFj2KFiTdYb1A0xxLmFfrvn1Eo6gt28p8YPg5CUNO2y6K+mOaPoKnBfmAqEUVtHGGorIdA==}
+  /@overture-stack/lectern-client@2.0.0-beta.2:
+    resolution: {integrity: sha512-Bwp4wUxg0+62O5Foj3IZIj720mALdRT85ZZFTpVgs8uddOOyviYsQfhbM2Nzf+zh5e9y0uyuCgE3h6cJjVMlqw==}
     dependencies:
-      '@overture-stack/lectern-dictionary': 2.0.0-beta.1
-      '@overture-stack/lectern-validation': 2.0.0-beta.1
+      '@overture-stack/lectern-dictionary': 2.0.0-beta.2
+      '@overture-stack/lectern-validation': 2.0.0-beta.2
       cd: 0.3.3
       lodash: 4.17.21
       node-fetch: 2.7.0
@@ -1052,18 +1052,18 @@ packages:
       - encoding
     dev: false
 
-  /@overture-stack/lectern-dictionary@2.0.0-beta.1:
-    resolution: {integrity: sha512-5L0R6Ghne35GQ8YbJ2TP+o0shiA9Q11uzDeDmj54VXa+/PfkTpNpvGSm3/egQiAzvBqM932M6Yw2Eu8FYs7Clg==}
+  /@overture-stack/lectern-dictionary@2.0.0-beta.2:
+    resolution: {integrity: sha512-A+ukRCu06QdBjD8cshIha0P3afJMXNIf64kspdwYSGAtvCU0LQ973dUpTVKLmlXO0CEQ9bqdsPGl59vO8maVQA==}
     dependencies:
       immer: 10.1.1
       lodash: 4.17.21
       zod: 3.23.8
     dev: false
 
-  /@overture-stack/lectern-validation@2.0.0-beta.1:
-    resolution: {integrity: sha512-3O/7d/yDNEZiYb7EpTb5rIUPds9Mg0m0mXDncQ3ZU/EsSLDF7CBe2CjWw9DxJUQFTd163HqIwj8J6NpvcFbDwg==}
+  /@overture-stack/lectern-validation@2.0.0-beta.2:
+    resolution: {integrity: sha512-dHPM/5z9sJr24iwvyQuPn8KJqQd+LjnLicO1//sDDeFlWaRfVJguOjUl4adJQsHNewibs2nGDpoVNmhM9Y5BTQ==}
     dependencies:
-      '@overture-stack/lectern-dictionary': 2.0.0-beta.1
+      '@overture-stack/lectern-dictionary': 2.0.0-beta.2
       lodash: 4.17.21
       zod: 3.23.8
     dev: false

@@ -19,7 +19,6 @@ import {
 	MERGE_REFERENCE_TYPE,
 	type MutableDataDiff,
 	type MutableDataRecord,
-	type SubmittedDataResponse,
 } from './types.js';
 
 /**
@@ -238,21 +237,6 @@ export const mapAndMergeSubmittedDataToRecordReferences = ({
 };
 
 /**
- * Parses an array of SubmittedData objects into a more compact form used as a respone
- * @param {SubmittedData[]} submittedData
- * @returns {SubmittedDataResponse[]}
- */
-export const mapRecordsSubmittedDataResponse = (submittedData: SubmittedData[]): SubmittedDataResponse[] => {
-	return submittedData.map((data) => ({
-		data: data.data,
-		entityName: data.entityName,
-		isValid: data.isValid,
-		organization: data.organization,
-		systemId: data.systemId,
-	}));
-};
-
-/**
  * Merges multiple arrays of `SubmittedData` and ensures uniqueness based on `id`.
  *
  * @param objects An arbitrary number of arrays of `SubmittedData`.
@@ -288,7 +272,7 @@ export const updateSubmittedDataArray = (
 	editData: SubmissionUpdateData[],
 ): SubmittedData[] => {
 	return submittedData.map((existingSubmittedData) => {
-		const found = editData.find((e) => e.systemId == existingSubmittedData.systemId);
+		const found = editData.find((e) => e.systemId === existingSubmittedData.systemId);
 		if (found) {
 			const newData: MutableDataRecord = existingSubmittedData.data;
 			for (const key of Object.keys(found.old)) {

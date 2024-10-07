@@ -10,10 +10,6 @@ import type { Schema } from '@overture-stack/lectern-client';
 import { tsvToJson } from '../../src/utils/fileUtils.js';
 
 describe('File Utils', () => {
-	beforeEach(() => {
-		sinon.restore();
-	});
-
 	describe('Convert any text file into a json', () => {
 		const schema: Schema = {
 			name: 'participant',
@@ -44,6 +40,9 @@ describe('File Utils', () => {
 				},
 			],
 		};
+		afterEach(() => {
+			sinon.restore();
+		});
 		it('should read a .tsv file and parse it to JSON format', async () => {
 			const archiveAsTsv =
 				'study_id\tsubmitter_participant_id\tsex_at_birth\tage\nTESTABC\tNR-01\tMale\t21\nTESTABC\tNR-02\tFemale\t18';

@@ -1,25 +1,33 @@
 import * as _ from 'lodash-es';
 
 import type { DataRecord, Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
-import { type SubmissionDeleteData, SubmittedData } from '@overture-stack/lyric-data-model';
+import { SubmittedData } from '@overture-stack/lyric-data-model';
 import { SQON } from '@overture-stack/sqon-builder';
 
 import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
-import dictionaryRepository from '../repository/dictionaryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
 import submissionService from '../services/submissionService.js';
 import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations, SchemaChildNode } from '../utils/dictionarySchemaRelations.js';
-import { BadRequest } from '../utils/errors.js';
-import { checkEntityFieldNames, checkFileNames, mergeRecords } from '../utils/submissionUtils.js';
+import {
+	checkEntityFieldNames,
+	checkFileNames,
+	filterUpdatesFromDeletes,
+	mergeRecords,
+} from '../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
-	mapRecordsSubmittedDataResponse,
 	mergeSubmittedDataAndDeduplicateById,
 	transformmSubmittedDataToSubmissionDeleteData,
 } from '../utils/submittedDataUtils.js';
-import { type BatchError, CREATE_SUBMISSION_STATUS, PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
+import {
+	type BatchError,
+	CREATE_SUBMISSION_STATUS,
+	type CreateSubmissionStatus,
+	PaginationOptions,
+	SubmittedDataResponse,
+} from '../utils/types.js';
 
 const PAGINATION_ERROR_MESSAGES = {
 	INVALID_CATEGORY_ID: 'Invalid Category ID',
@@ -29,35 +37,55 @@ const PAGINATION_ERROR_MESSAGES = {
 const service = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_SERVICE';
 	const submittedDataRepo = submittedRepository(dependencies);
-	const dictionaryRepo = dictionaryRepository(dependencies);
 	const { logger } = dependencies;
 
 	const deleteSubmittedDataBySystemId = async (
+		categoryId: number,
 		systemId: string,
 		userName: string,
-	): Promise<{ submissionId: string; data: SubmissionDeleteData[] }> => {
+	): Promise<{
+		description: string;
+		inProcessEntities: string[];
+		status: CreateSubmissionStatus;
+		submissionId?: string;
+	}> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepo;
-		const { getDictionaryById } = dictionaryRepo;
+		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { performDataValidation, getOrCreateActiveSubmission } = submissionService(dependencies);
 
 		// get SubmittedData by SystemId
 		const foundRecordToDelete = await getSubmittedDataBySystemId(systemId);
 
 		if (!foundRecordToDelete) {
-			throw new BadRequest(`No Submitted data found with systemId '${systemId}'`);
+			return {
+				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				description: `No Submitted data found with systemId '${systemId}'`,
+				inProcessEntities: [],
+			};
 		}
-
 		logger.info(LOG_MODULE, `Found Submitted Data with system ID '${systemId}'`);
 
-		// get dictionary
-		const dictionary = await getDictionaryById(foundRecordToDelete.lastValidSchemaId);
+		if (foundRecordToDelete.dictionaryCategoryId !== categoryId) {
+			return {
+				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				description: `Invalid Category ID '${categoryId}' for system ID '${systemId}'`,
+				inProcessEntities: [],
+			};
+		}
 
-		if (!dictionary) {
-			throw new BadRequest(`Dictionary not found`);
+		// get current dictionary
+		const currentDictionary = await getActiveDictionaryByCategory(categoryId);
+
+		if (!currentDictionary) {
+			return {
+				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				description: `Dictionary not found`,
+				inProcessEntities: [],
+			};
 		}
 
 		// get dictionary relations
-		const dictionaryRelations = getDictionarySchemaRelations(dictionary);
+		const dictionaryRelations = getDictionarySchemaRelations(currentDictionary.schemas);
 
 		const recordDependents = await searchDirectDependents({
 			data: foundRecordToDelete.data,
@@ -81,22 +109,29 @@ const service = (dependencies: BaseDependencies) => {
 		// Merge current Active Submission delete entities
 		const mergedSubmissionDeletes = mergeRecords(activeSubmission.data.deletes, recordsToDeleteMap);
 
+		const entitiesToProcess = Object.keys(mergedSubmissionDeletes);
+
+		// filter out update records found matching systemID on delete records
+		const filteredUpdates = filterUpdatesFromDeletes(activeSubmission.data.updates ?? {}, mergedSubmissionDeletes);
+
 		// Validate and update Active Submission
-		const updatedRecord = await performDataValidation({
+		performDataValidation({
 			originalSubmission: activeSubmission,
 			submissionData: {
 				inserts: activeSubmission.data.inserts,
-				updates: activeSubmission.data.updates,
+				updates: filteredUpdates,
 				deletes: mergedSubmissionDeletes,
 			},
 			userName,
 		});
 
-		logger.info(LOG_MODULE, `Added '${submittedDataToDelete.length}' records to be deleted on the Active Submission`);
+		logger.info(LOG_MODULE, `Added '${entitiesToProcess.length}' records to be deleted on the Active Submission`);
 
 		return {
-			submissionId: updatedRecord.id.toString(),
-			data: mapRecordsSubmittedDataResponse(submittedDataToDelete),
+			status: CREATE_SUBMISSION_STATUS.PROCESSING,
+			description: 'Submission data is being processed',
+			submissionId: activeSubmission.id.toString(),
+			inProcessEntities: entitiesToProcess,
 		};
 	};
 
@@ -131,7 +166,12 @@ const service = (dependencies: BaseDependencies) => {
 		const currentDictionary = await getActiveDictionaryByCategory(categoryId);
 
 		if (_.isEmpty(currentDictionary)) {
-			throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+			return {
+				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				description: `Dictionary in category '${categoryId}' not found`,
+				batchErrors: [],
+				inProcessEntities: [],
+			};
 		}
 
 		const schemasDictionary: SchemasDictionary = {

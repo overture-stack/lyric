@@ -28,7 +28,20 @@ const router = (dependencies: BaseDependencies): Router => {
 		submissionController(dependencies).getActiveByOrganization,
 	);
 
-	router.post('/category/:categoryId/upload', upload.array('files'), submissionController(dependencies).upload);
+	router.post('/category/:categoryId/data', upload.array('files'), submissionController(dependencies).upload);
+
+	router.delete(
+		`/category/:categoryId/data/:systemId`,
+		auth,
+		submissionController(dependencies).deleteSubmittedDataBySystemId,
+	);
+
+	router.put(
+		`/category/:categoryId/data`,
+		auth,
+		upload.array('files'),
+		submissionController(dependencies).editSubmittedData,
+	);
 
 	router.post('/category/:categoryId/commit/:submissionId', auth, submissionController(dependencies).commit);
 

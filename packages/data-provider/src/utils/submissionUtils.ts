@@ -72,21 +72,29 @@ export const checkEntityFieldNames = async (
 	const fieldNameErrors: BatchError[] = [];
 
 	for (const [entityName, file] of Object.entries(entityFileMap)) {
-		const fileHeaders = await readHeaders(file);
+		try {
+			const fileHeaders = await readHeaders(file);
 
-		const schemaFieldNames = getSchemaFieldNames(dictionary, entityName);
+			const schemaFieldNames = getSchemaFieldNames(dictionary, entityName);
 
-		const missingRequiredFields = schemaFieldNames.required.filter(
-			(requiredField) => !fileHeaders.includes(requiredField),
-		);
-		if (missingRequiredFields.length > 0) {
+			const missingRequiredFields = schemaFieldNames.required.filter(
+				(requiredField) => !fileHeaders.includes(requiredField),
+			);
+			if (missingRequiredFields.length > 0) {
+				fieldNameErrors.push({
+					type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
+					message: `Missing required fields '${JSON.stringify(missingRequiredFields)}'`,
+					batchName: file.originalname,
+				});
+			} else {
+				checkedEntities[entityName] = file;
+			}
+		} catch (error) {
 			fieldNameErrors.push({
-				type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
-				message: `Missing required fields '${missingRequiredFields}'`,
+				type: BATCH_ERROR_TYPE.FILE_READ_ERROR,
+				message: `Error reading file '${file.originalname}'`,
 				batchName: file.originalname,
 			});
-		} else {
-			checkedEntities[entityName] = file;
 		}
 	}
 	return {
@@ -142,11 +150,10 @@ export const checkFileNames = async (
  * @returns {boolean}
  */
 export const determineIfIsSubmission = (
-	toBeDetermined: SubmittedDataReference | NewSubmittedDataReference | EditSubmittedDataReference,
-): toBeDetermined is NewSubmittedDataReference | EditSubmittedDataReference => {
-	const type = (toBeDetermined as NewSubmittedDataReference | EditSubmittedDataReference).type;
-	return type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA || type === MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA;
-};
+	reference: SubmittedDataReference | NewSubmittedDataReference | EditSubmittedDataReference,
+) =>
+	reference.type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA ||
+	reference.type === MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA;
 
 /**
  * Creates a Record type of DataRecord[] grouped by Entity names
@@ -183,13 +190,93 @@ export const findInvalidRecordErrorsBySchemaName = (
 };
 
 /**
+ * Generalized function to filter out conflicting records between two data sets based on `systemId`.
+ *
+ * This function can be used to either filter updates from deletes or deletes from updates, depending on the provided parameters.
+ * It removes records from the `sourceData` that have a matching `systemId` in the `conflictData`.
+ *
+ * @param sourceData - A record of the primary data (e.g., updates or deletes) to be filtered, grouped by entity name.
+ * @param conflictData - A record of data that might conflict (e.g., deletes or updates), grouped by entity name.
+ * @param entitySelector - A function to select the `systemId` from the source records.
+ * @param conflictSelector - A function to select the `systemId` from the conflict records.
+ * @returns A record of filtered source data, excluding records that conflict based on `systemId`.
+ */
+export const filterRecordsByConflicts = <SourceData, ConflictData>(
+	sourceData: Record<string, SourceData[]>,
+	conflictData: Record<string, ConflictData[]>,
+	entitySelector: (item: SourceData) => string,
+	conflictSelector: (item: ConflictData) => string,
+): Record<string, SourceData[]> => {
+	return Object.entries(sourceData).reduce<Record<string, SourceData[]>>((acc, [entityName, sourceItems]) => {
+		const conflicts = conflictData[entityName];
+
+		if (conflicts) {
+			// Create a Set of systemIds from conflict records for faster lookup
+			const conflictIdsSet = new Set(conflicts.map(conflictSelector));
+
+			// Filter source data that does not have a matching systemId in the conflict set
+			const filteredValues = sourceItems.filter((item) => !conflictIdsSet.has(entitySelector(item)));
+
+			if (filteredValues.length > 0) {
+				acc[entityName] = filteredValues;
+			}
+		} else {
+			// If no conflicts, keep the source data as is
+			acc[entityName] = sourceItems;
+		}
+
+		return acc;
+	}, {});
+};
+
+/**
+ * Filters updates from the provided `submissionUpdateData` based on conflicts found in the `submissionDeleteData`.
+ * Conflicts are determined by matching the `systemId` of the items in both records.
+ *
+ * @param submissionUpdateData - A record containing arrays of `SubmissionUpdateData` to be filtered.
+ * @param submissionDeleteData - A record containing arrays of `SubmissionDeleteData` that defines the conflicts.
+ * @returns A filtered record of `SubmissionUpdateData[]` where no items conflict with those in `submissionDeleteData`.
+ */
+export const filterUpdatesFromDeletes = (
+	submissionUpdateData: Record<string, SubmissionUpdateData[]>,
+	submissionDeleteData: Record<string, SubmissionDeleteData[]>,
+): Record<string, SubmissionUpdateData[]> => {
+	return filterRecordsByConflicts(
+		submissionUpdateData,
+		submissionDeleteData,
+		(itemToUpdate) => itemToUpdate.systemId,
+		(itemToDelete) => itemToDelete.systemId,
+	);
+};
+
+/**
+ * Filters deletes from the provided `submissionDeleteData` based on conflicts found in the `submissionUpdateData`.
+ * Conflicts are determined by matching the `systemId` of the items in both records.
+ *
+ * @param submissionDeleteData - A record containing arrays of `SubmissionDeleteData` to be filtered.
+ * @param submissionUpdateData - A record containing arrays of `SubmissionUpdateData` that defines the conflicts.
+ * @returns A filtered record of `SubmissionDeleteData[]` where no items conflict with those in `submissionUpdateData`.
+ */
+export const filterDeletesFromUpdates = (
+	submissionDeleteData: Record<string, SubmissionDeleteData[]>,
+	submissionUpdateData: Record<string, SubmissionUpdateData[]>,
+): Record<string, SubmissionDeleteData[]> => {
+	return filterRecordsByConflicts(
+		submissionDeleteData,
+		submissionUpdateData,
+		(itemToDelete) => itemToDelete.systemId,
+		(itemToUpdate) => itemToUpdate.systemId,
+	);
+};
+
+/**
  * Returns a filter to query the database used to find dependents records when the update record involves changes of an primary ID field
  *
  * @param schemaRelations An array of `SchemaChildNode` representing the schema relations for the entity. Each node contains information about parent-child relationships.
  * @param updateRecord The update record containing old and new data. The function checks the `old` data to identify fields involved in the relationship.
  * @returns
  */
-export const getDependentsFilteronSubmissionUpdate = (
+export const filterRelationsForPrimaryIdUpdate = (
 	schemaRelations: SchemaChildNode[],
 	updateRecord: SubmissionUpdateData,
 ): {
@@ -258,8 +345,7 @@ export const groupSchemaErrorsByEntity = (input: {
 							submissionSchemaErrors[actionType][entityName] = [];
 						}
 
-						submissionSchemaErrors[actionType][entityName] =
-							submissionSchemaErrors[actionType][entityName].concat(mutableSchemaValidationErrors);
+						submissionSchemaErrors[actionType][entityName].push(...mutableSchemaValidationErrors);
 					}
 				});
 			}
@@ -719,7 +805,7 @@ export const segregateFieldChangeRecords = (
 			const schemaRelations = dictionaryRelations[entityName];
 			if (schemaRelations) {
 				submissionUpdateDataArray.map((submissionUpdateData) => {
-					const foundIdFieldUpdated = getDependentsFilteronSubmissionUpdate(schemaRelations, submissionUpdateData);
+					const foundIdFieldUpdated = filterRelationsForPrimaryIdUpdate(schemaRelations, submissionUpdateData);
 					const recordKey =
 						foundIdFieldUpdated && foundIdFieldUpdated.length > 0 ? 'idFieldChangeRecord' : 'nonIdFieldChangeRecord';
 

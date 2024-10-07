@@ -3,9 +3,7 @@ import * as _ from 'lodash-es';
 import {
 	type DataRecord,
 	Dictionary as SchemasDictionary,
-	type DictionaryValidationError,
 	DictionaryValidationRecordErrorDetails,
-	type TestResult,
 } from '@overture-stack/lectern-client';
 import {
 	type NewSubmission,
@@ -31,8 +29,9 @@ import {
 	checkEntityFieldNames,
 	checkFileNames,
 	extractSchemaDataFromMergedDataRecords,
+	filterDeletesFromUpdates,
+	filterRelationsForPrimaryIdUpdate,
 	findInvalidRecordErrorsBySchemaName,
-	getDependentsFilteronSubmissionUpdate,
 	groupSchemaErrorsByEntity,
 	mapGroupedUpdateSubmissionData,
 	mergeAndReferenceEntityData,
@@ -126,7 +125,6 @@ const service = (dependencies: BaseDependencies) => {
 						isValid: false, // By default, New Submitted Data is created as invalid until validation proves otherwise
 						organization: submission.organization,
 						originalSchemaId: submission.dictionaryId,
-						lastValidSchemaId: submission.dictionaryId,
 						systemId: generateIdentifier(entityName, record),
 						createdBy: userName,
 					}));
@@ -310,7 +308,7 @@ const service = (dependencies: BaseDependencies) => {
 					}
 
 					// Finds if updates are impacting dependant records based on it's foreign keys
-					const filterDependents = getDependentsFilteronSubmissionUpdate(
+					const filterDependents = filterRelationsForPrimaryIdUpdate(
 						dictionaryRelations[submissionUpdateEntityName],
 						submissionUpdateRecord,
 					);
@@ -594,6 +592,9 @@ const service = (dependencies: BaseDependencies) => {
 
 					if (Object.values(inputUpdate)) {
 						inputUpdate.updatedBy = userName;
+						if (newIsValid) {
+							data.lastValidSchemaId = dictionary.id;
+						}
 						dataSubmittedRepo.update({
 							submittedDataId: data.id,
 							newData: inputUpdate,
@@ -608,6 +609,9 @@ const service = (dependencies: BaseDependencies) => {
 						`Creating new submittedData in entity '${entityName}' with system ID '${data.systemId}'`,
 					);
 					data.isValid = newIsValid;
+					if (newIsValid) {
+						data.lastValidSchemaId = dictionary.id;
+					}
 					dataSubmittedRepo.save(data);
 				}
 			});
@@ -932,7 +936,7 @@ const service = (dependencies: BaseDependencies) => {
 		}
 
 		// get dictionary relations
-		const dictionaryRelations = getDictionarySchemaRelations(currentDictionary);
+		const dictionaryRelations = getDictionarySchemaRelations(currentDictionary.dictionary);
 
 		const foundDependentUpdates = await findUpdateDependents({
 			dictionaryRelations,
@@ -972,12 +976,15 @@ const service = (dependencies: BaseDependencies) => {
 		// Merge Active Submission Deletes with Edit generated new Deletes
 		const mergedDeletes = mergeDeleteRecords(submission.data.deletes ?? {}, additions.deletes);
 
+		// filter out delete records found on update records
+		const filteredDeletes = filterDeletesFromUpdates(mergedDeletes, updatedActiveSubmissionData);
+
 		// Perform Schema Data validation Async.
 		performDataValidation({
 			originalSubmission: submission,
 			submissionData: {
 				inserts: mergedInserts,
-				deletes: mergedDeletes,
+				deletes: filteredDeletes,
 				updates: updatedActiveSubmissionData,
 			},
 			userName,
