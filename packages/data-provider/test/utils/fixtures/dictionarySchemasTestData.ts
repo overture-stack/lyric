@@ -1,13 +1,13 @@
+import { Schema } from '@overture-stack/lectern-client';
 import { Dictionary } from '@overture-stack/lyric-data-model';
-import { SchemaDefinition, ValueType } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
-const dictionarySportsData: SchemaDefinition[] = [
+export const dictionarySportsData: Schema[] = [
 	{
 		name: 'sport',
 		fields: [
 			{
 				name: 'sport_id',
-				valueType: ValueType.STRING,
+				valueType: 'string',
 				description: 'Unique identifier of the sport.',
 				restrictions: {
 					required: true,
@@ -15,7 +15,7 @@ const dictionarySportsData: SchemaDefinition[] = [
 			},
 			{
 				name: 'name',
-				valueType: ValueType.STRING,
+				valueType: 'string',
 				description: 'Name of the sport.',
 				restrictions: {
 					required: true,
@@ -23,7 +23,7 @@ const dictionarySportsData: SchemaDefinition[] = [
 			},
 			{
 				name: 'description',
-				valueType: ValueType.STRING,
+				valueType: 'string',
 				description: 'Description of the sport.',
 				restrictions: {
 					required: false,
@@ -38,7 +38,7 @@ const dictionarySportsData: SchemaDefinition[] = [
 		fields: [
 			{
 				name: 'team_id',
-				valueType: ValueType.STRING,
+				valueType: 'string',
 				description: 'Unique identifier of the team.',
 				restrictions: {
 					required: true,
@@ -46,7 +46,7 @@ const dictionarySportsData: SchemaDefinition[] = [
 			},
 			{
 				name: 'sport_id',
-				valueType: ValueType.STRING,
+				valueType: 'string',
 				description: 'Unique identifier of the sport the team plays.',
 				restrictions: {
 					required: true,
@@ -54,7 +54,7 @@ const dictionarySportsData: SchemaDefinition[] = [
 			},
 			{
 				name: 'name',
-				valueType: ValueType.STRING,
+				valueType: 'string',
 				description: 'Name of the team.',
 				restrictions: {
 					required: true,
@@ -62,7 +62,7 @@ const dictionarySportsData: SchemaDefinition[] = [
 			},
 			{
 				name: 'coach',
-				valueType: ValueType.STRING,
+				valueType: 'string',
 				description: "Name of the team's coach.",
 				restrictions: {
 					required: false,
@@ -89,7 +89,7 @@ const dictionarySportsData: SchemaDefinition[] = [
 		fields: [
 			{
 				name: 'player_id',
-				valueType: ValueType.STRING,
+				valueType: 'string',
 				description: 'Unique identifier of the player.',
 				restrictions: {
 					required: true,
@@ -97,7 +97,7 @@ const dictionarySportsData: SchemaDefinition[] = [
 			},
 			{
 				name: 'team_id',
-				valueType: ValueType.STRING,
+				valueType: 'string',
 				description: 'Unique identifier of the team the player belongs to.',
 				restrictions: {
 					required: true,
@@ -105,7 +105,7 @@ const dictionarySportsData: SchemaDefinition[] = [
 			},
 			{
 				name: 'name',
-				valueType: ValueType.STRING,
+				valueType: 'string',
 				description: 'Name of the player.',
 				restrictions: {
 					required: true,
@@ -113,10 +113,18 @@ const dictionarySportsData: SchemaDefinition[] = [
 			},
 			{
 				name: 'position',
-				valueType: ValueType.STRING,
+				valueType: 'string',
 				description: 'Position of the player in the team.',
 				restrictions: {
 					required: false,
+				},
+			},
+			{
+				name: 'age',
+				valueType: 'integer',
+				description: 'Age of the player',
+				restrictions: {
+					required: true,
 				},
 			},
 		],
@@ -140,7 +148,7 @@ const dictionarySportsData: SchemaDefinition[] = [
 		fields: [
 			{
 				name: 'game_id',
-				valueType: ValueType.STRING,
+				valueType: 'string',
 				description: 'Unique identifier of the game.',
 				restrictions: {
 					required: true,
@@ -148,7 +156,7 @@ const dictionarySportsData: SchemaDefinition[] = [
 			},
 			{
 				name: 'sport_id',
-				valueType: ValueType.STRING,
+				valueType: 'string',
 				description: 'Unique identifier of the sport being played.',
 				restrictions: {
 					required: true,
@@ -156,7 +164,7 @@ const dictionarySportsData: SchemaDefinition[] = [
 			},
 			{
 				name: 'date',
-				valueType: ValueType.STRING,
+				valueType: 'string',
 				description: 'Date of the game.',
 				restrictions: {
 					regex: '^\\d{4}-(0[1-9]|1[012])-\\d{2}$',
@@ -165,7 +173,7 @@ const dictionarySportsData: SchemaDefinition[] = [
 			},
 			{
 				name: 'location',
-				valueType: ValueType.STRING,
+				valueType: 'string',
 				description: 'Location of the game.',
 				restrictions: {
 					required: false,
@@ -210,4 +218,6 @@ export const dictionarySportStatsNodeGraph = {
 			parent: { schemaName: 'team', fieldName: 'team_id' },
 		},
 	],
+	player: [],
+	game: [],
 } as const;

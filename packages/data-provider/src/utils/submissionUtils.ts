@@ -1,6 +1,14 @@
 import * as _ from 'lodash-es';
 
 import {
+	type DataRecord,
+	Dictionary as SchemasDictionary,
+	DictionaryValidationError,
+	DictionaryValidationRecordErrorDetails,
+	TestResult,
+	validate,
+} from '@overture-stack/lectern-client';
+import {
 	type Submission,
 	SubmissionData,
 	type SubmissionDeleteData,
@@ -8,14 +16,6 @@ import {
 	type SubmissionUpdateData,
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model';
-import {
-	type BatchProcessingResult,
-	type DataRecord,
-	SchemaData,
-	SchemasDictionary,
-	type SchemaValidationError,
-} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
-import { processSchemas } from '@overturebio-stack/lectern-client/lib/schema-functions.js';
 
 import type { SchemaChildNode } from './dictionarySchemaRelations.js';
 import { getSchemaFieldNames } from './dictionaryUtils.js';
@@ -75,7 +75,7 @@ export const checkEntityFieldNames = async (
 		try {
 			const fileHeaders = await readHeaders(file);
 
-			const schemaFieldNames = await getSchemaFieldNames(dictionary, entityName);
+			const schemaFieldNames = getSchemaFieldNames(dictionary, entityName);
 
 			const missingRequiredFields = schemaFieldNames.required.filter(
 				(requiredField) => !fileHeaders.includes(requiredField),
@@ -156,14 +156,37 @@ export const determineIfIsSubmission = (
 	reference.type === MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA;
 
 /**
- * Creates a Record type of SchemaData grouped by Entity names
+ * Creates a Record type of DataRecord[] grouped by Entity names
  * @param {Record<string, DataRecordReference[]>} mergeDataRecordsByEntityName
- * @returns {Record<string, SchemaData>}
+ * @returns {Record<string, DataRecord[]>}
  */
 export const extractSchemaDataFromMergedDataRecords = (
 	mergeDataRecordsByEntityName: Record<string, DataRecordReference[]>,
-): Record<string, SchemaData> => {
+): Record<string, DataRecord[]> => {
 	return _.mapValues(mergeDataRecordsByEntityName, (mappingArray) => mappingArray.map((o) => o.dataRecord));
+};
+
+/**
+ * Finds and returns a list of invalid records based on a provided schema name.
+ *
+ * This function checks if the validation results are marked as invalid, and if so,
+ * filters the validation errors to return those related to a specific schema name.
+ *
+ * @param results - The validation results containing details of validation errors.
+ * @param entityName - The name of the schema to filter the invalid records by.
+ *
+ * @returns An array of invalid records for the specified schema, or an empty array if none are found.
+ */
+export const findInvalidRecordErrorsBySchemaName = (
+	results: TestResult<DictionaryValidationError[]>,
+	entityName: string,
+) => {
+	return results.valid === false
+		? results.details
+				.filter((err) => err.reason === 'INVALID_RECORDS')
+				.filter((r) => r.schemaName == entityName)
+				.flatMap((e) => e.invalidRecords)
+		: [];
 };
 
 /**
@@ -259,7 +282,7 @@ export const filterRelationsForPrimaryIdUpdate = (
 ): {
 	entityName: string;
 	dataField: string;
-	dataValue: string;
+	dataValue: string | undefined;
 }[] => {
 	return (
 		schemaRelations
@@ -270,7 +293,7 @@ export const filterRelationsForPrimaryIdUpdate = (
 				return {
 					entityName: childNode.schemaName,
 					dataField: childNode.fieldName,
-					dataValue: updateRecord.old[childNode.fieldName].toString(),
+					dataValue: updateRecord.old[childNode.fieldName]?.toString(),
 				};
 			})
 	);
@@ -280,45 +303,52 @@ export const filterRelationsForPrimaryIdUpdate = (
  * Returns only the schema errors corresponding to the Active Submission.
  * Schema errors are grouped by Entity name.
  * @param {object} input
- * @param {Record<string, BatchProcessingResult>} input.resultValidation
+ * @param {TestResult<DictionaryValidationError[]>} input.resultValidation
  * @param {Record<string, DataRecordReference[]>} input.dataValidated
- * @returns {Record<string, Record<string, SchemaValidationError[]>>}
+ * @returns {Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>>}
  */
 export const groupSchemaErrorsByEntity = (input: {
-	resultValidation: Record<string, BatchProcessingResult>;
+	resultValidation: TestResult<DictionaryValidationError[]>;
 	dataValidated: Record<string, DataRecordReference[]>;
-}): Record<string, Record<string, SchemaValidationError[]>> => {
+}): Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> => {
 	const { resultValidation, dataValidated } = input;
 
-	const submissionSchemaErrors: Record<string, Record<string, SchemaValidationError[]>> = {};
-	Object.entries(resultValidation).forEach(([entityName, { validationErrors }]) => {
-		const hasErrorByIndex = groupErrorsByIndex(validationErrors);
+	const submissionSchemaErrors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> = {};
+	if (resultValidation.valid) return {};
+	resultValidation.details.forEach((dictionaryValidationError) => {
+		const entityName = dictionaryValidationError.schemaName;
+		if (dictionaryValidationError.reason === 'INVALID_RECORDS') {
+			const validationErrors = dictionaryValidationError.invalidRecords;
 
-		if (!_.isEmpty(hasErrorByIndex)) {
-			Object.entries(hasErrorByIndex).map(([indexBasedOnCrossSchemas, schemaValidationErrors]) => {
-				const mapping = dataValidated[entityName][Number(indexBasedOnCrossSchemas)];
-				if (determineIfIsSubmission(mapping.reference)) {
-					const submissionIndex = mapping.reference.index;
-					const actionType = mapping.reference.type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA ? 'inserts' : 'updates';
+			const hasErrorByIndex = groupErrorsByIndex(validationErrors);
 
-					const mutableSchemaValidationErrors: SchemaValidationError[] = schemaValidationErrors.map((errors) => {
-						return {
-							...errors,
-							index: submissionIndex,
-						};
-					});
+			if (!_.isEmpty(hasErrorByIndex)) {
+				Object.entries(hasErrorByIndex).map(([indexBasedOnCrossSchemas, schemaValidationErrors]) => {
+					const mapping = dataValidated[entityName][Number(indexBasedOnCrossSchemas)];
+					if (determineIfIsSubmission(mapping.reference)) {
+						const submissionIndex = mapping.reference.index;
+						const actionType =
+							mapping.reference.type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA ? 'inserts' : 'updates';
 
-					if (!submissionSchemaErrors[actionType]) {
-						submissionSchemaErrors[actionType] = {};
+						const mutableSchemaValidationErrors = schemaValidationErrors.map((errors) => {
+							return {
+								...errors,
+								index: submissionIndex,
+							};
+						});
+
+						if (!submissionSchemaErrors[actionType]) {
+							submissionSchemaErrors[actionType] = {};
+						}
+
+						if (!submissionSchemaErrors[actionType][entityName]) {
+							submissionSchemaErrors[actionType][entityName] = [];
+						}
+
+						submissionSchemaErrors[actionType][entityName].push(...mutableSchemaValidationErrors);
 					}
-
-					if (!submissionSchemaErrors[actionType][entityName]) {
-						submissionSchemaErrors[actionType][entityName] = [];
-					}
-
-					submissionSchemaErrors[actionType][entityName].push(...mutableSchemaValidationErrors);
-				}
-			});
+				});
+			}
 		}
 	});
 	return submissionSchemaErrors;
@@ -369,7 +399,7 @@ export const mapGroupedUpdateSubmissionData = ({
 	filterEntity: {
 		entityName: string;
 		dataField: string;
-		dataValue: string;
+		dataValue: string | undefined;
 	}[];
 	newDataRecord: DataRecord;
 }): Record<string, SubmissionUpdateData[]> => {
@@ -472,14 +502,14 @@ export const mergeInsertsRecords = (
 ): Record<string, SubmissionInsertData> => {
 	const result: Record<string, SubmissionInsertData> = {};
 
-	let seen: SchemaData = [];
+	let seen: DataRecord[] = [];
 	// Iterate over all objects
 	objects.forEach((obj) => {
 		// Iterate over each key in the current object
 		Object.entries(obj).forEach(([key, value]) => {
 			if (result[key]) {
 				// The key already exists in the result, concatenate the `records` arrays, avoiding duplicates
-				let uniqueData: SchemaData = [];
+				let uniqueData: DataRecord[] = [];
 
 				result[key].records.concat(value.records).forEach((item) => {
 					if (!seen.some((existingItem) => deepCompare(existingItem, item))) {
@@ -795,18 +825,24 @@ export const segregateFieldChangeRecords = (
 /**
  * Construct a SubmissionInsertData object per each file returning a Record type based on entityName
  * @param {Record<string, Express.Multer.File>} files
+ * @param {SchemasDictionary} schemasDictionary
  * @returns {Promise<Record<string, SubmissionInsertData>>}
  */
 export const submissionInsertDataFromFiles = async (
 	files: Record<string, Express.Multer.File>,
+	schemasDictionary: SchemasDictionary,
 ): Promise<Record<string, SubmissionInsertData>> => {
 	return await Object.entries(files).reduce<Promise<Record<string, SubmissionInsertData>>>(
 		async (accPromise, [entityName, file]) => {
 			const acc = await accPromise;
-			const parsedFileData = await tsvToJson(file.path);
+			const schema = schemasDictionary.schemas.find((schema) => schema.name === entityName);
+			if (!schema) {
+				throw new Error(`No schema found for : '${entityName}'`);
+			}
+			const parsedFileData = await tsvToJson(file.path, schema);
 			acc[entityName] = {
 				batchName: file.originalname,
-				records: parsedFileData,
+				records: parsedFileData.records,
 			};
 			return Promise.resolve(acc);
 		},
@@ -817,14 +853,16 @@ export const submissionInsertDataFromFiles = async (
 /**
  * Validate a full set of Schema Data using a Dictionary
  * @param {SchemasDictionary & {id: number }} dictionary
- * @param {Record<string, SchemaData>} schemasData
- * @returns an array of processedRecords and validationErrors for each Schema
+ * @param {Record<string, DataRecord[]>} schemasData
+ * @returns  A TestResult object representing the outcome of a test applied to some data.
+ * If a test is valid, no additional data is added to the result. If it is invalid, then the
+ * reason (or array of reasons) for why the test failed should be given.
  */
 export const validateSchemas = (
 	dictionary: SchemasDictionary & {
 		id: number;
 	},
-	schemasData: Record<string, SchemaData>,
+	schemasData: Record<string, DataRecord[]>,
 ) => {
 	const schemasDictionary: SchemasDictionary = {
 		name: dictionary.name,
@@ -832,5 +870,5 @@ export const validateSchemas = (
 		schemas: dictionary.schemas,
 	};
 
-	return processSchemas(schemasDictionary, schemasData);
+	return validate.validateDictionary(schemasData, schemasDictionary);
 };

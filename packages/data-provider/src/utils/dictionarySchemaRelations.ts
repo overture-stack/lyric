@@ -1,4 +1,4 @@
-import type { SchemaDefinition } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import { Schema } from '@overture-stack/lectern-client';
 
 export interface SchemaParentNode {
 	schemaName: string;
@@ -9,6 +9,8 @@ export interface SchemaChildNode {
 	fieldName: string;
 	parent: SchemaParentNode;
 }
+
+interface SchemaDefinition extends Schema {}
 
 /**
  * Returns all the children and it's relations by each schema on a Dictionary
@@ -36,6 +38,12 @@ export const getDictionarySchemaRelations = (
 				return mappingAccumulator;
 			}, acc);
 		}, acc);
+
+		// if schema doesn't have any children create an empty record
+		if (!acc[schemaDefinition.name]) {
+			acc[schemaDefinition.name] = [];
+		}
+
 		return acc;
 	}, {});
 };

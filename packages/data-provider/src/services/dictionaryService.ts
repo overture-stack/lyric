@@ -1,7 +1,7 @@
 import { isEmpty } from 'lodash-es';
 
+import { Dictionary as SchemasDictionary, Schema } from '@overture-stack/lectern-client';
 import { Category, Dictionary, NewCategory, NewDictionary } from '@overture-stack/lyric-data-model';
-import { SchemaDefinition, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 import { BaseDependencies } from '../config/config.js';
 import lecternClient from '../external/lecternClient.js';
@@ -22,7 +22,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 	const createDictionaryIfDoesNotExist = async (
 		dictionaryName: string,
 		version: string,
-		schemas: SchemaDefinition[],
+		schemas: Schema[],
 	): Promise<Dictionary> => {
 		const dictionaryRepo = dictionaryRepository(dependencies);
 		try {

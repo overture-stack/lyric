@@ -1,8 +1,8 @@
 import * as _ from 'lodash-es';
 
+import type { DataRecord, Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
 import { SubmittedData } from '@overture-stack/lyric-data-model';
 import { SQON } from '@overture-stack/sqon-builder';
-import type { DataRecord, SchemasDictionary } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 import { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
@@ -207,6 +207,7 @@ const service = (dependencies: BaseDependencies) => {
 		processEditFilesAsync({
 			submission: activeSubmission,
 			files: checkedEntities,
+			schemasDictionary,
 			userName,
 		});
 
@@ -340,14 +341,14 @@ const service = (dependencies: BaseDependencies) => {
 		if (Object.prototype.hasOwnProperty.call(dictionaryRelations, entityName)) {
 			// Array that represents the children fields to filter
 
-			const filterData: { entityName: string; dataField: string; dataValue: string }[] = Object.values(
+			const filterData: { entityName: string; dataField: string; dataValue: string | undefined }[] = Object.values(
 				dictionaryRelations[entityName],
 			)
 				.filter((childNode) => childNode.parent?.fieldName)
 				.map((childNode) => ({
 					entityName: childNode.schemaName,
 					dataField: childNode.fieldName,
-					dataValue: data[childNode.parent!.fieldName].toString(),
+					dataValue: data[childNode.parent!.fieldName]?.toString(),
 				}));
 
 			logger.debug(

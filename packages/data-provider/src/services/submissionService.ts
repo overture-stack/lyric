@@ -1,6 +1,11 @@
 import * as _ from 'lodash-es';
 
 import {
+	type DataRecord,
+	Dictionary as SchemasDictionary,
+	DictionaryValidationRecordErrorDetails,
+} from '@overture-stack/lectern-client';
+import {
 	type NewSubmission,
 	Submission,
 	SubmissionData,
@@ -9,11 +14,6 @@ import {
 	type SubmissionUpdateData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model';
-import {
-	type DataRecord,
-	SchemasDictionary,
-	SchemaValidationError,
-} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 import { BaseDependencies } from '../config/config.js';
 import systemIdGenerator from '../external/systemIdGenerator.js';
@@ -31,6 +31,7 @@ import {
 	extractSchemaDataFromMergedDataRecords,
 	filterDeletesFromUpdates,
 	filterRelationsForPrimaryIdUpdate,
+	findInvalidRecordErrorsBySchemaName,
 	groupSchemaErrorsByEntity,
 	mapGroupedUpdateSubmissionData,
 	mergeAndReferenceEntityData,
@@ -560,10 +561,10 @@ const service = (dependencies: BaseDependencies) => {
 
 		const resultValidation = validateSchemas(dictionary, schemasDataToValidate.schemaDataByEntityName);
 
-		Object.entries(resultValidation).forEach(([entityName, { validationErrors }]) => {
-			const hasErrorByIndex = groupErrorsByIndex(validationErrors);
-
-			schemasDataToValidate.submittedDataByEntityName[entityName].map((data, index) => {
+		Object.entries(schemasDataToValidate.submittedDataByEntityName).forEach(([entityName, dataArray], index) => {
+			dataArray.forEach((data) => {
+				const invalidRecordErrors = findInvalidRecordErrorsBySchemaName(resultValidation, entityName);
+				const hasErrorByIndex = groupErrorsByIndex(invalidRecordErrors);
 				const oldIsValid = data.isValid;
 				const newIsValid = !hasErrorsByIndex(hasErrorByIndex, index);
 				if (data.id) {
@@ -715,7 +716,7 @@ const service = (dependencies: BaseDependencies) => {
 	 * @param {number} input.dictionaryId The Dictionary ID of the Submission
 	 * @param {SubmissionData} input.submissionData Data to be submitted grouped on inserts, updates and deletes
 	 * @param {number} input.idActiveSubmission ID of the Active Submission
-	 * @param {Record<string, SchemaValidationError[]>} input.schemaErrors Array of schemaErrors
+	 * @param {Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>>} input.schemaErrors Array of schemaErrors
 	 * @param {string} input.userName User updating the active submission
 	 * @returns {Promise<Submission>} An Active Submission updated
 	 */
@@ -723,7 +724,7 @@ const service = (dependencies: BaseDependencies) => {
 		dictionaryId: number;
 		submissionData: SubmissionData;
 		idActiveSubmission: number;
-		schemaErrors: Record<string, Record<string, SchemaValidationError[]>>;
+		schemaErrors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>>;
 		userName: string;
 	}): Promise<Submission> => {
 		const { dictionaryId, submissionData, idActiveSubmission, schemaErrors, userName } = input;
@@ -749,10 +750,12 @@ const service = (dependencies: BaseDependencies) => {
 	/**
 	 * Construct a SubmissionUpdateData object per each file returning a Record type based on entityName
 	 * @param {Record<string, Express.Multer.File>} files
+	 * @param {SchemasDictionary} schemasDictionary,
 	 * @returns {Promise<Record<string, SubmissionUpdateData>>}
 	 */
 	const submissionUpdateDataFromFiles = async (
 		files: Record<string, Express.Multer.File>,
+		schemasDictionary: SchemasDictionary,
 	): Promise<Record<string, SubmissionUpdateData[]>> => {
 		const { getSubmittedDataBySystemId } = submittedRepository(dependencies);
 		const results: Record<string, SubmissionUpdateData[]> = {};
@@ -760,10 +763,14 @@ const service = (dependencies: BaseDependencies) => {
 		// Process files in parallel using Promise.all
 		await Promise.all(
 			Object.entries(files).map(async ([entityName, file]) => {
-				const parsedFileData = await tsvToJson(file.path);
+				const schema = schemasDictionary.schemas.find((schema) => schema.name === entityName);
+				if (!schema) {
+					throw new Error(`No schema found for : '${entityName}'`);
+				}
+				const parsedFileData = await tsvToJson(file.path, schema);
 
 				// Process records concurrently using Promise.all
-				const recordPromises = parsedFileData.map(async (record) => {
+				const recordPromises = parsedFileData.records.map(async (record) => {
 					const systemId = record['systemId']?.toString();
 					const changeData = _.omit(record, 'systemId');
 					if (!systemId) return;
@@ -869,6 +876,7 @@ const service = (dependencies: BaseDependencies) => {
 		// Running Schema validation in the background do not need to wait
 		// Result of validations will be stored in database
 		validateFilesAsync(checkedEntities, {
+			schemasDictionary,
 			categoryId,
 			organization,
 			userName,
@@ -897,23 +905,26 @@ const service = (dependencies: BaseDependencies) => {
 	 * Void function to process and validate uploaded files on an Active Submission.
 	 * Performs the schema data validation of data to be edited combined with all Submitted Data.
 	 * @param params
-	 * @param params.submission A `Submission` object representing the Active Submission
 	 * @param params.files Uploaded files to be processed
+	 * @param params.schemasDictionary Dictionary to parse data with
+	 * @param params.submission A `Submission` object representing the Active Submission
 	 * @param params.userName User who performs the action
 	 */
 	const processEditFilesAsync = async ({
-		submission,
 		files,
+		schemasDictionary,
+		submission,
 		userName,
 	}: {
-		submission: Submission;
 		files: Record<string, Express.Multer.File>;
+		schemasDictionary: SchemasDictionary;
+		submission: Submission;
 		userName: string;
 	}): Promise<void> => {
 		const { getDictionaryById } = dictionaryRepository(dependencies);
 
 		// Parse file data
-		const filesDataProcessed = await submissionUpdateDataFromFiles(files);
+		const filesDataProcessed = await submissionUpdateDataFromFiles(files, schemasDictionary);
 		logger.info(
 			LOG_MODULE,
 			`Read '${Object.values(filesDataProcessed).length}' records in total on files '${Object.keys(files)}'`,
@@ -987,16 +998,17 @@ const service = (dependencies: BaseDependencies) => {
 	 * @param {Object} params
 	 * @param {number} params.categoryId Category Identifier
 	 * @param {string} params.organization Organization name
+	 * @param {SchemasDictionary} params.schemasDictionary Dictionary to parse files with
 	 * @param {string} params.userName User who performs the action
 	 * @returns {void}
 	 */
 	const validateFilesAsync = async (files: Record<string, Express.Multer.File>, params: ValidateFilesParams) => {
 		const { getActiveSubmission } = submissionRepository(dependencies);
 
-		const { categoryId, organization, userName } = params;
+		const { categoryId, organization, userName, schemasDictionary } = params;
 
 		// Parse file data
-		const filesDataProcessed = await submissionInsertDataFromFiles(files);
+		const filesDataProcessed = await submissionInsertDataFromFiles(files, schemasDictionary);
 
 		// Get Active Submission from database
 		const activeSubmission = await getActiveSubmission({ categoryId, userName, organization });

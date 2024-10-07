@@ -2,6 +2,12 @@ import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
 import type {
+	DataRecord,
+	Dictionary as SchemasDictionary,
+	DictionaryValidationError,
+	TestResult,
+} from '@overture-stack/lectern-client';
+import type {
 	Submission,
 	SubmissionData,
 	SubmissionDeleteData,
@@ -9,11 +15,6 @@ import type {
 	SubmissionUpdateData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model';
-import {
-	BatchProcessingResult,
-	type DataRecord,
-	SchemaValidationErrorTypes,
-} from '@overturebio-stack/lectern-client/lib/schema-entities.js';
 
 import type { SchemaChildNode } from '../../src/utils/dictionarySchemaRelations.js';
 import {
@@ -35,6 +36,7 @@ import {
 	parseActiveSubmissionSummaryResponse,
 	removeItemsFromSubmission,
 	segregateFieldChangeRecords,
+	validateSchemas,
 } from '../../src/utils/submissionUtils.js';
 import {
 	type ActiveSubmissionSummaryRepository,
@@ -102,7 +104,7 @@ describe('Submission Utils', () => {
 			expect(response).to.be.true;
 		});
 	});
-	describe('Extracts SchemaData from DataRecordReference Record', () => {
+	describe('Extracts an Array of DataRecord from DataRecordReference Record', () => {
 		it('should process a Record with mixed SubmittedData and Submission References', () => {
 			const insertSubmissionReference: DataRecordReference = {
 				dataRecord: { title: 'abc' },
@@ -437,9 +439,10 @@ describe('Submission Utils', () => {
 		});
 	});
 	describe('Group validation errors by entity', () => {
-		it('retuns empty object when no there is no data being processed', () => {
-			const resultValidation: Record<string, BatchProcessingResult> = {
-				sports: { validationErrors: [], processedRecords: [] },
+		it('retuns empty object when there is no data being processed', () => {
+			const resultValidation: TestResult<DictionaryValidationError[]> = {
+				valid: false,
+				details: [],
 			};
 			const dataValidated: Record<string, DataRecordReference[]> = {};
 
@@ -447,28 +450,9 @@ describe('Submission Utils', () => {
 			expect(response).to.eql({});
 		});
 		it('retuns empty object when no there no errors on Submission', () => {
-			const resultValidation: Record<string, BatchProcessingResult> = {
-				sports: {
-					validationErrors: [
-						{
-							info: {},
-							index: 0,
-							message: 'UNRECOGNIZED_FIELD',
-							errorType: SchemaValidationErrorTypes.UNRECOGNIZED_FIELD,
-							fieldName: 'systemId',
-						},
-						{
-							info: {
-								value: ['Homme'],
-							},
-							index: 1,
-							message: 'The value is not permissible for this field.',
-							errorType: SchemaValidationErrorTypes.INVALID_ENUM_VALUE,
-							fieldName: 'sex_at_birth',
-						},
-					],
-					processedRecords: [{ systemId: 'XYZ123' }, { sex_at_birth: 'Homme' }],
-				},
+			const resultValidation: TestResult<DictionaryValidationError[]> = {
+				valid: false,
+				details: [],
 			};
 			const dataValidated: Record<string, DataRecordReference[]> = {
 				sports: [
@@ -495,28 +479,24 @@ describe('Submission Utils', () => {
 			expect(response).to.eql({});
 		});
 		it('retuns errors found on the Submission new inserts', () => {
-			const resultValidation: Record<string, BatchProcessingResult> = {
-				sports: {
-					validationErrors: [
-						{
-							info: {},
-							index: 0,
-							message: 'UNRECOGNIZED_FIELD',
-							errorType: SchemaValidationErrorTypes.UNRECOGNIZED_FIELD,
-							fieldName: 'systemId',
-						},
-						{
-							info: {
-								value: ['Homme'],
+			const resultValidation: TestResult<DictionaryValidationError[]> = {
+				valid: false,
+				details: [
+					{
+						schemaName: 'sports',
+						reason: 'INVALID_RECORDS',
+						invalidRecords: [
+							{
+								recordIndex: 0,
+								recordErrors: [{ fieldName: 'systemId', reason: 'UNRECOGNIZED_FIELD', fieldValue: '' }],
 							},
-							index: 1,
-							message: 'The value is not permissible for this field.',
-							errorType: SchemaValidationErrorTypes.INVALID_ENUM_VALUE,
-							fieldName: 'sex_at_birth',
-						},
-					],
-					processedRecords: [{ systemId: 'XYZ123' }, { sex_at_birth: 'Homme' }],
-				},
+							{
+								recordIndex: 1,
+								recordErrors: [{ fieldName: 'sex_at_birth', reason: 'UNRECOGNIZED_FIELD', fieldValue: 'Homme' }],
+							},
+						],
+					},
+				],
 			};
 			const dataValidated: Record<string, DataRecordReference[]> = {
 				sports: [
@@ -544,47 +524,31 @@ describe('Submission Utils', () => {
 			expect(Object.keys(response['inserts'])).to.eql(['sports']);
 			expect(response['inserts']['sports'].length).to.eq(2);
 			expect(response['inserts']['sports']).to.eql([
-				{
-					info: {},
-					index: 12,
-					message: 'UNRECOGNIZED_FIELD',
-					errorType: SchemaValidationErrorTypes.UNRECOGNIZED_FIELD,
-					fieldName: 'systemId',
-				},
-				{
-					info: {
-						value: ['Homme'],
-					},
-					index: 12,
-					message: 'The value is not permissible for this field.',
-					errorType: SchemaValidationErrorTypes.INVALID_ENUM_VALUE,
-					fieldName: 'sex_at_birth',
-				},
+				{ fieldName: 'systemId', reason: 'UNRECOGNIZED_FIELD', fieldValue: '', index: 12 },
+				{ fieldName: 'sex_at_birth', reason: 'UNRECOGNIZED_FIELD', fieldValue: 'Homme', index: 12 },
 			]);
 		});
 		it('retuns errors found on the Submission updates', () => {
-			const resultValidation: Record<string, BatchProcessingResult> = {
-				sports: {
-					validationErrors: [
-						{
-							info: {},
-							index: 0,
-							message: 'UNRECOGNIZED_FIELD',
-							errorType: SchemaValidationErrorTypes.UNRECOGNIZED_FIELD,
-							fieldName: 'systemId',
-						},
-						{
-							info: {
-								value: ['Homme'],
+			const resultValidation: TestResult<DictionaryValidationError[]> = {
+				valid: false,
+				details: [
+					{
+						schemaName: 'sports',
+						reason: 'INVALID_RECORDS',
+						invalidRecords: [
+							{
+								recordIndex: 0,
+								recordErrors: [{ fieldName: 'systemId', reason: 'INVALID_BY_RESTRICTION', fieldValue: '', errors: [] }],
 							},
-							index: 1,
-							message: 'The value is not permissible for this field.',
-							errorType: SchemaValidationErrorTypes.INVALID_ENUM_VALUE,
-							fieldName: 'sex_at_birth',
-						},
-					],
-					processedRecords: [{ systemId: 'XYZ123' }, { sex_at_birth: 'Homme' }],
-				},
+							{
+								recordIndex: 1,
+								recordErrors: [
+									{ fieldName: 'sex_at_birth', reason: 'INVALID_BY_RESTRICTION', fieldValue: '', errors: [] },
+								],
+							},
+						],
+					},
+				],
 			};
 			const dataValidated: Record<string, DataRecordReference[]> = {
 				sports: [
@@ -613,20 +577,18 @@ describe('Submission Utils', () => {
 			expect(response['updates']['sports'].length).to.eq(2);
 			expect(response['updates']['sports']).to.eql([
 				{
-					info: {},
+					errors: [],
 					index: 12,
-					message: 'UNRECOGNIZED_FIELD',
-					errorType: SchemaValidationErrorTypes.UNRECOGNIZED_FIELD,
+					reason: 'INVALID_BY_RESTRICTION',
 					fieldName: 'systemId',
+					fieldValue: '',
 				},
 				{
-					info: {
-						value: ['Homme'],
-					},
+					errors: [],
 					index: 12,
-					message: 'The value is not permissible for this field.',
-					errorType: SchemaValidationErrorTypes.INVALID_ENUM_VALUE,
+					reason: 'INVALID_BY_RESTRICTION',
 					fieldName: 'sex_at_birth',
+					fieldValue: '',
 				},
 			]);
 		});
@@ -2020,6 +1982,199 @@ describe('Submission Utils', () => {
 				systemId: 'PER987',
 				new: { name: 'Pedro' },
 				old: { name: 'Pepe' },
+			});
+		});
+	});
+	describe('Validate Data using a Dictionary', () => {
+		const dictionary: SchemasDictionary & {
+			id: number;
+		} = {
+			id: 1,
+			name: 'test dictionary',
+			version: '1.0.0',
+			schemas: [
+				{
+					name: 'sport',
+					fields: [
+						{
+							name: 'sport_id',
+							valueType: 'string',
+							description: 'Unique identifier of the sport.',
+							restrictions: {
+								required: true,
+							},
+						},
+						{
+							name: 'name',
+							valueType: 'string',
+							description: 'Name of the sport.',
+							restrictions: {
+								required: true,
+							},
+						},
+						{
+							name: 'description',
+							valueType: 'string',
+							description: 'Description of the sport.',
+							restrictions: {
+								required: false,
+							},
+						},
+					],
+					description: 'The collection of data elements required to register a sport.',
+					restrictions: {},
+				},
+				{
+					name: 'player',
+					fields: [
+						{
+							name: 'player_id',
+							valueType: 'string',
+							description: 'Unique identifier of the player.',
+							restrictions: {
+								required: true,
+							},
+						},
+						{
+							name: 'name',
+							valueType: 'string',
+							description: 'Name of the player.',
+							restrictions: {
+								required: true,
+							},
+						},
+						{
+							name: 'sport_id',
+							valueType: 'string',
+							description: 'Sport the player plays',
+							restrictions: {
+								required: true,
+							},
+						},
+					],
+					description: 'The collection of data elements required to register a sport.',
+					restrictions: {
+						foreignKey: [
+							{
+								schema: 'sport',
+								mappings: [
+									{
+										local: 'sport_id',
+										foreign: 'sport_id',
+									},
+								],
+							},
+						],
+					},
+				},
+			],
+		};
+		it('returns valid response', () => {
+			const data: Record<string, DataRecord[]> = {
+				sport: [{ sport_id: 'FOOT001', name: 'Footbal', description: 'Foot ball game' }],
+			};
+
+			const response = validateSchemas(dictionary, data);
+			expect(response.valid).to.be.true;
+		});
+		it('returns invalid validation with unrecognized schema', () => {
+			const data: Record<string, DataRecord[]> = {
+				food: [{ food_id: 1, name: 'Pizza' }],
+			};
+
+			const response = validateSchemas(dictionary, data);
+			expect(response.valid).to.be.false;
+			expect(Object.keys(response)).to.eql(['valid', 'details']);
+			expect(response['details'].length).to.eq(1);
+			expect(response['details'][0]['reason']).to.eql('UNRECOGNIZED_SCHEMA');
+			expect(response['details'][0]['schemaName']).to.eql('food');
+		});
+		it('returns invalid validation with invalid value type error', () => {
+			const data: Record<string, DataRecord[]> = {
+				sport: [{ sport_id: 1, name: 'Footbal', description: 'Foot ball game' }],
+			};
+
+			const response = validateSchemas(dictionary, data);
+			expect(response.valid).to.be.false;
+			expect(Object.keys(response)).to.eql(['valid', 'details']);
+			expect(response['details'].length).to.eq(1);
+			expect(response['details'][0]['reason']).to.eql('INVALID_RECORDS');
+			expect(response['details'][0]['schemaName']).to.eql('sport');
+			expect(response['details'][0]['invalidRecords'].length).to.eq(1);
+			expect(response['details'][0]['invalidRecords'][0]['recordIndex']).to.eq(0);
+			expect(response['details'][0]['invalidRecords'][0]['recordErrors'][0]).to.eql({
+				fieldName: 'sport_id',
+				fieldValue: 1,
+				isArray: false,
+				reason: 'INVALID_VALUE_TYPE',
+				valueType: 'string',
+			});
+		});
+		it('returns invalid validation with missing required field', () => {
+			const data: Record<string, DataRecord[]> = {
+				sport: [{ name: 'Footbal', description: 'Foot ball game' }],
+			};
+
+			const response = validateSchemas(dictionary, data);
+			expect(response.valid).to.be.false;
+			expect(Object.keys(response)).to.eql(['valid', 'details']);
+			expect(response['details'].length).to.eq(1);
+			expect(response['details'][0]['reason']).to.eql('INVALID_RECORDS');
+			expect(response['details'][0]['schemaName']).to.eql('sport');
+			expect(response['details'][0]['invalidRecords'].length).to.eq(1);
+			expect(response['details'][0]['invalidRecords'][0]['recordIndex']).to.eq(0);
+			expect(response['details'][0]['invalidRecords'][0]['recordErrors'][0]).to.eql({
+				fieldName: 'sport_id',
+				fieldValue: undefined,
+				reason: 'INVALID_BY_RESTRICTION',
+				errors: [
+					{
+						message: 'A value is required for this field.',
+						restriction: { type: 'required', rule: true },
+					},
+				],
+			});
+		});
+		it('returns invalid validation with unknown field', () => {
+			const data: Record<string, DataRecord[]> = {
+				sport: [{ sport_id: 'FOOT001', name: 'Footbal', description: 'Foot ball game', extra_field: 'ABC' }],
+			};
+
+			const response = validateSchemas(dictionary, data);
+			expect(response.valid).to.be.false;
+			expect(Object.keys(response)).to.eql(['valid', 'details']);
+			expect(response['details'].length).to.eq(1);
+			expect(response['details'][0]['reason']).to.eql('INVALID_RECORDS');
+			expect(response['details'][0]['schemaName']).to.eql('sport');
+			expect(response['details'][0]['invalidRecords'].length).to.eq(1);
+			expect(response['details'][0]['invalidRecords'][0]['recordIndex']).to.eq(0);
+			expect(response['details'][0]['invalidRecords'][0]['recordErrors'][0]).to.eql({
+				fieldName: 'extra_field',
+				fieldValue: 'ABC',
+				reason: 'UNRECOGNIZED_FIELD',
+			});
+		});
+		it('returns invalid validation with invalid foreign key', () => {
+			const data: Record<string, DataRecord[]> = {
+				player: [{ player_id: 'PPP01', name: 'Pedro', sport_id: '1234' }],
+			};
+
+			const response = validateSchemas(dictionary, data);
+			expect(response.valid).to.be.false;
+			expect(Object.keys(response)).to.eql(['valid', 'details']);
+			expect(response['details'].length).to.eq(1);
+			expect(response['details'][0]['reason']).to.eql('INVALID_RECORDS');
+			expect(response['details'][0]['schemaName']).to.eql('player');
+			expect(response['details'][0]['invalidRecords'].length).to.eq(1);
+			expect(response['details'][0]['invalidRecords'][0]['recordIndex']).to.eq(0);
+			expect(response['details'][0]['invalidRecords'][0]['recordErrors'][0]).to.eql({
+				fieldName: 'sport_id',
+				fieldValue: '1234',
+				foreignSchema: {
+					fieldName: 'sport_id',
+					schemaName: 'sport',
+				},
+				reason: 'INVALID_BY_FOREIGNKEY',
 			});
 		});
 	});

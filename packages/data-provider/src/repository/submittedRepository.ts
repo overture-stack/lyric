@@ -381,7 +381,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {Object} filterData
 		 * @param {string} filterData.entityName
 		 * @param {string} filterData.dataField
-		 * @param {string} filterData.dataValue
+		 * @param {string | undefined} filterData.dataValue
 		 * @returns {Promise<SubmittedData[]>}
 		 */
 		getSubmittedDataFiltered: async (
@@ -389,7 +389,7 @@ const repository = (dependencies: BaseDependencies) => {
 			filterData: {
 				entityName: string;
 				dataField: string;
-				dataValue: string;
+				dataValue: string | undefined;
 			}[],
 		): Promise<SubmittedData[]> => {
 			const sqlDataFilter = filterData.map((filter) => {

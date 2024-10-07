@@ -1,6 +1,7 @@
 import { jsonb, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
-import { SchemaDefinition } from '@overturebio-stack/lectern-client/lib/schema-entities.js';
+import { Schema } from '@overture-stack/lectern-client';
+interface SchemaDefinition extends Schema {}
 
 export const dictionaries = pgTable('dictionaries', {
 	id: serial('id').primaryKey(),
