@@ -41,7 +41,7 @@
 		"deep-freeze": "^0.0.1",
 		"dotenv": "^16.4.5",
 		"drizzle-orm": "^0.29.5",
-		"express": "^4.19.2",
+		"express": "^4.20.0",
 		"firstline": "^2.0.2",
 		"lodash-es": "^4.17.21",
 		"multer": "1.4.5-lts.1",
