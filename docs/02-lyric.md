@@ -6,7 +6,7 @@ Brief description of the softwares main function and purpose
 
 Explanation of the system's architecture
 
-[!System Architecture Diagram](./images/platform.svg 'System Architecture Diagram')
+[System Archetecture Diagram Here]
 
 As part of the larger System Name, Software Name is typically used with additional integrations, including:
 
