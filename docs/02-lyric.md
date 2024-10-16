@@ -2,6 +2,8 @@
 
 Brief description of the softwares main function and purpose
 
+Express service
+
 ## System Architecture
 
 Explanation of the system's architecture
@@ -11,7 +13,7 @@ Explanation of the system's architecture
 As part of the larger System Name, Software Name is typically used with additional integrations, including:
 
 - **Lectern:** Brief description of integration 1
-- **Maestro v2:** Brief description of integration 2
+- **Maestro v5:** Brief description of integration 2
 
 ## Key Features
 
