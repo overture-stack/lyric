@@ -2,7 +2,7 @@
 
 Brief description of the softwares main function and purpose
 
-Express service
+- Express server
 
 ## System Architecture
 
