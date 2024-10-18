@@ -2,8 +2,6 @@
 
 Brief description of the softwares main function and purpose
 
-- Express server
-
 ## System Architecture
 
 Explanation of the system's architecture
