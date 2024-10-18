@@ -8,7 +8,11 @@ Brief description of the softwares main function and purpose
 
 Explanation of the system's architecture
 
-[System Archetecture Diagram Here]
+![Submission System Architecture](../images/submission-system.svg 'Updated Overture Submission System')
+
+:::warning
+This diagram needs to be updated for Lectern specifically
+:::
 
 As part of the larger System Name, Software Name is typically used with additional integrations, including:
 
