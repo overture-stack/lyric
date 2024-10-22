@@ -23,6 +23,9 @@
                 type: string
                 description: A matching Dictionary Version defined on Dictionary Manager (Lectern)
                 required: true
+              defaultCentricEntity:
+                type: string
+                description: The default centric entity name
     responses:
       200:
         description: Dictionary info
