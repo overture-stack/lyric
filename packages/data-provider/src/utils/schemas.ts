@@ -6,7 +6,7 @@ import type { SQON } from '@overture-stack/sqon-builder';
 
 import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js';
 import { parseSQON } from './convertSqonToQuery.js';
-import { isValidDateFormat, isValidIdNumber } from './formatUtils.js';
+import { isValidDateFormat, isValidIdNumber, isValidView } from './formatUtils.js';
 import { RequestValidation } from './requestValidation.js';
 
 const auditEventTypeSchema = z
@@ -14,6 +14,12 @@ const auditEventTypeSchema = z
 	.trim()
 	.min(1)
 	.refine((value) => isAuditEventValid(value), 'invalid Event Type');
+
+const viewSchema = z
+	.string()
+	.trim()
+	.min(1)
+	.refine((value) => isValidView(value), 'invalid `view` parameter');
 
 const categoryIdSchema = z
 	.string()
@@ -201,6 +207,7 @@ export interface dictionaryRegisterBodyParams {
 	categoryName: string;
 	dictionaryName: string;
 	version: string;
+	defaultCentricEntity?: string;
 }
 
 export const dictionaryRegisterRequestSchema: RequestValidation<
@@ -212,6 +219,7 @@ export const dictionaryRegisterRequestSchema: RequestValidation<
 		categoryName: stringNotEmpty,
 		dictionaryName: stringNotEmpty,
 		version: stringNotEmpty,
+		defaultCentricEntity: stringNotEmpty.optional(),
 	}),
 };
 
@@ -305,12 +313,18 @@ export const dataEditRequestSchema: RequestValidation<{ organization: string }, 
 
 export interface dataQueryParams extends paginationQueryParams {
 	entityName?: string | string[];
+	view?: string;
+}
+
+export interface getDataQueryParams extends ParsedQs {
+	view?: string;
 }
 
 export const dataGetByCategoryRequestSchema: RequestValidation<object, dataQueryParams, categoryPathParams> = {
 	query: z
 		.object({
 			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
+			view: viewSchema.optional(),
 		})
 		.merge(paginationQuerySchema),
 	pathParams: categoryPathParamsSchema,
@@ -324,6 +338,7 @@ export const dataGetByOrganizationRequestSchema: RequestValidation<
 	query: z
 		.object({
 			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
+			view: viewSchema.optional(),
 		})
 		.merge(paginationQuerySchema),
 	pathParams: categoryOrganizationPathParamsSchema,
@@ -337,4 +352,23 @@ export const dataGetByQueryRequestschema: RequestValidation<object, dataQueryPar
 		})
 		.merge(paginationQuerySchema),
 	pathParams: categoryOrganizationPathParamsSchema,
+};
+
+export interface dataGetBySystemIdPathParams extends ParamsDictionary {
+	systemId: string;
+	categoryId: string;
+}
+
+export const dataGetBySystemIdRequestschema: RequestValidation<
+	object,
+	getDataQueryParams,
+	dataGetBySystemIdPathParams
+> = {
+	query: z.object({
+		view: viewSchema.optional(),
+	}),
+	pathParams: z.object({
+		systemId: stringNotEmpty,
+		categoryId: categoryIdSchema,
+	}),
 };

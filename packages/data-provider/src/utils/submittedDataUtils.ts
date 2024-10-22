@@ -19,6 +19,8 @@ import {
 	MERGE_REFERENCE_TYPE,
 	type MutableDataDiff,
 	type MutableDataRecord,
+	VIEW_TYPE,
+	type ViewType,
 } from './types.js';
 
 /**
@@ -98,6 +100,51 @@ export const fetchDataErrorResponse = (
 			errorMessage: error,
 		},
 	};
+};
+
+/**
+ * Determines the entity names based on the provided filter options.
+ *
+ * If the `view` flag is set in the `filterOptions` and a `defaultCentricEntity` exists
+ * it returns an array containing the `defaultCentricEntity`.
+ * Otherwise, it returns the `entityName` from `filterOptions`, if provided.
+ *
+ * @param filterOptions An object containing the compound flag and the entity name array.
+ * @param filterOptions.view A flag indicating the type of view to represent the records
+ * @param filterOptions.entityName An array of entity names, used if compound is false or undefined.
+ * @param defaultCentricEntity The default centric entity name
+ * @returns An array of entity names or `undefined` if no conditions are met.
+ */
+export const filterQueryByEntityName = (
+	filterOptions: { view: ViewType; entityName?: (string | undefined)[] },
+	defaultCentricEntity: string | null,
+): (string | undefined)[] | undefined => {
+	if (filterOptions.view === VIEW_TYPE.Values.compound && defaultCentricEntity) {
+		return [defaultCentricEntity];
+	} else if (filterOptions?.entityName) {
+		return filterOptions.entityName;
+	}
+	return undefined; // Return undefined if no conditions are met
+};
+
+/**
+ * Determines which entity name to used to return compound nested records
+ * @param params
+ * @param params.filterByEntityName An optional filter options passed on the query parameters
+ * @param params.schemaCentricEntity The default schema-centric entity name for the category data dictionary
+ * @param params.recordEntityName The entity name of the record
+ * @returns
+ */
+export const getSchemaForCompound = ({
+	filterByEntityName,
+	schemaCentricEntity,
+	recordEntityName,
+}: {
+	filterByEntityName?: (string | undefined)[];
+	schemaCentricEntity: string | null;
+	recordEntityName: string;
+}): string => {
+	return filterByEntityName?.some((e) => e && e !== '') ? recordEntityName : schemaCentricEntity || recordEntityName;
 };
 
 /**

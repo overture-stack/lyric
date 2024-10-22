@@ -10,8 +10,9 @@ import {
 	dataGetByCategoryRequestSchema,
 	dataGetByOrganizationRequestSchema,
 	dataGetByQueryRequestschema,
+	dataGetBySystemIdRequestschema,
 } from '../utils/schemas.js';
-import { SubmittedDataPaginatedResponse } from '../utils/types.js';
+import { SubmittedDataPaginatedResponse, VIEW_TYPE } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
 	const service = submittedDataService(dependencies);
@@ -19,6 +20,8 @@ const controller = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_CONTROLLER';
 	const defaultPage = 1;
 	const defaultPageSize = 20;
+	const defaultView = VIEW_TYPE.Values.list;
+
 	return {
 		getSubmittedDataByCategory: validateRequest(dataGetByCategoryRequestSchema, async (req, res, next) => {
 			try {
@@ -28,17 +31,24 @@ const controller = (dependencies: BaseDependencies) => {
 				const entityName = asArray(req.query.entityName);
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
+				const view = req.query.view || defaultView;
+
+				const parsedView = VIEW_TYPE.safeParse(view);
+				if (!parsedView.success) {
+					throw new Error('Invalid view type provided');
+				}
 
 				logger.info(
 					LOG_MODULE,
 					`Request Submitted Data on categoryId '${categoryId}'`,
 					`pagination params: page '${page}' pageSize '${pageSize}'`,
+					`view '${view}'`,
 				);
 
 				const submittedDataResult = await service.getSubmittedDataByCategory(
 					categoryId,
 					{ page, pageSize },
-					{ entityName },
+					{ entityName, view: parsedView.data },
 				);
 
 				if (_.isEmpty(submittedDataResult.data)) {
@@ -70,11 +80,18 @@ const controller = (dependencies: BaseDependencies) => {
 				const entityName = asArray(req.query.entityName);
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
+				const view = req.query.view || defaultView;
+
+				const parsedView = VIEW_TYPE.safeParse(view);
+				if (!parsedView.success) {
+					throw new Error('Invalid view type provided');
+				}
 
 				logger.info(
 					LOG_MODULE,
 					`Request Submitted Data on categoryId '${categoryId}' and organization '${organization}'`,
 					`pagination params: page '${page}' pageSize '${pageSize}'`,
+					`view '${view}'`,
 				);
 
 				const submittedDataResult = await service.getSubmittedDataByOrganization(
@@ -84,7 +101,7 @@ const controller = (dependencies: BaseDependencies) => {
 						page,
 						pageSize,
 					},
-					{ entityName },
+					{ entityName, view: parsedView.data },
 				);
 
 				if (submittedDataResult.metadata.errorMessage) {
@@ -134,7 +151,7 @@ const controller = (dependencies: BaseDependencies) => {
 						page,
 						pageSize,
 					},
-					{ sqon, entityName },
+					{ sqon, entityName, view: VIEW_TYPE.Values.list },
 				);
 
 				if (submittedDataResult.metadata.errorMessage) {
@@ -152,6 +169,38 @@ const controller = (dependencies: BaseDependencies) => {
 				};
 
 				return res.status(200).send(responsePaginated);
+			} catch (error) {
+				next(error);
+			}
+		}),
+		getSubmittedDataBySystemId: validateRequest(dataGetBySystemIdRequestschema, async (req, res, next) => {
+			try {
+				const categoryId = Number(req.params.categoryId);
+				const systemId = req.params.systemId;
+				const view = req.query.view || defaultView;
+
+				const parsedView = VIEW_TYPE.safeParse(view);
+				if (!parsedView.success) {
+					throw new Error('Invalid view type provided');
+				}
+
+				logger.info(
+					LOG_MODULE,
+					'Request Submitted Data',
+					`categoryId '${categoryId}'`,
+					`systemId '${systemId}'`,
+					`params: view '${view}'`,
+				);
+
+				const submittedDataResult = await service.getSubmittedDataBySystemId(categoryId, systemId, {
+					view: parsedView.data,
+				});
+
+				if (submittedDataResult.metadata.errorMessage) {
+					throw new NotFound(submittedDataResult.metadata.errorMessage);
+				}
+
+				return res.status(200).send(submittedDataResult.data);
 			} catch (error) {
 				next(error);
 			}

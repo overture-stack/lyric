@@ -22,6 +22,12 @@ const router = (dependencies: BaseDependencies): Router => {
 		submittedDataController(dependencies).getSubmittedDataByQuery,
 	);
 
+	router.get(
+		'/category/:categoryId/id/:systemId',
+		auth,
+		submittedDataController(dependencies).getSubmittedDataBySystemId,
+	);
+
 	return router;
 };
 

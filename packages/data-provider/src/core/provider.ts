@@ -35,9 +35,7 @@ import * as typeUtils from '../utils/types.js';
 const provider = (configData: AppConfig) => {
 	const baseDeps: BaseDependencies = {
 		db: connect(configData.db),
-		features: {
-			audit: configData.features?.audit,
-		},
+		features: configData.features,
 		idService: configData.idService,
 		limits: configData.limits,
 		logger: getLogger(configData.logger),

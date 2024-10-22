@@ -5,6 +5,7 @@ import {
 	type DataRecord,
 	Dictionary as SchemasDictionary,
 	DictionaryValidationRecordErrorDetails,
+	type DataRecordValue,
 } from '@overture-stack/lectern-client';
 import {
 	type DataDiff,
@@ -289,7 +290,7 @@ export type ListAllCategoriesResponse = {
  * Submitted Raw Data information
  */
 export type SubmittedDataResponse = {
-	data: DataRecord;
+	data: Record<string, DataRecordValue | DataRecord[]>;
 	entityName: string;
 	isValid: boolean;
 	organization: string;
@@ -399,3 +400,9 @@ export type Values<T> = T extends infer U ? U[keyof U] : never;
  * This will display type as an object with key: value pairs instead as an alias name.
  */
 export type Clean<T> = T extends infer U ? { [K in keyof U]: U[K] } : never;
+
+/**
+ * Enum matching Audit Action in database
+ */
+export const VIEW_TYPE = z.enum(['list', 'compound']);
+export type ViewType = z.infer<typeof VIEW_TYPE>;
