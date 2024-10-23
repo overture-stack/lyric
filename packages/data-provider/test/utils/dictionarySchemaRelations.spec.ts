@@ -6,7 +6,11 @@ import { Schema } from '@overture-stack/lectern-client';
 interface SchemaDefinition extends Schema {}
 
 import { generateHierarchy, getDictionarySchemaRelations } from '../../src/utils/dictionarySchemaRelations.js';
-import { dictionarySportStats, dictionarySportStatsNodeGraph } from './fixtures/dictionarySchemasTestData.js';
+import {
+	dictionaryClinicalSchemas,
+	dictionarySportStats,
+	dictionarySportStatsNodeGraph,
+} from './fixtures/dictionarySchemasTestData.js';
 
 describe('Dictionary Schema Relations', () => {
 	describe('Determine child relations by schema in a dictionary', () => {
@@ -32,7 +36,7 @@ describe('Dictionary Schema Relations', () => {
 		});
 	});
 
-	describe('find the hierarchycal structure between schemas in the dictionary', () => {
+	describe('find the hierarchycal descendant structure between schemas in the dictionary', () => {
 		it('should return only one unrelated element the tree', () => {
 			const schemas: SchemaDefinition[] = [
 				{
@@ -47,7 +51,7 @@ describe('Dictionary Schema Relations', () => {
 				},
 			];
 
-			const response = generateHierarchy(schemas);
+			const response = generateHierarchy(schemas, 'desc');
 			expect(response.length).to.eql(1);
 			expect(response).to.eql([
 				{
@@ -57,7 +61,7 @@ describe('Dictionary Schema Relations', () => {
 			]);
 		});
 
-		it('should return all element the tree unrelated', () => {
+		it('should return 2 unrelated elements', () => {
 			const schemas: SchemaDefinition[] = [
 				{
 					name: 'food',
@@ -81,7 +85,7 @@ describe('Dictionary Schema Relations', () => {
 				},
 			];
 
-			const response = generateHierarchy(schemas);
+			const response = generateHierarchy(schemas, 'desc');
 			expect(response.length).to.eql(2);
 			expect(response).to.eql([
 				{
@@ -96,29 +100,184 @@ describe('Dictionary Schema Relations', () => {
 		});
 
 		it('should return the hierarchy tree between 4 schemas', () => {
-			const response = generateHierarchy(dictionarySportStats.dictionary);
+			const response = generateHierarchy(dictionaryClinicalSchemas, 'desc');
 			expect(response.length).to.eq(4);
 			expect(response).to.eql([
 				{
-					schemaName: 'sport',
+					schemaName: 'sample',
+					children: [],
+				},
+				{
+					schemaName: 'study',
 					children: [
 						{
-							schemaName: 'team',
-							parentFieldName: 'sport_id',
-							childrenFieldName: 'sport_id',
+							schemaName: 'participant',
 							children: [
-								{ schemaName: 'player', parentFieldName: 'team_id', childrenFieldName: 'team_id', children: [] },
+								{
+									schemaName: 'specimen',
+									children: [
+										{
+											schemaName: 'sample',
+											children: [],
+											fieldName: 'submitter_specimen_id',
+											parentFieldName: 'submitter_specimen_id',
+										},
+									],
+									fieldName: 'submitter_participant_id',
+									parentFieldName: 'submitter_participant_id',
+								},
 							],
+							fieldName: 'study_id',
+							parentFieldName: 'study_id',
 						},
-						{ schemaName: 'game', parentFieldName: 'sport_id', childrenFieldName: 'sport_id', children: [] },
 					],
 				},
 				{
-					schemaName: 'team',
-					children: [{ schemaName: 'player', parentFieldName: 'team_id', childrenFieldName: 'team_id', children: [] }],
+					schemaName: 'participant',
+					children: [
+						{
+							schemaName: 'specimen',
+							children: [
+								{
+									schemaName: 'sample',
+									children: [],
+									fieldName: 'submitter_specimen_id',
+									parentFieldName: 'submitter_specimen_id',
+								},
+							],
+							fieldName: 'submitter_participant_id',
+							parentFieldName: 'submitter_participant_id',
+						},
+					],
 				},
-				{ schemaName: 'player', children: [] },
-				{ schemaName: 'game', children: [] },
+				{
+					schemaName: 'specimen',
+					children: [
+						{
+							schemaName: 'sample',
+							children: [],
+							fieldName: 'submitter_specimen_id',
+							parentFieldName: 'submitter_specimen_id',
+						},
+					],
+				},
+			]);
+		});
+	});
+
+	describe('find the hierarchycal ascendant structure between schemas in the dictionary', () => {
+		it('should return only one unrelated element the tree', () => {
+			const schemas: SchemaDefinition[] = [
+				{
+					name: 'sample',
+					fields: [
+						{
+							name: 'id',
+							valueType: 'integer',
+						},
+					],
+					restrictions: {},
+				},
+			];
+
+			const response = generateHierarchy(schemas, 'asc');
+			expect(response.length).to.eql(1);
+			expect(response).to.eql([
+				{
+					schemaName: 'sample',
+					parent: undefined,
+				},
+			]);
+		});
+
+		it('should return 2 unrelated elements', () => {
+			const schemas: SchemaDefinition[] = [
+				{
+					name: 'food',
+					fields: [
+						{
+							name: 'id',
+							valueType: 'integer',
+						},
+					],
+					restrictions: {},
+				},
+				{
+					name: 'sports',
+					fields: [
+						{
+							name: 'id',
+							valueType: 'integer',
+						},
+					],
+					restrictions: {},
+				},
+			];
+
+			const response = generateHierarchy(schemas, 'asc');
+			expect(response.length).to.eql(2);
+			expect(response).to.eql([
+				{
+					schemaName: 'food',
+					parent: undefined,
+				},
+				{
+					schemaName: 'sports',
+					parent: undefined,
+				},
+			]);
+		});
+
+		it('should return the hierarchy tree between 4 schemas', () => {
+			const response = generateHierarchy(dictionaryClinicalSchemas, 'asc');
+			expect(response.length).to.eq(4);
+			expect(response).to.eql([
+				{
+					schemaName: 'study',
+					parent: undefined,
+				},
+				{
+					schemaName: 'participant',
+					parent: {
+						schemaName: 'study',
+						parent: undefined,
+						fieldName: 'study_id',
+						parentFieldName: 'study_id',
+					},
+				},
+				{
+					schemaName: 'specimen',
+					parent: {
+						schemaName: 'participant',
+						parent: {
+							schemaName: 'study',
+							parent: undefined,
+							fieldName: 'study_id',
+							parentFieldName: 'study_id',
+						},
+						fieldName: 'submitter_participant_id',
+						parentFieldName: 'submitter_participant_id',
+					},
+				},
+				{
+					schemaName: 'sample',
+					parent: {
+						schemaName: 'specimen',
+						parent: {
+							schemaName: 'participant',
+							parent: {
+								schemaName: 'study',
+								parent: undefined,
+								fieldName: 'study_id',
+								parentFieldName: 'study_id',
+							},
+							fieldName: 'submitter_participant_id',
+							parentFieldName: 'submitter_participant_id',
+						},
+						fieldName: 'submitter_specimen_id',
+						parentFieldName: 'submitter_specimen_id',
+					},
+				},
 			]);
 		});
 	});

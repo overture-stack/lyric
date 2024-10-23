@@ -1,5 +1,7 @@
 import { Schema } from '@overture-stack/lectern-client';
 
+import { ORDER_TYPE, type OrderType, SCHEMA_RELATION_TYPE, type SchemaRelationType } from './types.js';
+
 export interface SchemaParentNode {
 	schemaName: string;
 	fieldName: string;
@@ -51,23 +53,50 @@ export const getDictionarySchemaRelations = (
 export interface TreeNode {
 	schemaName: string;
 	parentFieldName?: string;
-	childrenFieldName?: string;
+	fieldName?: string;
 	children?: TreeNode[];
+	parent?: TreeNode;
 }
 
 /**
  * Function to find or create a node in the tree
  * @param tree
  * @param schemaName
+ * @param order
  * @returns
  */
-const findOrCreateNode = (tree: TreeNode[], schemaName: string): TreeNode => {
+const findOrCreateNode = (tree: TreeNode[], schemaName: string, order: OrderType): TreeNode => {
 	let node = tree.find((n) => n.schemaName === schemaName);
 	if (!node) {
-		node = { schemaName, children: [] };
+		node = {
+			schemaName,
+			...(order === ORDER_TYPE.Values.desc ? { children: [] } : { parent: undefined }),
+		};
 		tree.push(node);
 	}
 	return node;
+};
+
+/**
+ * Finds a matching schema name withing a nested object.
+ * Return true only if any matching schema name is found.
+ * @param treeNode
+ * @param schemaName
+ * @param type
+ * @returns
+ */
+const hasNestedNode = (treeNode: TreeNode, schemaName: string, type: SchemaRelationType): boolean => {
+	if (type === SCHEMA_RELATION_TYPE.Values.parent) {
+		if (!treeNode.parent) return false;
+		return hasNestedNode(treeNode.parent, schemaName, type);
+	} else {
+		if (!treeNode.children) return false;
+		return treeNode.children.some(
+			(node) =>
+				node.schemaName === schemaName ||
+				node.children?.some((innerNode) => hasNestedNode(innerNode, schemaName, type)),
+		);
+	}
 };
 
 /**
@@ -76,58 +105,66 @@ const findOrCreateNode = (tree: TreeNode[], schemaName: string): TreeNode => {
  * between schemas using their foreign key mappings. It ensures that duplicate relationships are not created.
  * @param schema The current schema definition to be added to the hierarchy tree
  * @param tree The current tree of schema nodes, which gets updated with parent-child relationships as the hierarchy is built.
+ * @param order Order of the structure
  * @returns
  */
-const buildHierarchyTree = (schema: SchemaDefinition, tree: TreeNode[]) => {
+const buildHierarchyTree = (schema: SchemaDefinition, tree: TreeNode[], order: OrderType) => {
 	// Create a node for the current schema
-	const node = findOrCreateNode(tree, schema.name);
+	const node = findOrCreateNode(tree, schema.name, order);
 
-	// Check if the schema has foreign keys to build its children
-	const foreignKeys = schema.restrictions?.foreignKey || [];
+	schema.restrictions?.foreignKey?.forEach((foreignKey) => {
+		// Find the related schema by its name
+		const relatedSchema = findOrCreateNode(tree, foreignKey.schema, order);
 
-	// If no foreign keys are present, the function ends here as no relationships need to be built
-	if (foreignKeys.length === 0) {
-		return;
-	}
+		// Use the first mapping for parent-child field relationship
+		const mapping = foreignKey.mappings[0];
 
-	foreignKeys.forEach((foreignKey) => {
-		// Find the child schema by its name
-		const parentSchema = findOrCreateNode(tree, foreignKey.schema);
-		if (parentSchema) {
-			// remove duplicates. skip mapping when schema is already linked
-			if (parentSchema.children?.find((child) => foreignKeys.find((fk) => fk.schema === child.schemaName))) return;
-
-			// Use the first mapping for parent-child field relationship (you can extend to support multiple mappings)
-			const mapping = foreignKey.mappings[0];
-
+		// remove duplicates. skip mapping when schema is already linked
+		if (order === ORDER_TYPE.Values.desc) {
 			const cloneNode = {
 				...node,
-				childrenFieldName: mapping.local,
+				fieldName: mapping.local,
 				parentFieldName: mapping.foreign,
 			};
+			relatedSchema.children = (
+				relatedSchema.children?.filter(
+					(item) => !hasNestedNode(cloneNode, item.schemaName, SCHEMA_RELATION_TYPE.Values.children),
+				) || []
+			).concat(cloneNode);
+		} else {
+			const cloneNode = {
+				...relatedSchema,
+				fieldName: mapping.foreign,
+				parentFieldName: mapping.local,
+			};
 
-			parentSchema.children?.push(cloneNode);
-			return;
+			// Remove duplicates. Skip mapping when schema is already linked
+			node.parent = !hasNestedNode(node, cloneNode.schemaName, SCHEMA_RELATION_TYPE.Values.parent)
+				? cloneNode
+				: node.parent;
 		}
 	});
 };
 
 /**
  * Function to generate the hierarchy tree of a dictionary schemas
+ * Order by `asc` should return children to parent relations
+ * Order by `desc` should return parent to chilren relations
  * @param source The list of all schemas.
+ * @param order Order of the structed.
  * @returns The hierarchical tree structure.
  */
-export const generateHierarchy = (source: SchemaDefinition[]): TreeNode[] => {
+export const generateHierarchy = (source: SchemaDefinition[], order: OrderType): TreeNode[] => {
 	const tree: TreeNode[] = [];
 
 	source
 		.sort((schemaA, schemaB) => {
-			// Sorting to start with the schemas that have no foreign keys (root nodes)
+			// Sorting starts with the schemas that have no foreign keys (root nodes)
 			const a = schemaA.restrictions?.foreignKey ? schemaA.restrictions.foreignKey.length : 0;
 			const b = schemaB.restrictions?.foreignKey ? schemaB.restrictions.foreignKey.length : 0;
-			return a - b;
+			return order === ORDER_TYPE.Values.desc ? b - a : a - b;
 		})
-		.forEach((schema) => buildHierarchyTree(schema, tree));
+		.forEach((schema) => buildHierarchyTree(schema, tree, order));
 
 	return tree;
 };

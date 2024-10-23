@@ -1,6 +1,6 @@
 import * as _ from 'lodash-es';
 
-import type { DataRecord, DataRecordValue, Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
+import type { DataRecord, Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
 import { SubmittedData } from '@overture-stack/lyric-data-model';
 import { SQON } from '@overture-stack/sqon-builder';
 
@@ -33,6 +33,8 @@ import {
 	type BatchError,
 	CREATE_SUBMISSION_STATUS,
 	type CreateSubmissionStatus,
+	type DataRecordNested,
+	ORDER_TYPE,
 	PaginationOptions,
 	SubmittedDataResponse,
 	VIEW_TYPE,
@@ -245,7 +247,7 @@ const service = (dependencies: BaseDependencies) => {
 	 * Fetches submitted data from the database based on the provided category ID, pagination options, and filter options.
 	 *
 	 * This function retrieves a list of submitted data associated with the specified `categoryId`.
-	 * It also supports pagination and filtering based on entity names or a compound condition.
+	 * It also supports pagination, view representation and filtering based on entity names or a compound condition.
 	 * The returned data includes both the retrieved records and metadata about the total number of records.
 	 *
 	 * @param categoryId - The ID of the category for which data is being fetched.
@@ -286,11 +288,12 @@ const service = (dependencies: BaseDependencies) => {
 
 		if (filterOptions.view === VIEW_TYPE.Values.compound) {
 			// get dictionary hierarchy structure
-			const hierarchyStructure = generateHierarchy(category.activeDictionary.dictionary);
+			const hierarchyStructureDesc = generateHierarchy(category.activeDictionary.dictionary, ORDER_TYPE.Values.desc);
+			const hierarchyStructureAsc = generateHierarchy(category.activeDictionary.dictionary, ORDER_TYPE.Values.asc);
 
 			recordsPaginated = await Promise.all(
 				recordsPaginated.map(async (record) => {
-					const compoundRecord = await additionalRecords({
+					const childNodes = await traverseChildNodes({
 						data: record.data,
 						entityName: record.entityName,
 						organization: record.organization,
@@ -299,10 +302,22 @@ const service = (dependencies: BaseDependencies) => {
 							schemaCentricEntity: category.defaultCentricEntity,
 							recordEntityName: record.entityName,
 						}),
-						treeNode: hierarchyStructure,
+						treeNode: hierarchyStructureDesc,
 					});
 
-					record.data = compoundRecord;
+					const parentNodes = await traverseParentNodes({
+						data: record.data,
+						entityName: record.entityName,
+						organization: record.organization,
+						schemaCentric: getSchemaForCompound({
+							filterByEntityName: filterOptions?.entityName,
+							schemaCentricEntity: category.defaultCentricEntity,
+							recordEntityName: record.entityName,
+						}),
+						treeNode: hierarchyStructureAsc,
+					});
+
+					record.data = { ...record.data, ...childNodes, ...parentNodes };
 					return record;
 				}),
 			);
@@ -326,7 +341,7 @@ const service = (dependencies: BaseDependencies) => {
 	 * Fetches submitted data from the database based on the provided category ID, organization, pagination options, and optional filter options.
 	 *
 	 * This function retrieves a list of submitted data associated with the specified `categoryId` and `organization`.
-	 * It supports pagination and optional filtering using a structured query (`sqon`) or entity names.
+	 * It supports a view representation, pagination and optional filtering using a structured query (`sqon`) or entity names.
 	 * The result includes both the fetched data and metadata such as the total number of records and an error message if applicable.
 	 *
 	 * @param categoryId - The ID of the category for which data is being fetched.
@@ -375,11 +390,12 @@ const service = (dependencies: BaseDependencies) => {
 
 		if (filterOptions.view === VIEW_TYPE.Values.compound) {
 			// get dictionary hierarchy structure
-			const hierarchyStructure = generateHierarchy(category.activeDictionary.dictionary);
+			const hierarchyStructureDesc = generateHierarchy(category.activeDictionary.dictionary, ORDER_TYPE.Values.desc);
+			const hierarchyStructureAsc = generateHierarchy(category.activeDictionary.dictionary, ORDER_TYPE.Values.asc);
 
 			recordsPaginated = await Promise.all(
 				recordsPaginated.map(async (record) => {
-					const compoundRecord = await additionalRecords({
+					const childNodes = await traverseChildNodes({
 						data: record.data,
 						entityName: record.entityName,
 						organization: record.organization,
@@ -388,10 +404,22 @@ const service = (dependencies: BaseDependencies) => {
 							schemaCentricEntity: category.defaultCentricEntity,
 							recordEntityName: record.entityName,
 						}),
-						treeNode: hierarchyStructure,
+						treeNode: hierarchyStructureDesc,
 					});
 
-					record.data = compoundRecord;
+					const parentNodes = await traverseParentNodes({
+						data: record.data,
+						entityName: record.entityName,
+						organization: record.organization,
+						schemaCentric: getSchemaForCompound({
+							filterByEntityName: filterOptions?.entityName,
+							schemaCentricEntity: category.defaultCentricEntity,
+							recordEntityName: record.entityName,
+						}),
+						treeNode: hierarchyStructureAsc,
+					});
+
+					record.data = { ...record.data, ...childNodes, ...parentNodes };
 					return record;
 				}),
 			);
@@ -453,7 +481,7 @@ const service = (dependencies: BaseDependencies) => {
 			};
 		}
 
-		let dataValue: Record<string, DataRecordValue | DataRecord[]> = foundRecord.data;
+		let dataValue: DataRecordNested = foundRecord.data;
 
 		if (filterOptions.view === VIEW_TYPE.Values.compound) {
 			const { getCategoryById } = categoryRepository(dependencies);
@@ -470,17 +498,27 @@ const service = (dependencies: BaseDependencies) => {
 				!category.defaultCentricEntity ||
 				(category.defaultCentricEntity && category.defaultCentricEntity === foundRecord.entityName)
 			) {
-				const hierarchyStructure = generateHierarchy(category.activeDictionary.dictionary);
+				// get dictionary hierarchy structure
+				const hierarchyStructureDesc = generateHierarchy(category.activeDictionary.dictionary, ORDER_TYPE.Values.desc);
+				const hierarchyStructureAsc = generateHierarchy(category.activeDictionary.dictionary, ORDER_TYPE.Values.asc);
 
-				const additinal = await additionalRecords({
+				const childNodes = await traverseChildNodes({
 					data: foundRecord.data,
 					entityName: foundRecord.entityName,
 					organization: foundRecord.organization,
 					schemaCentric: foundRecord.entityName,
-					treeNode: hierarchyStructure,
+					treeNode: hierarchyStructureDesc,
 				});
 
-				dataValue = { ...dataValue, ...additinal };
+				const parentNode = await traverseParentNodes({
+					data: foundRecord.data,
+					entityName: foundRecord.entityName,
+					organization: foundRecord.organization,
+					schemaCentric: foundRecord.entityName,
+					treeNode: hierarchyStructureAsc,
+				});
+
+				dataValue = { ...dataValue, ...childNodes, ...parentNode };
 			}
 		}
 
@@ -497,36 +535,120 @@ const service = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * This function uses a dictionary children relations to query recursivaly
-	 * to return all SubmittedData that relates
-	 * @param input
-	 * @param {Record<string, DataRecordValue | DataRecord[]>} input.data
-	 * @param {string} input.entityName
-	 * @param {string} input.organization
-	 * @param {string} input.schemaCentric
-	 * @param {TreeNode[]} input.treeNode
-	 * @returns {Promise<SubmittedData[]>}
+	 * Recursively traverses parent nodes of a schema tree and queries for related SubmittedData.
+	 *
+	 * This function takes in the current data record, entity name, organization, schema-centric information,
+	 * and tree node structure, then filters and queries dependent records recursively, constructing a nested
+	 * structure of related data.
+	 *
+	 * @param data - The current data record to traverse.
+	 * @param entityName - The name of the entity (schema) associated with the current data.
+	 * @param organization - The organization to which the data belongs.
+	 * @param schemaCentric - The schema-centric identifier for filtering parent nodes.
+	 * @param treeNode - The hierarchical structure representing schema relationships.
+	 *
+	 * @returns A promise that resolves to a nested `DataRecordNested` object, containing the traversed and filtered dependent data.
+	 *          If no parent nodes or dependencies exist, it returns an empty object.
+	 *
 	 */
-	const additionalRecords = async ({
+	const traverseParentNodes = async ({
 		data,
 		entityName,
 		organization,
 		schemaCentric,
 		treeNode,
 	}: {
-		data: Record<string, DataRecordValue | DataRecord[]>;
+		data: DataRecordNested;
 		entityName: string;
 		organization: string;
 		schemaCentric: string;
 		treeNode: TreeNode[];
-	}): Promise<Record<string, DataRecordValue | DataRecord[]>> => {
+	}): Promise<DataRecordNested> => {
+		const { getSubmittedDataFiltered } = submittedDataRepo;
+
+		const parentNode = treeNode.find((node) => node.schemaName === schemaCentric)?.parent;
+
+		if (!parentNode || !parentNode.parentFieldName || !parentNode.schemaName) {
+			// return empty array when no dependents for this record
+			return {};
+		}
+
+		const filterData: { entityName: string; dataField: string; dataValue: string | undefined } = {
+			entityName: parentNode.schemaName,
+			dataField: parentNode.fieldName || '',
+			dataValue: data[parentNode.parentFieldName!]?.toString() || '',
+		};
+
+		logger.debug(
+			LOG_MODULE,
+			`Entity '${entityName}' has following dependencies filter '${JSON.stringify(filterData)}'`,
+		);
+
+		const directDependants = await getSubmittedDataFiltered(organization, [filterData]);
+
+		const groupedDependants = groupByEntityName(directDependants);
+
+		const result: DataRecordNested = {};
+		for (const [entityName, records] of Object.entries(groupedDependants)) {
+			const dependantKeyName = `${recordHierarchy?.parentRecordPrefix}${entityName}${recordHierarchy?.parentRecordSuffix}`;
+
+			const additionalRecordsForEntity = await Promise.all(
+				records.map(async (record) => {
+					const additional = await traverseParentNodes({
+						data: record.data,
+						entityName: record.entityName,
+						organization: record.organization,
+						schemaCentric: record.entityName,
+						treeNode,
+					});
+					return { ...record.data, ...additional };
+				}),
+			);
+
+			// Getting the first record as record can have only 1 parent
+			result[dependantKeyName] = additionalRecordsForEntity[0];
+		}
+
+		return result;
+	};
+
+	/**
+	 * Recursively traverses child nodes of a schema tree and queries for related SubmittedData.
+	 *
+	 * This function takes in the current data record, entity name, organization, schema-centric information,
+	 * and tree node structure, then filters and queries dependent records recursively, constructing a nested
+	 * structure of related data.
+	 *
+	 * @param data - The current data record to traverse.
+	 * @param entityName - The name of the entity (schema) associated with the current data.
+	 * @param organization - The organization to which the data belongs.
+	 * @param schemaCentric - The schema-centric identifier for filtering child nodes.
+	 * @param treeNode - The hierarchical structure representing schema relationships.
+	 *
+	 * @returns A promise that resolves to a nested `DataRecordNested` object, containing the traversed and filtered dependent data.
+	 *          If no child nodes or dependencies exist, it returns an empty object.
+	 *
+	 */
+	const traverseChildNodes = async ({
+		data,
+		entityName,
+		organization,
+		schemaCentric,
+		treeNode,
+	}: {
+		data: DataRecordNested;
+		entityName: string;
+		organization: string;
+		schemaCentric: string;
+		treeNode: TreeNode[];
+	}): Promise<DataRecordNested> => {
 		const { getSubmittedDataFiltered } = submittedDataRepo;
 
 		const childNode = treeNode
 			.find((node) => node.schemaName === schemaCentric)
-			?.children?.filter((childNode) => childNode.parentFieldName && childNode.childrenFieldName);
+			?.children?.filter((childNode) => childNode.parentFieldName && childNode.schemaName);
 
-		if (!childNode) {
+		if (!childNode || childNode.length === 0) {
 			// return empty array when no dependents for this record
 			return {};
 		}
@@ -534,7 +656,7 @@ const service = (dependencies: BaseDependencies) => {
 		const filterData: { entityName: string; dataField: string; dataValue: string | undefined }[] = childNode.map(
 			(childNode) => ({
 				entityName: childNode.schemaName,
-				dataField: childNode.childrenFieldName || '',
+				dataField: childNode.fieldName || '',
 				dataValue: data[childNode.parentFieldName!]?.toString() || '',
 			}),
 		);
@@ -544,19 +666,31 @@ const service = (dependencies: BaseDependencies) => {
 			`Entity '${entityName}' has following dependencies filter '${JSON.stringify(filterData)}'`,
 		);
 
-		const directDependents = await getSubmittedDataFiltered(organization, filterData);
+		const directDependants = await getSubmittedDataFiltered(organization, filterData);
 
-		const resp = groupByEntityName(directDependents);
-		const newRes = Object.entries(resp).reduce<Record<string, DataRecordValue | DataRecord[]>>(
-			(acc, [entityName, value]) => {
-				const dependantKeyName = recordHierarchy?.nestedRecordPrefix + entityName + recordHierarchy?.nestedRecordSuffix;
-				acc[dependantKeyName] = value.map((v) => v.data);
-				return acc;
-			},
-			{},
-		);
+		const groupedDependants = groupByEntityName(directDependants);
 
-		return { ...data, ...newRes };
+		const result: DataRecordNested = {};
+		for (const [entityName, records] of Object.entries(groupedDependants)) {
+			const dependantKeyName = `${recordHierarchy?.nestedRecordPrefix}${entityName}${recordHierarchy?.nestedRecordSuffix}`;
+
+			const additionalRecordsForEntity = await Promise.all(
+				records.map(async (record) => {
+					const additional = await traverseChildNodes({
+						data: record.data,
+						entityName: record.entityName,
+						organization: record.organization,
+						schemaCentric: record.entityName,
+						treeNode,
+					});
+					return { ...record.data, ...additional };
+				}),
+			);
+
+			result[dependantKeyName] = additionalRecordsForEntity;
+		}
+
+		return result;
 	};
 
 	/**

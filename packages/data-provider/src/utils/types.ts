@@ -3,9 +3,9 @@ import { z } from 'zod';
 
 import {
 	type DataRecord,
+	type DataRecordValue,
 	Dictionary as SchemasDictionary,
 	DictionaryValidationRecordErrorDetails,
-	type DataRecordValue,
 } from '@overture-stack/lectern-client';
 import {
 	type DataDiff,
@@ -290,7 +290,7 @@ export type ListAllCategoriesResponse = {
  * Submitted Raw Data information
  */
 export type SubmittedDataResponse = {
-	data: Record<string, DataRecordValue | DataRecord[]>;
+	data: DataRecordNested;
 	entityName: string;
 	isValid: boolean;
 	organization: string;
@@ -369,6 +369,10 @@ export type DataRecordReference = {
 	reference: SubmittedDataReference | NewSubmittedDataReference | EditSubmittedDataReference;
 };
 
+export interface DataRecordNested {
+	[key: string]: DataRecordValue | DataRecordNested | DataRecordNested[];
+}
+
 /**
  * Keys of an object type as a union
  *
@@ -402,7 +406,19 @@ export type Values<T> = T extends infer U ? U[keyof U] : never;
 export type Clean<T> = T extends infer U ? { [K in keyof U]: U[K] } : never;
 
 /**
- * Enum matching Audit Action in database
+ * Enum matching Schema relationships types
+ */
+export const SCHEMA_RELATION_TYPE = z.enum(['parent', 'children']);
+export type SchemaRelationType = z.infer<typeof SCHEMA_RELATION_TYPE>;
+
+/**
+ * Enum matching Schema relationships order types
+ */
+export const ORDER_TYPE = z.enum(['asc', 'desc']);
+export type OrderType = z.infer<typeof ORDER_TYPE>;
+
+/**
+ * Enum matching Retrieve data views
  */
 export const VIEW_TYPE = z.enum(['list', 'compound']);
 export type ViewType = z.infer<typeof VIEW_TYPE>;
