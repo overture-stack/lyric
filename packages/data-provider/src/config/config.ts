@@ -16,8 +16,16 @@ export type DbConfig = {
 	password: string;
 };
 
+export type RecordHierarchyConfig = {
+	nestedRecordPrefix: string;
+	nestedRecordSuffix: string;
+	parentRecordPrefix: string;
+	parentRecordSuffix: string;
+};
+
 export type FeaturesConfig = {
 	audit?: AuditConfig;
+	recordHierarchy: RecordHierarchyConfig;
 };
 
 export type SchemaServiceConfig = {
