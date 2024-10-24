@@ -11,16 +11,33 @@ import {
 } from '@overture-stack/lectern-client';
 
 import { notEmpty } from './formatUtils.js';
-import { BATCH_ERROR_TYPE, type BatchError } from './types.js';
+import {
+	BATCH_ERROR_TYPE,
+	type BatchError,
+	columnSeparatorValue,
+	SUPPORTED_FILE_EXTENSIONS,
+	type SupportedFileExtensions,
+} from './types.js';
 
 const fsPromises = fs.promises;
 
 /**
- * Returns true if a file name contains a .tsv extension
- * @param {Express.Multer.File} file
- * @returns {boolean}
+ * Extracts the extension from the filename and returns it if it's supported.
+ * Otherwise it returns undefined.
+ * @param {string} fileName
+ * @returns {SupportedFileExtensions | undefined}
  */
-export const hasTsvExtension = (file: Express.Multer.File): boolean => !!file.originalname.match(/.*\.tsv$/i);
+export const extractFileExtension = (fileName: string): SupportedFileExtensions | undefined => {
+	// Extract the file extension
+	const fileExtension = fileName.split('.').pop()?.toLowerCase();
+
+	try {
+		// Parse to validate the extension against the Zod enum
+		return SUPPORTED_FILE_EXTENSIONS.parse(fileExtension);
+	} catch (error) {
+		return;
+	}
+};
 
 /**
  * Reads only first line of the file
@@ -33,17 +50,23 @@ export const readHeaders = async (file: Express.Multer.File) => {
 };
 
 /**
- * Reads a .tsv file and parse it to a JSON format
- * @param {string} fileName Full filename path of the .tsv file
+ * Reads a text file and parse it to a JSON format.
+ * Supported files: .tsv and .csv
+ * @param {string} fileName Full filename path of the file
  * @param {Schema} schema Schema to parse data with
  * @returns a JSON format objet
  */
-export const tsvToJson = async (
+export const textToJson = async (
 	fileName: string,
 	schema: Schema,
 ): Promise<{ records: DataRecord[]; errors?: ParseSchemaError[] }> => {
+	const fileExtension = extractFileExtension(fileName);
+	if (!fileExtension) {
+		throw new Error('Invalid file Extension');
+	}
 	const contents = await fsPromises.readFile(fileName, 'utf-8');
-	const arr = parseTsvToJson(contents);
+	const separator = columnSeparatorValue[fileExtension];
+	const arr = parseTextToJson(contents, separator);
 	const parseSchemaResult = parse.parseSchemaValues(arr, schema);
 	if (parseSchemaResult.success) {
 		return { records: parseSchemaResult.data.records };
@@ -54,14 +77,14 @@ export const tsvToJson = async (
 	};
 };
 
-const parseTsvToJson = (content: string): UnprocessedDataRecord[] => {
+const parseTextToJson = (content: string, separator: string): UnprocessedDataRecord[] => {
 	const lines = content.split('\n');
-	const headers = lines.slice(0, 1)[0].trim().split('\t');
+	const headers = lines.slice(0, 1)[0].trim().split(separator);
 	const rows = lines
 		.slice(1, lines.length)
 		.filter((line) => line && line.trim() !== '')
 		.map((line) => {
-			const data = line.split('\t');
+			const data = line.split(separator);
 			return headers.reduce((obj: UnprocessedDataRecord, nextKey, index) => {
 				const dataStr = data[index] || '';
 				const formattedData = formatForExcelCompatibility(dataStr);
@@ -111,7 +134,7 @@ export async function processFiles(files: Express.Multer.File[]): Promise<FilePr
 
 	for (const file of files) {
 		try {
-			if (hasTsvExtension(file)) {
+			if (extractFileExtension(file.originalname)) {
 				const fileHeaders = await readHeaders(file); // Wait for the async operation
 				if (fileHeaders.includes('systemId')) {
 					result.validFiles.push(file);
@@ -126,7 +149,7 @@ export async function processFiles(files: Express.Multer.File[]): Promise<FilePr
 			} else {
 				const batchError: BatchError = {
 					type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
-					message: `File '${file.originalname}' has invalid file extension. File extension must be '.tsv'`,
+					message: `File '${file.originalname}' has invalid file extension. File extension must be '${SUPPORTED_FILE_EXTENSIONS}'`,
 					batchName: file.originalname,
 				};
 				result.fileErrors.push(batchError);

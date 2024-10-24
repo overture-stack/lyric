@@ -1,13 +1,15 @@
-import { expect } from 'chai';
+import { expect, use } from 'chai';
+import chaiAsPromised from 'chai-as-promised';
 import fs from 'fs';
 import { describe, it } from 'mocha';
 import sinon from 'sinon';
 
-const fsPromises = fs.promises;
-
 import type { Schema } from '@overture-stack/lectern-client';
 
-import { tsvToJson } from '../../src/utils/fileUtils.js';
+import { textToJson } from '../../src/utils/fileUtils.js';
+
+const fsPromises = fs.promises;
+use(chaiAsPromised);
 
 describe('File Utils', () => {
 	describe('Convert any text file into a json', () => {
@@ -49,7 +51,7 @@ describe('File Utils', () => {
 
 			sinon.stub(fsPromises, 'readFile').resolves(archiveAsTsv);
 
-			const jsonParsed = await tsvToJson('archive.tsv', schema);
+			const jsonParsed = await textToJson('archive.tsv', schema);
 
 			const expectedJsonParsed = [
 				{
@@ -72,61 +74,47 @@ describe('File Utils', () => {
 			expect(jsonParsed.records.length).to.eq(2);
 			expect(jsonParsed.records).to.eql(expectedJsonParsed);
 		});
-		// 	const csvFile =
-		// 		'study_id,submitter_participant_id,sex_at_birth,age\nTESTABC,NR-01,Male,21\nTESTABC,NR-02,Female,18';
 
-		// 	sinon.stub(fsPromises, 'readFile').resolves(csvFile);
+		it('should read a .csv file and parse it to JSON format', async () => {
+			const csvFile =
+				'study_id,submitter_participant_id,sex_at_birth,age\nTESTABC,NR-01,Male,21\nTESTABC,NR-02,Female,18';
 
-		// 	const schema: Schema = {
-		// 		name: 'participant',
-		// 		fields: [
-		// 			{
-		// 				name: 'study_id',
-		// 				valueType: 'string',
-		// 				restrictions: [{ required: true }],
-		// 			},
-		// 			{
-		// 				name: 'submitter_participant_id',
-		// 				valueType: 'string',
-		// 				restrictions: [{ required: true }],
-		// 			},
-		// 			{
-		// 				name: 'sex_at_birth',
-		// 				valueType: 'string',
-		// 				restrictions: [
-		// 					{
-		// 						codeList: ['Male', 'Female'],
-		// 					},
-		// 				],
-		// 			},
-		// 			{
-		// 				name: 'age',
-		// 				valueType: 'integer',
-		// 				restrictions: [{ required: true }],
-		// 			},
-		// 		],
-		// 	};
+			sinon.stub(fsPromises, 'readFile').resolves(csvFile);
 
-		// 	const jsonParsed = await tsvToJson('particpant.tsv', schema);
+			const jsonParsed = await textToJson('particpant.csv', schema);
 
-		// 	const expectedJsonParsed = [
-		// 		{
-		// 			'study_id,submitter_participant_id,sex_at_birth,age': 'TESTABC,NR-01,Male,21',
-		// 		},
-		// 		{
-		// 			'study_id,submitter_participant_id,sex_at_birth,age': 'TESTABC,NR-02,Female,18',
-		// 		},
-		// 	];
+			const expectedJsonParsed = [
+				{
+					study_id: 'TESTABC',
+					submitter_participant_id: 'NR-01',
+					sex_at_birth: 'Male',
+					age: 21,
+				},
+				{
+					study_id: 'TESTABC',
+					submitter_participant_id: 'NR-02',
+					sex_at_birth: 'Female',
+					age: 18,
+				},
+			];
 
-		// 	expect(jsonParsed).to.be.eql(expectedJsonParsed);
-		// });
+			expect(Object.keys(jsonParsed).length).to.eq(1);
+			expect(Object.keys(jsonParsed)).to.eql(['records']);
+			expect(jsonParsed.errors).to.be.undefined;
+			expect(jsonParsed.records.length).to.eq(2);
+			expect(jsonParsed.records).to.eql(expectedJsonParsed);
+		});
+
+		it('should throw and error if file extension is not supported', async () => {
+			await expect(textToJson('particpant.xyz', schema)).to.be.rejectedWith('Invalid file Extension');
+		});
 
 		it('should return empty array if file has no content', async () => {
 			const emptyFile = '';
 
 			sinon.stub(fsPromises, 'readFile').resolves(emptyFile);
 
-			const jsonParsed = await tsvToJson('archive.tsv', schema);
+			const jsonParsed = await textToJson('archive.tsv', schema);
 
 			expect(Object.keys(jsonParsed).length).to.eq(1);
 			expect(Object.keys(jsonParsed)).to.eql(['records']);
@@ -140,7 +128,7 @@ describe('File Utils', () => {
 
 			sinon.stub(fsPromises, 'readFile').resolves(onlyHeadersFile);
 
-			const jsonParsed = await tsvToJson('archive.tsv', schema);
+			const jsonParsed = await textToJson('archive.tsv', schema);
 
 			expect(Object.keys(jsonParsed).length).to.eq(1);
 			expect(Object.keys(jsonParsed)).to.eql(['records']);
@@ -154,7 +142,7 @@ describe('File Utils', () => {
 
 			sinon.stub(fsPromises, 'readFile').resolves(oneHeaderFile);
 
-			const jsonParsed = await tsvToJson('archive.tsv', schema);
+			const jsonParsed = await textToJson('archive.tsv', schema);
 
 			expect(Object.keys(jsonParsed).length).to.eq(1);
 			expect(Object.keys(jsonParsed)).to.eql(['records']);
@@ -168,7 +156,7 @@ describe('File Utils', () => {
 
 			sinon.stub(fsPromises, 'readFile').resolves(onlyHeadersFile);
 
-			const jsonParsed = await tsvToJson('archive.tsv', schema);
+			const jsonParsed = await textToJson('archive.tsv', schema);
 
 			const expectedJsonParsed = [
 				{
@@ -194,7 +182,7 @@ describe('File Utils', () => {
 
 			sinon.stub(fsPromises, 'readFile').resolves(archiveAsTsv);
 
-			const jsonParsed = await tsvToJson('archive.tsv', schema);
+			const jsonParsed = await textToJson('archive.tsv', schema);
 
 			const expectedJsonParsed = [
 				{

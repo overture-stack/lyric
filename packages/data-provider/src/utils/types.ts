@@ -422,3 +422,11 @@ export type OrderType = z.infer<typeof ORDER_TYPE>;
  */
 export const VIEW_TYPE = z.enum(['list', 'compound']);
 export type ViewType = z.infer<typeof VIEW_TYPE>;
+
+export const SUPPORTED_FILE_EXTENSIONS = z.enum(['tsv', 'csv']);
+export type SupportedFileExtensions = z.infer<typeof SUPPORTED_FILE_EXTENSIONS>;
+
+export const columnSeparatorValue: Record<SupportedFileExtensions, string> = {
+	tsv: '\t',
+	csv: ',',
+};
