@@ -11,7 +11,7 @@
           type: string
         description: ID of the category
       - name: entityName
-        description: Array of strings to filter by entity names
+        description: Array of strings to filter by entity names. Ignored if view parameter is `compound`
         in: query
         required: false
         schema:
@@ -31,6 +31,13 @@
         schema:
           type: integer
         description: Optional query parameter to specify the number of results per page. Default value is 20
+      - name: view
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: ['list', 'compound']
+        description: Optional query parameter to specify the data representation. Choose 'list' for an unordered list of records, or 'compound' for a nested, schema-centric structure. Default is 'list'.
     responses:
       200:
         description: Submitted Data
@@ -38,6 +45,49 @@
           application/json:
             schema:
               $ref: '#/components/schemas/GetSubmittedDataResult'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
+/data/category/{categoryId}/id/{systemId}:
+  get:
+    summary: Retrieve Submitted Data Record for a System ID
+    tags:
+      - Data
+    parameters:
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID of the category
+      - name: systemId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID of the record
+      - name: view
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: ['list', 'compound']
+        description: Optional query parameter to specify the data representation. Choose 'list' for an unordered list of records, or 'compound' for a nested, schema-centric structure. Default is 'list'.
+    responses:
+      200:
+        description: Submitted Data
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmittedDataRecord'
       400:
         $ref: '#/components/responses/BadRequest'
       401:
@@ -68,7 +118,7 @@
           type: string
         description: Organization name
       - name: entityName
-        description: Array of strings to filter by entity names
+        description: Array of strings to filter by entity names. Ignored if view parameter is `compound`
         in: query
         required: false
         schema:
@@ -88,6 +138,13 @@
         schema:
           type: integer
         description: Optional query parameter to specify the number of results per page. Default value is 20
+      - name: view
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: ['list', 'compound']
+        description: Optional query parameter to specify the data representation. Choose 'list' for an unordered list of records, or 'compound' for a nested, schema-centric structure. Default is 'list'.
     responses:
       200:
         description: Submitted Data

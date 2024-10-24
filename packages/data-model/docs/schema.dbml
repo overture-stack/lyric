@@ -39,7 +39,8 @@ table dictionaries {
 
 table dictionary_categories {
   id serial [pk, not null, increment]
-  active_dictionary_id integer
+  active_dictionary_id integer [not null]
+  defaultCentricEntity varchar
   name varchar [not null, unique]
   created_at timestamp [default: `now()`]
   created_by varchar

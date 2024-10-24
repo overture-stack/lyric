@@ -17,6 +17,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 	 * @param dictionaryName The name of the dictionary to create
 	 * @param version The version of the dictionary to create
 	 * @param schemas The Schema of the dictionary
+	 * @param defaultCentricEntity The Centric schema of the dictionary
 	 * @returns The new dictionary created or the existing one
 	 */
 	const createDictionaryIfDoesNotExist = async (
@@ -67,11 +68,17 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		}
 	};
 
-	const register = async (
-		categoryName: string,
-		dictionaryName: string,
-		version: string,
-	): Promise<{ dictionary: Dictionary; category: Category }> => {
+	const register = async ({
+		categoryName,
+		dictionaryName,
+		version,
+		defaultCentricEntity,
+	}: {
+		categoryName: string;
+		dictionaryName: string;
+		version: string;
+		defaultCentricEntity?: string;
+	}): Promise<{ dictionary: Dictionary; category: Category }> => {
 		logger.debug(
 			LOG_MODULE,
 			`Register new dictionary categoryName '${categoryName}' dictionaryName '${dictionaryName}' version '${version}'`,
@@ -80,6 +87,15 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		const categoryRepo = categoryRepository(dependencies);
 
 		const dictionary = await fetchDictionaryByVersion(dictionaryName, version);
+
+		if (
+			defaultCentricEntity &&
+			defaultCentricEntity.length > 0 &&
+			!dictionary.schemas.map((schema) => schema.name).includes(defaultCentricEntity)
+		) {
+			logger.error(LOG_MODULE, `Entity '${defaultCentricEntity}' does not exist in this dictionary`);
+			throw new Error(`Entity '${defaultCentricEntity}' does not exist in this dictionary`);
+		}
 
 		const savedDictionary = await createDictionaryIfDoesNotExist(dictionaryName, version, dictionary.schemas);
 
@@ -93,7 +109,10 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			return { dictionary: savedDictionary, category: foundCategory };
 		} else if (foundCategory && foundCategory.activeDictionaryId !== savedDictionary.id) {
 			// Update the dictionary on existing Category
-			const updatedCategory = await categoryRepo.update(foundCategory.id, { activeDictionaryId: savedDictionary.id });
+			const updatedCategory = await categoryRepo.update(foundCategory.id, {
+				activeDictionaryId: savedDictionary.id,
+				defaultCentricEntity,
+			});
 
 			logger.info(
 				LOG_MODULE,
@@ -106,6 +125,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			const newCategory: NewCategory = {
 				name: categoryName,
 				activeDictionaryId: savedDictionary.id,
+				defaultCentricEntity,
 			};
 
 			const savedCategory = await categoryRepo.save(newCategory);

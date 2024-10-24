@@ -425,17 +425,6 @@ components:
           type: string
           description: ID of the Submission
 
-    DeleteDataActiveSubmission:
-      type: object
-      properties:
-        records:
-          type: array
-          items:
-            $ref: '#/components/schemas/SubmittedDataRecord'
-        submissionId:
-          type: string
-          description: ID of the Submission
-
     GetSubmittedDataResult:
       type: object
       properties:
@@ -503,10 +492,8 @@ components:
       type: object
       properties:
         data:
-          type: array
-          items:
-            type: object
-            description: Content of the record in JSON format
+          type: object
+          description: Content of the record in JSON format
         entityName:
           type: string
         isValid:

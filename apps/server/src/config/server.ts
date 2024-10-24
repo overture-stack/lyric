@@ -39,6 +39,12 @@ export const defaultAppConfig: AppConfig = {
 		audit: {
 			enabled: getBoolean(process.env.AUDIT_ENABLED, true),
 		},
+		recordHierarchy: {
+			nestedRecordPrefix: process.env.NESTED_RECORD_PREFIX || '',
+			nestedRecordSuffix: process.env.NESTED_RECORD_SUFFIX || 's',
+			parentRecordPrefix: process.env.PARENT_RECORD_PREFIX || '',
+			parentRecordSuffix: process.env.PARENT_RECORD_SUFFIX || '',
+		},
 	},
 	idService: {
 		useLocal: getBoolean(process.env.ID_USELOCAL, true),

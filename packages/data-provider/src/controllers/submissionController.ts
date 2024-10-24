@@ -4,7 +4,7 @@ import { BaseDependencies } from '../config/config.js';
 import submissionService from '../services/submissionService.js';
 import submittedDataService from '../services/submittedDataService.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
-import { hasTsvExtension, processFiles } from '../utils/fileUtils.js';
+import { extractFileExtension, processFiles } from '../utils/fileUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
 	dataDeleteBySystemIdRequestSchema,
@@ -17,7 +17,7 @@ import {
 	submissionDeleteRequestSchema,
 	uploadSubmissionRequestSchema,
 } from '../utils/schemas.js';
-import { BATCH_ERROR_TYPE, BatchError, SUBMISSION_ACTION_TYPE } from '../utils/types.js';
+import { BATCH_ERROR_TYPE, BatchError, SUBMISSION_ACTION_TYPE, SUPPORTED_FILE_EXTENSIONS } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
 	const service = submissionService(dependencies);
@@ -258,12 +258,12 @@ const controller = (dependencies: BaseDependencies) => {
 					fileErrors: BatchError[];
 				}>(
 					(acc, file) => {
-						if (hasTsvExtension(file)) {
+						if (extractFileExtension(file.originalname)) {
 							acc.validFiles.push(file);
 						} else {
 							const batchError: BatchError = {
 								type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
-								message: `File '${file.originalname}' has invalid file extension. File extension must be '.tsv'.`,
+								message: `File '${file.originalname}' has invalid file extension. File extension must be '${SUPPORTED_FILE_EXTENSIONS}'.`,
 								batchName: file.originalname,
 							};
 							acc.fileErrors.push(batchError);

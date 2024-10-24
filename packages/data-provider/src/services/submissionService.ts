@@ -23,7 +23,7 @@ import dictionaryRepository from '../repository/dictionaryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
 import { getDictionarySchemaRelations, type SchemaChildNode } from '../utils/dictionarySchemaRelations.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../utils/errors.js';
-import { tsvToJson } from '../utils/fileUtils.js';
+import { textToJson } from '../utils/fileUtils.js';
 import {
 	canTransitionToClosed,
 	checkEntityFieldNames,
@@ -767,7 +767,7 @@ const service = (dependencies: BaseDependencies) => {
 				if (!schema) {
 					throw new Error(`No schema found for : '${entityName}'`);
 				}
-				const parsedFileData = await tsvToJson(file.path, schema);
+				const parsedFileData = await textToJson(file.path, schema);
 
 				// Process records concurrently using Promise.all
 				const recordPromises = parsedFileData.records.map(async (record) => {

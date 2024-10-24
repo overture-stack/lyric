@@ -1,5 +1,7 @@
 import * as lodash from 'lodash-es';
 
+import { VIEW_TYPE } from './types.js';
+
 export const isEmptyString = (value: unknown) => {
 	return value == null || (typeof value === 'string' && value.trim().length === 0);
 };
@@ -16,6 +18,15 @@ export function notEmpty<TValue>(value: TValue | null | undefined): value is TVa
 	// so check number seperately since it will evaluate to isEmpty=true
 	return (isNumber(value) && !isNaN(value)) || !lodash.isEmpty(value);
 }
+
+/**
+ * Checks if the provided value is a valid view type.
+ * It returns `true` if the validation is successful otherwise `false`
+ * @param {string} value
+ * @returns boolean
+ */
+export const isValidView = (value: string): boolean =>
+	typeof value === 'string' && VIEW_TYPE.safeParse(value.toLowerCase()).success;
 
 export function isNumber(value: unknown): value is number {
 	return typeof value === 'number';
