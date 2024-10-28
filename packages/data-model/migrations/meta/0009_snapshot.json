@@ -1,5 +1,5 @@
 {
-  "id": "292c07d3-0e0f-4caa-af6f-26b65122539e",
+  "id": "9d7d98fa-e067-4891-a2c1-65a19d6430f3",
   "prevId": "b83f6dc6-52bf-412a-a8ac-63947ed92eec",
   "version": "5",
   "dialect": "pg",
@@ -214,8 +214,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "defaultCentricEntity": {
-          "name": "defaultCentricEntity",
+        "default_centric_entity": {
+          "name": "default_centric_entity",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
