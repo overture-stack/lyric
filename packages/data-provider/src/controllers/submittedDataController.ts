@@ -9,8 +9,8 @@ import { validateRequest } from '../utils/requestValidation.js';
 import {
 	dataGetByCategoryRequestSchema,
 	dataGetByOrganizationRequestSchema,
-	dataGetByQueryRequestschema,
-	dataGetBySystemIdRequestschema,
+	dataGetByQueryRequestSchema,
+	dataGetBySystemIdRequestSchema,
 } from '../utils/schemas.js';
 import { SubmittedDataPaginatedResponse, VIEW_TYPE } from '../utils/types.js';
 
@@ -124,7 +124,7 @@ const controller = (dependencies: BaseDependencies) => {
 			}
 		}),
 
-		getSubmittedDataByQuery: validateRequest(dataGetByQueryRequestschema, async (req, res, next) => {
+		getSubmittedDataByQuery: validateRequest(dataGetByQueryRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
@@ -173,7 +173,7 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		}),
-		getSubmittedDataBySystemId: validateRequest(dataGetBySystemIdRequestschema, async (req, res, next) => {
+		getSubmittedDataBySystemId: validateRequest(dataGetBySystemIdRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const systemId = req.params.systemId;

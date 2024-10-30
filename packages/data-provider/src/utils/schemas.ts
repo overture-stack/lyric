@@ -344,7 +344,7 @@ export const dataGetByOrganizationRequestSchema: RequestValidation<
 	pathParams: categoryOrganizationPathParamsSchema,
 };
 
-export const dataGetByQueryRequestschema: RequestValidation<object, dataQueryParams, categoryOrganizationPathParams> = {
+export const dataGetByQueryRequestSchema: RequestValidation<object, dataQueryParams, categoryOrganizationPathParams> = {
 	body: sqonSchema,
 	query: z
 		.object({
@@ -359,7 +359,7 @@ export interface dataGetBySystemIdPathParams extends ParamsDictionary {
 	categoryId: string;
 }
 
-export const dataGetBySystemIdRequestschema: RequestValidation<
+export const dataGetBySystemIdRequestSchema: RequestValidation<
 	object,
 	getDataQueryParams,
 	dataGetBySystemIdPathParams

@@ -109,7 +109,7 @@ Key fields in the audit_submitted_data table include:
 
 - `original_schema_id`: This field references the original schema version used during the initial submission of the data, allowing for a historical perspective on schema changes over time.
 
-- `submission_id`: This field links the audit record to the specific submission, creating a direct connection to the submissin responsible for this action.
+- `submission_id`: This field links the audit record to the specific submission, creating a direct connection to the submission responsible for this action.
 
 - `system_id`: A unique identifier for the submitted data, ensuring that each record in the audit trail can be traced back to its corresponding submission.
 
