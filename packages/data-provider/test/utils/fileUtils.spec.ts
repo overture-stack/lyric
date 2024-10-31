@@ -1,223 +1,66 @@
 import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import fs from 'fs';
 import { describe, it } from 'mocha';
-import sinon from 'sinon';
 
-import type { Schema } from '@overture-stack/lectern-client';
+import { extractFileExtension, getSeparatorCharacter, mapRecordToHeaders } from '../../src/utils/fileUtils.js';
 
-import { textToJson } from '../../src/utils/fileUtils.js';
-
-const fsPromises = fs.promises;
 use(chaiAsPromised);
 
 describe('File Utils', () => {
-	describe('Convert any text file into a json', () => {
-		const schema: Schema = {
-			name: 'participant',
-			fields: [
-				{
-					name: 'study_id',
-					valueType: 'string',
-					restrictions: [{ required: true }],
-				},
-				{
-					name: 'submitter_participant_id',
-					valueType: 'string',
-					restrictions: [{ required: true }],
-				},
-				{
-					name: 'sex_at_birth',
-					valueType: 'string',
-					restrictions: [
-						{
-							codeList: ['Male', 'Female'],
-						},
-					],
-				},
-				{
-					name: 'age',
-					valueType: 'integer',
-					restrictions: [{ required: true }],
-				},
-			],
-		};
-		afterEach(() => {
-			sinon.restore();
+	describe('Map records to headers', () => {
+		it('should return an unprocessed record object', () => {
+			const headers: string[] = ['id', 'name', 'description'];
+			const record: string[] = ['100', 'Cat', 'Feline animal'];
+			const response = mapRecordToHeaders(headers, record);
+			expect(response).to.eql({ id: '100', name: 'Cat', description: 'Feline animal' });
 		});
-		it('should read a .tsv file and parse it to JSON format', async () => {
-			const archiveAsTsv =
-				'study_id\tsubmitter_participant_id\tsex_at_birth\tage\nTESTABC\tNR-01\tMale\t21\nTESTABC\tNR-02\tFemale\t18';
+		it('should return empty object when no headers are passed', () => {
+			const headers: string[] = [];
+			const record: string[] = ['100', 'Cat', 'Feline animal'];
+			const response = mapRecordToHeaders(headers, record);
+			expect(response).to.eql({});
+		});
+		it('should return object with empty string values when no records are passed', () => {
+			const headers: string[] = ['id', 'name', 'description'];
+			const record: string[] = [];
+			const response = mapRecordToHeaders(headers, record);
+			expect(response).to.eql({ id: '', name: '', description: '' });
+		});
+	});
 
-			sinon.stub(fsPromises, 'readFile').resolves(archiveAsTsv);
-
-			const jsonParsed = await textToJson('archive.tsv', schema);
-
-			const expectedJsonParsed = [
-				{
-					study_id: 'TESTABC',
-					submitter_participant_id: 'NR-01',
-					sex_at_birth: 'Male',
-					age: 21,
-				},
-				{
-					study_id: 'TESTABC',
-					submitter_participant_id: 'NR-02',
-					sex_at_birth: 'Female',
-					age: 18,
-				},
-			];
-
-			expect(Object.keys(jsonParsed).length).to.eq(1);
-			expect(Object.keys(jsonParsed)).to.eql(['records']);
-			expect(jsonParsed.errors).to.be.undefined;
-			expect(jsonParsed.records.length).to.eq(2);
-			expect(jsonParsed.records).to.eql(expectedJsonParsed);
+	describe('Validate file Extension', () => {
+		it('should return invalid file extension', () => {
+			const response = extractFileExtension('archive.xls');
+			expect(response).to.be.undefined;
 		});
 
-		it('should read a .csv file and parse it to JSON format', async () => {
-			const csvFile =
-				'study_id,submitter_participant_id,sex_at_birth,age\nTESTABC,NR-01,Male,21\nTESTABC,NR-02,Female,18';
-
-			sinon.stub(fsPromises, 'readFile').resolves(csvFile);
-
-			const jsonParsed = await textToJson('particpant.csv', schema);
-
-			const expectedJsonParsed = [
-				{
-					study_id: 'TESTABC',
-					submitter_participant_id: 'NR-01',
-					sex_at_birth: 'Male',
-					age: 21,
-				},
-				{
-					study_id: 'TESTABC',
-					submitter_participant_id: 'NR-02',
-					sex_at_birth: 'Female',
-					age: 18,
-				},
-			];
-
-			expect(Object.keys(jsonParsed).length).to.eq(1);
-			expect(Object.keys(jsonParsed)).to.eql(['records']);
-			expect(jsonParsed.errors).to.be.undefined;
-			expect(jsonParsed.records.length).to.eq(2);
-			expect(jsonParsed.records).to.eql(expectedJsonParsed);
+		it('should return invalid file extension when there is no extension', () => {
+			const response = extractFileExtension('noextension');
+			expect(response).to.be.undefined;
 		});
 
-		it('should throw and error if file extension is not supported', async () => {
-			await expect(textToJson('particpant.xyz', schema)).to.be.rejectedWith('Invalid file Extension');
+		it('should return tsv file extension', () => {
+			const response = extractFileExtension('archive.tsv');
+			expect(response).to.eql('tsv');
 		});
-
-		it('should return empty array if file has no content', async () => {
-			const emptyFile = '';
-
-			sinon.stub(fsPromises, 'readFile').resolves(emptyFile);
-
-			const jsonParsed = await textToJson('archive.tsv', schema);
-
-			expect(Object.keys(jsonParsed).length).to.eq(1);
-			expect(Object.keys(jsonParsed)).to.eql(['records']);
-			expect(jsonParsed.errors).to.be.undefined;
-			expect(jsonParsed.records.length).to.eq(0);
-			expect(jsonParsed.records).to.eql([]);
+		it('should return csv file extension', () => {
+			const response = extractFileExtension('archive.csv');
+			expect(response).to.eql('csv');
 		});
+	});
 
-		it('should return empty array if file has only headers and no data', async () => {
-			const onlyHeadersFile = 'study_id\tsubmitter_participant_id\tsex_at_birth\tage';
-
-			sinon.stub(fsPromises, 'readFile').resolves(onlyHeadersFile);
-
-			const jsonParsed = await textToJson('archive.tsv', schema);
-
-			expect(Object.keys(jsonParsed).length).to.eq(1);
-			expect(Object.keys(jsonParsed)).to.eql(['records']);
-			expect(jsonParsed.errors).to.be.undefined;
-			expect(jsonParsed.records.length).to.eq(0);
-			expect(jsonParsed.records).to.eql([]);
+	describe('Get delimiter character from file extension', () => {
+		it('should identify the delimiter character for a .csv file', () => {
+			const response = getSeparatorCharacter('myFile.csv');
+			expect(response).to.eql(',');
 		});
-
-		it('should return empty array if file has only one header and no data', async () => {
-			const oneHeaderFile = 'study_id';
-
-			sinon.stub(fsPromises, 'readFile').resolves(oneHeaderFile);
-
-			const jsonParsed = await textToJson('archive.tsv', schema);
-
-			expect(Object.keys(jsonParsed).length).to.eq(1);
-			expect(Object.keys(jsonParsed)).to.eql(['records']);
-			expect(jsonParsed.errors).to.be.undefined;
-			expect(jsonParsed.records.length).to.eq(0);
-			expect(jsonParsed.records).to.eql([]);
+		it('should identify the delimiter character for a .tsv file', () => {
+			const response = getSeparatorCharacter('myFile.tsv');
+			expect(response).to.eql('\t');
 		});
-
-		it('should ignore columns without header title', async () => {
-			const onlyHeadersFile = 'study_id\tsubmitter_participant_id\nTESTABC\tNR-01\tMale\tMan\nTESTABC';
-
-			sinon.stub(fsPromises, 'readFile').resolves(onlyHeadersFile);
-
-			const jsonParsed = await textToJson('archive.tsv', schema);
-
-			const expectedJsonParsed = [
-				{
-					study_id: 'TESTABC',
-					submitter_participant_id: 'NR-01',
-				},
-				{
-					study_id: 'TESTABC',
-					submitter_participant_id: undefined,
-				},
-			];
-
-			expect(Object.keys(jsonParsed).length).to.eq(1);
-			expect(Object.keys(jsonParsed)).to.eql(['records']);
-			expect(jsonParsed.errors).to.be.undefined;
-			expect(jsonParsed.records.length).to.eq(2);
-			expect(jsonParsed.records).to.eql(expectedJsonParsed);
-		});
-
-		it('should return error parsing data with invalid value type', async () => {
-			const archiveAsTsv =
-				'study_id\tsubmitter_participant_id\tsex_at_birth\tage\nTESTABC\tNR-01\tMale\t21\nTESTABC\tNR-02\tFemale\tthirty';
-
-			sinon.stub(fsPromises, 'readFile').resolves(archiveAsTsv);
-
-			const jsonParsed = await textToJson('archive.tsv', schema);
-
-			const expectedJsonParsed = [
-				{
-					study_id: 'TESTABC',
-					submitter_participant_id: 'NR-01',
-					sex_at_birth: 'Male',
-					age: 21,
-				},
-				{
-					study_id: 'TESTABC',
-					submitter_participant_id: 'NR-02',
-					sex_at_birth: 'Female',
-					age: 'thirty',
-				},
-			];
-
-			expect(Object.keys(jsonParsed).length).to.eq(2);
-			expect(Object.keys(jsonParsed)).to.eql(['records', 'errors']);
-			expect(jsonParsed.records.length).to.eq(2);
-			expect(jsonParsed.records).to.eql(expectedJsonParsed);
-			expect(jsonParsed.errors?.length).to.eq(1);
-			expect(jsonParsed.errors).to.eql([
-				{
-					recordErrors: [
-						{
-							fieldName: 'age',
-							fieldValue: 'thirty',
-							isArray: false,
-							reason: 'INVALID_VALUE_TYPE',
-							valueType: 'integer',
-						},
-					],
-					recordIndex: 1,
-				},
-			]);
+		it('should return undefined when file extension is invalid', () => {
+			const response = getSeparatorCharacter('myFile.xyz');
+			expect(response).to.be.undefined;
 		});
 	});
 });

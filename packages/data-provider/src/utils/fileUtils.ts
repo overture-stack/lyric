@@ -1,4 +1,5 @@
-import bytes from 'bytes';
+import bytes, { type Unit } from 'bytes';
+import { parse as csvParse } from 'csv-parse';
 import firstline from 'firstline';
 import fs from 'fs';
 
@@ -10,7 +11,6 @@ import {
 	type UnprocessedDataRecord,
 } from '@overture-stack/lectern-client';
 
-import { notEmpty } from './formatUtils.js';
 import {
 	BATCH_ERROR_TYPE,
 	type BatchError,
@@ -40,6 +40,36 @@ export const extractFileExtension = (fileName: string): SupportedFileExtensions 
 };
 
 /**
+ * Determines the separator character for a given file based on its extension.
+ * @param fileName The name of the file whose extension determines the separator character.
+ * @returns The separator character associated with the file extension, or `undefined` if
+ *          the file extension is invalid or unrecognized.
+ */
+export const getSeparatorCharacter = (fileName: string): string | undefined => {
+	const fileExtension = extractFileExtension(fileName);
+	if (fileExtension) {
+		return columnSeparatorValue[fileExtension];
+	}
+	return;
+};
+
+/**
+ * Maps a record array to an object with keys from headers, formatting each value for compatibility.
+ * @param headers An array of header names, used as keys for the returned object.
+ * @param record An array of values corresponding to each header, to be formatted and mapped.
+ * @returns An `UnprocessedDataRecord` object where each header in `headers` is a key,
+ *          and each value is the corresponding entry in `record` formatted for compatibility.
+ */
+export const mapRecordToHeaders = (headers: string[], record: string[]) => {
+	return headers.reduce((obj: UnprocessedDataRecord, nextKey, index) => {
+		const dataStr = record[index] || '';
+		const formattedData = formatForExcelCompatibility(dataStr);
+		obj[nextKey] = formattedData;
+		return obj;
+	}, {});
+};
+
+/**
  * Reads only first line of the file
  * Usefull when file is too large and we're only interested in column names
  * @param file A file we want to read
@@ -51,48 +81,73 @@ export const readHeaders = async (file: Express.Multer.File) => {
 
 /**
  * Reads a text file and parse it to a JSON format.
+ * Records are parsed to match schema field types.
  * Supported files: .tsv and .csv
- * @param {string} fileName Full filename path of the file
+ * @param {Express.Multer.File} file A file to read
  * @param {Schema} schema Schema to parse data with
  * @returns a JSON format objet
  */
-export const textToJson = async (
-	fileName: string,
+export const readTextFile = async (
+	file: Express.Multer.File,
 	schema: Schema,
 ): Promise<{ records: DataRecord[]; errors?: ParseSchemaError[] }> => {
-	const fileExtension = extractFileExtension(fileName);
-	if (!fileExtension) {
+	const returnRecords: DataRecord[] = [];
+	const returnErrors: ParseSchemaError[] = [];
+	const separatorCharacter = getSeparatorCharacter(file.originalname);
+	if (!separatorCharacter) {
 		throw new Error('Invalid file Extension');
 	}
-	const contents = await fsPromises.readFile(fileName, 'utf-8');
-	const separator = columnSeparatorValue[fileExtension];
-	const arr = parseTextToJson(contents, separator);
-	const parseSchemaResult = parse.parseSchemaValues(arr, schema);
-	if (parseSchemaResult.success) {
-		return { records: parseSchemaResult.data.records };
-	}
-	return {
-		records: parseSchemaResult.data.records,
-		errors: parseSchemaResult.data.errors,
-	};
+
+	let headers: string[] = [];
+	let lineNumber = 0;
+
+	return new Promise((resolve, reject) => {
+		const stream = fs.createReadStream(file.path).pipe(csvParse({ delimiter: separatorCharacter }));
+
+		stream.on('data', (record: string[]) => {
+			lineNumber++;
+			if (!headers.length) {
+				headers = Object.keys(record);
+			} else {
+				const mappedRecord = mapRecordToHeaders(headers, record);
+
+				const parseSchemaResult = parse.parseRecordValues(mappedRecord, schema);
+				if (parseSchemaResult.success) {
+					returnRecords.push(parseSchemaResult.data.record);
+				} else {
+					returnRecords.push(parseSchemaResult.data.record);
+					returnErrors.push({
+						recordErrors: parseSchemaResult.data.errors,
+						recordIndex: lineNumber,
+					});
+				}
+
+				// TODO: Batch process or write to DB, clear arrays periodically
+				if (lineNumber % 1000 === 0) {
+					// TODO: Add batch processing logic here (e.g., write to database or process as needed)
+					// returnRecords = []; // Clear the array after processing the batch
+					// returnErrors = []; // Clear the array after processing the batch
+				}
+			}
+		});
+
+		stream.on('end', () => {
+			resolve({ records: returnRecords, errors: returnErrors });
+		});
+
+		stream.on('close', () => {
+			stream.destroy();
+			fs.unlink(file.path, () => {});
+		});
+
+		stream.on('error', () => {
+			reject({ records: returnRecords, errors: returnErrors });
+		});
+	});
 };
 
-const parseTextToJson = (content: string, separator: string): UnprocessedDataRecord[] => {
-	const lines = content.split('\n');
-	const headers = lines.slice(0, 1)[0].trim().split(separator);
-	const rows = lines
-		.slice(1, lines.length)
-		.filter((line) => line && line.trim() !== '')
-		.map((line) => {
-			const data = line.split(separator);
-			return headers.reduce((obj: UnprocessedDataRecord, nextKey, index) => {
-				const dataStr = data[index] || '';
-				const formattedData = formatForExcelCompatibility(dataStr);
-				obj[nextKey] = formattedData;
-				return obj;
-			}, {});
-		});
-	return rows.filter(notEmpty);
+export const readFile = async (filePath: string) => {
+	return await fsPromises.readFile(filePath, 'utf-8');
 };
 
 function formatForExcelCompatibility(data: string) {
@@ -112,6 +167,19 @@ export function getSizeInBytes(size: string | number): number {
 	// If value is a number it is assumed is in bytes.
 	return bytes.parse(size);
 }
+
+/**
+ * Formats a file size from bytes to a specified unit with a defined precision.
+ *
+ * @param sizeInBytes - The file size in bytes to be formatted.
+ * @param unit - The unit to which the size should be converted (e.g., 'MB', 'GB').
+ * @param precision - The number of decimal places to include in the formatted output.
+ * @returns The file size formatted as a string in the specified unit with the given precision.
+ *
+ */
+export const formatByteSize = (sizeInBytes: number, unit: Unit, precision: number) => {
+	return bytes.format(sizeInBytes, { unit, decimalPlaces: precision });
+};
 
 type FileProcessingResult = {
 	validFiles: Express.Multer.File[];
@@ -149,7 +217,7 @@ export async function processFiles(files: Express.Multer.File[]): Promise<FilePr
 			} else {
 				const batchError: BatchError = {
 					type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
-					message: `File '${file.originalname}' has invalid file extension. File extension must be '${SUPPORTED_FILE_EXTENSIONS}'`,
+					message: `File '${file.originalname}' has invalid file extension. File extension must be '${SUPPORTED_FILE_EXTENSIONS.options}'`,
 					batchName: file.originalname,
 				};
 				result.fileErrors.push(batchError);

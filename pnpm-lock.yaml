@@ -154,6 +154,9 @@ importers:
       bytes:
         specifier: ^3.1.2
         version: 3.1.2
+      csv-parse:
+        specifier: ^5.5.6
+        version: 5.5.6
       deep-freeze:
         specifier: ^0.0.1
         version: 0.0.1
@@ -1816,6 +1819,10 @@ packages:
       shebang-command: 2.0.0
       which: 2.0.2
     dev: true
+
+  /csv-parse@5.5.6:
+    resolution: {integrity: sha512-uNpm30m/AGSkLxxy7d9yRXpJQFrZzVWLFBkS+6ngPcZkw/5k3L/jjFuj7tVnEpRn+QgmiXr21nDlhCiUK4ij2A==}
+    dev: false
 
   /d@1.0.2:
     resolution: {integrity: sha512-MOqHvMWF9/9MX6nza0KgvFH4HpMU0EF5uUDXqX/BtxtU8NfB0QzRtJ8Oe/6SuS4kbhyzVJwjd97EA4PKrzJ8bw==}

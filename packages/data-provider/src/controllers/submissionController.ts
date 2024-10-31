@@ -263,7 +263,7 @@ const controller = (dependencies: BaseDependencies) => {
 						} else {
 							const batchError: BatchError = {
 								type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
-								message: `File '${file.originalname}' has invalid file extension. File extension must be '${SUPPORTED_FILE_EXTENSIONS}'.`,
+								message: `File '${file.originalname}' has invalid file extension. File extension must be '${SUPPORTED_FILE_EXTENSIONS.options}'.`,
 								batchName: file.originalname,
 							};
 							acc.fileErrors.push(batchError);

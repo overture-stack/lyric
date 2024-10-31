@@ -19,7 +19,7 @@ import {
 
 import type { SchemaChildNode } from './dictionarySchemaRelations.js';
 import { getSchemaFieldNames } from './dictionaryUtils.js';
-import { readHeaders, textToJson } from './fileUtils.js';
+import { readHeaders, readTextFile } from './fileUtils.js';
 import { deepCompare } from './formatUtils.js';
 import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
@@ -839,7 +839,7 @@ export const submissionInsertDataFromFiles = async (
 			if (!schema) {
 				throw new Error(`No schema found for : '${entityName}'`);
 			}
-			const parsedFileData = await textToJson(file.path, schema);
+			const parsedFileData = await readTextFile(file, schema);
 			acc[entityName] = {
 				batchName: file.originalname,
 				records: parsedFileData.records,

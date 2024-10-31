@@ -23,7 +23,7 @@ import dictionaryRepository from '../repository/dictionaryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
 import { getDictionarySchemaRelations, type SchemaChildNode } from '../utils/dictionarySchemaRelations.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../utils/errors.js';
-import { textToJson } from '../utils/fileUtils.js';
+import { formatByteSize, readTextFile } from '../utils/fileUtils.js';
 import {
 	canTransitionToClosed,
 	checkEntityFieldNames,
@@ -767,7 +767,7 @@ const service = (dependencies: BaseDependencies) => {
 				if (!schema) {
 					throw new Error(`No schema found for : '${entityName}'`);
 				}
-				const parsedFileData = await textToJson(file.path, schema);
+				const parsedFileData = await readTextFile(file, schema);
 
 				// Process records concurrently using Promise.all
 				const recordPromises = parsedFileData.records.map(async (record) => {
@@ -1003,32 +1003,47 @@ const service = (dependencies: BaseDependencies) => {
 	 * @returns {void}
 	 */
 	const validateFilesAsync = async (files: Record<string, Express.Multer.File>, params: ValidateFilesParams) => {
+		Object.entries(files).map(([fileName, fileInfo]) => {
+			const mbSize =
+				fileInfo.size < 1_000_000
+					? formatByteSize(fileInfo.size, 'KB', 2) // Less than 1 MB
+					: formatByteSize(fileInfo.size, 'MB', 2); // 1 MB or more
+			logger.info(`Processing file '${fileName}' size '${mbSize}'`);
+		});
 		const { getActiveSubmission } = submissionRepository(dependencies);
 
 		const { categoryId, organization, userName, schemasDictionary } = params;
 
-		// Parse file data
-		const filesDataProcessed = await submissionInsertDataFromFiles(files, schemasDictionary);
+		try {
+			// Parse file data
+			const filesDataProcessed = await submissionInsertDataFromFiles(files, schemasDictionary);
 
-		// Get Active Submission from database
-		const activeSubmission = await getActiveSubmission({ categoryId, userName, organization });
-		if (!activeSubmission) {
-			throw new BadRequest(`Submission '${activeSubmission}' not found`);
+			// Get Active Submission from database
+			const activeSubmission = await getActiveSubmission({ categoryId, userName, organization });
+			if (!activeSubmission) {
+				throw new BadRequest(`Submission '${activeSubmission}' not found`);
+			}
+
+			// Merge Active Submission data with incoming TSV file data processed
+			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, filesDataProcessed);
+
+			// Perform Schema Data validation Async.
+			await performDataValidation({
+				originalSubmission: activeSubmission,
+				submissionData: {
+					inserts: insertActiveSubmissionData,
+					deletes: activeSubmission.data.deletes,
+					updates: activeSubmission.data.updates,
+				},
+				userName,
+			});
+		} catch (error) {
+			logger.error(
+				`There was an error processing files: ${Object.entries(files).map(([entityName]) => entityName)}`,
+				error,
+			);
 		}
-
-		// Merge Active Submission data with incoming TSV file data processed
-		const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, filesDataProcessed);
-
-		// Perform Schema Data validation Async.
-		performDataValidation({
-			originalSubmission: activeSubmission,
-			submissionData: {
-				inserts: insertActiveSubmissionData,
-				deletes: activeSubmission.data.deletes,
-				updates: activeSubmission.data.updates,
-			},
-			userName,
-		});
+		logger.info(`Finished validating files`);
 	};
 
 	return {
