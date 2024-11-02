@@ -41,8 +41,11 @@ The modules in the monorepo are organized into two categories:
 
 ### System Dependencies
 
+- A [Postgres Database](https://www.postgresql.org/) for data storage
+
+### Complementary Services
+
 - [Lectern](https://github.com/overture-stack/lectern) Dictionary Management and validation
-- [Postgres Database](https://www.postgresql.org/) For data storage
 
 ### Quickstart Development
 

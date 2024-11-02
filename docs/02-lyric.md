@@ -1,19 +1,19 @@
 # Lyric
 
-Lyric is a tabular data management service designed to handle structured clinical and research data. Built on top of Lectern's dictionary framework, it provides a system for organizations to submit, validate, and manage structured data according to predefined schemas. While primarily used for clinical data management, Lyric's architecture remains domain-agnostic, allowing it to handle any type of structured data that can be defined within a Lectern dictionary.
+Lyric is a tabular data management service designed to handle structured clinical and research data. Built on top of [Lectern's](/docs/under-development/lectern/) dictionary framework, it provides a system for organizations to submit, validate, and manage structured data according to predefined schemas. While primarily used for clinical data management, Lyric's architecture remains domain-agnostic, allowing it to handle any type of structured data that can be defined within a Lectern dictionary.
 
 ## Key Features
 
-- **Schema-driven validation:** Integrates with Lectern dictionaries to enforce data structure and relationships, validating TSV submissions against predefined schemas.
+- **Schema-driven validation:** Uses Lectern dictionaries to enforce data structure and relationships, validating submissions of tabular data files against predefined schemas.
 - **Flexible submission workflow:** Provides a staged submission process where users can iteratively update and validate their data before committing to the database.
-- **Comprehensive data management:** Offers complete data lifecycle management through a RESTful API documented in Swagger.
+- **Comprehensive data management:** Offers complete CRUD operations (Create, Read, Update, Delete) through a RESTful API documented in Swagger.
 - **Detailed change history:** Maintains a complete audit trail of all data modifications, tracking changes from committed submissions and updates ensuring data governance and accountability.
 - **SQON Query Endpoint:** Provides an endpoint for SQON (Structured Query Object Notation) based queries allowing complex search operations through combinations of simple field operations (`in`, `<=`, `>=`) and logic (`and`, `or`, `not`). This allows complex queries to be expressed in a simple JSON format.
 - **Multi-dictionary support:** Handles multiple Lectern dictionaries simultaneously, allowing organizations to manage different data categories with distinct schemas while maintaining data integrity and relationships
 
 ## System Architecture
 
-Lyric manages the submission of tabular data through its API, validating submissions based on Lectern dictionary schemas stored within Lyric and specified on submission. Song will interact with Lyric to confirm the presence of the data in Lyric's database that corresponds to the file metadata being submitted to Song. All Lyric data is stored on the backend within a PostgreSQL database that will be indexed on publication by Maestro into Elasticsearch documents. 
+Lyric manages the submission of tabular data through its API, validating submissions based on Lectern dictionary schemas stored within Lyric and specified on submission. Song will interact with Lyric to confirm the presence of the data in Lyric's database that corresponds to the file metadata being submitted to Song. All Lyric data is stored on the backend within a PostgreSQL database that will be indexed on publication by [Maestro](/docs/core-software/Maestro/overview) into Elasticsearch documents. 
 
 ![Submission System Architecture](./images/submission-system.svg 'Updated Overture Submission System')
 
@@ -23,9 +23,9 @@ Storing data in Elasticsearch allows us to build powerful search UI components l
 
 As part of the Overture, Lyric is typically used with additional integrations, including:
 
-- **Lectern:** Validates, stores and manages dictionary schemas fetched, stored, and used by Lyric
-- **Maestro:** Handles the indexing of data into elasticsearch on publication events
-- **Song & Score:** Facilitates the submission, validation and management of file data in object storage (Score) and the corresponding file metadata (Song) in a database
+- **[Lectern](/docs/under-development/lectern/):** Validates, stores and manages dictionary schemas fetched, stored, and used by Lyric
+- **[Maestro](/docs/core-software/Maestro/overview):** Handles the indexing of data into elasticsearch on publication events
+- **[Song](/docs/core-software/Song/overview) & [Score](/docs/core-software/Score/overview):** Facilitates the submission, validation and management of file data in object storage (Score) and the corresponding file metadata (Song) in a database
 
 ## Development Roadmap
 
