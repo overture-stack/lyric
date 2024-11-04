@@ -1040,7 +1040,7 @@ const service = (dependencies: BaseDependencies) => {
 		} catch (error) {
 			logger.error(
 				`There was an error processing files: ${Object.entries(files).map(([entityName]) => entityName)}`,
-				error,
+				JSON.stringify(error),
 			);
 		}
 		logger.info(`Finished validating files`);

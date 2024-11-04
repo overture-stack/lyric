@@ -107,26 +107,29 @@ export const readTextFile = async (
 		stream.on('data', (record: string[]) => {
 			lineNumber++;
 			if (!headers.length) {
-				headers = Object.keys(record);
+				headers = Object.values(record);
 			} else {
 				const mappedRecord = mapRecordToHeaders(headers, record);
 
-				const parseSchemaResult = parse.parseRecordValues(mappedRecord, schema);
-				if (parseSchemaResult.success) {
-					returnRecords.push(parseSchemaResult.data.record);
-				} else {
-					returnRecords.push(parseSchemaResult.data.record);
-					returnErrors.push({
-						recordErrors: parseSchemaResult.data.errors,
-						recordIndex: lineNumber,
-					});
-				}
+				try {
+					const parseSchemaResult = parse.parseRecordValues(mappedRecord, schema);
+					if (parseSchemaResult.success) {
+						returnRecords.push(parseSchemaResult.data.record);
+					} else {
+						returnRecords.push(parseSchemaResult.data.record);
+						returnErrors.push({
+							recordErrors: parseSchemaResult.data.errors,
+							recordIndex: lineNumber,
+						});
+					}
 
-				// TODO: Batch process or write to DB, clear arrays periodically
-				if (lineNumber % 1000 === 0) {
-					// TODO: Add batch processing logic here (e.g., write to database or process as needed)
-					// returnRecords = []; // Clear the array after processing the batch
-					// returnErrors = []; // Clear the array after processing the batch
+					if (lineNumber % 1000 === 0) {
+						// TODO: Add batch processing logic here (e.g., write to database or process as needed)
+						// returnRecords = []; // Clear the array after processing the batch
+						// returnErrors = []; // Clear the array after processing the batch
+					}
+				} catch (error) {
+					console.error(`Catching error parsing data: ${error}`);
 				}
 			}
 		});
