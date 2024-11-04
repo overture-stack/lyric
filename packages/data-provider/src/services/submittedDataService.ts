@@ -20,6 +20,7 @@ import {
 	checkFileNames,
 	filterUpdatesFromDeletes,
 	mergeRecords,
+	pluralizeSchemaName,
 } from '../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
@@ -590,8 +591,6 @@ const service = (dependencies: BaseDependencies) => {
 
 		const result: DataRecordNested = {};
 		for (const [entityName, records] of Object.entries(groupedDependants)) {
-			const dependantKeyName = `${recordHierarchy?.parentRecordPrefix}${entityName}${recordHierarchy?.parentRecordSuffix}`;
-
 			const additionalRecordsForEntity = await Promise.all(
 				records.map(async (record) => {
 					const additional = await traverseParentNodes({
@@ -606,7 +605,7 @@ const service = (dependencies: BaseDependencies) => {
 			);
 
 			// Getting the first record as record can have only 1 parent
-			result[dependantKeyName] = additionalRecordsForEntity[0];
+			result[entityName] = additionalRecordsForEntity[0];
 		}
 
 		return result;
@@ -672,7 +671,8 @@ const service = (dependencies: BaseDependencies) => {
 
 		const result: DataRecordNested = {};
 		for (const [entityName, records] of Object.entries(groupedDependants)) {
-			const dependantKeyName = `${recordHierarchy?.nestedRecordPrefix}${entityName}${recordHierarchy?.nestedRecordSuffix}`;
+			// if enabled ensures that schema names are consistently pluralized
+			const dependantKeyName = recordHierarchy?.pluralizeSchemasName ? pluralizeSchemaName(entityName) : entityName;
 
 			const additionalRecordsForEntity = await Promise.all(
 				records.map(async (record) => {

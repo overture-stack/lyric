@@ -1,4 +1,5 @@
 import * as _ from 'lodash-es';
+import plur from 'plur';
 
 import {
 	type DataRecord,
@@ -678,6 +679,10 @@ export const parseActiveSubmissionSummaryResponse = (
 		updatedAt: _.toString(submission.updatedAt?.toISOString()),
 		updatedBy: _.toString(submission.updatedBy),
 	};
+};
+
+export const pluralizeSchemaName = (schemaName: string) => {
+	return plur(schemaName);
 };
 
 export const removeItemsFromSubmission = (
