@@ -51,7 +51,7 @@ const controller = (dependencies: BaseDependencies) => {
 					{ entityName, view: parsedView.data },
 				);
 
-				if (_.isEmpty(submittedDataResult.data)) {
+				if (_.isEmpty(submittedDataResult.result)) {
 					throw new NotFound('No Submitted Data found');
 				}
 
@@ -62,7 +62,7 @@ const controller = (dependencies: BaseDependencies) => {
 						totalPages: Math.ceil(submittedDataResult.metadata.totalRecords / pageSize),
 						totalRecords: submittedDataResult.metadata.totalRecords,
 					},
-					records: submittedDataResult.data,
+					records: submittedDataResult.result,
 				};
 
 				return res.status(200).send(response);
@@ -115,7 +115,7 @@ const controller = (dependencies: BaseDependencies) => {
 						totalPages: Math.ceil(submittedDataResult.metadata.totalRecords / pageSize),
 						totalRecords: submittedDataResult.metadata.totalRecords,
 					},
-					records: submittedDataResult.data,
+					records: submittedDataResult.result,
 				};
 
 				return res.status(200).send(responsePaginated);
@@ -165,7 +165,7 @@ const controller = (dependencies: BaseDependencies) => {
 						totalPages: Math.ceil(submittedDataResult.metadata.totalRecords / pageSize),
 						totalRecords: submittedDataResult.metadata.totalRecords,
 					},
-					records: submittedDataResult.data,
+					records: submittedDataResult.result,
 				};
 
 				return res.status(200).send(responsePaginated);
@@ -200,7 +200,7 @@ const controller = (dependencies: BaseDependencies) => {
 					throw new NotFound(submittedDataResult.metadata.errorMessage);
 				}
 
-				return res.status(200).send(submittedDataResult.data);
+				return res.status(200).send(submittedDataResult.result);
 			} catch (error) {
 				next(error);
 			}

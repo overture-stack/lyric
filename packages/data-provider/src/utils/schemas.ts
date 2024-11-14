@@ -207,7 +207,7 @@ export const cagegoryDetailsRequestSchema: RequestValidation<object, ParsedQs, c
 export interface dictionaryRegisterBodyParams {
 	categoryName: string;
 	dictionaryName: string;
-	version: string;
+	dictionaryVersion: string;
 	defaultCentricEntity?: string;
 }
 
@@ -219,7 +219,7 @@ export const dictionaryRegisterRequestSchema: RequestValidation<
 	body: z.object({
 		categoryName: stringNotEmpty,
 		dictionaryName: stringNotEmpty,
-		version: stringNotEmpty,
+		dictionaryVersion: stringNotEmpty,
 		defaultCentricEntity: stringNotEmpty.optional(),
 	}),
 };

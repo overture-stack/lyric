@@ -106,13 +106,13 @@ describe('Submitted Data Utils', () => {
 			const response = fetchDataErrorResponse('Error fetching data');
 			expect(response.metadata.errorMessage).to.eql('Error fetching data');
 			expect(response.metadata.totalRecords).to.eq(0);
-			expect(response.data).to.eql([]);
+			expect(response.result).to.eql([]);
 		});
 		it('should return a response with empty message', () => {
 			const response = fetchDataErrorResponse('');
 			expect(response.metadata.errorMessage).to.eql('');
 			expect(response.metadata.totalRecords).to.eq(0);
-			expect(response.data).to.eql([]);
+			expect(response.result).to.eql([]);
 		});
 	});
 	describe('Group validation errors by index', () => {

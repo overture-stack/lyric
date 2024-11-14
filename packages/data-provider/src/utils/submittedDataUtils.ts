@@ -90,11 +90,11 @@ export const computeDataDiff = (oldRecord: DataRecord | null, newRecord: DataRec
 export const fetchDataErrorResponse = (
 	error: string,
 ): {
-	data: [];
+	result: [];
 	metadata: { totalRecords: number; errorMessage?: string };
 } => {
 	return {
-		data: [],
+		result: [],
 		metadata: {
 			totalRecords: 0,
 			errorMessage: error,

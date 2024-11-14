@@ -257,7 +257,7 @@ const service = (dependencies: BaseDependencies) => {
 	 * @param filterOptions.entityName - An optional array of entity names to filter the data by.
 	 * @param filterOptions.view - An optional flag indicating the view type
 	 * @returns A promise that resolves to an object containing:
-	 * - `data`: An array of `SubmittedDataResponse` objects, representing the fetched data.
+	 * - `result`: An array of `SubmittedDataResponse` objects, representing the fetched data.
 	 * - `metadata`: An object containing metadata about the fetched data, including the total number of records.
 	 *   If an error occurs during data retrieval, `metadata` will include an `errorMessage` property.
 	 */
@@ -266,7 +266,7 @@ const service = (dependencies: BaseDependencies) => {
 		paginationOptions: PaginationOptions,
 		filterOptions: { entityName?: (string | undefined)[]; view: ViewType },
 	): Promise<{
-		data: SubmittedDataResponse[];
+		result: SubmittedDataResponse[];
 		metadata: { totalRecords: number; errorMessage?: string };
 	}> => {
 		const { getSubmittedDataByCategoryIdPaginated, getTotalRecordsByCategoryId } = submittedDataRepo;
@@ -331,7 +331,7 @@ const service = (dependencies: BaseDependencies) => {
 		logger.info(LOG_MODULE, `Retrieved '${recordsPaginated.length}' Submitted data on categoryId '${categoryId}'`);
 
 		return {
-			data: recordsPaginated,
+			result: recordsPaginated,
 			metadata: {
 				totalRecords,
 			},
@@ -353,7 +353,7 @@ const service = (dependencies: BaseDependencies) => {
 	 * @param filterOptions.entityName - An optional array of entity names to filter the data by. Can include undefined entries.
 	 * @param filterOptions.view - An optional flag indicating the view type
 	 * @returns A promise that resolves to an object containing:
-	 * - `data`: An array of `SubmittedDataResponse` objects, representing the fetched data.
+	 * - `result`: An array of `SubmittedDataResponse` objects, representing the fetched data.
 	 * - `metadata`: An object containing metadata about the fetched data, including the total number of records.
 	 *   If an error occurs during data retrieval, `metadata` will include an `errorMessage` property.
 	 */
@@ -362,7 +362,7 @@ const service = (dependencies: BaseDependencies) => {
 		organization: string,
 		paginationOptions: PaginationOptions,
 		filterOptions: { sqon?: SQON; entityName?: (string | undefined)[]; view: ViewType },
-	): Promise<{ data: SubmittedDataResponse[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
+	): Promise<{ result: SubmittedDataResponse[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
 		const { getSubmittedDataByCategoryIdAndOrganizationPaginated, getTotalRecordsByCategoryIdAndOrganization } =
 			submittedDataRepo;
 		const { getCategoryById } = categoryRepository(dependencies);
@@ -437,7 +437,7 @@ const service = (dependencies: BaseDependencies) => {
 		);
 
 		return {
-			data: recordsPaginated,
+			result: recordsPaginated,
 			metadata: {
 				totalRecords,
 			},
@@ -456,7 +456,7 @@ const service = (dependencies: BaseDependencies) => {
 	 * @param filterOptions - An object containing options for data representation.
 	 * @param filterOptions.view - The desired view type for the data representation, such as 'list' or 'compound'.
 	 * @returns A promise that resolves to an object containing:
-	 * - `data`: The fetched `SubmittedDataResponse`, or `undefined` if no data is found.
+	 * - `result`: The fetched `SubmittedDataResponse`, or `undefined` if no data is found.
 	 * - `metadata`: An object containing metadata about the fetched data, including an optional `errorMessage` property.
 	 */
 	const getSubmittedDataBySystemId = async (
@@ -464,7 +464,7 @@ const service = (dependencies: BaseDependencies) => {
 		systemId: string,
 		filterOptions: { view: ViewType },
 	): Promise<{
-		data: SubmittedDataResponse | undefined;
+		result: SubmittedDataResponse | undefined;
 		metadata: { errorMessage?: string };
 	}> => {
 		// get SubmittedData by SystemId
@@ -472,12 +472,12 @@ const service = (dependencies: BaseDependencies) => {
 		logger.info(LOG_MODULE, `Found Submitted Data with system ID '${systemId}'`);
 
 		if (!foundRecord) {
-			return { data: undefined, metadata: { errorMessage: `No Submitted data found with systemId '${systemId}'` } };
+			return { result: undefined, metadata: { errorMessage: `No Submitted data found with systemId '${systemId}'` } };
 		}
 
 		if (foundRecord.dictionaryCategoryId !== categoryId) {
 			return {
-				data: undefined,
+				result: undefined,
 				metadata: { errorMessage: `Invalid Category ID '${categoryId}' for system ID '${systemId}'` },
 			};
 		}
@@ -490,7 +490,7 @@ const service = (dependencies: BaseDependencies) => {
 			const category = await getCategoryById(foundRecord.dictionaryCategoryId);
 
 			if (!category?.activeDictionary) {
-				return { data: undefined, metadata: { errorMessage: `Invalid Category ID` } };
+				return { result: undefined, metadata: { errorMessage: `Invalid Category ID` } };
 			}
 
 			// Retrieve compound records only if the record matches the type of the default Centric Entity
@@ -524,7 +524,7 @@ const service = (dependencies: BaseDependencies) => {
 		}
 
 		return {
-			data: {
+			result: {
 				data: dataValue,
 				entityName: foundRecord.entityName,
 				isValid: foundRecord.isValid,

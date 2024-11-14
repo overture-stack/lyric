@@ -19,7 +19,7 @@
                 type: string
                 description: A matching Dictionary Name defined on Dictionary Manager (Lectern)
                 required: true
-              version:
+              dictionaryVersion:
                 type: string
                 description: A matching Dictionary Version defined on Dictionary Manager (Lectern)
                 required: true
