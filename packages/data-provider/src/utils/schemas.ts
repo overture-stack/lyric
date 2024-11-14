@@ -8,6 +8,7 @@ import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js'
 import { parseSQON } from './convertSqonToQuery.js';
 import { isValidDateFormat, isValidIdNumber, isValidView } from './formatUtils.js';
 import { RequestValidation } from './requestValidation.js';
+import { VIEW_TYPE } from './types.js';
 
 const auditEventTypeSchema = z
 	.string()
@@ -326,7 +327,16 @@ export const dataGetByCategoryRequestSchema: RequestValidation<object, dataQuery
 			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
 			view: viewSchema.optional(),
 		})
-		.merge(paginationQuerySchema),
+		.merge(paginationQuerySchema)
+		.superRefine((data, ctx) => {
+			if (data.view === VIEW_TYPE.Values.compound && data.entityName && data.entityName?.length > 0) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: 'is incompatible with `compound` view',
+					path: ['entityName'],
+				});
+			}
+		}),
 	pathParams: categoryPathParamsSchema,
 };
 
@@ -340,7 +350,16 @@ export const dataGetByOrganizationRequestSchema: RequestValidation<
 			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
 			view: viewSchema.optional(),
 		})
-		.merge(paginationQuerySchema),
+		.merge(paginationQuerySchema)
+		.superRefine((data, ctx) => {
+			if (data.view === VIEW_TYPE.Values.compound && data.entityName && data.entityName?.length > 0) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: 'is incompatible with `compound` view',
+					path: ['entityName'],
+				});
+			}
+		}),
 	pathParams: categoryOrganizationPathParamsSchema,
 };
 

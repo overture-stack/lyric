@@ -11,7 +11,7 @@
           type: string
         description: ID of the category
       - name: entityName
-        description: Array of strings to filter by entity names. Ignored if view parameter is `compound`
+        description: Array of strings to filter by entity names. Incompatible with `compound` view
         in: query
         required: false
         schema:
@@ -118,7 +118,7 @@
           type: string
         description: Organization name
       - name: entityName
-        description: Array of strings to filter by entity names. Ignored if view parameter is `compound`
+        description: Array of strings to filter by entity names. Incompatible with `compound` view
         in: query
         required: false
         schema:
