@@ -7,11 +7,13 @@ import type { NewSubmittedData, SubmittedData } from '@overture-stack/lyric-data
 import {
 	computeDataDiff,
 	fetchDataErrorResponse,
+	getEntityNamesFromFilterOptions,
 	groupErrorsByIndex,
 	groupSchemaDataByEntityName,
 	hasErrorsByIndex,
 	transformmSubmittedDataToSubmissionDeleteData,
 } from '../../src/utils/submittedDataUtils.js';
+import { VIEW_TYPE } from '../../src/utils/types.js';
 
 describe('Submitted Data Utils', () => {
 	const todaysDate = new Date();
@@ -115,6 +117,33 @@ describe('Submitted Data Utils', () => {
 			expect(response.result).to.eql([]);
 		});
 	});
+
+	describe('Determine the entity names based on the provided filter', () => {
+		it('should return an array with defaultCentricEntity if view is compound', () => {
+			const filterOptions = { view: VIEW_TYPE.Values.compound, entityName: ['entity1', 'entity2'] };
+			const result = getEntityNamesFromFilterOptions(filterOptions, 'defaultEntity');
+			expect(result).to.eql(['defaultEntity']);
+		});
+
+		it('should return entityName array if view is not compound and entityName is provided', () => {
+			const filterOptions = { view: VIEW_TYPE.Values.flat, entityName: ['entity1', 'entity2'] };
+			const result = getEntityNamesFromFilterOptions(filterOptions, undefined);
+			expect(result).to.eql(['entity1', 'entity2']);
+		});
+
+		it('should return an empty array if neither defaultCentricEntity nor entityName are provided', () => {
+			const filterOptions = { view: VIEW_TYPE.Values.flat, entityName: [] };
+			const result = getEntityNamesFromFilterOptions(filterOptions, undefined);
+			expect(result).to.eql([]);
+		});
+
+		it('should return an empty array if entityName is undefined and view is not compound', () => {
+			const filterOptions = { view: VIEW_TYPE.Values.flat };
+			const result = getEntityNamesFromFilterOptions(filterOptions, undefined);
+			expect(result).to.eql([]);
+		});
+	});
+
 	describe('Group validation errors by index', () => {
 		it('should return the errors by index', () => {
 			const listOfErrors: SchemaRecordError<DictionaryValidationRecordErrorDetails>[] = [

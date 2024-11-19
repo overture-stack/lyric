@@ -28,7 +28,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const categoryId = Number(req.params.categoryId);
 
 				// query params
-				const entityName = asArray(req.query.entityName);
+				const entityName = asArray(req.query.entityName || []);
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 				const view = req.query.view || defaultView;
@@ -77,7 +77,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const organization = req.params.organization;
 
 				// query parameters
-				const entityName = asArray(req.query.entityName);
+				const entityName = asArray(req.query.entityName || []);
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 				const view = req.query.view || defaultView;
@@ -131,7 +131,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const sqon = parseSQON(req.body);
 
 				// query parameters
-				const entityName = asArray(req.query.entityName);
+				const entityName = asArray(req.query.entityName || []);
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
 

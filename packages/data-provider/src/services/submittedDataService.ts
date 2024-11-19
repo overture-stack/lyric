@@ -1,6 +1,6 @@
 import * as _ from 'lodash-es';
 
-import type { DataRecord, Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
+import type { DataRecord, Dictionary as SchemasDictionary, Schema } from '@overture-stack/lectern-client';
 import { SubmittedData } from '@overture-stack/lyric-data-model';
 import { SQON } from '@overture-stack/sqon-builder';
 
@@ -24,8 +24,7 @@ import {
 } from '../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
-	filterQueryByEntityName,
-	getSchemaForCompound,
+	getEntityNamesFromFilterOptions,
 	groupByEntityName,
 	mergeSubmittedDataAndDeduplicateById,
 	transformmSubmittedDataToSubmissionDeleteData,
@@ -52,6 +51,47 @@ const service = (dependencies: BaseDependencies) => {
 	const submittedDataRepo = submittedRepository(dependencies);
 	const recordHierarchy = dependencies.features?.recordHierarchy;
 	const { logger } = dependencies;
+
+	const convertRecordsToCompoundDocuments = async ({
+		dictionary,
+		records,
+		defaultCentricEntity,
+	}: {
+		dictionary: Schema[];
+		records: SubmittedDataResponse[];
+		defaultCentricEntity?: string;
+	}) => {
+		// get dictionary hierarchy structure
+		const hierarchyStructureDesc = generateHierarchy(dictionary, ORDER_TYPE.Values.desc);
+		const hierarchyStructureAsc = generateHierarchy(dictionary, ORDER_TYPE.Values.asc);
+
+		return await Promise.all(
+			records.map(async (record) => {
+				try {
+					const childNodes = await traverseChildNodes({
+						data: record.data,
+						entityName: record.entityName,
+						organization: record.organization,
+						schemaCentric: defaultCentricEntity || record.entityName,
+						treeNode: hierarchyStructureDesc,
+					});
+
+					const parentNodes = await traverseParentNodes({
+						data: record.data,
+						entityName: record.entityName,
+						organization: record.organization,
+						schemaCentric: defaultCentricEntity || record.entityName,
+						treeNode: hierarchyStructureAsc,
+					});
+
+					record.data = { ...record.data, ...childNodes, ...parentNodes };
+				} catch (error) {
+					logger.error(`Error converting record ${record.systemId} into compound document`, error);
+				}
+				return record;
+			}),
+		);
+	};
 
 	const deleteSubmittedDataBySystemId = async (
 		categoryId: number,
@@ -264,7 +304,7 @@ const service = (dependencies: BaseDependencies) => {
 	const getSubmittedDataByCategory = async (
 		categoryId: number,
 		paginationOptions: PaginationOptions,
-		filterOptions: { entityName?: (string | undefined)[]; view: ViewType },
+		filterOptions: { entityName?: string[]; view: ViewType },
 	): Promise<{
 		result: SubmittedDataResponse[];
 		metadata: { totalRecords: number; errorMessage?: string };
@@ -279,8 +319,10 @@ const service = (dependencies: BaseDependencies) => {
 			return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.INVALID_CATEGORY_ID);
 		}
 
+		const defaultCentricEntity = category.defaultCentricEntity || undefined;
+
 		let recordsPaginated = await getSubmittedDataByCategoryIdPaginated(categoryId, paginationOptions, {
-			entityNames: filterQueryByEntityName(filterOptions, category.defaultCentricEntity),
+			entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
 		});
 
 		if (recordsPaginated.length === 0) {
@@ -288,44 +330,15 @@ const service = (dependencies: BaseDependencies) => {
 		}
 
 		if (filterOptions.view === VIEW_TYPE.Values.compound) {
-			// get dictionary hierarchy structure
-			const hierarchyStructureDesc = generateHierarchy(category.activeDictionary.dictionary, ORDER_TYPE.Values.desc);
-			const hierarchyStructureAsc = generateHierarchy(category.activeDictionary.dictionary, ORDER_TYPE.Values.asc);
-
-			recordsPaginated = await Promise.all(
-				recordsPaginated.map(async (record) => {
-					const childNodes = await traverseChildNodes({
-						data: record.data,
-						entityName: record.entityName,
-						organization: record.organization,
-						schemaCentric: getSchemaForCompound({
-							filterByEntityName: filterOptions?.entityName,
-							schemaCentricEntity: category.defaultCentricEntity,
-							recordEntityName: record.entityName,
-						}),
-						treeNode: hierarchyStructureDesc,
-					});
-
-					const parentNodes = await traverseParentNodes({
-						data: record.data,
-						entityName: record.entityName,
-						organization: record.organization,
-						schemaCentric: getSchemaForCompound({
-							filterByEntityName: filterOptions?.entityName,
-							schemaCentricEntity: category.defaultCentricEntity,
-							recordEntityName: record.entityName,
-						}),
-						treeNode: hierarchyStructureAsc,
-					});
-
-					record.data = { ...record.data, ...childNodes, ...parentNodes };
-					return record;
-				}),
-			);
+			recordsPaginated = await convertRecordsToCompoundDocuments({
+				dictionary: category.activeDictionary.dictionary,
+				records: recordsPaginated,
+				defaultCentricEntity: defaultCentricEntity,
+			});
 		}
 
 		const totalRecords = await getTotalRecordsByCategoryId(categoryId, {
-			entityNames: filterQueryByEntityName(filterOptions, category.defaultCentricEntity),
+			entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
 		});
 
 		logger.info(LOG_MODULE, `Retrieved '${recordsPaginated.length}' Submitted data on categoryId '${categoryId}'`);
@@ -361,7 +374,7 @@ const service = (dependencies: BaseDependencies) => {
 		categoryId: number,
 		organization: string,
 		paginationOptions: PaginationOptions,
-		filterOptions: { sqon?: SQON; entityName?: (string | undefined)[]; view: ViewType },
+		filterOptions: { sqon?: SQON; entityName?: string[]; view: ViewType },
 	): Promise<{ result: SubmittedDataResponse[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
 		const { getSubmittedDataByCategoryIdAndOrganizationPaginated, getTotalRecordsByCategoryIdAndOrganization } =
 			submittedDataRepo;
@@ -373,6 +386,8 @@ const service = (dependencies: BaseDependencies) => {
 			return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.INVALID_CATEGORY_ID);
 		}
 
+		const defaultCentricEntity = category.defaultCentricEntity || undefined;
+
 		const sqonQuery = convertSqonToQuery(filterOptions?.sqon);
 
 		let recordsPaginated = await getSubmittedDataByCategoryIdAndOrganizationPaginated(
@@ -381,7 +396,7 @@ const service = (dependencies: BaseDependencies) => {
 			paginationOptions,
 			{
 				sql: sqonQuery,
-				entityNames: filterQueryByEntityName(filterOptions, category.defaultCentricEntity),
+				entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
 			},
 		);
 
@@ -390,45 +405,16 @@ const service = (dependencies: BaseDependencies) => {
 		}
 
 		if (filterOptions.view === VIEW_TYPE.Values.compound) {
-			// get dictionary hierarchy structure
-			const hierarchyStructureDesc = generateHierarchy(category.activeDictionary.dictionary, ORDER_TYPE.Values.desc);
-			const hierarchyStructureAsc = generateHierarchy(category.activeDictionary.dictionary, ORDER_TYPE.Values.asc);
-
-			recordsPaginated = await Promise.all(
-				recordsPaginated.map(async (record) => {
-					const childNodes = await traverseChildNodes({
-						data: record.data,
-						entityName: record.entityName,
-						organization: record.organization,
-						schemaCentric: getSchemaForCompound({
-							filterByEntityName: filterOptions?.entityName,
-							schemaCentricEntity: category.defaultCentricEntity,
-							recordEntityName: record.entityName,
-						}),
-						treeNode: hierarchyStructureDesc,
-					});
-
-					const parentNodes = await traverseParentNodes({
-						data: record.data,
-						entityName: record.entityName,
-						organization: record.organization,
-						schemaCentric: getSchemaForCompound({
-							filterByEntityName: filterOptions?.entityName,
-							schemaCentricEntity: category.defaultCentricEntity,
-							recordEntityName: record.entityName,
-						}),
-						treeNode: hierarchyStructureAsc,
-					});
-
-					record.data = { ...record.data, ...childNodes, ...parentNodes };
-					return record;
-				}),
-			);
+			recordsPaginated = await convertRecordsToCompoundDocuments({
+				dictionary: category.activeDictionary.dictionary,
+				records: recordsPaginated,
+				defaultCentricEntity: defaultCentricEntity,
+			});
 		}
 
 		const totalRecords = await getTotalRecordsByCategoryIdAndOrganization(categoryId, organization, {
 			sql: sqonQuery,
-			entityNames: filterQueryByEntityName(filterOptions, category.defaultCentricEntity),
+			entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
 		});
 
 		logger.info(
@@ -482,7 +468,13 @@ const service = (dependencies: BaseDependencies) => {
 			};
 		}
 
-		let dataValue: DataRecordNested = foundRecord.data;
+		let recordResponse: SubmittedDataResponse = {
+			data: foundRecord.data,
+			entityName: foundRecord.entityName,
+			isValid: foundRecord.isValid,
+			organization: foundRecord.organization,
+			systemId: foundRecord.systemId,
+		};
 
 		if (filterOptions.view === VIEW_TYPE.Values.compound) {
 			const { getCategoryById } = categoryRepository(dependencies);
@@ -493,44 +485,23 @@ const service = (dependencies: BaseDependencies) => {
 				return { result: undefined, metadata: { errorMessage: `Invalid Category ID` } };
 			}
 
-			// Retrieve compound records only if the record matches the type of the default Centric Entity
-			// or if no default Centric Entity is defined.
-			if (
-				!category.defaultCentricEntity ||
-				(category.defaultCentricEntity && category.defaultCentricEntity === foundRecord.entityName)
-			) {
-				// get dictionary hierarchy structure
-				const hierarchyStructureDesc = generateHierarchy(category.activeDictionary.dictionary, ORDER_TYPE.Values.desc);
-				const hierarchyStructureAsc = generateHierarchy(category.activeDictionary.dictionary, ORDER_TYPE.Values.asc);
+			const defaultCentricEntity = category.defaultCentricEntity || undefined;
 
-				const childNodes = await traverseChildNodes({
-					data: foundRecord.data,
-					entityName: foundRecord.entityName,
-					organization: foundRecord.organization,
-					schemaCentric: foundRecord.entityName,
-					treeNode: hierarchyStructureDesc,
+			// Convert to compound records if the record matches the default centric entity type.
+			// If no default centric entity is defined, the record's entity type will be used
+			if (!defaultCentricEntity || defaultCentricEntity === foundRecord.entityName) {
+				const [convertedRecord] = await convertRecordsToCompoundDocuments({
+					dictionary: category.activeDictionary.dictionary,
+					records: [recordResponse],
+					defaultCentricEntity: defaultCentricEntity,
 				});
 
-				const parentNode = await traverseParentNodes({
-					data: foundRecord.data,
-					entityName: foundRecord.entityName,
-					organization: foundRecord.organization,
-					schemaCentric: foundRecord.entityName,
-					treeNode: hierarchyStructureAsc,
-				});
-
-				dataValue = { ...dataValue, ...childNodes, ...parentNode };
+				recordResponse = convertedRecord;
 			}
 		}
 
 		return {
-			result: {
-				data: dataValue,
-				entityName: foundRecord.entityName,
-				isValid: foundRecord.isValid,
-				organization: foundRecord.organization,
-				systemId: foundRecord.systemId,
-			},
+			result: recordResponse,
 			metadata: {},
 		};
 	};

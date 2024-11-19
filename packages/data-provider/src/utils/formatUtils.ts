@@ -73,11 +73,15 @@ export function isValidDateFormat(value: string): boolean {
 /**
  * Ensure a value is wrapped in an array.
  *
- * If passed an array, return it without change. If passed a single item, wrap it in an array.
+ * If passed an array, return it returns the same array. If passed a single item, wrap it in an array.
+ * The function then filters out any empty strings and `undefined` values
  * @param val an item or array
  * @return an array
  */
-export const asArray = <T>(val: T | T[]): T[] => (Array.isArray(val) ? val : [val]);
+export const asArray = <T>(val: T | T[]): T[] => {
+	const result = Array.isArray(val) ? val : [val];
+	return result.filter((item) => item !== null && item !== '' && item !== undefined);
+};
 
 /**
  * Performs a deep comparison between two values to determine if they are deeply equal.
