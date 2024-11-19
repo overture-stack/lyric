@@ -88,7 +88,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 
 		const dictionary = await fetchDictionaryByVersion(dictionaryName, dictionaryVersion);
 
-		if (dictionary.schemas.find((schema) => schema.name === defaultCentricEntity) === undefined) {
+		if (defaultCentricEntity && !dictionary.schemas.some((schema) => schema.name === defaultCentricEntity)) {
 			logger.error(LOG_MODULE, `Entity '${defaultCentricEntity}' does not exist in this dictionary`);
 			throw new Error(`Entity '${defaultCentricEntity}' does not exist in this dictionary`);
 		}

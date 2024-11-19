@@ -205,6 +205,9 @@
                   format: binary
               organization:
                 type: string
+            required:
+              - files
+              - organization
     responses:
       200:
         description: Submission accepted
@@ -241,6 +244,9 @@
                   format: binary
               organization:
                 type: string
+            required:
+              - files
+              - organization
     responses:
       200:
         description: Edit Data request accepted
