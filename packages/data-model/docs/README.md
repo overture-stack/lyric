@@ -19,7 +19,7 @@ Key components of the dictionary table include:
 - `dictionary`: A JSONB column that stores the full dictionary schema as a JSON object. This schema defines the fields, data types, relationships, and validation rules required for data submissions, providing a flexible and easily accessible format for schema definitions.
 
 > [!NOTE]
-> Creating a new dictionary requires a [Lectern](https://github.com/overture-stack/lectern) as a Data Dictionary Management Service.
+> Creating a new dictionary requires [Lectern](https://github.com/overture-stack/lectern) as a Data Dictionary Management Service.
 
 
 ### - `dictionary_categories`

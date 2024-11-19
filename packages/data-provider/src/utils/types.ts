@@ -420,5 +420,5 @@ export type OrderType = z.infer<typeof ORDER_TYPE>;
 /**
  * Enum matching Retrieve data views
  */
-export const VIEW_TYPE = z.enum(['list', 'compound']);
+export const VIEW_TYPE = z.enum(['flat', 'compound']);
 export type ViewType = z.infer<typeof VIEW_TYPE>;

@@ -20,7 +20,7 @@ const controller = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_CONTROLLER';
 	const defaultPage = 1;
 	const defaultPageSize = 20;
-	const defaultView = VIEW_TYPE.Values.list;
+	const defaultView = VIEW_TYPE.Values.flat;
 
 	return {
 		getSubmittedDataByCategory: validateRequest(dataGetByCategoryRequestSchema, async (req, res, next) => {
@@ -151,7 +151,7 @@ const controller = (dependencies: BaseDependencies) => {
 						page,
 						pageSize,
 					},
-					{ sqon, entityName, view: VIEW_TYPE.Values.list },
+					{ sqon, entityName, view: VIEW_TYPE.Values.flat },
 				);
 
 				if (submittedDataResult.metadata.errorMessage) {

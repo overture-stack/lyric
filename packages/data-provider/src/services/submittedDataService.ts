@@ -454,7 +454,7 @@ const service = (dependencies: BaseDependencies) => {
 	 * @param categoryId - The ID of the category for which data is being fetched.
 	 * @param systemId - The unique identifier for the system associated with the submitted data.
 	 * @param filterOptions - An object containing options for data representation.
-	 * @param filterOptions.view - The desired view type for the data representation, such as 'list' or 'compound'.
+	 * @param filterOptions.view - The desired view type for the data representation, such as 'flat' or 'compound'.
 	 * @returns A promise that resolves to an object containing:
 	 * - `result`: The fetched `SubmittedDataResponse`, or `undefined` if no data is found.
 	 * - `metadata`: An object containing metadata about the fetched data, including an optional `errorMessage` property.
