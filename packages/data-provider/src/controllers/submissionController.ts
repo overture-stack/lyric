@@ -1,8 +1,8 @@
 import { isEmpty } from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
-import submissionService from '../services/submissionService.js';
-import submittedDataService from '../services/submittedDataService.js';
+import submissionService from '../services/submission/submission.js';
+import submittedDataService from '../services/submittedData/submmittedData.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
 import { hasTsvExtension, processFiles } from '../utils/fileUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';

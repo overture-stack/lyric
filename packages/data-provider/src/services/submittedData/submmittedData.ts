@@ -1,97 +1,49 @@
 import * as _ from 'lodash-es';
 
-import type { DataRecord, Dictionary as SchemasDictionary, Schema } from '@overture-stack/lectern-client';
-import { SubmittedData } from '@overture-stack/lyric-data-model';
+import type { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
 import { SQON } from '@overture-stack/sqon-builder';
 
-import { BaseDependencies } from '../config/config.js';
-import categoryRepository from '../repository/categoryRepository.js';
-import submittedRepository from '../repository/submittedRepository.js';
-import submissionService from '../services/submissionService.js';
-import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
-import {
-	generateHierarchy,
-	getDictionarySchemaRelations,
-	SchemaChildNode,
-	type TreeNode,
-} from '../utils/dictionarySchemaRelations.js';
+import { BaseDependencies } from '../../config/config.js';
+import categoryRepository from '../../repository/categoryRepository.js';
+import submittedRepository from '../../repository/submittedRepository.js';
+import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
+import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelations.js';
 import {
 	checkEntityFieldNames,
 	checkFileNames,
 	filterUpdatesFromDeletes,
 	mergeRecords,
-	pluralizeSchemaName,
-} from '../utils/submissionUtils.js';
+} from '../../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
 	getEntityNamesFromFilterOptions,
-	groupByEntityName,
-	mergeSubmittedDataAndDeduplicateById,
 	transformmSubmittedDataToSubmissionDeleteData,
-} from '../utils/submittedDataUtils.js';
+} from '../../utils/submittedDataUtils.js';
 import {
 	type BatchError,
 	CREATE_SUBMISSION_STATUS,
 	type CreateSubmissionStatus,
-	type DataRecordNested,
-	ORDER_TYPE,
 	PaginationOptions,
 	SubmittedDataResponse,
 	VIEW_TYPE,
 	type ViewType,
-} from '../utils/types.js';
+} from '../../utils/types.js';
+import processor from '../submission/processor.js';
+import submissionService from '../submission/submission.js';
+import searchDataRelations from './searchDataRelations.js';
+import viewMode from './viewMode.js';
 
 const PAGINATION_ERROR_MESSAGES = {
 	INVALID_CATEGORY_ID: 'Invalid Category ID',
 	NO_DATA_FOUND: 'No Submitted data found',
 } as const;
 
-const service = (dependencies: BaseDependencies) => {
+const submittedData = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_SERVICE';
 	const submittedDataRepo = submittedRepository(dependencies);
-	const recordHierarchy = dependencies.features?.recordHierarchy;
 	const { logger } = dependencies;
-
-	const convertRecordsToCompoundDocuments = async ({
-		dictionary,
-		records,
-		defaultCentricEntity,
-	}: {
-		dictionary: Schema[];
-		records: SubmittedDataResponse[];
-		defaultCentricEntity?: string;
-	}) => {
-		// get dictionary hierarchy structure
-		const hierarchyStructureDesc = generateHierarchy(dictionary, ORDER_TYPE.Values.desc);
-		const hierarchyStructureAsc = generateHierarchy(dictionary, ORDER_TYPE.Values.asc);
-
-		return await Promise.all(
-			records.map(async (record) => {
-				try {
-					const childNodes = await traverseChildNodes({
-						data: record.data,
-						entityName: record.entityName,
-						organization: record.organization,
-						schemaCentric: defaultCentricEntity || record.entityName,
-						treeNode: hierarchyStructureDesc,
-					});
-
-					const parentNodes = await traverseParentNodes({
-						data: record.data,
-						entityName: record.entityName,
-						organization: record.organization,
-						schemaCentric: defaultCentricEntity || record.entityName,
-						treeNode: hierarchyStructureAsc,
-					});
-
-					record.data = { ...record.data, ...childNodes, ...parentNodes };
-				} catch (error) {
-					logger.error(`Error converting record ${record.systemId} into compound document`, error);
-				}
-				return record;
-			}),
-		);
-	};
+	const { convertRecordsToCompoundDocuments } = viewMode(dependencies);
+	const { searchDirectDependents } = searchDataRelations(dependencies);
 
 	const deleteSubmittedDataBySystemId = async (
 		categoryId: number,
@@ -105,7 +57,8 @@ const service = (dependencies: BaseDependencies) => {
 	}> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepo;
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { performDataValidation, getOrCreateActiveSubmission } = submissionService(dependencies);
+		const { getOrCreateActiveSubmission } = submissionService(dependencies);
+		const { performDataValidation } = processor(dependencies);
 
 		// get SubmittedData by SystemId
 		const foundRecordToDelete = await getSubmittedDataBySystemId(systemId);
@@ -207,7 +160,8 @@ const service = (dependencies: BaseDependencies) => {
 		status: string;
 	}> => {
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { processEditFilesAsync, getOrCreateActiveSubmission } = submissionService(dependencies);
+		const { getOrCreateActiveSubmission } = submissionService(dependencies);
+		const { processEditFilesAsync } = processor(dependencies);
 		if (files.length === 0) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
@@ -506,244 +460,13 @@ const service = (dependencies: BaseDependencies) => {
 		};
 	};
 
-	/**
-	 * Recursively traverses parent nodes of a schema tree and queries for related SubmittedData.
-	 *
-	 * This function takes in the current data record, entity name, organization, schema-centric information,
-	 * and tree node structure, then filters and queries dependent records recursively, constructing a nested
-	 * structure of related data.
-	 *
-	 * @param data - The current data record to traverse.
-	 * @param entityName - The name of the entity (schema) associated with the current data.
-	 * @param organization - The organization to which the data belongs.
-	 * @param schemaCentric - The schema-centric identifier for filtering parent nodes.
-	 * @param treeNode - The hierarchical structure representing schema relationships.
-	 *
-	 * @returns A promise that resolves to a nested `DataRecordNested` object, containing the traversed and filtered dependent data.
-	 *          If no parent nodes or dependencies exist, it returns an empty object.
-	 *
-	 */
-	const traverseParentNodes = async ({
-		data,
-		entityName,
-		organization,
-		schemaCentric,
-		treeNode,
-	}: {
-		data: DataRecordNested;
-		entityName: string;
-		organization: string;
-		schemaCentric: string;
-		treeNode: TreeNode[];
-	}): Promise<DataRecordNested> => {
-		const { getSubmittedDataFiltered } = submittedDataRepo;
-
-		const parentNode = treeNode.find((node) => node.schemaName === schemaCentric)?.parent;
-
-		if (!parentNode || !parentNode.parentFieldName || !parentNode.schemaName) {
-			// return empty array when no dependents for this record
-			return {};
-		}
-
-		const filterData: { entityName: string; dataField: string; dataValue: string | undefined } = {
-			entityName: parentNode.schemaName,
-			dataField: parentNode.fieldName || '',
-			dataValue: data[parentNode.parentFieldName!]?.toString() || '',
-		};
-
-		logger.debug(
-			LOG_MODULE,
-			`Entity '${entityName}' has following dependencies filter '${JSON.stringify(filterData)}'`,
-		);
-
-		const directDependants = await getSubmittedDataFiltered(organization, [filterData]);
-
-		const groupedDependants = groupByEntityName(directDependants);
-
-		const result: DataRecordNested = {};
-		for (const [entityName, records] of Object.entries(groupedDependants)) {
-			const additionalRecordsForEntity = await Promise.all(
-				records.map(async (record) => {
-					const additional = await traverseParentNodes({
-						data: record.data,
-						entityName: record.entityName,
-						organization: record.organization,
-						schemaCentric: record.entityName,
-						treeNode,
-					});
-					return { ...record.data, ...additional };
-				}),
-			);
-
-			// Getting the first record as record can have only 1 parent
-			result[entityName] = additionalRecordsForEntity[0];
-		}
-
-		return result;
-	};
-
-	/**
-	 * Recursively traverses child nodes of a schema tree and queries for related SubmittedData.
-	 *
-	 * This function takes in the current data record, entity name, organization, schema-centric information,
-	 * and tree node structure, then filters and queries dependent records recursively, constructing a nested
-	 * structure of related data.
-	 *
-	 * @param data - The current data record to traverse.
-	 * @param entityName - The name of the entity (schema) associated with the current data.
-	 * @param organization - The organization to which the data belongs.
-	 * @param schemaCentric - The schema-centric identifier for filtering child nodes.
-	 * @param treeNode - The hierarchical structure representing schema relationships.
-	 *
-	 * @returns A promise that resolves to a nested `DataRecordNested` object, containing the traversed and filtered dependent data.
-	 *          If no child nodes or dependencies exist, it returns an empty object.
-	 *
-	 */
-	const traverseChildNodes = async ({
-		data,
-		entityName,
-		organization,
-		schemaCentric,
-		treeNode,
-	}: {
-		data: DataRecordNested;
-		entityName: string;
-		organization: string;
-		schemaCentric: string;
-		treeNode: TreeNode[];
-	}): Promise<DataRecordNested> => {
-		const { getSubmittedDataFiltered } = submittedDataRepo;
-
-		const childNode = treeNode
-			.find((node) => node.schemaName === schemaCentric)
-			?.children?.filter((childNode) => childNode.parentFieldName && childNode.schemaName);
-
-		if (!childNode || childNode.length === 0) {
-			// return empty array when no dependents for this record
-			return {};
-		}
-
-		const filterData: { entityName: string; dataField: string; dataValue: string | undefined }[] = childNode.map(
-			(childNode) => ({
-				entityName: childNode.schemaName,
-				dataField: childNode.fieldName || '',
-				dataValue: data[childNode.parentFieldName!]?.toString() || '',
-			}),
-		);
-
-		logger.debug(
-			LOG_MODULE,
-			`Entity '${entityName}' has following dependencies filter '${JSON.stringify(filterData)}'`,
-		);
-
-		const directDependants = await getSubmittedDataFiltered(organization, filterData);
-
-		const groupedDependants = groupByEntityName(directDependants);
-
-		const result: DataRecordNested = {};
-		for (const [entityName, records] of Object.entries(groupedDependants)) {
-			// if enabled ensures that schema names are consistently pluralized
-			const dependantKeyName = recordHierarchy?.pluralizeSchemasName ? pluralizeSchemaName(entityName) : entityName;
-
-			const additionalRecordsForEntity = await Promise.all(
-				records.map(async (record) => {
-					const additional = await traverseChildNodes({
-						data: record.data,
-						entityName: record.entityName,
-						organization: record.organization,
-						schemaCentric: record.entityName,
-						treeNode,
-					});
-					return { ...record.data, ...additional };
-				}),
-			);
-
-			result[dependantKeyName] = additionalRecordsForEntity;
-		}
-
-		return result;
-	};
-
-	/**
-	 * This function uses a dictionary children relations to query recursivaly
-	 * to return all SubmittedData that relates
-	 * @param input
-	 * @param {DataRecord} input.data
-	 * @param {Record<string, SchemaChildNode[]>} input.dictionaryRelations
-	 * @param {string} input.entityName
-	 * @param {string} input.organization
-	 * @param {string} input.systemId
-	 * @returns {Promise<SubmittedData[]>}
-	 */
-	const searchDirectDependents = async ({
-		data,
-		dictionaryRelations,
-		entityName,
-		organization,
-		systemId,
-	}: {
-		data: DataRecord;
-		dictionaryRelations: Record<string, SchemaChildNode[]>;
-		entityName: string;
-		organization: string;
-		systemId: string;
-	}): Promise<SubmittedData[]> => {
-		const { getSubmittedDataFiltered } = submittedDataRepo;
-
-		// Check if entity has children relationships
-		if (Object.prototype.hasOwnProperty.call(dictionaryRelations, entityName)) {
-			// Array that represents the children fields to filter
-
-			const filterData: { entityName: string; dataField: string; dataValue: string | undefined }[] = Object.values(
-				dictionaryRelations[entityName],
-			)
-				.filter((childNode) => childNode.parent?.fieldName)
-				.map((childNode) => ({
-					entityName: childNode.schemaName,
-					dataField: childNode.fieldName,
-					dataValue: data[childNode.parent!.fieldName]?.toString(),
-				}));
-
-			logger.debug(
-				LOG_MODULE,
-				`Entity '${entityName}' has following dependencies filter'${JSON.stringify(filterData)}'`,
-			);
-
-			const directDependents = await getSubmittedDataFiltered(organization, filterData);
-
-			const additionalDepend = (
-				await Promise.all(
-					directDependents.map((record) =>
-						searchDirectDependents({
-							data: record.data,
-							dictionaryRelations,
-							entityName: record.entityName,
-							organization: record.organization,
-							systemId: record.systemId,
-						}),
-					),
-				)
-			).flatMap((item) => item);
-
-			const uniqueDependents = mergeSubmittedDataAndDeduplicateById(directDependents, additionalDepend);
-
-			logger.info(LOG_MODULE, `Found '${uniqueDependents.length}' records depending on system ID '${systemId}'`);
-
-			return uniqueDependents;
-		}
-
-		// return empty array when no dependents for this record
-		return [];
-	};
-
 	return {
 		deleteSubmittedDataBySystemId,
 		editSubmittedData,
 		getSubmittedDataByCategory,
 		getSubmittedDataByOrganization,
 		getSubmittedDataBySystemId,
-		searchDirectDependents,
 	};
 };
 
-export default service;
+export default submittedData;

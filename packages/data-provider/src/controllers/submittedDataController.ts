@@ -1,7 +1,7 @@
 import * as _ from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
-import submittedDataService from '../services/submittedDataService.js';
+import submittedDataService from '../services/submittedData/submmittedData.js';
 import { parseSQON } from '../utils/convertSqonToQuery.js';
 import { NotFound } from '../utils/errors.js';
 import { asArray } from '../utils/formatUtils.js';
