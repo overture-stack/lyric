@@ -6,7 +6,7 @@ import type { SQON } from '@overture-stack/sqon-builder';
 
 import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js';
 import { parseSQON } from './convertSqonToQuery.js';
-import { isValidDateFormat, isValidIdNumber, isValidView } from './formatUtils.js';
+import { isValidDateFormat, isValidIdNumber } from './formatUtils.js';
 import { RequestValidation } from './requestValidation.js';
 import { VIEW_TYPE } from './types.js';
 
@@ -16,11 +16,7 @@ const auditEventTypeSchema = z
 	.min(1)
 	.refine((value) => isAuditEventValid(value), 'invalid Event Type');
 
-const viewSchema = z
-	.string()
-	.trim()
-	.min(1)
-	.refine((value) => isValidView(value), 'invalid `view` parameter');
+const viewSchema = z.string().toLowerCase().trim().min(1).pipe(VIEW_TYPE);
 
 const categoryIdSchema = z
 	.string()

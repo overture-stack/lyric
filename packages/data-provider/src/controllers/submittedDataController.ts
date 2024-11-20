@@ -1,5 +1,6 @@
 import * as _ from 'lodash-es';
 
+import { convertToViewType } from '..//utils/submittedDataUtils.js';
 import { BaseDependencies } from '../config/config.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
 import { parseSQON } from '../utils/convertSqonToQuery.js';
@@ -31,12 +32,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const entityName = asArray(req.query.entityName || []);
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
-				const view = req.query.view || defaultView;
-
-				const parsedView = VIEW_TYPE.safeParse(view);
-				if (!parsedView.success) {
-					throw new Error('Invalid view type provided');
-				}
+				const view = convertToViewType(req.query.view) || defaultView;
 
 				logger.info(
 					LOG_MODULE,
@@ -48,7 +44,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const submittedDataResult = await service.getSubmittedDataByCategory(
 					categoryId,
 					{ page, pageSize },
-					{ entityName, view: parsedView.data },
+					{ entityName, view },
 				);
 
 				if (_.isEmpty(submittedDataResult.result)) {
@@ -80,12 +76,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const entityName = asArray(req.query.entityName || []);
 				const page = parseInt(req.query.page as string) || defaultPage;
 				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
-				const view = req.query.view || defaultView;
-
-				const parsedView = VIEW_TYPE.safeParse(view);
-				if (!parsedView.success) {
-					throw new Error('Invalid view type provided');
-				}
+				const view = convertToViewType(req.query.view as string) || defaultView;
 
 				logger.info(
 					LOG_MODULE,
@@ -101,7 +92,7 @@ const controller = (dependencies: BaseDependencies) => {
 						page,
 						pageSize,
 					},
-					{ entityName, view: parsedView.data },
+					{ entityName, view },
 				);
 
 				if (submittedDataResult.metadata.errorMessage) {
@@ -177,12 +168,7 @@ const controller = (dependencies: BaseDependencies) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const systemId = req.params.systemId;
-				const view = req.query.view || defaultView;
-
-				const parsedView = VIEW_TYPE.safeParse(view);
-				if (!parsedView.success) {
-					throw new Error('Invalid view type provided');
-				}
+				const view = convertToViewType(req.query.view as string) || defaultView;
 
 				logger.info(
 					LOG_MODULE,
@@ -193,7 +179,7 @@ const controller = (dependencies: BaseDependencies) => {
 				);
 
 				const submittedDataResult = await service.getSubmittedDataBySystemId(categoryId, systemId, {
-					view: parsedView.data,
+					view,
 				});
 
 				if (submittedDataResult.metadata.errorMessage) {

@@ -83,6 +83,23 @@ export const computeDataDiff = (oldRecord: DataRecord | null, newRecord: DataRec
 };
 
 /**
+ * Convert a value into it's View type if it matches.
+ * Otherwise it returns `undefined`
+ * @param {unknown} value
+ * @returns {ViewType | undefined}
+ */
+export const convertToViewType = (value: unknown): ViewType | undefined => {
+	if (typeof value === 'string') {
+		const parseResult = VIEW_TYPE.safeParse(value.trim().toLowerCase());
+
+		if (parseResult.success) {
+			return parseResult.data;
+		}
+	}
+	return undefined;
+};
+
+/**
  * Abstract Error response
  * @param error
  * @returns
