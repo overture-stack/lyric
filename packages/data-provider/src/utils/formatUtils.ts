@@ -85,14 +85,19 @@ export const deepCompare = (obj1: unknown, obj2: unknown): boolean => {
 		return false; // Ensure both are non-null objects
 	}
 
+	// Ensure obj1 and obj2 are both records (i.e., objects)
+	if (!isObject(obj1) || !isObject(obj2)) {
+		return false;
+	}
+
 	const keys1 = Object.keys(obj1);
 	const keys2 = Object.keys(obj2);
 
 	if (keys1.length !== keys2.length) return false; // Different number of keys
 
 	for (const key of keys1) {
-		const val1 = (obj1 as Record<string, unknown>)[key];
-		const val2 = (obj2 as Record<string, unknown>)[key];
+		const val1 = obj1[key];
+		const val2 = obj2[key];
 
 		if (!keys2.includes(key) || !deepCompare(val1, val2)) {
 			return false;
@@ -101,3 +106,8 @@ export const deepCompare = (obj1: unknown, obj2: unknown): boolean => {
 
 	return true;
 };
+
+// Helper function to check if an object is a plain object
+function isObject(obj: unknown): obj is Record<string, unknown> {
+	return typeof obj === 'object' && obj !== null && !Array.isArray(obj);
+}

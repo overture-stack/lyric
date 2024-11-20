@@ -8,7 +8,9 @@ import {
 	DictionaryValidationRecordErrorDetails,
 } from '@overture-stack/lectern-client';
 import {
+	type Category,
 	type DataDiff,
+	type Dictionary,
 	NewSubmittedData,
 	Submission,
 	SubmissionData,
@@ -223,8 +225,8 @@ export type CategoryActiveSubmission = {
 export type ActiveSubmissionResponse = {
 	id: number;
 	data: SubmissionData;
-	dictionary: DictionaryActiveSubmission | null;
-	dictionaryCategory: CategoryActiveSubmission | null;
+	dictionary: DictionaryActiveSubmission;
+	dictionaryCategory: CategoryActiveSubmission;
 	errors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> | null;
 	organization: string;
 	status: SubmissionStatus | null;
@@ -252,8 +254,8 @@ export type ActiveSubmissionSummaryResponse = Omit<ActiveSubmissionResponse, 'da
 export type ActiveSubmissionSummaryRepository = {
 	id: number;
 	data: SubmissionData;
-	dictionary: object | null;
-	dictionaryCategory: object | null;
+	dictionary: Pick<Dictionary, 'name' | 'version'>;
+	dictionaryCategory: Pick<Category, 'id' | 'name'>;
 	errors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> | null;
 	organization: string | null;
 	status: SubmissionStatus | null;
@@ -265,7 +267,7 @@ export type ActiveSubmissionSummaryRepository = {
 
 export type CategoryDetailsResponse = {
 	id: number;
-	dictionary?: { name: string; version: string };
+	dictionary?: Pick<Dictionary, 'name' | 'version'>;
 	name: string;
 	organizations: string[];
 	createdAt: string;

@@ -29,12 +29,10 @@ import {
 	ActiveSubmissionSummaryResponse,
 	BATCH_ERROR_TYPE,
 	BatchError,
-	CategoryActiveSubmission,
 	type DataDeletesActiveSubmissionSummary,
 	DataInsertsActiveSubmissionSummary,
 	DataRecordReference,
 	type DataUpdatesActiveSubmissionSummary,
-	DictionaryActiveSubmission,
 	type EditSubmittedDataReference,
 	MERGE_REFERENCE_TYPE,
 	type NewSubmittedDataReference,
@@ -359,12 +357,12 @@ export const groupSchemaErrorsByEntity = (input: {
  * This function extracts the Schema Data from the Active Submission
  * and maps it to it's original reference Id
  * The result mapping is used to perform the cross schema validation
- * @param {number | undefined} activeSubmissionId
+ * @param {number} activeSubmissionId
  * @param {Record<string, SubmissionInsertData>} activeSubmissionInsertDataEntities
  * @returns {Record<string, DataRecordReference[]>}
  */
 export const mapInsertDataToRecordReferences = (
-	activeSubmissionId: number | undefined,
+	activeSubmissionId: number,
 	activeSubmissionInsertDataEntities: Record<string, SubmissionInsertData>,
 ): Record<string, DataRecordReference[]> => {
 	return _.mapValues(activeSubmissionInsertDataEntities, (submissionInsertData) =>
@@ -375,7 +373,7 @@ export const mapInsertDataToRecordReferences = (
 					submissionId: activeSubmissionId,
 					type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
 					index: index,
-				} as NewSubmittedDataReference,
+				},
 			};
 		}),
 	);
@@ -616,8 +614,8 @@ export const parseActiveSubmissionResponse = (
 	return {
 		id: submission.id,
 		data: submission.data,
-		dictionary: submission.dictionary as DictionaryActiveSubmission,
-		dictionaryCategory: submission.dictionaryCategory as CategoryActiveSubmission,
+		dictionary: submission.dictionary,
+		dictionaryCategory: submission.dictionaryCategory,
 		errors: submission.errors,
 		organization: _.toString(submission.organization),
 		status: submission.status,
@@ -669,8 +667,8 @@ export const parseActiveSubmissionSummaryResponse = (
 	return {
 		id: submission.id,
 		data: { inserts: dataInsertsSummary, updates: dataUpdatesSummary, deletes: dataDeletesSummary },
-		dictionary: submission.dictionary as DictionaryActiveSubmission,
-		dictionaryCategory: submission.dictionaryCategory as CategoryActiveSubmission,
+		dictionary: submission.dictionary,
+		dictionaryCategory: submission.dictionaryCategory,
 		errors: submission.errors,
 		organization: _.toString(submission.organization),
 		status: submission.status,

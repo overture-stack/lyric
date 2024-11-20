@@ -298,7 +298,7 @@ const processor = (dependencies: BaseDependencies) => {
 			dataSubmittedRepo.deleteBySystemId({
 				submissionId: submission.id,
 				systemId: item.systemId,
-				diff: computeDataDiff(item.data as DataRecord, null),
+				diff: computeDataDiff(item.data, null),
 				userName,
 			});
 		});

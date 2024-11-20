@@ -30,8 +30,8 @@ const controller = (dependencies: BaseDependencies) => {
 
 				// query params
 				const entityName = asArray(req.query.entityName || []);
-				const page = parseInt(req.query.page as string) || defaultPage;
-				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
+				const page = parseInt(String(req.query.page)) || defaultPage;
+				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
 				const view = convertToViewType(req.query.view) || defaultView;
 
 				logger.info(
@@ -74,9 +74,9 @@ const controller = (dependencies: BaseDependencies) => {
 
 				// query parameters
 				const entityName = asArray(req.query.entityName || []);
-				const page = parseInt(req.query.page as string) || defaultPage;
-				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
-				const view = convertToViewType(req.query.view as string) || defaultView;
+				const page = parseInt(String(req.query.page)) || defaultPage;
+				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+				const view = convertToViewType(String(req.query.view)) || defaultView;
 
 				logger.info(
 					LOG_MODULE,
@@ -123,8 +123,8 @@ const controller = (dependencies: BaseDependencies) => {
 
 				// query parameters
 				const entityName = asArray(req.query.entityName || []);
-				const page = parseInt(req.query.page as string) || defaultPage;
-				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
+				const page = parseInt(String(req.query.page)) || defaultPage;
+				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
 
 				logger.info(
 					LOG_MODULE,
@@ -168,7 +168,7 @@ const controller = (dependencies: BaseDependencies) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const systemId = req.params.systemId;
-				const view = convertToViewType(req.query.view as string) || defaultView;
+				const view = convertToViewType(String(req.query.view)) || defaultView;
 
 				logger.info(
 					LOG_MODULE,
