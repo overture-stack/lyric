@@ -3,6 +3,7 @@ import type { Schema } from '@overture-stack/lectern-client';
 import type { BaseDependencies } from '../../config/config.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { generateHierarchy, type TreeNode } from '../../utils/dictionarySchemaRelations.js';
+import { InternalServerError } from '../../utils/errors.js';
 import { pluralizeSchemaName } from '../../utils/submissionUtils.js';
 import { groupByEntityName } from '../../utils/submittedDataUtils.js';
 import { type DataRecordNested, ORDER_TYPE, type SubmittedDataResponse } from '../../utils/types.js';
@@ -48,6 +49,7 @@ const viewMode = (dependencies: BaseDependencies) => {
 					record.data = { ...record.data, ...childNodes, ...parentNodes };
 				} catch (error) {
 					logger.error(`Error converting record ${record.systemId} into compound document`, error);
+					throw new InternalServerError(`An error occurred while converting records into compound view`);
 				}
 				return record;
 			}),
