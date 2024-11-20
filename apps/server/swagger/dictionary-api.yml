@@ -14,15 +14,19 @@
               categoryName:
                 type: string
                 description: A user-defined classification to group and organize data based on shared characteristics or criteria
-                required: true
               dictionaryName:
                 type: string
                 description: A matching Dictionary Name defined on Dictionary Manager (Lectern)
-                required: true
-              version:
+              dictionaryVersion:
                 type: string
                 description: A matching Dictionary Version defined on Dictionary Manager (Lectern)
-                required: true
+              defaultCentricEntity:
+                type: string
+                description: The default centric entity name
+            required:
+              - categoryName
+              - dictionaryName
+              - dictionaryVersion
     responses:
       200:
         description: Dictionary info

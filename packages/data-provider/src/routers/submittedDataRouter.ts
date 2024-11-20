@@ -1,4 +1,4 @@
-import { Router, urlencoded } from 'express';
+import { json, Router, urlencoded } from 'express';
 
 import { BaseDependencies } from '../config/config.js';
 import submittedDataController from '../controllers/submittedDataController.js';
@@ -7,6 +7,7 @@ import { auth } from '../middleware/auth.js';
 const router = (dependencies: BaseDependencies): Router => {
 	const router = Router();
 	router.use(urlencoded({ extended: false }));
+	router.use(json());
 
 	router.get('/category/:categoryId', auth, submittedDataController(dependencies).getSubmittedDataByCategory);
 
@@ -20,6 +21,12 @@ const router = (dependencies: BaseDependencies): Router => {
 		'/category/:categoryId/organization/:organization/query',
 		auth,
 		submittedDataController(dependencies).getSubmittedDataByQuery,
+	);
+
+	router.get(
+		'/category/:categoryId/id/:systemId',
+		auth,
+		submittedDataController(dependencies).getSubmittedDataBySystemId,
 	);
 
 	return router;

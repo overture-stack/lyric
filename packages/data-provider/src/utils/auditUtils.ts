@@ -30,7 +30,7 @@ export const convertToAuditEvent = (value: string): AuditAction | undefined => {
 	const parseResult = AUDIT_ACTION.safeParse(value.toUpperCase());
 
 	if (parseResult.success) {
-		return parseResult.data as AuditAction;
+		return parseResult.data;
 	}
 	return undefined;
 };

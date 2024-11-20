@@ -2,6 +2,7 @@ import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
 import {
+	asArray,
 	isArrayWithValues,
 	isEmptyString,
 	isValidDateFormat,
@@ -10,6 +11,47 @@ import {
 } from '../../src/utils/formatUtils.js';
 
 describe('Format Utils', () => {
+	describe('Wrap any value into array', () => {
+		it('should return an empty array when the value is undefined', () => {
+			const result = asArray(undefined);
+			expect(result).to.eql([]); // Expecting an empty array
+		});
+
+		it('should return an empty array when the value is null', () => {
+			const result = asArray(null);
+			expect(result).to.eql([]); // Expecting an empty array
+		});
+
+		it('should return the same array when the value is already an array', () => {
+			const input = ['a', 'b', 'c'];
+			const result = asArray(input);
+			expect(result).to.eql(input);
+		});
+
+		it('should return an array with a single value when a single value is passed', () => {
+			const input = 'singleValue';
+			const result = asArray(input);
+			expect(result).to.eql([input]);
+		});
+
+		it('should exclude undefined values when the value is an array with undefined', () => {
+			const input = ['a', undefined, 'b'];
+			const result = asArray(input);
+			expect(result).to.eql(['a', 'b']);
+		});
+
+		it('should exclude undefined values when a single value is undefined', () => {
+			const input = undefined;
+			const result = asArray(input);
+			expect(result).to.eql([]);
+		});
+
+		it('should filter out empty strings and undefined values ', () => {
+			const input = [0, false, '', undefined, 'valid'];
+			const result = asArray(input);
+			expect(result).to.eql([0, false, 'valid']);
+		});
+	});
 	describe('Validate if input is a valid ID number', () => {
 		it('should return true if input is a valid number', () => {
 			const validNumber = 1;

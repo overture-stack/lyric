@@ -64,6 +64,13 @@
       "when": 1727965304851,
       "tag": "0008_set_not_null_last_valid_schema_id",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1730128901514,
+      "tag": "0009_add_default_centric_entity",
+      "breakpoints": true
     }
   ]
 }

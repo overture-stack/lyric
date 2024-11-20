@@ -3,11 +3,14 @@ import { z } from 'zod';
 
 import {
 	type DataRecord,
+	type DataRecordValue,
 	Dictionary as SchemasDictionary,
 	DictionaryValidationRecordErrorDetails,
 } from '@overture-stack/lectern-client';
 import {
+	type Category,
 	type DataDiff,
+	type Dictionary,
 	NewSubmittedData,
 	Submission,
 	SubmissionData,
@@ -222,8 +225,8 @@ export type CategoryActiveSubmission = {
 export type ActiveSubmissionResponse = {
 	id: number;
 	data: SubmissionData;
-	dictionary: DictionaryActiveSubmission | null;
-	dictionaryCategory: CategoryActiveSubmission | null;
+	dictionary: DictionaryActiveSubmission;
+	dictionaryCategory: CategoryActiveSubmission;
 	errors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> | null;
 	organization: string;
 	status: SubmissionStatus | null;
@@ -251,8 +254,8 @@ export type ActiveSubmissionSummaryResponse = Omit<ActiveSubmissionResponse, 'da
 export type ActiveSubmissionSummaryRepository = {
 	id: number;
 	data: SubmissionData;
-	dictionary: object | null;
-	dictionaryCategory: object | null;
+	dictionary: Pick<Dictionary, 'name' | 'version'>;
+	dictionaryCategory: Pick<Category, 'id' | 'name'>;
 	errors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> | null;
 	organization: string | null;
 	status: SubmissionStatus | null;
@@ -264,7 +267,7 @@ export type ActiveSubmissionSummaryRepository = {
 
 export type CategoryDetailsResponse = {
 	id: number;
-	dictionary?: { name: string; version: string };
+	dictionary?: Pick<Dictionary, 'name' | 'version'>;
 	name: string;
 	organizations: string[];
 	createdAt: string;
@@ -289,7 +292,7 @@ export type ListAllCategoriesResponse = {
  * Submitted Raw Data information
  */
 export type SubmittedDataResponse = {
-	data: DataRecord;
+	data: DataRecordNested;
 	entityName: string;
 	isValid: boolean;
 	organization: string;
@@ -368,6 +371,10 @@ export type DataRecordReference = {
 	reference: SubmittedDataReference | NewSubmittedDataReference | EditSubmittedDataReference;
 };
 
+export interface DataRecordNested {
+	[key: string]: DataRecordValue | DataRecordNested | DataRecordNested[];
+}
+
 /**
  * Keys of an object type as a union
  *
@@ -399,3 +406,21 @@ export type Values<T> = T extends infer U ? U[keyof U] : never;
  * This will display type as an object with key: value pairs instead as an alias name.
  */
 export type Clean<T> = T extends infer U ? { [K in keyof U]: U[K] } : never;
+
+/**
+ * Enum matching Schema relationships types
+ */
+export const SCHEMA_RELATION_TYPE = z.enum(['parent', 'children']);
+export type SchemaRelationType = z.infer<typeof SCHEMA_RELATION_TYPE>;
+
+/**
+ * Enum matching Schema relationships order types
+ */
+export const ORDER_TYPE = z.enum(['asc', 'desc']);
+export type OrderType = z.infer<typeof ORDER_TYPE>;
+
+/**
+ * Enum matching Retrieve data views
+ */
+export const VIEW_TYPE = z.enum(['flat', 'compound']);
+export type ViewType = z.infer<typeof VIEW_TYPE>;

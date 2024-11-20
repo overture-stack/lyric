@@ -155,11 +155,18 @@ export const parseSQON = (input: unknown): SQON | undefined => {
 		// TODO: SQL sanitization (https://github.com/overture-stack/lyric/issues/43)
 	} catch (error: unknown) {
 		if (isZodError(error)) {
-			throw new BadRequest('Invalid SQON format', (error as ZodError).issues);
+			throw new BadRequest('Invalid SQON format', error.issues);
 		}
 	}
 };
 
-const isZodError = (error: unknown) => {
-	return error && typeof error === 'object' && 'name' in error && error.name === 'ZodError';
+const isZodError = (error: unknown): error is ZodError => {
+	if (error instanceof ZodError) {
+		return true;
+	}
+
+	if (error && typeof error === 'object' && 'name' in error && error.name === 'ZodError') {
+		return true;
+	}
+	return false;
 };
