@@ -40,10 +40,7 @@ export const defaultAppConfig: AppConfig = {
 			enabled: getBoolean(process.env.AUDIT_ENABLED, true),
 		},
 		recordHierarchy: {
-			nestedRecordPrefix: process.env.NESTED_RECORD_PREFIX || '',
-			nestedRecordSuffix: process.env.NESTED_RECORD_SUFFIX || 's',
-			parentRecordPrefix: process.env.PARENT_RECORD_PREFIX || '',
-			parentRecordSuffix: process.env.PARENT_RECORD_SUFFIX || '',
+			pluralizeSchemasName: getBoolean(process.env.PLURALIZE_SCHEMAS_ENABLED, true),
 		},
 	},
 	idService: {

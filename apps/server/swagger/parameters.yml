@@ -1,0 +1,40 @@
+components:
+  parameters:
+    path:
+      CategoryId:
+        name: categoryId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID of the category to which the data belongs
+      Organization:
+        name: organization
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Organization name
+    query:
+      Page:
+        name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Optional query parameter to specify the page number of the results. Default value is 1
+      PageSize:
+        name: pageSize
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Optional query parameter to specify the number of results per page. Default value is 20
+      View:
+        name: view
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: ['flat', 'compound']
+        description: Optional query parameter to define the data format. Choose 'flat' for a simple, single-level collection of records, or 'compound' for a nested, schema-centric structure. The default value is 'flat'

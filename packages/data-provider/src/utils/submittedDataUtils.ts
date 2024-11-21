@@ -83,6 +83,23 @@ export const computeDataDiff = (oldRecord: DataRecord | null, newRecord: DataRec
 };
 
 /**
+ * Convert a value into it's View type if it matches.
+ * Otherwise it returns `undefined`
+ * @param {unknown} value
+ * @returns {ViewType | undefined}
+ */
+export const convertToViewType = (value: unknown): ViewType | undefined => {
+	if (typeof value === 'string') {
+		const parseResult = VIEW_TYPE.safeParse(value.trim().toLowerCase());
+
+		if (parseResult.success) {
+			return parseResult.data;
+		}
+	}
+	return undefined;
+};
+
+/**
  * Abstract Error response
  * @param error
  * @returns
@@ -90,11 +107,11 @@ export const computeDataDiff = (oldRecord: DataRecord | null, newRecord: DataRec
 export const fetchDataErrorResponse = (
 	error: string,
 ): {
-	data: [];
+	result: [];
 	metadata: { totalRecords: number; errorMessage?: string };
 } => {
 	return {
-		data: [],
+		result: [],
 		metadata: {
 			totalRecords: 0,
 			errorMessage: error,
@@ -103,28 +120,28 @@ export const fetchDataErrorResponse = (
 };
 
 /**
- * Determines the entity names based on the provided filter options.
+ * Returns a list of entity names based on the provided filter options
  *
  * If the `view` flag is set in the `filterOptions` and a `defaultCentricEntity` exists
  * it returns an array containing the `defaultCentricEntity`.
  * Otherwise, it returns the `entityName` from `filterOptions`, if provided.
  *
- * @param filterOptions An object containing the compound flag and the entity name array.
+ * @param filterOptions An object containing the view flag and the entity name array.
  * @param filterOptions.view A flag indicating the type of view to represent the records
- * @param filterOptions.entityName An array of entity names, used if compound is false or undefined.
+ * @param filterOptions.entityName An array of entity names, used if view is not compound.
  * @param defaultCentricEntity The default centric entity name
- * @returns An array of entity names or `undefined` if no conditions are met.
+ * @returns An array of entity names or empty array if no conditions are met.
  */
-export const filterQueryByEntityName = (
-	filterOptions: { view: ViewType; entityName?: (string | undefined)[] },
-	defaultCentricEntity: string | null,
-): (string | undefined)[] | undefined => {
+export const getEntityNamesFromFilterOptions = (
+	filterOptions: { view: ViewType; entityName?: string[] },
+	defaultCentricEntity?: string,
+): string[] => {
 	if (filterOptions.view === VIEW_TYPE.Values.compound && defaultCentricEntity) {
 		return [defaultCentricEntity];
-	} else if (filterOptions?.entityName) {
-		return filterOptions.entityName;
+	} else if (filterOptions.entityName) {
+		return filterOptions.entityName.filter((name) => name);
 	}
-	return undefined; // Return undefined if no conditions are met
+	return []; // Return an empty array if no conditions are met
 };
 
 /**

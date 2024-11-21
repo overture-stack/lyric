@@ -111,10 +111,7 @@
     tags:
       - Submission
     parameters:
-      - name: categoryId
-        in: path
-        type: string
-        required: true
+      - $ref: '#/components/parameters/path/CategoryId'
     responses:
       200:
         description: Active Submissions
@@ -138,14 +135,8 @@
     tags:
       - Submission
     parameters:
-      - name: categoryId
-        in: path
-        type: string
-        required: true
-      - name: organization
-        in: path
-        type: string
-        required: true
+      - $ref: '#/components/parameters/path/CategoryId'
+      - $ref: '#/components/parameters/path/Organization'
     responses:
       200:
         description: Active Submission
@@ -169,10 +160,7 @@
     tags:
       - Submission
     parameters:
-      - name: categoryId
-        in: path
-        type: file
-        required: true
+      - $ref: '#/components/parameters/path/CategoryId'
       - name: submissionId
         in: path
         type: string
@@ -203,10 +191,7 @@
     consumes:
       - multipart/form-data
     parameters:
-      - name: categoryId
-        in: path
-        type: string
-        required: true
+      - $ref: '#/components/parameters/path/CategoryId'
     requestBody:
       content:
         multipart/form-data:
@@ -220,6 +205,9 @@
                   format: binary
               organization:
                 type: string
+            required:
+              - files
+              - organization
     responses:
       200:
         description: Submission accepted
@@ -242,12 +230,7 @@
     consumes:
       - multipart/form-data
     parameters:
-      - name: categoryId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: ID of the category
+      - $ref: '#/components/parameters/path/CategoryId'
     requestBody:
       content:
         multipart/form-data:
@@ -261,6 +244,9 @@
                   format: binary
               organization:
                 type: string
+            required:
+              - files
+              - organization
     responses:
       200:
         description: Edit Data request accepted
@@ -283,12 +269,7 @@
     tags:
       - Submission
     parameters:
-      - name: categoryId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: ID of the category to which the data belongs
+      - $ref: '#/components/parameters/path/CategoryId'
       - name: systemId
         in: path
         required: true

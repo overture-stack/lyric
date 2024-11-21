@@ -36,7 +36,7 @@ describe('Dictionary Schema Relations', () => {
 		});
 	});
 
-	describe('find the hierarchycal descendant structure between schemas in the dictionary', () => {
+	describe('find the hierarchical descendant structure between schemas in the dictionary', () => {
 		it('should return only one unrelated element the tree', () => {
 			const schemas: SchemaDefinition[] = [
 				{
@@ -165,7 +165,7 @@ describe('Dictionary Schema Relations', () => {
 		});
 	});
 
-	describe('find the hierarchycal ascendant structure between schemas in the dictionary', () => {
+	describe('find the hierarchical ascendant structure between schemas in the dictionary', () => {
 		it('should return only one unrelated element the tree', () => {
 			const schemas: SchemaDefinition[] = [
 				{

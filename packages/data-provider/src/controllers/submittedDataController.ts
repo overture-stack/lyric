@@ -1,7 +1,8 @@
 import * as _ from 'lodash-es';
 
+import { convertToViewType } from '..//utils/submittedDataUtils.js';
 import { BaseDependencies } from '../config/config.js';
-import submittedDataService from '../services/submittedDataService.js';
+import submittedDataService from '../services/submittedData/submmittedData.js';
 import { parseSQON } from '../utils/convertSqonToQuery.js';
 import { NotFound } from '../utils/errors.js';
 import { asArray } from '../utils/formatUtils.js';
@@ -9,8 +10,8 @@ import { validateRequest } from '../utils/requestValidation.js';
 import {
 	dataGetByCategoryRequestSchema,
 	dataGetByOrganizationRequestSchema,
-	dataGetByQueryRequestschema,
-	dataGetBySystemIdRequestschema,
+	dataGetByQueryRequestSchema,
+	dataGetBySystemIdRequestSchema,
 } from '../utils/schemas.js';
 import { SubmittedDataPaginatedResponse, VIEW_TYPE } from '../utils/types.js';
 
@@ -20,7 +21,7 @@ const controller = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_CONTROLLER';
 	const defaultPage = 1;
 	const defaultPageSize = 20;
-	const defaultView = VIEW_TYPE.Values.list;
+	const defaultView = VIEW_TYPE.Values.flat;
 
 	return {
 		getSubmittedDataByCategory: validateRequest(dataGetByCategoryRequestSchema, async (req, res, next) => {
@@ -28,15 +29,10 @@ const controller = (dependencies: BaseDependencies) => {
 				const categoryId = Number(req.params.categoryId);
 
 				// query params
-				const entityName = asArray(req.query.entityName);
-				const page = parseInt(req.query.page as string) || defaultPage;
-				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
-				const view = req.query.view || defaultView;
-
-				const parsedView = VIEW_TYPE.safeParse(view);
-				if (!parsedView.success) {
-					throw new Error('Invalid view type provided');
-				}
+				const entityName = asArray(req.query.entityName || []);
+				const page = parseInt(String(req.query.page)) || defaultPage;
+				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+				const view = convertToViewType(req.query.view) || defaultView;
 
 				logger.info(
 					LOG_MODULE,
@@ -48,10 +44,10 @@ const controller = (dependencies: BaseDependencies) => {
 				const submittedDataResult = await service.getSubmittedDataByCategory(
 					categoryId,
 					{ page, pageSize },
-					{ entityName, view: parsedView.data },
+					{ entityName, view },
 				);
 
-				if (_.isEmpty(submittedDataResult.data)) {
+				if (_.isEmpty(submittedDataResult.result)) {
 					throw new NotFound('No Submitted Data found');
 				}
 
@@ -62,7 +58,7 @@ const controller = (dependencies: BaseDependencies) => {
 						totalPages: Math.ceil(submittedDataResult.metadata.totalRecords / pageSize),
 						totalRecords: submittedDataResult.metadata.totalRecords,
 					},
-					records: submittedDataResult.data,
+					records: submittedDataResult.result,
 				};
 
 				return res.status(200).send(response);
@@ -77,15 +73,10 @@ const controller = (dependencies: BaseDependencies) => {
 				const organization = req.params.organization;
 
 				// query parameters
-				const entityName = asArray(req.query.entityName);
-				const page = parseInt(req.query.page as string) || defaultPage;
-				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
-				const view = req.query.view || defaultView;
-
-				const parsedView = VIEW_TYPE.safeParse(view);
-				if (!parsedView.success) {
-					throw new Error('Invalid view type provided');
-				}
+				const entityName = asArray(req.query.entityName || []);
+				const page = parseInt(String(req.query.page)) || defaultPage;
+				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+				const view = convertToViewType(String(req.query.view)) || defaultView;
 
 				logger.info(
 					LOG_MODULE,
@@ -101,7 +92,7 @@ const controller = (dependencies: BaseDependencies) => {
 						page,
 						pageSize,
 					},
-					{ entityName, view: parsedView.data },
+					{ entityName, view },
 				);
 
 				if (submittedDataResult.metadata.errorMessage) {
@@ -115,7 +106,7 @@ const controller = (dependencies: BaseDependencies) => {
 						totalPages: Math.ceil(submittedDataResult.metadata.totalRecords / pageSize),
 						totalRecords: submittedDataResult.metadata.totalRecords,
 					},
-					records: submittedDataResult.data,
+					records: submittedDataResult.result,
 				};
 
 				return res.status(200).send(responsePaginated);
@@ -124,16 +115,16 @@ const controller = (dependencies: BaseDependencies) => {
 			}
 		}),
 
-		getSubmittedDataByQuery: validateRequest(dataGetByQueryRequestschema, async (req, res, next) => {
+		getSubmittedDataByQuery: validateRequest(dataGetByQueryRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
 				const sqon = parseSQON(req.body);
 
 				// query parameters
-				const entityName = asArray(req.query.entityName);
-				const page = parseInt(req.query.page as string) || defaultPage;
-				const pageSize = parseInt(req.query.pageSize as string) || defaultPageSize;
+				const entityName = asArray(req.query.entityName || []);
+				const page = parseInt(String(req.query.page)) || defaultPage;
+				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
 
 				logger.info(
 					LOG_MODULE,
@@ -151,7 +142,7 @@ const controller = (dependencies: BaseDependencies) => {
 						page,
 						pageSize,
 					},
-					{ sqon, entityName, view: VIEW_TYPE.Values.list },
+					{ sqon, entityName, view: VIEW_TYPE.Values.flat },
 				);
 
 				if (submittedDataResult.metadata.errorMessage) {
@@ -165,7 +156,7 @@ const controller = (dependencies: BaseDependencies) => {
 						totalPages: Math.ceil(submittedDataResult.metadata.totalRecords / pageSize),
 						totalRecords: submittedDataResult.metadata.totalRecords,
 					},
-					records: submittedDataResult.data,
+					records: submittedDataResult.result,
 				};
 
 				return res.status(200).send(responsePaginated);
@@ -173,16 +164,11 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		}),
-		getSubmittedDataBySystemId: validateRequest(dataGetBySystemIdRequestschema, async (req, res, next) => {
+		getSubmittedDataBySystemId: validateRequest(dataGetBySystemIdRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const systemId = req.params.systemId;
-				const view = req.query.view || defaultView;
-
-				const parsedView = VIEW_TYPE.safeParse(view);
-				if (!parsedView.success) {
-					throw new Error('Invalid view type provided');
-				}
+				const view = convertToViewType(String(req.query.view)) || defaultView;
 
 				logger.info(
 					LOG_MODULE,
@@ -193,14 +179,14 @@ const controller = (dependencies: BaseDependencies) => {
 				);
 
 				const submittedDataResult = await service.getSubmittedDataBySystemId(categoryId, systemId, {
-					view: parsedView.data,
+					view,
 				});
 
 				if (submittedDataResult.metadata.errorMessage) {
 					throw new NotFound(submittedDataResult.metadata.errorMessage);
 				}
 
-				return res.status(200).send(submittedDataResult.data);
+				return res.status(200).send(submittedDataResult.result);
 			} catch (error) {
 				next(error);
 			}

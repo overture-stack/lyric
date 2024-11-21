@@ -6,8 +6,9 @@ import type { SQON } from '@overture-stack/sqon-builder';
 
 import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js';
 import { parseSQON } from './convertSqonToQuery.js';
-import { isValidDateFormat, isValidIdNumber, isValidView } from './formatUtils.js';
+import { isValidDateFormat, isValidIdNumber } from './formatUtils.js';
 import { RequestValidation } from './requestValidation.js';
+import { VIEW_TYPE } from './types.js';
 
 const auditEventTypeSchema = z
 	.string()
@@ -15,11 +16,7 @@ const auditEventTypeSchema = z
 	.min(1)
 	.refine((value) => isAuditEventValid(value), 'invalid Event Type');
 
-const viewSchema = z
-	.string()
-	.trim()
-	.min(1)
-	.refine((value) => isValidView(value), 'invalid `view` parameter');
+const viewSchema = z.string().toLowerCase().trim().min(1).pipe(VIEW_TYPE);
 
 const categoryIdSchema = z
 	.string()
@@ -206,7 +203,7 @@ export const cagegoryDetailsRequestSchema: RequestValidation<object, ParsedQs, c
 export interface dictionaryRegisterBodyParams {
 	categoryName: string;
 	dictionaryName: string;
-	version: string;
+	dictionaryVersion: string;
 	defaultCentricEntity?: string;
 }
 
@@ -218,7 +215,7 @@ export const dictionaryRegisterRequestSchema: RequestValidation<
 	body: z.object({
 		categoryName: stringNotEmpty,
 		dictionaryName: stringNotEmpty,
-		version: stringNotEmpty,
+		dictionaryVersion: stringNotEmpty,
 		defaultCentricEntity: stringNotEmpty.optional(),
 	}),
 };
@@ -326,7 +323,16 @@ export const dataGetByCategoryRequestSchema: RequestValidation<object, dataQuery
 			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
 			view: viewSchema.optional(),
 		})
-		.merge(paginationQuerySchema),
+		.merge(paginationQuerySchema)
+		.superRefine((data, ctx) => {
+			if (data.view === VIEW_TYPE.Values.compound && data.entityName && data.entityName?.length > 0) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: 'is incompatible with `compound` view',
+					path: ['entityName'],
+				});
+			}
+		}),
 	pathParams: categoryPathParamsSchema,
 };
 
@@ -340,11 +346,20 @@ export const dataGetByOrganizationRequestSchema: RequestValidation<
 			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
 			view: viewSchema.optional(),
 		})
-		.merge(paginationQuerySchema),
+		.merge(paginationQuerySchema)
+		.superRefine((data, ctx) => {
+			if (data.view === VIEW_TYPE.Values.compound && data.entityName && data.entityName?.length > 0) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: 'is incompatible with `compound` view',
+					path: ['entityName'],
+				});
+			}
+		}),
 	pathParams: categoryOrganizationPathParamsSchema,
 };
 
-export const dataGetByQueryRequestschema: RequestValidation<object, dataQueryParams, categoryOrganizationPathParams> = {
+export const dataGetByQueryRequestSchema: RequestValidation<object, dataQueryParams, categoryOrganizationPathParams> = {
 	body: sqonSchema,
 	query: z
 		.object({
@@ -359,7 +374,7 @@ export interface dataGetBySystemIdPathParams extends ParamsDictionary {
 	categoryId: string;
 }
 
-export const dataGetBySystemIdRequestschema: RequestValidation<
+export const dataGetBySystemIdRequestSchema: RequestValidation<
 	object,
 	getDataQueryParams,
 	dataGetBySystemIdPathParams

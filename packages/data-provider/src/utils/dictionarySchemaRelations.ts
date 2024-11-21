@@ -78,7 +78,7 @@ const findOrCreateNode = (tree: TreeNode[], schemaName: string, order: OrderType
 };
 
 /**
- * Finds a matching schema name withing a nested object.
+ * Finds a matching schema name within a nested object.
  * Return true only if any matching schema name is found.
  * @param treeNode
  * @param schemaName

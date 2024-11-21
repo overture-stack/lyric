@@ -17,10 +17,7 @@ export type DbConfig = {
 };
 
 export type RecordHierarchyConfig = {
-	nestedRecordPrefix: string;
-	nestedRecordSuffix: string;
-	parentRecordPrefix: string;
-	parentRecordSuffix: string;
+	pluralizeSchemasName: boolean;
 };
 
 export type FeaturesConfig = {
