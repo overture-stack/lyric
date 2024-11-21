@@ -428,7 +428,7 @@ export type ViewType = z.infer<typeof VIEW_TYPE>;
 export const SUPPORTED_FILE_EXTENSIONS = z.enum(['tsv', 'csv']);
 export type SupportedFileExtensions = z.infer<typeof SUPPORTED_FILE_EXTENSIONS>;
 
-export const columnSeparatorValue: Record<SupportedFileExtensions, string> = {
+export const columnSeparatorValue = {
 	tsv: '\t',
 	csv: ',',
-};
+} as const satisfies Record<SupportedFileExtensions, string>;
