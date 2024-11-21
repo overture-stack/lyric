@@ -1,8 +1,8 @@
 import { isEmpty } from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
-import submissionService from '../services/submissionService.js';
-import submittedDataService from '../services/submittedDataService.js';
+import submissionService from '../services/submission/submission.js';
+import submittedDataService from '../services/submittedData/submmittedData.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
 import { hasTsvExtension, processFiles } from '../utils/fileUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
@@ -121,7 +121,7 @@ const controller = (dependencies: BaseDependencies) => {
 		editSubmittedData: validateRequest(dataEditRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				const files = req.files as Express.Multer.File[];
+				const files = Array.isArray(req.files) ? req.files : [];
 				const organization = req.body.organization;
 
 				logger.info(LOG_MODULE, `Request Edit Submitted Data`);
@@ -233,7 +233,7 @@ const controller = (dependencies: BaseDependencies) => {
 		upload: validateRequest(uploadSubmissionRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				const files = req.files as Express.Multer.File[];
+				const files = Array.isArray(req.files) ? req.files : [];
 				const organization = req.body.organization;
 
 				// TODO: get userName from auth

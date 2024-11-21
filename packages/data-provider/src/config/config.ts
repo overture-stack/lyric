@@ -16,8 +16,13 @@ export type DbConfig = {
 	password: string;
 };
 
+export type RecordHierarchyConfig = {
+	pluralizeSchemasName: boolean;
+};
+
 export type FeaturesConfig = {
 	audit?: AuditConfig;
+	recordHierarchy: RecordHierarchyConfig;
 };
 
 export type SchemaServiceConfig = {

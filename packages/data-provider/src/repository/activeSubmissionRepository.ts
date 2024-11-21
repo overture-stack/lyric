@@ -22,7 +22,7 @@ const repository = (dependencies: BaseDependencies) => {
 		updatedBy: true,
 	};
 
-	const getActiveSubmissionRelations = {
+	const getActiveSubmissionRelations: { [key: string]: { columns: BooleanTrueObject } } = {
 		dictionary: {
 			columns: {
 				name: true,

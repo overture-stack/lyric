@@ -8,12 +8,15 @@ import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js'
 import { parseSQON } from './convertSqonToQuery.js';
 import { isValidDateFormat, isValidIdNumber } from './formatUtils.js';
 import { RequestValidation } from './requestValidation.js';
+import { VIEW_TYPE } from './types.js';
 
 const auditEventTypeSchema = z
 	.string()
 	.trim()
 	.min(1)
 	.refine((value) => isAuditEventValid(value), 'invalid Event Type');
+
+const viewSchema = z.string().toLowerCase().trim().min(1).pipe(VIEW_TYPE);
 
 const categoryIdSchema = z
 	.string()
@@ -200,7 +203,8 @@ export const cagegoryDetailsRequestSchema: RequestValidation<object, ParsedQs, c
 export interface dictionaryRegisterBodyParams {
 	categoryName: string;
 	dictionaryName: string;
-	version: string;
+	dictionaryVersion: string;
+	defaultCentricEntity?: string;
 }
 
 export const dictionaryRegisterRequestSchema: RequestValidation<
@@ -211,7 +215,8 @@ export const dictionaryRegisterRequestSchema: RequestValidation<
 	body: z.object({
 		categoryName: stringNotEmpty,
 		dictionaryName: stringNotEmpty,
-		version: stringNotEmpty,
+		dictionaryVersion: stringNotEmpty,
+		defaultCentricEntity: stringNotEmpty.optional(),
 	}),
 };
 
@@ -305,14 +310,29 @@ export const dataEditRequestSchema: RequestValidation<{ organization: string }, 
 
 export interface dataQueryParams extends paginationQueryParams {
 	entityName?: string | string[];
+	view?: string;
+}
+
+export interface getDataQueryParams extends ParsedQs {
+	view?: string;
 }
 
 export const dataGetByCategoryRequestSchema: RequestValidation<object, dataQueryParams, categoryPathParams> = {
 	query: z
 		.object({
 			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
+			view: viewSchema.optional(),
 		})
-		.merge(paginationQuerySchema),
+		.merge(paginationQuerySchema)
+		.superRefine((data, ctx) => {
+			if (data.view === VIEW_TYPE.Values.compound && data.entityName && data.entityName?.length > 0) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: 'is incompatible with `compound` view',
+					path: ['entityName'],
+				});
+			}
+		}),
 	pathParams: categoryPathParamsSchema,
 };
 
@@ -324,12 +344,22 @@ export const dataGetByOrganizationRequestSchema: RequestValidation<
 	query: z
 		.object({
 			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
+			view: viewSchema.optional(),
 		})
-		.merge(paginationQuerySchema),
+		.merge(paginationQuerySchema)
+		.superRefine((data, ctx) => {
+			if (data.view === VIEW_TYPE.Values.compound && data.entityName && data.entityName?.length > 0) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: 'is incompatible with `compound` view',
+					path: ['entityName'],
+				});
+			}
+		}),
 	pathParams: categoryOrganizationPathParamsSchema,
 };
 
-export const dataGetByQueryRequestschema: RequestValidation<object, dataQueryParams, categoryOrganizationPathParams> = {
+export const dataGetByQueryRequestSchema: RequestValidation<object, dataQueryParams, categoryOrganizationPathParams> = {
 	body: sqonSchema,
 	query: z
 		.object({
@@ -356,4 +386,23 @@ export const validationRequestSchema: RequestValidation<
         studyId: studyIdSchema,
         value: valueSchema,
     }),
+};
+
+export interface dataGetBySystemIdPathParams extends ParamsDictionary {
+	systemId: string;
+	categoryId: string;
+}
+
+export const dataGetBySystemIdRequestSchema: RequestValidation<
+	object,
+	getDataQueryParams,
+	dataGetBySystemIdPathParams
+> = {
+	query: z.object({
+		view: viewSchema.optional(),
+	}),
+	pathParams: z.object({
+		systemId: stringNotEmpty,
+		categoryId: categoryIdSchema,
+	}),
 };

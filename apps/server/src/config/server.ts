@@ -39,6 +39,9 @@ export const defaultAppConfig: AppConfig = {
 		audit: {
 			enabled: getBoolean(process.env.AUDIT_ENABLED, true),
 		},
+		recordHierarchy: {
+			pluralizeSchemasName: getBoolean(process.env.PLURALIZE_SCHEMAS_ENABLED, true),
+		},
 	},
 	idService: {
 		useLocal: getBoolean(process.env.ID_USELOCAL, true),

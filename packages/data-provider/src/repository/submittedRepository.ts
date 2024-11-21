@@ -85,10 +85,10 @@ const repository = (dependencies: BaseDependencies) => {
 
 	/**
 	 * Build a SQL object to search submitted data by entity Name
-	 * @param {string[] | undefined} entityNameArray
+	 * @param {string[]} entityNameArray
 	 * @returns {SQL<unknown> | undefined}
 	 */
-	const filterByEntityNameArray = (entityNameArray?: (string | undefined)[]): SQL<unknown> | undefined => {
+	const filterByEntityNameArray = (entityNameArray?: string[]): SQL<unknown> | undefined => {
 		if (Array.isArray(entityNameArray)) {
 			return or(
 				...entityNameArray
@@ -188,12 +188,14 @@ const repository = (dependencies: BaseDependencies) => {
 		 * Find SubmittedData by category ID with pagination
 		 * @param {number} categoryId Category ID
 		 * @param {PaginationOptions} paginationOptions Pagination properties
+		 * @param {object} filter Filter Options
+		 * @param {string[] | undefined} filter.entityNames Array of entity names to filter
 		 * @returns The SubmittedData found
 		 */
 		getSubmittedDataByCategoryIdPaginated: async (
 			categoryId: number,
 			paginationOptions: PaginationOptions,
-			filter?: { entityNames?: (string | undefined)[] },
+			filter?: { entityNames?: string[] },
 		): Promise<SubmittedDataResponse[]> => {
 			const { page, pageSize } = paginationOptions;
 
@@ -217,15 +219,17 @@ const repository = (dependencies: BaseDependencies) => {
 		 * Find SubmittedData by category ID and Organization with pagination
 		 * @param {number} categoryId Category ID
 		 * @param {string} organization Organization Name
-		 * @param {SQL} filter Optional filter
 		 * @param {PaginationOptions} paginationOptions Pagination properties
+		 * @param {object} filter Filter Options
+		 * @param {SQL | undefined} filter.sql SQL command to filter
+		 * @param {string[] | undefined} filter.entityNames Array of entity names to filter
 		 * @returns The SubmittedData found
 		 */
 		getSubmittedDataByCategoryIdAndOrganizationPaginated: async (
 			categoryId: number,
 			organization: string,
 			paginationOptions: PaginationOptions,
-			filter?: { sql?: SQL; entityNames?: (string | undefined)[] },
+			filter?: { sql?: SQL; entityNames?: string[] },
 		): Promise<SubmittedDataResponse[]> => {
 			const { page, pageSize } = paginationOptions;
 
@@ -260,13 +264,13 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {string} organization Organization Name
 		 * @param {object} filter Filter Options
 		 * @param {SQL | undefined} filter.sql SQL command to filter
-		 * @param {(string | undefined)[] | undefined} filter.entityNames Array of entity names to filter
+		 * @param {string[] | undefined} filter.entityNames Array of entity names to filter
 		 * @returns Total number of recourds
 		 */
 		getTotalRecordsByCategoryIdAndOrganization: async (
 			categoryId: number,
 			organization: string,
-			filter?: { sql?: SQL; entityNames?: (string | undefined)[] },
+			filter?: { sql?: SQL; entityNames?: string[] },
 		): Promise<number> => {
 			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
 
@@ -298,12 +302,12 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {number} categoryId Category ID
 		 * @param {object} filter Filter options
 		 * @param {SQL | undefined} filter.sql SQL command
-		 * @param {(string | undefined)[] | undefined} filter.entityNames Array of entity names to filter
+		 * @param {string[] | undefined} filter.entityNames Array of entity names to filter
 		 * @returns Total number of recourds
 		 */
 		getTotalRecordsByCategoryId: async (
 			categoryId: number,
-			filter?: { sql?: SQL; entityNames?: (string | undefined)[] },
+			filter?: { sql?: SQL; entityNames?: string[] },
 		): Promise<number> => {
 			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
 			try {
