@@ -18,7 +18,7 @@ const controller = (dependencies: BaseDependencies) => {
 
 				logger.info(
 					LOG_MODULE,
-					`Register Dictionary Request categoryName '${categoryName}' name '${dictionaryName}' version '${version}'`,
+					`Register Dictionary Request categoryName '${categoryName}' name '${dictionaryName}' version '${dictionaryVersion}'`,
 				);
 
 				const { dictionary, category } = await dictionaryService.register({

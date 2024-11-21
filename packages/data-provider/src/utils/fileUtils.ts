@@ -19,8 +19,6 @@ import {
 	type SupportedFileExtensions,
 } from './types.js';
 
-const fsPromises = fs.promises;
-
 /**
  * Extracts the extension from the filename and returns it if it's supported.
  * Otherwise it returns undefined.
@@ -147,10 +145,6 @@ export const readTextFile = async (
 			reject({ records: returnRecords, errors: returnErrors });
 		});
 	});
-};
-
-export const readFile = async (filePath: string) => {
-	return await fsPromises.readFile(filePath, 'utf-8');
 };
 
 function formatForExcelCompatibility(data: string) {
