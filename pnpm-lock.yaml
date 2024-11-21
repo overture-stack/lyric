@@ -112,8 +112,8 @@ importers:
   packages/data-model:
     dependencies:
       '@overture-stack/lectern-client':
-        specifier: 2.0.0-beta.2
-        version: 2.0.0-beta.2
+        specifier: 2.0.0-beta.3
+        version: 2.0.0-beta.3
       dotenv:
         specifier: ^16.4.5
         version: 16.4.5
@@ -143,8 +143,8 @@ importers:
   packages/data-provider:
     dependencies:
       '@overture-stack/lectern-client':
-        specifier: 2.0.0-beta.2
-        version: 2.0.0-beta.2
+        specifier: 2.0.0-beta.3
+        version: 2.0.0-beta.3
       '@overture-stack/lyric-data-model':
         specifier: workspace:^
         version: link:../data-model
@@ -154,6 +154,9 @@ importers:
       bytes:
         specifier: ^3.1.2
         version: 3.1.2
+      csv-parse:
+        specifier: ^5.5.6
+        version: 5.5.6
       deep-freeze:
         specifier: ^0.0.1
         version: 0.0.1
@@ -194,6 +197,9 @@ importers:
       '@types/bytes':
         specifier: ^3.1.4
         version: 3.1.4
+      '@types/chai-as-promised':
+        specifier: ^8.0.1
+        version: 8.0.1
       '@types/deep-freeze':
         specifier: ^0.1.5
         version: 0.1.5
@@ -221,6 +227,9 @@ importers:
       '@types/qs':
         specifier: ^6.9.15
         version: 6.9.15
+      chai-as-promised:
+        specifier: ^8.0.0
+        version: 8.0.0(chai@5.1.1)
       nodemon:
         specifier: ^3.1.4
         version: 3.1.4
@@ -1041,11 +1050,11 @@ packages:
       fastq: 1.17.1
     dev: true
 
-  /@overture-stack/lectern-client@2.0.0-beta.2:
-    resolution: {integrity: sha512-Bwp4wUxg0+62O5Foj3IZIj720mALdRT85ZZFTpVgs8uddOOyviYsQfhbM2Nzf+zh5e9y0uyuCgE3h6cJjVMlqw==}
+  /@overture-stack/lectern-client@2.0.0-beta.3:
+    resolution: {integrity: sha512-aW1twdYwkxpd0NrHA1fGpLWDaDF+GPGcKUIsW0JYqj4XvMmYcyaYtff7PmmmLNaDt7aJ9e6BuJ0D+ehwOy0FXg==}
     dependencies:
-      '@overture-stack/lectern-dictionary': 2.0.0-beta.2
-      '@overture-stack/lectern-validation': 2.0.0-beta.2
+      '@overture-stack/lectern-dictionary': 2.0.0-beta.3
+      '@overture-stack/lectern-validation': 2.0.0-beta.3
       cd: 0.3.3
       lodash: 4.17.21
       node-fetch: 2.7.0
@@ -1055,18 +1064,18 @@ packages:
       - encoding
     dev: false
 
-  /@overture-stack/lectern-dictionary@2.0.0-beta.2:
-    resolution: {integrity: sha512-A+ukRCu06QdBjD8cshIha0P3afJMXNIf64kspdwYSGAtvCU0LQ973dUpTVKLmlXO0CEQ9bqdsPGl59vO8maVQA==}
+  /@overture-stack/lectern-dictionary@2.0.0-beta.3:
+    resolution: {integrity: sha512-wnwWhdbCjy5Ksa3xM9PFioisOGzssax/UHHkowqTUQz/YivU3kKK47TwOVTBsHDPdIKjTSlZdnwRgHfnhKmnpA==}
     dependencies:
       immer: 10.1.1
       lodash: 4.17.21
       zod: 3.23.8
     dev: false
 
-  /@overture-stack/lectern-validation@2.0.0-beta.2:
-    resolution: {integrity: sha512-dHPM/5z9sJr24iwvyQuPn8KJqQd+LjnLicO1//sDDeFlWaRfVJguOjUl4adJQsHNewibs2nGDpoVNmhM9Y5BTQ==}
+  /@overture-stack/lectern-validation@2.0.0-beta.3:
+    resolution: {integrity: sha512-C4lDANEMV+MbRSeWugp06wab2fGwUV6HWXZxArnvaK5b14vjm1DXRMT11jKjlUSFt2gf/BkGWYn1c3acgGPCfQ==}
     dependencies:
-      '@overture-stack/lectern-dictionary': 2.0.0-beta.2
+      '@overture-stack/lectern-dictionary': 2.0.0-beta.3
       lodash: 4.17.21
       zod: 3.23.8
     dev: false
@@ -1129,6 +1138,12 @@ packages:
 
   /@types/bytes@3.1.4:
     resolution: {integrity: sha512-A0uYgOj3zNc4hNjHc5lYUfJQ/HVyBXiUMKdXd7ysclaE6k9oJdavQzODHuwjpUu2/boCP8afjQYi8z/GtvNCWA==}
+    dev: true
+
+  /@types/chai-as-promised@8.0.1:
+    resolution: {integrity: sha512-dAlDhLjJlABwAVYObo9TPWYTRg9NaQM5CXeaeJYcYAkvzUf0JRLIiog88ao2Wqy/20WUnhbbUZcgvngEbJ3YXQ==}
+    dependencies:
+      '@types/chai': 4.3.16
     dev: true
 
   /@types/chai@4.3.16:
@@ -1606,6 +1621,15 @@ packages:
     resolution: {integrity: sha512-X2y0Ssu48ucdkrNgCdg6k3EZWjWVy/dsEywUUTeZEIW31f3bQfq65Svm+TzU1Hz+qqhdmyCdjGhUvRsSKHl/mw==}
     dev: false
 
+  /chai-as-promised@8.0.0(chai@5.1.1):
+    resolution: {integrity: sha512-sMsGXTrS3FunP/wbqh/KxM8Kj/aLPXQGkNtvE5wPfSToq8wkkvBpTZo1LIiEVmC4BwkKpag+l5h/20lBMk6nUg==}
+    peerDependencies:
+      chai: '>= 2.1.2 < 6'
+    dependencies:
+      chai: 5.1.1
+      check-error: 2.1.1
+    dev: true
+
   /chai@5.1.1:
     resolution: {integrity: sha512-pT1ZgP8rPNqUgieVaEY+ryQr6Q4HXNg8Ei9UnLUrjN4IA7dvQC5JB+/kxVcPNDHyBcc/26CXPkbNzq3qwrOEKA==}
     engines: {node: '>=12'}
@@ -1798,6 +1822,10 @@ packages:
       shebang-command: 2.0.0
       which: 2.0.2
     dev: true
+
+  /csv-parse@5.5.6:
+    resolution: {integrity: sha512-uNpm30m/AGSkLxxy7d9yRXpJQFrZzVWLFBkS+6ngPcZkw/5k3L/jjFuj7tVnEpRn+QgmiXr21nDlhCiUK4ij2A==}
+    dev: false
 
   /d@1.0.2:
     resolution: {integrity: sha512-MOqHvMWF9/9MX6nza0KgvFH4HpMU0EF5uUDXqX/BtxtU8NfB0QzRtJ8Oe/6SuS4kbhyzVJwjd97EA4PKrzJ8bw==}
