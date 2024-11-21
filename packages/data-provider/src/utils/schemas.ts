@@ -338,3 +338,22 @@ export const dataGetByQueryRequestschema: RequestValidation<object, dataQueryPar
 		.merge(paginationQuerySchema),
 	pathParams: categoryOrganizationPathParamsSchema,
 };
+
+const studyIdSchema = z.string().trim().min(1);
+
+const valueSchema = z.string().trim().min(1);
+
+export const validationRequestSchema: RequestValidation<
+    object,
+    { studyId: string; value: string },
+    { categoryId: string; entityName: string }
+> = {
+    pathParams: z.object({
+        categoryId: categoryIdSchema,
+        entityName: entityNameSchema,
+    }),
+    query: z.object({
+        studyId: studyIdSchema,
+        value: valueSchema,
+    }),
+};
