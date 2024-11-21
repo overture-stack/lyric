@@ -145,26 +145,6 @@ export const getEntityNamesFromFilterOptions = (
 };
 
 /**
- * Determines which entity name to used to return compound nested records
- * @param params
- * @param params.filterByEntityName An optional filter options passed on the query parameters
- * @param params.schemaCentricEntity The default schema-centric entity name for the category data dictionary
- * @param params.recordEntityName The entity name of the record
- * @returns
- */
-export const getSchemaForCompound = ({
-	filterByEntityName,
-	schemaCentricEntity,
-	recordEntityName,
-}: {
-	filterByEntityName?: (string | undefined)[];
-	schemaCentricEntity: string | null;
-	recordEntityName: string;
-}): string => {
-	return filterByEntityName?.some((e) => e && e !== '') ? recordEntityName : schemaCentricEntity || recordEntityName;
-};
-
-/**
  * Groupd Submitted Data by entityName
  * @param dataArray Array of data to group
  * @returns
