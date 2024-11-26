@@ -13,24 +13,6 @@ A model-agnostic, tabular data submission system designed to manage and validate
 > 
 > 
 
-## Repository Structure
-
-The repository is organized with the following directory structure:
-
-```
-.
-├── apps/
-│   └── server
-└── packages/
-    ├── data-model
-    └── data-provider
-```
-
-The modules in the monorepo are organized into two categories:
-
-- __apps/__ - Standalone processes meant to be run. These are published to [ghcr.io](https://ghcr.io) as container images.
-- __packages/__ - Reusable packages shared between applications and other packages. Packages are published to [NPM](https://npmjs.com).
-
 ## Local Development
 
 ### Development Tools
