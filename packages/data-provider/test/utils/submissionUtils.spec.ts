@@ -14,7 +14,7 @@ import type {
 	SubmissionInsertData,
 	SubmissionUpdateData,
 	SubmittedData,
-} from '@overture-stack/lyric-data-model';
+} from '@overture-stack/lyric-data-model/models';
 
 import type { SchemaChildNode } from '../../src/utils/dictionarySchemaRelations.js';
 import {

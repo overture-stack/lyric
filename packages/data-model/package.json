@@ -23,6 +23,10 @@
 	"files": [
 		"dist/"
 	],
+	"exports": {
+		".": "./index.js",
+		"./models": "./src/models/index.js"
+	},
 	"license": "AGPL-3.0-or-later",
 	"repository": {
 		"type": "git",

@@ -1,5 +1,5 @@
 import { Schema } from '@overture-stack/lectern-client';
-import { Dictionary } from '@overture-stack/lyric-data-model';
+import { Dictionary } from '@overture-stack/lyric-data-model/models';
 
 export const dictionarySportsData: Schema[] = [
 	{

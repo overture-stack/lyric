@@ -1,7 +1,7 @@
 import { isEmpty } from 'lodash-es';
 
 import { Dictionary as SchemasDictionary, Schema } from '@overture-stack/lectern-client';
-import { Category, Dictionary, NewCategory, NewDictionary } from '@overture-stack/lyric-data-model';
+import { Category, Dictionary, NewCategory, NewDictionary } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../config/config.js';
 import lecternClient from '../external/lecternClient.js';

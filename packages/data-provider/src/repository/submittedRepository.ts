@@ -8,7 +8,7 @@ import {
 	NewSubmittedData,
 	SubmittedData,
 	submittedData,
-} from '@overture-stack/lyric-data-model';
+} from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
