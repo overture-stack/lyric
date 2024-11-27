@@ -3,7 +3,7 @@
 	"version": "0.3.0",
 	"description": "Data model for Lyric",
 	"main": "dist/index.js",
-	"typings": "dist/index.d.ts",
+	"types": "dist/index.d.ts",
 	"type": "module",
 	"scripts": {
 		"\n=====================  Build  =================": "",
@@ -24,8 +24,8 @@
 		"dist/"
 	],
 	"exports": {
-		".": "./index.js",
-		"./models": "./src/models/index.js"
+		".": "./dist/index.js",
+		"./models": "./dist/src/models/index.js"
 	},
 	"license": "AGPL-3.0-or-later",
 	"repository": {
