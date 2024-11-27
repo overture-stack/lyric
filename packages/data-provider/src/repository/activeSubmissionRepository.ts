@@ -1,6 +1,6 @@
 import { and, eq, or } from 'drizzle-orm/sql';
 
-import { NewSubmission, Submission, submissions } from '@overture-stack/lyric-data-model';
+import { NewSubmission, Submission, submissions } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
