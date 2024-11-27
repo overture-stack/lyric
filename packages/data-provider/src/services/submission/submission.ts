@@ -1,7 +1,7 @@
 import * as _ from 'lodash-es';
 
 import { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
-import { type NewSubmission, Submission, type SubmissionUpdateData } from '@overture-stack/lyric-data-model';
+import { type NewSubmission, Submission, type SubmissionUpdateData } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../../config/config.js';
 import systemIdGenerator from '../../external/systemIdGenerator.js';

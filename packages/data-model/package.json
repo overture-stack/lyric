@@ -1,6 +1,6 @@
 {
 	"name": "@overture-stack/lyric-data-model",
-	"version": "0.4.0",
+	"version": "0.5.0",
 	"description": "Data model for Lyric",
 	"main": "dist/index.js",
 	"typings": "dist/index.d.ts",
@@ -9,8 +9,9 @@
 		"\n=====================  Build  =================": "",
 		"build:compile": "rimraf dist && tsc",
 		"build:migration": "drizzle-kit generate:pg --config=drizzle.config.ts",
+		"build:migration:copy": "copyfiles migrations/** migrations/**/**  dist/",
 		"build:dbml": "tsx scripts/dbmlGenerator.ts",
-		"build:all": "pnpm build:compile && pnpm build:migration && pnpm build:dbml",
+		"build:all": "pnpm build:compile && pnpm build:migration && pnpm build:migration:copy && pnpm build:dbml",
 		"\n==============  Dev environment  ==============": "",
 		"db:migrate:dev": "tsx scripts/migrate.ts",
 		"\n====  Production environtment (compiled)  =====": "",
@@ -22,6 +23,10 @@
 	"files": [
 		"dist/"
 	],
+	"exports": {
+		".": "./index.js",
+		"./models": "./src/models/index.js"
+	},
 	"license": "AGPL-3.0-or-later",
 	"repository": {
 		"type": "git",
@@ -40,6 +45,7 @@
 	},
 	"dependencies": {
 		"@overture-stack/lectern-client": "2.0.0-beta.3",
+		"copyfiles": "^2.4.1",
 		"dotenv": "^16.4.5",
 		"drizzle-orm": "^0.29.5",
 		"pg": "^8.12.0"

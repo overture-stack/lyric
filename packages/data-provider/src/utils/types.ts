@@ -17,7 +17,7 @@ import {
 	type SubmissionDeleteData,
 	type SubmissionUpdateData,
 	type SubmittedData,
-} from '@overture-stack/lyric-data-model';
+} from '@overture-stack/lyric-data-model/models';
 
 type ObjectValues<T> = T[keyof T];
 

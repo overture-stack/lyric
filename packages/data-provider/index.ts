@@ -2,6 +2,7 @@
 export { type AppConfig } from './src/config/config.js';
 export { default as provider } from './src/core/provider.js';
 export { errorHandler } from './src/middleware/errorHandler.js';
+export { migrate } from '@overture-stack/lyric-data-model';
 
 // routes
 export { default as dictionaryRouters } from './src/routers/dictionaryRouter.js';
