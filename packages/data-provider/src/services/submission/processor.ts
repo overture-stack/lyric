@@ -12,7 +12,7 @@ import {
 	type SubmissionInsertData,
 	type SubmissionUpdateData,
 	SubmittedData,
-} from '@overture-stack/lyric-data-model';
+} from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../../config/config.js';
 import submissionRepository from '../../repository/activeSubmissionRepository.js';

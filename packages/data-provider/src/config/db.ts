@@ -1,11 +1,9 @@
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 
-import * as schema from '@overture-stack/lyric-data-model';
+import { DbConfig, models } from '@overture-stack/lyric-data-model';
 
-import { DbConfig } from './config.js';
-
-export const connect = (config: DbConfig): NodePgDatabase<typeof schema> => {
+export const connect = (config: DbConfig): NodePgDatabase<typeof models> => {
 	const pool = new pg.Pool({
 		host: config.host,
 		port: config.port,
@@ -15,5 +13,5 @@ export const connect = (config: DbConfig): NodePgDatabase<typeof schema> => {
 	});
 	console.log(`Connecting to database on ${config.host}`);
 
-	return drizzle(pool, { schema });
+	return drizzle(pool, { schema: models });
 };

@@ -1,8 +1,7 @@
 import 'dotenv/config';
 
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import pg from 'pg';
+import type { DbConfig } from '../src/config/db.js';
+import { migrate } from '../src/functions/migrate.js';
 
 const getRequiredConfig = (name: string) => {
 	const value = process.env[name];
@@ -12,23 +11,16 @@ const getRequiredConfig = (name: string) => {
 	return value;
 };
 
-async function main() {
-	console.log('Running your migrations...');
+const config: DbConfig = {
+	host: getRequiredConfig('DB_HOST'),
+	database: getRequiredConfig('DB_NAME'),
+	password: getRequiredConfig('DB_PASSWORD'),
+	port: Number(getRequiredConfig('DB_PORT')),
+	user: getRequiredConfig('DB_USER'),
+};
 
-	const sql = new pg.Pool({
-		host: getRequiredConfig('DB_HOST'),
-		database: getRequiredConfig('DB_NAME'),
-		password: getRequiredConfig('DB_PASSWORD'),
-		port: Number(getRequiredConfig('DB_PORT')),
-		user: getRequiredConfig('DB_USER'),
-	});
-	const db = drizzle(sql);
-	await migrate(db, { migrationsFolder: 'migrations' });
-	await sql.end();
-	console.log('Woohoo! Migrations completed!');
-}
-
-main().catch((err) => {
+// Run if executed as a CLI
+migrate(config).catch((err) => {
 	console.error(err);
 	process.exit(1);
 });

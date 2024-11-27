@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
 import { type DictionaryValidationRecordErrorDetails, type SchemaRecordError } from '@overture-stack/lectern-client';
-import type { NewSubmittedData, SubmittedData } from '@overture-stack/lyric-data-model';
+import type { NewSubmittedData, SubmittedData } from '@overture-stack/lyric-data-model/models';
 
 import {
 	computeDataDiff,

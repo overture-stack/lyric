@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm/sql';
 
-import { dictionaries, Dictionary, NewDictionary } from '@overture-stack/lyric-data-model';
+import { dictionaries, Dictionary, NewDictionary } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';

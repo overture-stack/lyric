@@ -1,6 +1,6 @@
 import { and, count, eq, gt, lt, SQL } from 'drizzle-orm';
 
-import { auditSubmittedData } from '@overture-stack/lyric-data-model';
+import { auditSubmittedData } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../config/config.js';
 import { convertToAuditEvent } from '../utils/auditUtils.js';

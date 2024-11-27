@@ -1,5 +1,5 @@
 import type { DataRecord } from '@overture-stack/lectern-client';
-import type { SubmittedData } from '@overture-stack/lyric-data-model';
+import type { SubmittedData } from '@overture-stack/lyric-data-model/models';
 
 import type { BaseDependencies } from '../../config/config.js';
 import submittedRepository from '../../repository/submittedRepository.js';
