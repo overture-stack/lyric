@@ -14,6 +14,8 @@ import submittedDataService from '../services/submittedDataService.js';
 import * as dictionaryUtils from '../utils/dictionaryUtils.js';
 import * as submissionUtils from '../utils/submissionUtils.js';
 import * as submittedDataUtils from '../utils/submittedDataUtils.js';
+import validationRouter from '../routers/validationRouter.js';
+import validationService from '../services/validationService.js';
 
 /**
  * The main provider of submission resources
@@ -40,6 +42,7 @@ const provider = (configData: AppConfig) => {
 			dictionary: dictionaryRouter(baseDeps),
 			submission: submissionRouter(baseDeps),
 			submittedData: submittedDataRouter(baseDeps),
+			validator: validationRouter(baseDeps),
 		},
 		services: {
 			audit: auditService(baseDeps),
@@ -47,6 +50,7 @@ const provider = (configData: AppConfig) => {
 			dictionary: dictionaryService(baseDeps),
 			submission: submissionService(baseDeps),
 			submittedData: submittedDataService(baseDeps),
+			validator: validationService(baseDeps)
 		},
 		utils: {
 			dictionary: dictionaryUtils,
