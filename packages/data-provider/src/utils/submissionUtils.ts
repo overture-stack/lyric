@@ -24,22 +24,22 @@ import { readHeaders, readTextFile } from './fileUtils.js';
 import { deepCompare } from './formatUtils.js';
 import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
-	ActiveSubmissionResponse,
-	ActiveSubmissionSummaryRepository,
-	ActiveSubmissionSummaryResponse,
 	BATCH_ERROR_TYPE,
-	BatchError,
-	type DataDeletesActiveSubmissionSummary,
-	DataInsertsActiveSubmissionSummary,
-	DataRecordReference,
-	type DataUpdatesActiveSubmissionSummary,
+	type BatchError,
+	type DataDeletesSubmissionSummary,
+	type DataInsertsSubmissionSummary,
+	type DataRecordReference,
+	type DataUpdatesSubmissionSummary,
 	type EditSubmittedDataReference,
 	MERGE_REFERENCE_TYPE,
 	type NewSubmittedDataReference,
 	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
-	SubmissionStatus,
+	type SubmissionResponse,
+	type SubmissionStatus,
+	type SubmissionSummaryRepository,
+	type SubmissionSummaryResponse,
 	SubmittedDataReference,
 } from './types.js';
 
@@ -604,13 +604,11 @@ export const mergeUpdatesBySystemId = (
 };
 
 /**
- * Utility to parse a raw Active Submission to a Response type
- * @param {ActiveSubmissionSummaryRepository} submission
- * @returns {ActiveSubmissionResponse}
+ * Utility to parse a raw Submission to a Response type
+ * @param {SubmissionSummaryRepository} submission
+ * @returns {SubmissionResponse}
  */
-export const parseActiveSubmissionResponse = (
-	submission: ActiveSubmissionSummaryRepository,
-): ActiveSubmissionResponse => {
+export const parseSubmissionResponse = (submission: SubmissionSummaryRepository): SubmissionResponse => {
 	return {
 		id: submission.id,
 		data: submission.data,
@@ -627,16 +625,14 @@ export const parseActiveSubmissionResponse = (
 };
 
 /**
- * Utility to parse a raw Active Submission to a Summary of the Active Submission
- * @param {ActiveSubmissionSummaryRepository} submission
- * @returns {ActiveSubmissionSummaryResponse}
+ * Utility to parse a raw Submission to a Summary of the Submission
+ * @param {SubmissionSummaryRepository} submission
+ * @returns {SubmissionSummaryResponse}
  */
-export const parseActiveSubmissionSummaryResponse = (
-	submission: ActiveSubmissionSummaryRepository,
-): ActiveSubmissionSummaryResponse => {
+export const parseSubmissionSummaryResponse = (submission: SubmissionSummaryRepository): SubmissionSummaryResponse => {
 	const dataInsertsSummary =
 		submission.data?.inserts &&
-		Object.entries(submission.data?.inserts).reduce<Record<string, DataInsertsActiveSubmissionSummary>>(
+		Object.entries(submission.data?.inserts).reduce<Record<string, DataInsertsSubmissionSummary>>(
 			(acc, [entityName, entityData]) => {
 				acc[entityName] = { ..._.omit(entityData, 'records'), recordsCount: entityData.records.length };
 				return acc;
@@ -646,7 +642,7 @@ export const parseActiveSubmissionSummaryResponse = (
 
 	const dataUpdatesSummary =
 		submission.data.updates &&
-		Object.entries(submission.data?.updates).reduce<Record<string, DataUpdatesActiveSubmissionSummary>>(
+		Object.entries(submission.data?.updates).reduce<Record<string, DataUpdatesSubmissionSummary>>(
 			(acc, [entityName, entityData]) => {
 				acc[entityName] = { recordsCount: entityData.length };
 				return acc;
@@ -656,7 +652,7 @@ export const parseActiveSubmissionSummaryResponse = (
 
 	const dataDeletesSummary =
 		submission.data.deletes &&
-		Object.entries(submission.data?.deletes).reduce<Record<string, DataDeletesActiveSubmissionSummary>>(
+		Object.entries(submission.data?.deletes).reduce<Record<string, DataDeletesSubmissionSummary>>(
 			(acc, [entityName, entityData]) => {
 				acc[entityName] = { recordsCount: entityData.length };
 				return acc;

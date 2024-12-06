@@ -32,14 +32,13 @@ import {
 	mergeInsertsRecords,
 	mergeRecords,
 	mergeUpdatesBySystemId,
-	parseActiveSubmissionResponse,
-	parseActiveSubmissionSummaryResponse,
+	parseSubmissionResponse,
+	parseSubmissionSummaryResponse,
 	removeItemsFromSubmission,
 	segregateFieldChangeRecords,
 	validateSchemas,
 } from '../../src/utils/submissionUtils.js';
 import {
-	type ActiveSubmissionSummaryRepository,
 	type DataRecordReference,
 	type EditSubmittedDataReference,
 	MERGE_REFERENCE_TYPE,
@@ -47,6 +46,7 @@ import {
 	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
+	type SubmissionSummaryRepository,
 	type SubmittedDataReference,
 } from '../../src/utils/types.js';
 
@@ -1267,7 +1267,7 @@ describe('Submission Utils', () => {
 	});
 	describe('Parse a Submisison object to a response format', () => {
 		it('return a Submission response with no data', () => {
-			const activeSubmissionSummaryRepository: ActiveSubmissionSummaryRepository = {
+			const SubmissionSummaryRepository: SubmissionSummaryRepository = {
 				id: 2,
 				data: {},
 				dictionary: { name: 'books', version: '1' },
@@ -1280,7 +1280,7 @@ describe('Submission Utils', () => {
 				updatedAt: null,
 				updatedBy: null,
 			};
-			const response = parseActiveSubmissionResponse(activeSubmissionSummaryRepository);
+			const response = parseSubmissionResponse(SubmissionSummaryRepository);
 			expect(response).to.eql({
 				id: 2,
 				data: {},
@@ -1296,7 +1296,7 @@ describe('Submission Utils', () => {
 			});
 		});
 		it('return a Submission response format with insert, update and delete data', () => {
-			const activeSubmissionSummaryRepository: ActiveSubmissionSummaryRepository = {
+			const SubmissionSummaryRepository: SubmissionSummaryRepository = {
 				id: 2,
 				data: {
 					inserts: {
@@ -1340,7 +1340,7 @@ describe('Submission Utils', () => {
 				updatedAt: null,
 				updatedBy: null,
 			};
-			const response = parseActiveSubmissionResponse(activeSubmissionSummaryRepository);
+			const response = parseSubmissionResponse(SubmissionSummaryRepository);
 			expect(response).to.eql({
 				id: 2,
 				data: {
@@ -1389,7 +1389,7 @@ describe('Submission Utils', () => {
 	});
 	describe('Parse a Submission object to a Summary of the Active Submission', () => {
 		it('should return a Summary without any data ', () => {
-			const activeSubmissionSummaryRepository: ActiveSubmissionSummaryRepository = {
+			const SubmissionSummaryRepository: SubmissionSummaryRepository = {
 				id: 4,
 				data: {},
 				dictionary: { name: 'books', version: '1' },
@@ -1402,7 +1402,7 @@ describe('Submission Utils', () => {
 				updatedAt: null,
 				updatedBy: null,
 			};
-			const response = parseActiveSubmissionSummaryResponse(activeSubmissionSummaryRepository);
+			const response = parseSubmissionSummaryResponse(SubmissionSummaryRepository);
 			expect(response).to.eql({
 				id: 4,
 				data: {
@@ -1422,7 +1422,7 @@ describe('Submission Utils', () => {
 			});
 		});
 		it('should return a Summary with insert, update and delete data ', () => {
-			const activeSubmissionSummaryRepository: ActiveSubmissionSummaryRepository = {
+			const SubmissionSummaryRepository: SubmissionSummaryRepository = {
 				id: 3,
 				data: {
 					inserts: {
@@ -1466,7 +1466,7 @@ describe('Submission Utils', () => {
 				updatedAt: null,
 				updatedBy: null,
 			};
-			const response = parseActiveSubmissionSummaryResponse(activeSubmissionSummaryRepository);
+			const response = parseSubmissionSummaryResponse(SubmissionSummaryRepository);
 			expect(response).to.eql({
 				id: 3,
 				data: {

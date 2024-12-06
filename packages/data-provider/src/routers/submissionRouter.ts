@@ -14,13 +14,13 @@ const router = (dependencies: BaseDependencies): Router => {
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	router.get('/:submissionId', auth, submissionController(dependencies).getActiveById);
+	router.get('/:submissionId', auth, submissionController(dependencies).getSubmissionById);
 
 	router.delete('/:submissionId', auth, submissionController(dependencies).delete);
 
 	router.delete('/:submissionId/:actionType', auth, submissionController(dependencies).deleteEntityName);
 
-	router.get('/category/:categoryId', auth, submissionController(dependencies).getActiveByCategory);
+	router.get('/category/:categoryId', auth, submissionController(dependencies).getSubmissionsByCategory);
 
 	router.get(
 		'/category/:categoryId/organization/:organization',
