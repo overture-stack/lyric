@@ -14,7 +14,7 @@ const router = (dependencies: BaseDependencies): Router => {
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	router.get('/:submissionId', auth, submissionController(dependencies).getActiveById);
+	router.get('/:submissionId', auth, submissionController(dependencies).getSubmissionById);
 
 	router.delete('/:submissionId', auth, submissionController(dependencies).delete);
 

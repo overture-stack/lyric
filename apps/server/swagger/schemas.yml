@@ -55,7 +55,7 @@ components:
             $ref: '#/components/responses/Error'
 
   schemas:
-    ActiveSubmissionResult:
+    SubmissionResult:
       type: object
       properties:
         id:

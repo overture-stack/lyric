@@ -226,7 +226,7 @@ export const submissionActiveyByCategoryRequestSchema: RequestValidation<object,
 	pathParams: categoryPathParamsSchema,
 };
 
-export const submissionActiveByIdRequestSchema: RequestValidation<object, ParsedQs, submissionIdPathParam> = {
+export const submissionByIdRequestSchema: RequestValidation<object, ParsedQs, submissionIdPathParam> = {
 	pathParams: submissionIdPathParamSchema,
 };
 

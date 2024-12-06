@@ -9,9 +9,9 @@ import { validateRequest } from '../utils/requestValidation.js';
 import {
 	dataDeleteBySystemIdRequestSchema,
 	dataEditRequestSchema,
-	submissionActiveByIdRequestSchema,
 	submissionActiveByOrganizationRequestSchema,
 	submissionActiveyByCategoryRequestSchema,
+	submissionByIdRequestSchema,
 	submissionCommitRequestSchema,
 	submissionDeleteEntityNameRequestSchema,
 	submissionDeleteRequestSchema,
@@ -184,7 +184,7 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		}),
-		getActiveById: validateRequest(submissionActiveByIdRequestSchema, async (req, res, next) => {
+		getSubmissionById: validateRequest(submissionByIdRequestSchema, async (req, res, next) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
 
@@ -193,13 +193,13 @@ const controller = (dependencies: BaseDependencies) => {
 				// TODO: get userName from auth
 				// const userName = '';
 
-				const activeSubmission = await service.getActiveSubmissionById(submissionId);
+				const submission = await service.getSubmissionById(submissionId);
 
-				if (isEmpty(activeSubmission)) {
-					throw new NotFound('Active Submission not found');
+				if (isEmpty(submission)) {
+					throw new NotFound('Submission not found');
 				}
 
-				return res.status(200).send(activeSubmission);
+				return res.status(200).send(submission);
 			} catch (error) {
 				next(error);
 			}

@@ -10,7 +10,7 @@ const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
 	const { db, logger } = dependencies;
 
-	const getActiveSubmissionColumns: BooleanTrueObject = {
+	const getSubmissionColumns: BooleanTrueObject = {
 		id: true,
 		status: true,
 		organization: true,
@@ -22,7 +22,7 @@ const repository = (dependencies: BaseDependencies) => {
 		updatedBy: true,
 	};
 
-	const getActiveSubmissionRelations: { [key: string]: { columns: BooleanTrueObject } } = {
+	const getSubmissionRelations: { [key: string]: { columns: BooleanTrueObject } } = {
 		dictionary: {
 			columns: {
 				name: true,
@@ -143,8 +143,8 @@ const repository = (dependencies: BaseDependencies) => {
 						eq(submissions.createdBy, userName),
 						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
 					),
-					columns: getActiveSubmissionColumns,
-					with: getActiveSubmissionRelations,
+					columns: getSubmissionColumns,
+					with: getSubmissionRelations,
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying Active Submission with relations`, error);
@@ -177,8 +177,8 @@ const repository = (dependencies: BaseDependencies) => {
 						eq(submissions.organization, organization),
 						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
 					),
-					columns: getActiveSubmissionColumns,
-					with: getActiveSubmissionRelations,
+					columns: getSubmissionColumns,
+					with: getSubmissionRelations,
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying Active Submission with relations`, error);
@@ -187,24 +187,21 @@ const repository = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Get Active Submission by Submission ID
+		 * Get Submission by ID
 		 * @param {number} submissionId Submission ID
-		 * @returns One Active Submission
+		 * @returns A Submission
 		 */
-		getActiveSubmissionWithRelationsById: async (
+		getSubmissionWithRelationsById: async (
 			submissionId: number,
 		): Promise<ActiveSubmissionSummaryRepository | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
-					where: and(
-						eq(submissions.id, submissionId),
-						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
-					),
-					columns: getActiveSubmissionColumns,
-					with: getActiveSubmissionRelations,
+					where: and(eq(submissions.id, submissionId)),
+					columns: getSubmissionColumns,
+					with: getSubmissionRelations,
 				});
 			} catch (error) {
-				logger.error(LOG_MODULE, `Failed querying Active Submission with relations`, error);
+				logger.error(LOG_MODULE, `Failed querying Submission with relations`, error);
 				throw new ServiceUnavailable();
 			}
 		},

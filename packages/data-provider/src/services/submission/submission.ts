@@ -256,14 +256,14 @@ const service = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Get Active Submission by Submission ID
+	 * Get Submission by Submission ID
 	 * @param {number} submissionId A Submission ID
-	 * @returns One Active Submission
+	 * @returns One Submission
 	 */
-	const getActiveSubmissionById = async (submissionId: number) => {
-		const { getActiveSubmissionWithRelationsById } = submissionRepository(dependencies);
+	const getSubmissionById = async (submissionId: number) => {
+		const { getSubmissionWithRelationsById } = submissionRepository(dependencies);
 
-		const submission = await getActiveSubmissionWithRelationsById(submissionId);
+		const submission = await getSubmissionWithRelationsById(submissionId);
 		if (_.isEmpty(submission)) {
 			return;
 		}
@@ -445,7 +445,7 @@ const service = (dependencies: BaseDependencies) => {
 		deleteActiveSubmissionById,
 		deleteActiveSubmissionEntity,
 		getActiveSubmissionsByCategory,
-		getActiveSubmissionById,
+		getSubmissionById,
 		getActiveSubmissionByOrganization,
 		getOrCreateActiveSubmission,
 		uploadSubmission,

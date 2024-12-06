@@ -2,7 +2,7 @@
 
 /submission/{submissionId}:
   get:
-    summary: Get active submission by ID
+    summary: Get submission by ID
     tags:
       - Submission
     parameters:
@@ -12,11 +12,11 @@
         required: true
     responses:
       200:
-        description: Active Submission
+        description: Submission details
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ActiveSubmissionResult'
+              $ref: '#/components/schemas/SubmissionResult'
 
       401:
         $ref: '#/components/responses/UnauthorizedError'
@@ -42,7 +42,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ActiveSubmissionResult'
+              $ref: '#/components/schemas/SubmissionResult'
       400:
         $ref: '#/components/responses/BadRequest'
       401:
@@ -91,7 +91,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ActiveSubmissionResult'
+              $ref: '#/components/schemas/SubmissionResult'
       400:
         $ref: '#/components/responses/BadRequest'
       401:
