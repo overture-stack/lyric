@@ -168,6 +168,7 @@ const controller = (dependencies: BaseDependencies) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const onlyActive = req.query.onlyActive?.toLowerCase() === 'true';
+				const organization = req.query.organization;
 				const page = parseInt(String(req.query.page)) || defaultPage;
 				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
 
@@ -176,6 +177,7 @@ const controller = (dependencies: BaseDependencies) => {
 					`Request Submission categoryId '${categoryId}'`,
 					`pagination params: page '${page}' pageSize '${pageSize}'`,
 					`onlyActive '${onlyActive}'`,
+					`organization '${organization}'`,
 				);
 
 				// TODO: get userName from auth
@@ -184,7 +186,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const submissionsResult = await service.getSubmissionsByCategory(
 					categoryId,
 					{ page, pageSize },
-					{ onlyActive, userName },
+					{ onlyActive, userName, organization },
 				);
 
 				if (isEmpty(submissionsResult.result)) {

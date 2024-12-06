@@ -250,6 +250,7 @@ const service = (dependencies: BaseDependencies) => {
 		filterOptions: {
 			onlyActive: boolean;
 			userName: string;
+			organization?: string;
 		},
 	): Promise<{
 		result: SubmissionSummaryResponse[];

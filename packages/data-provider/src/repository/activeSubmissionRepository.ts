@@ -141,7 +141,8 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {number} paginationOptions.pageSize - Items per page
 		 * @param {Object} filterOptions
 		 * @param {boolean} filterOptions.onlyActive - Filter by Active status
-		 * @param {string} filterOptions.userName - User Name
+		 * @param {string} filterOptions.userName - Filter by creator's username
+		 * @param {string} filterOptions.organization - Filter by Organization
 		 * @returns One or many Active Submissions
 		 */
 		getSubmissionsWithRelationsByCategory: async (
@@ -150,6 +151,7 @@ const repository = (dependencies: BaseDependencies) => {
 			filterOptions: {
 				onlyActive: boolean;
 				userName: string;
+				organization?: string;
 			},
 		): Promise<SubmissionSummaryRepository[] | undefined> => {
 			const { page, pageSize } = paginationOptions;
@@ -159,6 +161,7 @@ const repository = (dependencies: BaseDependencies) => {
 						eq(submissions.dictionaryCategoryId, categoryId),
 						eq(submissions.createdBy, filterOptions.userName),
 						getActiveStatusesCondition(filterOptions.onlyActive, openSubmissionStatus),
+						filterOptions.organization ? eq(submissions.organization, filterOptions.organization) : undefined,
 					),
 					columns: getSubmissionColumns,
 					with: getSubmissionRelations,
@@ -177,7 +180,8 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {number} categoryId - Category ID
 		 * @param {Object} filterOptions
 		 * @param {boolean} filterOptions.onlyActive - Filter by Active status
-		 * @param {string} filterOptions.userName - User Name
+		 * @param {string} filterOptions.userName - Filter by creator's username
+		 * @param {string} filterOptions.organization - Filter by Organization
 		 * @returns One or many Active Submissions
 		 */
 		getTotalSubmissionsByCategory: async (
@@ -185,6 +189,7 @@ const repository = (dependencies: BaseDependencies) => {
 			filterOptions: {
 				onlyActive: boolean;
 				userName: string;
+				organization?: string;
 			},
 		): Promise<number> => {
 			try {
@@ -196,6 +201,7 @@ const repository = (dependencies: BaseDependencies) => {
 							eq(submissions.dictionaryCategoryId, categoryId),
 							eq(submissions.createdBy, filterOptions.userName),
 							getActiveStatusesCondition(filterOptions.onlyActive, openSubmissionStatus),
+							filterOptions.organization ? eq(submissions.organization, filterOptions.organization) : undefined,
 						),
 					);
 				return resultCount[0].total;

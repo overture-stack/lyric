@@ -45,3 +45,10 @@ components:
         schema:
           type: boolean
         required: false
+      Organization:
+        description: Optional query parameter to filter results to include only submissions associated to an specific organization. By default, returns submissions from all organizations
+        name: organization
+        in: query
+        schema:
+          type: string
+        required: false

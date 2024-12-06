@@ -115,6 +115,7 @@
       - $ref: '#/components/parameters/query/Page'
       - $ref: '#/components/parameters/query/PageSize'
       - $ref: '#/components/parameters/query/OnlyActive'
+      - $ref: '#/components/parameters/query/Organization'
     responses:
       200:
         description: Submissions details
@@ -135,6 +136,7 @@
 /submission/category/{categoryId}/organization/{organization}:
   get:
     summary: Retrieve the Active Submission for a category and organization in this user session
+    deprecated: true
     tags:
       - Submission
     parameters:
