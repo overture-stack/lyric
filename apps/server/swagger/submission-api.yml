@@ -107,18 +107,21 @@
 
 /submission/category/{categoryId}:
   get:
-    summary: Retrieve the Active Submissions for a category in this user session
+    summary: Retrieve the Submissions for a category in this user session
     tags:
       - Submission
     parameters:
       - $ref: '#/components/parameters/path/CategoryId'
+      - $ref: '#/components/parameters/query/Page'
+      - $ref: '#/components/parameters/query/PageSize'
+      - $ref: '#/components/parameters/query/OnlyActive'
     responses:
       200:
-        description: Active Submissions
+        description: Submissions details
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ActiveSubmissionsSummaryResult'
+              $ref: '#/components/schemas/SubmissionsSummaryResult'
 
       401:
         $ref: '#/components/responses/UnauthorizedError'

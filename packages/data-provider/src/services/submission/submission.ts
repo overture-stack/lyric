@@ -13,18 +13,19 @@ import {
 	canTransitionToClosed,
 	checkEntityFieldNames,
 	checkFileNames,
-	parseActiveSubmissionResponse,
-	parseActiveSubmissionSummaryResponse,
+	parseSubmissionResponse,
+	parseSubmissionSummaryResponse,
 	removeItemsFromSubmission,
 } from '../../utils/submissionUtils.js';
 import {
-	ActiveSubmissionSummaryResponse,
 	CommitSubmissionResult,
 	CREATE_SUBMISSION_STATUS,
 	type CreateSubmissionResult,
+	type PaginationOptions,
 	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
+	SubmissionSummaryResponse,
 } from '../../utils/types.js';
 import processor from './processor.js';
 
@@ -232,27 +233,47 @@ const service = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Get an active Submission by Category
-	 * @param {Object} params
-	 * @param {number} params.categoryId
-	 * @param {string} params.userName
-	 * @returns  One Active Submission
+	 * Get Submissions by Category
+	 * @param {number} categoryId - The ID of the category for which data is being fetched.
+	 * @param {Object} paginationOptions - Pagination properties
+	 * @param {number} paginationOptions.page - Page number
+	 * @param {number} paginationOptions.pageSize - Items per page
+	 * @param {Object} filterOptions
+	 * @param {boolean} filterOptions.onlyActive - Filter by Active status
+	 * @param {string} filterOptions.userName - User Name
+	 * @returns an array of Submission
 	 */
-	const getActiveSubmissionsByCategory = async ({
-		categoryId,
-		userName,
-	}: {
-		categoryId: number;
-		userName: string;
-	}): Promise<ActiveSubmissionSummaryResponse[] | undefined> => {
-		const { getActiveSubmissionsWithRelationsByCategory } = submissionRepository(dependencies);
 
-		const submissions = await getActiveSubmissionsWithRelationsByCategory({ userName, categoryId });
-		if (!submissions || submissions.length === 0) {
-			return;
+	const getSubmissionsByCategory = async (
+		categoryId: number,
+		paginationOptions: PaginationOptions,
+		filterOptions: {
+			onlyActive: boolean;
+			userName: string;
+		},
+	): Promise<{
+		result: SubmissionSummaryResponse[];
+		metadata: { totalRecords: number; errorMessage?: string };
+	}> => {
+		const { getSubmissionsWithRelationsByCategory, getTotalSubmissionsByCategory } = submissionRepository(dependencies);
+
+		const recordsPaginated = await getSubmissionsWithRelationsByCategory(categoryId, paginationOptions, filterOptions);
+		if (!recordsPaginated || recordsPaginated.length === 0) {
+			return {
+				result: [],
+				metadata: {
+					totalRecords: 0,
+				},
+			};
 		}
 
-		return submissions.map((response) => parseActiveSubmissionSummaryResponse(response));
+		const totalRecords = await getTotalSubmissionsByCategory(categoryId, filterOptions);
+		return {
+			metadata: {
+				totalRecords,
+			},
+			result: recordsPaginated.map((response) => parseSubmissionSummaryResponse(response)),
+		};
 	};
 
 	/**
@@ -268,7 +289,7 @@ const service = (dependencies: BaseDependencies) => {
 			return;
 		}
 
-		return parseActiveSubmissionResponse(submission);
+		return parseSubmissionResponse(submission);
 	};
 
 	/**
@@ -287,7 +308,7 @@ const service = (dependencies: BaseDependencies) => {
 		categoryId: number;
 		userName: string;
 		organization: string;
-	}): Promise<ActiveSubmissionSummaryResponse | undefined> => {
+	}): Promise<SubmissionSummaryResponse | undefined> => {
 		const { getActiveSubmissionWithRelationsByOrganization } = submissionRepository(dependencies);
 
 		const submission = await getActiveSubmissionWithRelationsByOrganization({ organization, userName, categoryId });
@@ -295,7 +316,7 @@ const service = (dependencies: BaseDependencies) => {
 			return;
 		}
 
-		return parseActiveSubmissionSummaryResponse(submission);
+		return parseSubmissionSummaryResponse(submission);
 	};
 
 	/**
@@ -444,7 +465,7 @@ const service = (dependencies: BaseDependencies) => {
 		commitSubmission,
 		deleteActiveSubmissionById,
 		deleteActiveSubmissionEntity,
-		getActiveSubmissionsByCategory,
+		getSubmissionsByCategory,
 		getSubmissionById,
 		getActiveSubmissionByOrganization,
 		getOrCreateActiveSubmission,

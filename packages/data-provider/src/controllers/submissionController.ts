@@ -10,11 +10,11 @@ import {
 	dataDeleteBySystemIdRequestSchema,
 	dataEditRequestSchema,
 	submissionActiveByOrganizationRequestSchema,
-	submissionActiveyByCategoryRequestSchema,
 	submissionByIdRequestSchema,
 	submissionCommitRequestSchema,
 	submissionDeleteEntityNameRequestSchema,
 	submissionDeleteRequestSchema,
+	submissionsByCategoryRequestSchema,
 	uploadSubmissionRequestSchema,
 } from '../utils/schemas.js';
 import { BATCH_ERROR_TYPE, BatchError, SUBMISSION_ACTION_TYPE, SUPPORTED_FILE_EXTENSIONS } from '../utils/types.js';
@@ -23,6 +23,8 @@ const controller = (dependencies: BaseDependencies) => {
 	const service = submissionService(dependencies);
 	const dataService = submittedDataService(dependencies);
 	const { logger } = dependencies;
+	const defaultPage = 1;
+	const defaultPageSize = 20;
 	const LOG_MODULE = 'SUBMISSION_CONTROLLER';
 	return {
 		commit: validateRequest(submissionCommitRequestSchema, async (req, res, next) => {
@@ -162,24 +164,44 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		}),
-		getActiveByCategory: validateRequest(submissionActiveyByCategoryRequestSchema, async (req, res, next) => {
+		getSubmissionsByCategory: validateRequest(submissionsByCategoryRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
+				const onlyActive = req.query.onlyActive?.toLowerCase() === 'true';
+				const page = parseInt(String(req.query.page)) || defaultPage;
+				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
 
-				logger.info(LOG_MODULE, `Request Active Submission categoryId '${categoryId}'`);
+				logger.info(
+					LOG_MODULE,
+					`Request Submission categoryId '${categoryId}'`,
+					`pagination params: page '${page}' pageSize '${pageSize}'`,
+					`onlyActive '${onlyActive}'`,
+				);
 
 				// TODO: get userName from auth
 				const userName = '';
 
-				const activeSubmissions = await service.getActiveSubmissionsByCategory({ categoryId, userName });
+				const submissionsResult = await service.getSubmissionsByCategory(
+					categoryId,
+					{ page, pageSize },
+					{ onlyActive, userName },
+				);
 
-				if (!activeSubmissions || activeSubmissions.length === 0) {
-					throw new NotFound('Active Submission not found');
+				if (isEmpty(submissionsResult.result)) {
+					throw new NotFound('Submissions not found');
 				}
 
-				logger.info(LOG_MODULE, `Found '${activeSubmissions.length}' Active Submissions`);
+				const response = {
+					pagination: {
+						currentPage: page,
+						pageSize: pageSize,
+						totalPages: Math.ceil(submissionsResult.metadata.totalRecords / pageSize),
+						totalRecords: submissionsResult.metadata.totalRecords,
+					},
+					records: submissionsResult.result,
+				};
 
-				return res.status(200).send(activeSubmissions);
+				return res.status(200).send(response);
 			} catch (error) {
 				next(error);
 			}
