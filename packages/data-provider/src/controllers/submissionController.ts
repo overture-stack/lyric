@@ -190,10 +190,6 @@ const controller = (dependencies: BaseDependencies) => {
 
 				logger.info(LOG_MODULE, `Request Active Submission submissionId '${submissionId}'`);
 
-				// Get userName from auth
-				const userName = req.user?.username;
-				logger.info(`userName:${userName}`);
-
 				const activeSubmission = await service.getActiveSubmissionById(submissionId);
 
 				if (isEmpty(activeSubmission)) {
