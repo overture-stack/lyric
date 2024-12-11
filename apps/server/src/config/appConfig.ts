@@ -7,7 +7,6 @@ import { myAuthMiddleware } from '../middleware/auth.js';
 export const getServerConfig = () => {
 	return {
 		port: process.env.PORT || 3030,
-		allowedOrigins: process.env.ALLOWED_ORIGINS,
 	};
 };
 
@@ -30,7 +29,7 @@ const getRequiredConfig = (name: string) => {
 	return value;
 };
 
-export const appConfig: AppConfig = {
+export const defaultAppConfig: AppConfig = {
 	db: {
 		host: getRequiredConfig('DB_HOST'),
 		port: Number(getRequiredConfig('DB_PORT')),

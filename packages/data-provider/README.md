@@ -8,34 +8,44 @@
 npm i @overture-stack/lyric
 ```
 
-## Usage
+## Configuration
+
+### Provider
 
 Import `AppConfig` and `provider` from `@overture-stack/lyric` module to initialize the provider with custom configuration:
 
-```
+```javascript
 import { AppConfig, provider } from '@overture-stack/lyric';
 
 const appConfig: AppConfig = {
 	db: {
-		host: [INSERT_DB_HOST],
-		port: [INSERT_DB_PORT],
-		database: [INSERT_DB_NAME],
-		user:[INSERT_DB_USER],
-		password: [INSERT_DB_PASSWORD],
+		host: 'localhost', // Database hostname or IP address
+		port: 5432, // Database port
+		database: 'my_database', // Name of the database
+		user: 'db_user', // Username for database authentication
+		password: 'secure_password', // Password for database authentication
 	},
 	features: {
 		audit: {
-			enabled: [INSERT_AUDIT_ENABLED]
-		}
+			enabled: true, // Enable audit functionality (true/false)
+		},
+		recordHierarchy: {
+			pluralizeSchemasName: false, // Enable or disable automatic schema name pluralization (true/false)
+		},
 	},
-	schemaService: {
-		url: [INSERT_LECTERN_URL],
+	idService: {
+		useLocal: true, // Use local ID generation (true/false)
+		customAlphabet: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890', // Custom alphabet for ID generation
+		customSize: 12, // Size of the generated ID
 	},
 	limits: {
-		fileSize: [INSERT_UPLOAD_LIMIT],
+		fileSize: 10485760, // Maximum file size in bytes (e.g., 10MB = 10 * 1024 * 1024)
 	},
 	logger: {
-		level: [INSERT_LOG_LEVEL],
+		level: 'info', // Logging level (e.g., 'debug', 'info', 'warn', 'error')
+	},
+	schemaService: {
+		url: 'https://api.lectern-service.com', // URL of the schema service
 	},
 };
 
@@ -43,16 +53,91 @@ const appConfig: AppConfig = {
 const lyricProvider = provider(appConfig);
 ```
 
+### Auth Middleware
+
+An authentication middleware checks whether the incoming requests are authorized before passing them to the next handler.
+
+A `UserSession` type is a structured object that contains details about a logged-in user, which should be attached to the request object.
+
+Implement an Express middleware to validate the token and attach the user session to `req.user`.
+
+```javascript
+import { Request, Response, NextFunction } from 'express';
+import { UserSession } from '@overture-stack/lyric';
+import jwt from 'jsonwebtoken';
+
+const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+    // Extract the token from the request header
+    const authHeader = req.headers['authorization'];
+
+    // Check if the Authorization header exists and starts with "Bearer"
+	if (!authHeader || !authHeader.startsWith('Bearer ')) {
+		return res.status(401).json({ message: 'Unauthorized: No token provided' });
+	}
+
+	// Extract the token by removing the "Bearer " prefix
+	const token = authHeader.split(' ')[1];
+
+    try {
+		// Verify the token using a public key
+		const publicKey = process.env.JWT_PUBLIC_KEY!;
+		const decodedToken = jwt.verify(token, publicKey);
+
+		// Attach the UserSession properties to the request object
+		req.user = {
+			username: decodedToken.username, // Example: Adjust fields as per your `UserSession` type
+		};
+
+		next(); // Continue to the next middleware or route handler
+	} catch (err) {
+		return res.status(403).json({ message: 'Forbidden: Invalid token' });
+	}
+
+    // If valid, proceed to the next middleware or route handler
+    next();
+};
+```
+
+Add the middleware to your `AppConfig` object.
+
+```javascript
+import { AppConfig, provider, UserSession } from '@overture-stack/lyric';
+
+const appConfig: AppConfig = {
+	...// Other configuration
+	{
+		authMiddleware?: authMiddleware;
+	}
+```
+
+## Usage
+
+### Express Routers
+
 Use any of the resources available on provider on a Express server:
 
-- Import a router:
-
-```
+```javascript
 import express from 'express';
 
 const app = express();
 
 app.use('/submission', lyricProvider.routers.submission);
+```
+
+### Database Migrations
+
+Import `migrate` function from `@overture-stack/lyric` module to run Database migrations
+
+```javascript
+import { migrate } from '@overture-stack/lyric';
+
+migrate({
+	host: 'localhost', // Database hostname or IP address
+	port: 5432, // Database port
+	database: 'my_database', // Name of the database
+	user: 'db_user', // Username for database authentication
+	password: 'secure_password', // Password for database authentication
+});
 ```
 
 ## Support & Contributions
@@ -61,3 +146,7 @@ app.use('/submission', lyricProvider.routers.submission);
 - Filing an [issue](https://github.com/overture-stack/lyric/issues)
 - Connect with us on [Slack](http://slack.overture.bio)
 - Add or Upvote a [feature request](https://github.com/overture-stack/lyric/issues/new?assignees=&labels=&projects=&template=Feature_Requests.md)
+
+```
+
+```

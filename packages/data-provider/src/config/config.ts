@@ -1,4 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { NextFunction, Request, Response } from 'express';
 
 import type { DbConfig } from '@overture-stack/lyric-data-model';
 import * as schema from '@overture-stack/lyric-data-model/models';
@@ -48,6 +49,7 @@ export type AppConfig = {
 	limits: LimitsConfig;
 	logger: LoggerConfig;
 	schemaService: SchemaServiceConfig;
+	authMiddleware?: (req: Request, res: Response, next: NextFunction) => void;
 };
 
 /**
