@@ -45,11 +45,11 @@ const provider = (configData: AppConfig) => {
 	return {
 		configs: baseDeps,
 		routers: {
-			audit: auditRouter(baseDeps),
-			category: categoryRouter(baseDeps),
-			dictionary: dictionaryRouter(baseDeps),
-			submission: submissionRouter(baseDeps),
-			submittedData: submittedDataRouter(baseDeps),
+			audit: auditRouter(baseDeps, configData.authMiddleware),
+			category: categoryRouter(baseDeps, configData.authMiddleware),
+			dictionary: dictionaryRouter(baseDeps, configData.authMiddleware),
+			submission: submissionRouter(baseDeps, configData.authMiddleware),
+			submittedData: submittedDataRouter(baseDeps, configData.authMiddleware),
 		},
 		controllers: {
 			audit: auditController(baseDeps),
