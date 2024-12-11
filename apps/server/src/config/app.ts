@@ -2,7 +2,7 @@ import 'dotenv/config';
 
 import { AppConfig } from '@overture-stack/lyric';
 
-import { myAuthMiddleware } from '../middleware/auth.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 export const getServerConfig = () => {
 	return {
@@ -60,5 +60,5 @@ export const appConfig: AppConfig = {
 	logger: {
 		level: process.env.LOG_LEVEL || 'info',
 	},
-	authMiddleware: myAuthMiddleware,
+	authMiddleware,
 };

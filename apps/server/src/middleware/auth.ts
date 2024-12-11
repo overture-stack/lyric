@@ -9,7 +9,7 @@ declare module 'express-serve-static-core' {
 	}
 }
 
-export const myAuthMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
 	// Middleware for implementing authentication logic.
 
 	req.user = {
