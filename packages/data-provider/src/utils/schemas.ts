@@ -387,3 +387,57 @@ export const dataGetBySystemIdRequestSchema: RequestValidation<
 		categoryId: categoryIdSchema,
 	}),
 };
+
+
+const studyIdSchema = z.string().trim().min(1);
+
+const valueSchema = z.string().trim().min(1);
+
+export const validationRequestSchema: RequestValidation<
+    object,
+    { studyId: string; value: string },
+    { categoryId: string; entityName: string }
+> = {
+    pathParams: z.object({
+        categoryId: categoryIdSchema,
+        entityName: entityNameSchema,
+    }),
+    query: z.object({
+        studyId: studyIdSchema,
+        value: valueSchema,
+    }),
+};
+
+const validationQuerySchema = z
+	.object({
+		studyId: stringNotEmpty,
+		value: stringNotEmpty
+	});
+
+
+
+export const validationPathParamsSchema = z.object({
+	categoryId: categoryIdSchema,
+	entityName: entityNameSchema,
+});
+
+export interface validationPathParams extends ParamsDictionary {
+	categoryId: string;
+	entityName: string;
+}
+
+export const validationRequestSchema1: RequestValidation<
+object,
+validationQueryParam,
+validationPathParams
+> = {
+query: validationQuerySchema,
+pathParams: validationPathParamsSchema,
+};
+
+
+export interface validationQueryParam extends ParsedQs {
+	studyId: string;
+	value: string
+}
+
