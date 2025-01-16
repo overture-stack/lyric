@@ -209,8 +209,11 @@ const processor = (dependencies: BaseDependencies) => {
 	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<void> => {
 		const submissionRepo = submissionRepository(dependencies);
 		const dataSubmittedRepo = submittedRepository(dependencies);
+		const categoryRepo = categoryRepository(dependencies);
+		const indexer = dependencies.indexer;
 
 		const { dictionary, dataToValidate, submission, userName } = params;
+		const category = await categoryRepo.getCategoryById(submission.dictionaryCategoryId);
 
 		// Merge Submitted Data with items to be inserted, updated or deleted consist on 3 steps
 		// Step 1: Exclude items that are marked for deletion
@@ -278,6 +281,16 @@ const processor = (dependencies: BaseDependencies) => {
 							oldIsValid: oldIsValid,
 							submissionId: submission.id,
 						});
+
+						if (indexer && category?.indexName) {
+							indexer.payload.updateData(category.indexName, data.systemId, {
+								entityName: data.entityName,
+								data: data.data,
+								organization: data.organization,
+								isValid: data.isValid,
+								systemId: data.systemId,
+							});
+						}
 					}
 				} else {
 					logger.info(
@@ -289,6 +302,17 @@ const processor = (dependencies: BaseDependencies) => {
 						data.lastValidSchemaId = dictionary.id;
 					}
 					dataSubmittedRepo.save(data);
+					if (indexer && category?.indexName) {
+						indexer.payload.bulkUpsert(category.indexName, [
+							{
+								entityName: data.entityName,
+								data: data.data,
+								organization: data.organization,
+								isValid: data.isValid,
+								systemId: data.systemId,
+							},
+						]);
+					}
 				}
 			});
 		});
@@ -301,6 +325,10 @@ const processor = (dependencies: BaseDependencies) => {
 				diff: computeDataDiff(item.data, null),
 				userName,
 			});
+
+			if (indexer && category?.indexName) {
+				indexer.payload.deleteData(category.indexName, item.systemId);
+			}
 		});
 
 		logger.info(LOG_MODULE, `Active submission '${submission.id} updated to status '${SUBMISSION_STATUS.COMMITED}'`);

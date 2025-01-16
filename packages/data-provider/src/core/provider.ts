@@ -1,3 +1,5 @@
+import { initializeMaestroProvider } from '@overture-stack/maestro-provider';
+
 import { AppConfig, BaseDependencies } from '../config/config.js';
 import { connect } from '../config/db.js';
 import { getLogger } from '../config/logger.js';
@@ -40,6 +42,7 @@ const provider = (configData: AppConfig) => {
 		limits: configData.limits,
 		logger: getLogger(configData.logger),
 		schemaService: configData.schemaService,
+		indexer: configData.indexer ? initializeMaestroProvider(configData.indexer) : undefined,
 	};
 
 	return {

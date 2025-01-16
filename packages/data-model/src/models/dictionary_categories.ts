@@ -9,6 +9,7 @@ export const dictionaryCategories = pgTable('dictionary_categories', {
 	id: serial('id').primaryKey(),
 	activeDictionaryId: integer('active_dictionary_id').notNull(),
 	defaultCentricEntity: varchar('default_centric_entity'),
+	indexName: varchar('index_name'),
 	name: varchar('name').unique().notNull(),
 	createdAt: timestamp('created_at').defaultNow(),
 	createdBy: varchar('created_by'),

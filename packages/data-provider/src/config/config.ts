@@ -1,6 +1,7 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 import * as schema from '@overture-stack/lyric-data-model';
+import { MaestroProvider, type MaestroProviderConfig } from '@overture-stack/maestro-provider';
 
 import { Logger } from './logger.js';
 
@@ -55,6 +56,7 @@ export type AppConfig = {
 	limits: LimitsConfig;
 	logger: LoggerConfig;
 	schemaService: SchemaServiceConfig;
+	indexer?: MaestroProviderConfig;
 };
 
 /**
@@ -67,4 +69,5 @@ export interface BaseDependencies {
 	limits: LimitsConfig;
 	logger: Logger;
 	schemaService: SchemaServiceConfig;
+	indexer?: MaestroProvider;
 }

@@ -12,9 +12,10 @@ const controller = (dependencies: BaseDependencies) => {
 		registerDictionary: validateRequest(dictionaryRegisterRequestSchema, async (req, res, next) => {
 			try {
 				const categoryName = req.body.categoryName;
+				const defaultCentricEntity = req.body.defaultCentricEntity;
 				const dictionaryName = req.body.dictionaryName;
 				const dictionaryVersion = req.body.dictionaryVersion;
-				const defaultCentricEntity = req.body.defaultCentricEntity;
+				const indexName = req.body.indexName;
 
 				logger.info(
 					LOG_MODULE,
@@ -23,9 +24,10 @@ const controller = (dependencies: BaseDependencies) => {
 
 				const { dictionary, category } = await dictionaryService.register({
 					categoryName,
+					defaultCentricEntity,
 					dictionaryName,
 					dictionaryVersion,
-					defaultCentricEntity,
+					indexName,
 				});
 
 				logger.info(LOG_MODULE, `Register Dictionary completed!`);
@@ -33,7 +35,9 @@ const controller = (dependencies: BaseDependencies) => {
 				const result: RegisterDictionaryResult = {
 					categoryId: category.id,
 					categoryName: category.name,
+					defaultCentricEntity: category.defaultCentricEntity,
 					dictionary: dictionary.dictionary,
+					indexName: category.indexName,
 					name: dictionary.name,
 					version: dictionary.version,
 				};

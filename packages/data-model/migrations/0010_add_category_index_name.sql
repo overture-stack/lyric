@@ -1,0 +1,1 @@
+ALTER TABLE "dictionary_categories" ADD COLUMN "index_name" varchar;

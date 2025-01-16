@@ -70,14 +70,16 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 
 	const register = async ({
 		categoryName,
+		defaultCentricEntity,
 		dictionaryName,
 		dictionaryVersion,
-		defaultCentricEntity,
+		indexName,
 	}: {
 		categoryName: string;
+		defaultCentricEntity?: string;
 		dictionaryName: string;
 		dictionaryVersion: string;
-		defaultCentricEntity?: string;
+		indexName?: string;
 	}): Promise<{ dictionary: Dictionary; category: Category }> => {
 		logger.debug(
 			LOG_MODULE,
@@ -108,6 +110,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			const updatedCategory = await categoryRepo.update(foundCategory.id, {
 				activeDictionaryId: savedDictionary.id,
 				defaultCentricEntity,
+				indexName,
 			});
 
 			logger.info(
@@ -122,6 +125,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 				name: categoryName,
 				activeDictionaryId: savedDictionary.id,
 				defaultCentricEntity,
+				indexName,
 			};
 
 			const savedCategory = await categoryRepo.save(newCategory);

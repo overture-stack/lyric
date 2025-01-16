@@ -12,6 +12,15 @@ const getRequiredConfig = (name: string) => {
 	return value;
 };
 
+const getRequiredNumber = (name: string) => {
+	const value = process.env[name];
+	const parsedNumber = Number(value);
+	if (isNaN(parsedNumber)) {
+		throw new Error(`The Environment Variable '${name}' must be a valid number`);
+	}
+	return parsedNumber;
+};
+
 async function main() {
 	console.log('Running your migrations...');
 
@@ -19,7 +28,7 @@ async function main() {
 		host: getRequiredConfig('DB_HOST'),
 		database: getRequiredConfig('DB_NAME'),
 		password: getRequiredConfig('DB_PASSWORD'),
-		port: Number(getRequiredConfig('DB_PORT')),
+		port: getRequiredNumber('DB_PORT'),
 		user: getRequiredConfig('DB_USER'),
 	});
 	const db = drizzle(sql);

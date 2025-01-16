@@ -127,7 +127,9 @@ export type CommitSubmissionResult = {
 export type RegisterDictionaryResult = {
 	categoryId: number;
 	categoryName: string;
+	defaultCentricEntity: string | null;
 	dictionary: object;
+	indexName: string | null;
 	name: string;
 	version: string;
 };
@@ -267,7 +269,9 @@ export type ActiveSubmissionSummaryRepository = {
 
 export type CategoryDetailsResponse = {
 	id: number;
+	defaultCentricEntity: string | null;
 	dictionary?: Pick<Dictionary, 'name' | 'version'>;
+	indexName: string | null;
 	name: string;
 	organizations: string[];
 	createdAt: string;

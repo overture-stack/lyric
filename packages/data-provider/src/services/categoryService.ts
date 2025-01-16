@@ -19,12 +19,14 @@ const categoryService = (dependencies: BaseDependencies) => {
 
 				return {
 					id: category.id,
+					defaultCentricEntity: category.defaultCentricEntity,
 					dictionary: category.activeDictionary
 						? {
 								name: category.activeDictionary.name,
 								version: category.activeDictionary.version,
 							}
 						: undefined,
+					indexName: category.indexName,
 					name: category.name,
 					organizations: organizationsFound,
 					createdAt: _.toString(category.createdAt?.toISOString()),

@@ -41,6 +41,7 @@ table dictionary_categories {
   id serial [pk, not null, increment]
   active_dictionary_id integer [not null]
   default_centric_entity varchar
+  index_name varchar
   name varchar [not null, unique]
   created_at timestamp [default: `now()`]
   created_by varchar
