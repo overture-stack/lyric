@@ -21,13 +21,13 @@ const router = (
 		router.use(authMiddleware);
 	}
 
-	router.get('/:submissionId', submissionController(dependencies).getActiveById);
+	router.get('/:submissionId', submissionController(dependencies).getSubmissionById);
 
 	router.delete('/:submissionId', submissionController(dependencies).delete);
 
 	router.delete('/:submissionId/:actionType', submissionController(dependencies).deleteEntityName);
 
-	router.get('/category/:categoryId', submissionController(dependencies).getActiveByCategory);
+	router.get('/category/:categoryId', submissionController(dependencies).getSubmissionsByCategory);
 
 	router.get(
 		'/category/:categoryId/organization/:organization',
