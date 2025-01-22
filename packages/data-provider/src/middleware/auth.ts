@@ -1,7 +1,20 @@
 import { NextFunction, Request, Response } from 'express';
 
-import type { AuthConfig, UserSessionResult } from '../config/config.js';
-import type { UserSession } from '../utils/express.js';
+export type AuthStatus = 'authenticated' | 'no-auth' | 'invalid-auth';
+
+export type UserSession = {
+	username: string;
+};
+
+export type UserSessionResult = {
+	user?: UserSession;
+	authStatus: AuthStatus;
+};
+
+export type AuthConfig = {
+	enabled: boolean;
+	customAuthHandler?: (req: Request) => UserSessionResult;
+};
 
 // Extends the Request interface to include a custom `user` object
 declare module 'express-serve-static-core' {

@@ -1,9 +1,9 @@
 import { json, Router, urlencoded } from 'express';
 import multer from 'multer';
 
-import { type AuthConfig, BaseDependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import submissionController from '../controllers/submissionController.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
 import { getSizeInBytes } from '../utils/fileUtils.js';
 
 const router = ({

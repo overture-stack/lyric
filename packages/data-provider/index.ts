@@ -1,6 +1,7 @@
 // config
-export { type AppConfig, type AuthStatus, type UserSessionResult } from './src/config/config.js';
+export { type AppConfig } from './src/config/config.js';
 export { default as provider } from './src/core/provider.js';
+export { type AuthStatus, type UserSession, type UserSessionResult } from './src/middleware/auth.js';
 export { errorHandler } from './src/middleware/errorHandler.js';
 export { type DbConfig, migrate } from '@overture-stack/lyric-data-model';
 
@@ -11,7 +12,6 @@ export { default as submittedDataRouter } from './src/routers/submittedDataRoute
 
 // utils
 export * from './src/utils/dictionaryUtils.js';
-export * from './src/utils/express.js';
 export * from './src/utils/submissionUtils.js';
 export * from './src/utils/submittedDataUtils.js';
 export * from './src/utils/types.js';

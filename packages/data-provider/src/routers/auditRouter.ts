@@ -1,8 +1,8 @@
 import { json, Router, urlencoded } from 'express';
 
-import { type AuthConfig, BaseDependencies } from '../config/config.js';
+import { BaseDependencies } from '../config/config.js';
 import auditController from '../controllers/auditController.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
 
 const router = ({
 	baseDependencies,
