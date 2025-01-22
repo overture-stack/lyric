@@ -1,5 +1,5 @@
 // config
-export { type AppConfig } from './src/config/config.js';
+export { type AppConfig, type AuthStatus, type UserSessionResult } from './src/config/config.js';
 export { default as provider } from './src/core/provider.js';
 export { errorHandler } from './src/middleware/errorHandler.js';
 export { type DbConfig, migrate } from '@overture-stack/lyric-data-model';

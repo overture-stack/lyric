@@ -53,26 +53,28 @@ const appConfig: AppConfig = {
 const lyricProvider = provider(appConfig);
 ```
 
-### Auth Middleware
+### Auth Custom Hanlder
 
-An authentication middleware checks whether the incoming requests are authorized before passing them to the next handler.
+The **authentication custom handler** is a customized function that can be used to verify and manage user authentication within the application. It is used by the auth middleware to process incoming requests.
 
-A `UserSession` type is a structured object that contains details about a logged-in user, which should be attached to the request object.
+The handler returns a `UserSessionResult` response type, which is a structured object that indicates the authentication status (`authenticated`, `no-auth`, or `invalid-auth`), if the status is `authenticated` it also include user details provided by the `UserSession` type.
 
-Implement an Express middleware to validate the token and attach the user session to `req.user`.
+Example how to implement a custom auth handler:
 
 ```javascript
-import { Request, Response, NextFunction } from 'express';
-import { UserSession } from '@overture-stack/lyric';
+import { Request } from 'express';
+import { UserSessionResult } from '@overture-stack/lyric';
 import jwt from 'jsonwebtoken';
 
-const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+const authHandler = (req: Request): UserSessionResult => {
     // Extract the token from the request header
     const authHeader = req.headers['authorization'];
 
     // Check if the Authorization header exists and starts with "Bearer"
 	if (!authHeader || !authHeader.startsWith('Bearer ')) {
-		return res.status(401).json({ message: 'Unauthorized: No token provided' });
+		return {
+			authStatus: 'no-auth'
+		}
 	}
 
 	// Extract the token by removing the "Bearer " prefix
@@ -83,31 +85,30 @@ const authMiddleware = (req: Request, res: Response, next: NextFunction): void =
 		const publicKey = process.env.JWT_PUBLIC_KEY!;
 		const decodedToken = jwt.verify(token, publicKey);
 
-		// Attach the UserSession properties to the request object
-		req.user = {
-			username: decodedToken.username, // Example: Adjust fields as per your `UserSession` type
+		return {
+			user: { username:  decodedToken.username }, // Example: Adjust fields as per your `UserSession` type
+			authStatus: 'authenticated',
 		};
-
-		next(); // Continue to the next middleware or route handler
 	} catch (err) {
-		return res.status(403).json({ message: 'Forbidden: Invalid token' });
+		return {
+			authStatus: 'invalid-auth';
+		}
 	}
-
-    // If valid, proceed to the next middleware or route handler
-    next();
 };
 ```
 
-Add the middleware to your `AppConfig` object.
+Add the handler to your `AppConfig` object.
 
 ```javascript
 import { AppConfig, provider, UserSession } from '@overture-stack/lyric';
 
 const appConfig: AppConfig = {
 	...// Other configuration
-	{
-		authMiddleware?: authMiddleware;
-	}
+	auth: {
+		enabled: true,
+		customAuthHandler: authHandler,
+	};
+}
 ```
 
 ## Usage

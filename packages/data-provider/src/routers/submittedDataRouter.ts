@@ -1,34 +1,38 @@
-import { json, NextFunction, Request, Response, Router, urlencoded } from 'express';
+import { json, Router, urlencoded } from 'express';
 
-import { BaseDependencies } from '../config/config.js';
+import { type AuthConfig, BaseDependencies } from '../config/config.js';
 import submittedDataController from '../controllers/submittedDataController.js';
+import { authMiddleware } from '../middleware/auth.js';
 
-const router = (
-	dependencies: BaseDependencies,
-	authMiddleware?: (req: Request, res: Response, next: NextFunction) => void,
-): Router => {
+const router = ({
+	baseDependencies,
+	authConfig,
+}: {
+	baseDependencies: BaseDependencies;
+	authConfig: AuthConfig;
+}): Router => {
 	const router = Router();
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	// If an auth middleware is provided, use it
-	if (authMiddleware) {
-		router.use(authMiddleware);
-	}
+	router.use(authMiddleware(authConfig));
 
-	router.get('/category/:categoryId', submittedDataController(dependencies).getSubmittedDataByCategory);
+	router.get('/category/:categoryId', submittedDataController(baseDependencies).getSubmittedDataByCategory);
 
 	router.get(
 		'/category/:categoryId/organization/:organization',
-		submittedDataController(dependencies).getSubmittedDataByOrganization,
+		submittedDataController(baseDependencies).getSubmittedDataByOrganization,
 	);
 
 	router.post(
 		'/category/:categoryId/organization/:organization/query',
-		submittedDataController(dependencies).getSubmittedDataByQuery,
+		submittedDataController(baseDependencies).getSubmittedDataByQuery,
 	);
 
-	router.get('/category/:categoryId/id/:systemId', submittedDataController(dependencies).getSubmittedDataBySystemId);
+	router.get(
+		'/category/:categoryId/id/:systemId',
+		submittedDataController(baseDependencies).getSubmittedDataBySystemId,
+	);
 
 	return router;
 };

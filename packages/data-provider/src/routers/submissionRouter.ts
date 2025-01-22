@@ -1,49 +1,54 @@
-import { json, NextFunction, Request, Response, Router, urlencoded } from 'express';
+import { json, Router, urlencoded } from 'express';
 import multer from 'multer';
 
-import { BaseDependencies } from '../config/config.js';
+import { type AuthConfig, BaseDependencies } from '../config/config.js';
 import submissionController from '../controllers/submissionController.js';
+import { authMiddleware } from '../middleware/auth.js';
 import { getSizeInBytes } from '../utils/fileUtils.js';
 
-const router = (
-	dependencies: BaseDependencies,
-	authMiddleware?: (req: Request, res: Response, next: NextFunction) => void,
-): Router => {
-	const fileSizeLimit = getSizeInBytes(dependencies.limits.fileSize);
+const router = ({
+	baseDependencies,
+	authConfig,
+}: {
+	baseDependencies: BaseDependencies;
+	authConfig: AuthConfig;
+}): Router => {
+	const fileSizeLimit = getSizeInBytes(baseDependencies.limits.fileSize);
 	const upload = multer({ dest: '/tmp', limits: { fileSize: fileSizeLimit } });
 
 	const router = Router();
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	// If an auth middleware is provided, use it
-	if (authMiddleware) {
-		router.use(authMiddleware);
-	}
+	router.use(authMiddleware(authConfig));
 
-	router.get('/:submissionId', submissionController(dependencies).getSubmissionById);
+	router.get('/:submissionId', submissionController(baseDependencies).getSubmissionById);
 
-	router.delete('/:submissionId', submissionController(dependencies).delete);
+	router.delete('/:submissionId', submissionController(baseDependencies).delete);
 
-	router.delete('/:submissionId/:actionType', submissionController(dependencies).deleteEntityName);
+	router.delete('/:submissionId/:actionType', submissionController(baseDependencies).deleteEntityName);
 
-	router.get('/category/:categoryId', submissionController(dependencies).getSubmissionsByCategory);
+	router.get('/category/:categoryId', submissionController(baseDependencies).getSubmissionsByCategory);
 
 	router.get(
 		'/category/:categoryId/organization/:organization',
-		submissionController(dependencies).getActiveByOrganization,
+		submissionController(baseDependencies).getActiveByOrganization,
 	);
 
-	router.post('/category/:categoryId/data', upload.array('files'), submissionController(dependencies).upload);
+	router.post('/category/:categoryId/data', upload.array('files'), submissionController(baseDependencies).upload);
 
 	router.delete(
 		`/category/:categoryId/data/:systemId`,
-		submissionController(dependencies).deleteSubmittedDataBySystemId,
+		submissionController(baseDependencies).deleteSubmittedDataBySystemId,
 	);
 
-	router.put(`/category/:categoryId/data`, upload.array('files'), submissionController(dependencies).editSubmittedData);
+	router.put(
+		`/category/:categoryId/data`,
+		upload.array('files'),
+		submissionController(baseDependencies).editSubmittedData,
+	);
 
-	router.post('/category/:categoryId/commit/:submissionId', submissionController(dependencies).commit);
+	router.post('/category/:categoryId/commit/:submissionId', submissionController(baseDependencies).commit);
 
 	return router;
 };

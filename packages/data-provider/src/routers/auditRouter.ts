@@ -1,24 +1,25 @@
-import { json, NextFunction, Request, Response, Router, urlencoded } from 'express';
+import { json, Router, urlencoded } from 'express';
 
-import { BaseDependencies } from '../config/config.js';
+import { type AuthConfig, BaseDependencies } from '../config/config.js';
 import auditController from '../controllers/auditController.js';
+import { authMiddleware } from '../middleware/auth.js';
 
-const router = (
-	dependencies: BaseDependencies,
-	authMiddleware?: (req: Request, res: Response, next: NextFunction) => void,
-): Router => {
+const router = ({
+	baseDependencies,
+	authConfig,
+}: {
+	baseDependencies: BaseDependencies;
+	authConfig: AuthConfig;
+}): Router => {
 	const router = Router();
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	// If an auth middleware is provided, use it
-	if (authMiddleware) {
-		router.use(authMiddleware);
-	}
+	router.use(authMiddleware(authConfig));
 
 	router.get(
 		'/category/:categoryId/organization/:organization',
-		auditController(dependencies).byCategoryIdAndOrganization,
+		auditController(baseDependencies).byCategoryIdAndOrganization,
 	);
 	return router;
 };

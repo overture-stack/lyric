@@ -1,9 +1,10 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { NextFunction, Request, Response } from 'express';
+import { Request } from 'express';
 
 import type { DbConfig } from '@overture-stack/lyric-data-model';
 import * as schema from '@overture-stack/lyric-data-model/models';
 
+import type { UserSession } from '../utils/express.js';
 import { Logger } from './logger.js';
 
 export type AuditConfig = {
@@ -38,6 +39,18 @@ export type IdServiceConfig = {
 	customSize: number;
 };
 
+export type AuthStatus = 'authenticated' | 'no-auth' | 'invalid-auth';
+
+export type UserSessionResult = {
+	user?: UserSession;
+	authStatus: AuthStatus;
+};
+
+export type AuthConfig = {
+	enabled: boolean;
+	customAuthHandler?: (req: Request) => UserSessionResult;
+};
+
 /**
  * Environment variables to configure internal and external resources
  * (database, external services, logger, etc)
@@ -49,7 +62,7 @@ export type AppConfig = {
 	limits: LimitsConfig;
 	logger: LoggerConfig;
 	schemaService: SchemaServiceConfig;
-	authMiddleware?: (req: Request, res: Response, next: NextFunction) => void;
+	auth: AuthConfig;
 };
 
 /**
