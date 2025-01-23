@@ -55,7 +55,7 @@ components:
             $ref: '#/components/responses/Error'
 
   schemas:
-    ActiveSubmissionResult:
+    SubmissionResult:
       type: object
       properties:
         id:
@@ -161,12 +161,26 @@ components:
           type: string
           description: User name who last updated the submission
 
-    ActiveSubmissionsSummaryResult:
-      type: array
-      items:
-        $ref: '#/components/schemas/ActiveSubmissionSummary'
+    SubmissionsSummaryResult:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            currentPage:
+              type: number
+            pageSize:
+              type: number
+            totalPages:
+              type: number
+            totalRecords:
+              type: number
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubmissionSummary'
 
-    ActiveSubmissionSummary:
+    SubmissionSummary:
       type: object
       properties:
         id:
@@ -258,7 +272,7 @@ components:
           description: Name of user who last updated the submission
 
     ActiveSubmissionSummaryResult:
-      $ref: '#/components/schemas/ActiveSubmissionSummary'
+      $ref: '#/components/schemas/SubmissionSummary'
 
     BatchError:
       type: object
