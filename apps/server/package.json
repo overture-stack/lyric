@@ -1,6 +1,6 @@
 {
 	"name": "server",
-	"version": "0.5.1",
+	"version": "0.6.0",
 	"description": "Lyric Server",
 	"engines": {
 		"node": ">=20.0.0"

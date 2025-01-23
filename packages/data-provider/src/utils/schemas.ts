@@ -16,6 +16,11 @@ const auditEventTypeSchema = z
 	.min(1)
 	.refine((value) => isAuditEventValid(value), 'invalid Event Type');
 
+const booleanSchema = z
+	.string()
+	.toLowerCase()
+	.refine((value) => value === 'true' || value === 'false');
+
 const viewSchema = z.string().toLowerCase().trim().min(1).pipe(VIEW_TYPE);
 
 const categoryIdSchema = z
@@ -222,11 +227,24 @@ export const dictionaryRegisterRequestSchema: RequestValidation<
 
 // Submission Requests
 
-export const submissionActiveyByCategoryRequestSchema: RequestValidation<object, ParsedQs, categoryPathParams> = {
+export interface submissionsByCategoryQueryParams extends paginationQueryParams {
+	onlyActive?: string;
+	organization?: string;
+}
+
+export const submissionsByCategoryRequestSchema: RequestValidation<
+	object,
+	submissionsByCategoryQueryParams,
+	categoryPathParams
+> = {
+	query: z.object({
+		onlyActive: booleanSchema.default('false'),
+		organization: organizationSchema.optional(),
+	}),
 	pathParams: categoryPathParamsSchema,
 };
 
-export const submissionActiveByIdRequestSchema: RequestValidation<object, ParsedQs, submissionIdPathParam> = {
+export const submissionByIdRequestSchema: RequestValidation<object, ParsedQs, submissionIdPathParam> = {
 	pathParams: submissionIdPathParamSchema,
 };
 
