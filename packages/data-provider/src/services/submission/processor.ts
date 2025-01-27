@@ -244,11 +244,11 @@ const processor = (dependencies: BaseDependencies) => {
 
 		const resultCommit: {
 			inserts: SubmittedDataResponse[];
-			udpates: SubmittedDataResponse[];
+			updates: SubmittedDataResponse[];
 			deletes: SubmittedDataResponse[];
 		} = {
 			inserts: [],
-			udpates: [],
+			updates: [],
 			deletes: [],
 		};
 
@@ -260,21 +260,21 @@ const processor = (dependencies: BaseDependencies) => {
 					const oldIsValid = data.isValid;
 					const newIsValid = !hasErrorsByIndex(hasErrorByIndex, index);
 					if (data.id) {
-						const inputUpdata: Partial<SubmittedData> = {};
+						const inputUpdate: Partial<SubmittedData> = {};
 						const submisionUpdateData = dataToValidate.updates && dataToValidate.updates[data.systemId];
 						if (submisionUpdateData) {
 							logger.info(LOG_MODULE, `Updating submittedData system ID '${data.systemId}' in entity '${entityName}'`);
-							inputUpdata.data = data.data;
+							inputUpdate.data = data.data;
 						}
 
 						if (oldIsValid !== newIsValid) {
-							inputUpdata.isValid = newIsValid;
+							inputUpdate.isValid = newIsValid;
 							if (newIsValid) {
 								logger.info(
 									LOG_MODULE,
 									`Updating submittedData system ID '${data.systemId}' as Valid in entity '${entityName}'`,
 								);
-								inputUpdata.lastValidSchemaId = dictionary.id;
+								inputUpdate.lastValidSchemaId = dictionary.id;
 							}
 							logger.info(
 								LOG_MODULE,
@@ -282,15 +282,15 @@ const processor = (dependencies: BaseDependencies) => {
 							);
 						}
 
-						if (Object.values(inputUpdata)) {
-							inputUpdata.updatedBy = userName;
+						if (Object.values(inputUpdate)) {
+							inputUpdate.updatedBy = userName;
 							if (newIsValid) {
-								inputUpdata.lastValidSchemaId = dictionary.id;
+								inputUpdate.lastValidSchemaId = dictionary.id;
 							}
 							dataSubmittedRepo.update(
 								{
 									submittedDataId: data.id,
-									newData: inputUpdata,
+									newData: inputUpdate,
 									dataDiff: { old: submisionUpdateData?.old ?? {}, new: submisionUpdateData?.new ?? {} },
 									oldIsValid: oldIsValid,
 									submissionId: submission.id,
@@ -298,13 +298,16 @@ const processor = (dependencies: BaseDependencies) => {
 								tx,
 							);
 
-							resultCommit.udpates.push({
-								isValid: newIsValid,
-								entityName,
-								organization: data.organization,
-								data: data.data,
-								systemId: data.systemId,
-							});
+							// Check if either 'data' or 'isValid' keys has been updated
+							if ('data' in inputUpdate || 'isValid' in inputUpdate) {
+								resultCommit.updates.push({
+									isValid: newIsValid,
+									entityName,
+									organization: data.organization,
+									data: data.data,
+									systemId: data.systemId,
+								});
+							}
 						}
 					} else {
 						logger.info(
@@ -359,6 +362,8 @@ const processor = (dependencies: BaseDependencies) => {
 		if (params.onFinishCommit) {
 			params.onFinishCommit({
 				submissionId: submission.id,
+				organization: submission.organization,
+				categoryId: submission.dictionaryCategoryId,
 				data: resultCommit,
 			});
 		}

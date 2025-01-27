@@ -305,9 +305,11 @@ export type SubmittedDataResponse = {
  */
 export type ResultOnCommit = {
 	submissionId: number;
+	organization: string;
+	categoryId: number;
 	data?: {
 		inserts: SubmittedDataResponse[];
-		udpates: SubmittedDataResponse[];
+		updates: SubmittedDataResponse[];
 		deletes: SubmittedDataResponse[];
 	};
 };
