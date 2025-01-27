@@ -1,3 +1,6 @@
+import type { ExtractTablesWithRelations } from 'drizzle-orm';
+import type { PgTransaction } from 'drizzle-orm/pg-core';
+import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
 import { and, count, eq, or } from 'drizzle-orm/sql';
 
 import { NewSubmission, Submission, submissions } from '@overture-stack/lyric-data-model/models';
@@ -117,11 +120,16 @@ const repository = (dependencies: BaseDependencies) => {
 		 * Update a Submission record in database
 		 * @param {number} submissionId Submission ID to update
 		 * @param {Partial<Submission>} newData Set fields to update
+		 * @param tx The transaction to use for the operation, optional
 		 * @returns An updated record
 		 */
-		update: async (submissionId: number, newData: Partial<Submission>): Promise<Submission> => {
+		update: async (
+			submissionId: number,
+			newData: Partial<Submission>,
+			tx?: PgTransaction<PostgresJsQueryResultHKT, Submission, ExtractTablesWithRelations<Submission>>,
+		): Promise<Submission> => {
 			try {
-				const resultUpdate = await db
+				const resultUpdate = await (tx || db)
 					.update(submissions)
 					.set({ ...newData, updatedAt: new Date() })
 					.where(eq(submissions.id, submissionId))

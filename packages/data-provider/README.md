@@ -8,7 +8,9 @@
 npm i @overture-stack/lyric
 ```
 
-## Usage
+## Configuration
+
+### Provider
 
 Import `AppConfig` and `provider` from `@overture-stack/lyric` module to initialize the provider with custom configuration:
 
@@ -42,6 +44,43 @@ const appConfig: AppConfig = {
 
 const lyricProvider = provider(appConfig);
 ```
+
+### On Finish Commit Callback function
+
+The `onFinishCommit` callback function is executed automatically when a commit event is completed. This function provides the ability to customize the behavior or perform any additional actions after the commit is finished, using the result of the commit operation.
+
+Example:
+
+```javascript
+const onFinishCommitCallback: (resultOnCommit: ResultOnCommit) => {
+    // Check if there are inserts, updates, or deletes
+    if (resultOnCommit.data) {
+      const { inserts, updates, deletes } = resultOnCommit.data;
+
+      // Log the results to the console
+      console.log(`Inserts: ${inserts.length}`);
+      console.log(`Updates: ${updates.length}`);
+      console.log(`Deletes: ${deletes.length}`);
+    }
+
+    // You can also perform additional custom actions here
+    // For example index the data, or make another API call
+  }
+```
+
+To use the `onFinishCommit` callback, it requires to be defined in the AppConfig object:
+
+```javascript
+
+const appConfig: AppConfig = {
+	...// Other configuration
+	onFinishCommit: onFinishCommitCallback;
+}
+```
+
+## Usage
+
+### Express Routers
 
 Use any of the resources available on provider on a Express server:
 

@@ -177,6 +177,7 @@ export interface CommitSubmissionParams {
 	dictionary: SchemasDictionary & { id: number };
 	submission: Submission;
 	userName: string;
+	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }
 
 export type GroupedDataSubmission = {
@@ -297,6 +298,18 @@ export type SubmittedDataResponse = {
 	isValid: boolean;
 	organization: string;
 	systemId: string;
+};
+
+/**
+ * Result type Post-Commit Submission
+ */
+export type ResultOnCommit = {
+	submissionId: number;
+	data?: {
+		inserts: SubmittedDataResponse[];
+		udpates: SubmittedDataResponse[];
+		deletes: SubmittedDataResponse[];
+	};
 };
 
 /**
