@@ -53,7 +53,7 @@ const appConfig: AppConfig = {
 const lyricProvider = provider(appConfig);
 ```
 
-### Auth Custom Hanlder
+### Auth Custom Handler
 
 The **authentication custom handler** is a customized function that can be used to verify and manage user authentication within the application. It is used by the auth middleware to process incoming requests.
 
@@ -147,7 +147,3 @@ migrate({
 - Filing an [issue](https://github.com/overture-stack/lyric/issues)
 - Connect with us on [Slack](http://slack.overture.bio)
 - Add or Upvote a [feature request](https://github.com/overture-stack/lyric/issues/new?assignees=&labels=&projects=&template=Feature_Requests.md)
-
-```
-
-```
