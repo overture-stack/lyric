@@ -2,14 +2,22 @@ import { json, Router, urlencoded } from 'express';
 
 import { BaseDependencies } from '../config/config.js';
 import dictionaryController from '../controllers/dictionaryController.js';
-import { auth } from '../middleware/auth.js';
+import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
 
-const router = (dependencies: BaseDependencies): Router => {
+const router = ({
+	baseDependencies,
+	authConfig,
+}: {
+	baseDependencies: BaseDependencies;
+	authConfig: AuthConfig;
+}): Router => {
 	const router = Router();
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	router.post('/register', auth, dictionaryController(dependencies).registerDictionary);
+	router.use(authMiddleware(authConfig));
+
+	router.post('/register', dictionaryController(baseDependencies).registerDictionary);
 	return router;
 };
 

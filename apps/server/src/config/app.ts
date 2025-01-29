@@ -2,9 +2,12 @@ import 'dotenv/config';
 
 import { AppConfig } from '@overture-stack/lyric';
 
+import { authHandler } from '../auth/handler.js';
+
 export const getServerConfig = () => {
 	return {
 		port: process.env.PORT || 3030,
+		allowedOrigins: process.env.ALLOWED_ORIGINS,
 	};
 };
 
@@ -27,7 +30,7 @@ const getRequiredConfig = (name: string) => {
 	return value;
 };
 
-export const defaultAppConfig: AppConfig = {
+export const appConfig: AppConfig = {
 	db: {
 		host: getRequiredConfig('DB_HOST'),
 		port: Number(getRequiredConfig('DB_PORT')),
@@ -56,5 +59,9 @@ export const defaultAppConfig: AppConfig = {
 	},
 	logger: {
 		level: process.env.LOG_LEVEL || 'info',
+	},
+	auth: {
+		enabled: getBoolean(process.env.AUTH_ENABLED, true),
+		customAuthHandler: authHandler,
 	},
 };

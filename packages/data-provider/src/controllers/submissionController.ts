@@ -32,8 +32,8 @@ const controller = (dependencies: BaseDependencies) => {
 				const categoryId = Number(req.params.categoryId);
 				const submissionId = Number(req.params.submissionId);
 
-				// TODO: get userName from auth
-				const userName = '';
+				// Get userName from auth
+				const userName = req.user?.username || '';
 
 				logger.info(LOG_MODULE, `Request Commit Active Submission '${submissionId}' on category '${categoryId}'`);
 
@@ -50,8 +50,8 @@ const controller = (dependencies: BaseDependencies) => {
 
 				logger.info(LOG_MODULE, `Request Delete Active Submission '${submissionId}'`);
 
-				// TODO: get userName from auth
-				const userName = '';
+				// Get userName from auth
+				const userName = req.user?.username || '';
 
 				const activeSubmissionDelete = await service.deleteActiveSubmissionById(submissionId, userName);
 
@@ -77,8 +77,8 @@ const controller = (dependencies: BaseDependencies) => {
 					`Request Delete '${entityName ? entityName : 'all'}' records on '{${actionType}}' Active Submission '${submissionId}'`,
 				);
 
-				// TODO: get userName from auth
-				const userName = '';
+				// Get userName from auth
+				const userName = req.user?.username || '';
 
 				const activeSubmission = await service.deleteActiveSubmissionEntity(submissionId, userName, {
 					actionType,
@@ -102,8 +102,8 @@ const controller = (dependencies: BaseDependencies) => {
 
 				logger.info(LOG_MODULE, `Request Delete Submitted Data systemId '${systemId}' on categoryId '${categoryId}'`);
 
-				// TODO: get userName from auth
-				const userName = '';
+				// Get userName from auth
+				const userName = req.user?.username || '';
 
 				const deletedRecordsResult = await dataService.deleteSubmittedDataBySystemId(categoryId, systemId, userName);
 
@@ -128,8 +128,8 @@ const controller = (dependencies: BaseDependencies) => {
 
 				logger.info(LOG_MODULE, `Request Edit Submitted Data`);
 
-				// TODO: get userName from auth
-				const userName = '';
+				// Get userName from auth
+				const userName = req.user?.username || '';
 
 				if (!files || files.length == 0) {
 					throw new BadRequest(
@@ -180,8 +180,8 @@ const controller = (dependencies: BaseDependencies) => {
 					`organization '${organization}'`,
 				);
 
-				// TODO: get userName from auth
-				const userName = '';
+				// Get userName from auth
+				const userName = req.user?.username || '';
 
 				const submissionsResult = await service.getSubmissionsByCategory(
 					categoryId,
@@ -214,9 +214,6 @@ const controller = (dependencies: BaseDependencies) => {
 
 				logger.info(LOG_MODULE, `Request Active Submission submissionId '${submissionId}'`);
 
-				// TODO: get userName from auth
-				// const userName = '';
-
 				const submission = await service.getSubmissionById(submissionId);
 
 				if (isEmpty(submission)) {
@@ -238,8 +235,8 @@ const controller = (dependencies: BaseDependencies) => {
 					`Request Active Submission categoryId '${categoryId}' and organization '${organization}'`,
 				);
 
-				// TODO: get userName from auth
-				const userName = '';
+				// Get userName from auth
+				const userName = req.user?.username || '';
 
 				const activeSubmission = await service.getActiveSubmissionByOrganization({
 					categoryId,
@@ -260,8 +257,8 @@ const controller = (dependencies: BaseDependencies) => {
 				const files = Array.isArray(req.files) ? req.files : [];
 				const organization = req.body.organization;
 
-				// TODO: get userName from auth
-				const userName = '';
+				// Get userName from auth
+				const userName = req.user?.username || '';
 
 				logger.info(
 					LOG_MODULE,

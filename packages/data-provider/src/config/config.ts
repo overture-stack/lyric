@@ -3,6 +3,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { DbConfig } from '@overture-stack/lyric-data-model';
 import * as schema from '@overture-stack/lyric-data-model/models';
 
+import type { AuthConfig } from '../middleware/auth.js';
 import { Logger } from './logger.js';
 
 export type AuditConfig = {
@@ -48,6 +49,7 @@ export type AppConfig = {
 	limits: LimitsConfig;
 	logger: LoggerConfig;
 	schemaService: SchemaServiceConfig;
+	auth: AuthConfig;
 };
 
 /**
