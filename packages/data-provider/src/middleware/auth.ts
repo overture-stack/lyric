@@ -1,14 +1,13 @@
 import { NextFunction, Request, Response } from 'express';
 
-export type AuthStatus = 'authenticated' | 'no-auth' | 'invalid-auth';
-
 export type UserSession = {
 	username: string;
 };
 
 export type UserSessionResult = {
 	user?: UserSession;
-	authStatus: AuthStatus;
+	errorCode?: number;
+	errorMessage?: string;
 };
 
 export type AuthConfig = {
@@ -38,22 +37,14 @@ export const authMiddleware = (authConfig: AuthConfig) => {
 
 		try {
 			const authResult: UserSessionResult =
-				typeof authConfig.customAuthHandler === 'function'
-					? authConfig.customAuthHandler(req)
-					: { authStatus: 'invalid-auth' };
+				typeof authConfig.customAuthHandler === 'function' ? authConfig.customAuthHandler(req) : {};
 
-			switch (authResult.authStatus) {
-				case 'authenticated':
-					req.user = authResult.user;
-					return next();
-
-				case 'no-auth':
-					return res.status(401).json({ message: 'Unauthorized: No token provided' });
-
-				case 'invalid-auth':
-				default:
-					return res.status(403).json({ message: 'Forbidden: Invalid token' });
+			if (authResult.errorCode) {
+				return res.status(authResult.errorCode).json({ message: authResult.errorMessage });
 			}
+
+			req.user = authResult.user;
+			return next();
 		} catch (error) {
 			console.error(`Error verifying token ${error}`);
 			return res.status(403).json({ message: 'Forbidden: Invalid token' });

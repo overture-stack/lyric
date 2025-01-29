@@ -57,7 +57,13 @@ const lyricProvider = provider(appConfig);
 
 The **authentication custom handler** is a customized function that can be used to verify and manage user authentication within the application. It is used by the auth middleware to process incoming requests.
 
-The handler returns a `UserSessionResult` response type, which is a structured object that indicates the authentication status (`authenticated`, `no-auth`, or `invalid-auth`), if the status is `authenticated` it also include user details provided by the `UserSession` type.
+The handler returns a `UserSessionResult` response type, which provides information about the user's session or any errors encountered during the process.
+
+This result object can include:
+
+- `user` (optional): A UserSession object containing details of the authenticated user, if available.
+- `errorCode` (optional): A numeric code representing an error that occurred while processing the session request.
+- `errorMessage` (optional): A descriptive message detailing the specific error, if an errorCode is provided.
 
 Example how to implement a custom auth handler:
 
@@ -73,7 +79,8 @@ const authHandler = (req: Request): UserSessionResult => {
     // Check if the Authorization header exists and starts with "Bearer"
 	if (!authHeader || !authHeader.startsWith('Bearer ')) {
 		return {
-			authStatus: 'no-auth'
+			errorCode: 401,
+			errorMessage: 'Unauthorized: No token provided'
 		}
 	}
 
@@ -87,11 +94,11 @@ const authHandler = (req: Request): UserSessionResult => {
 
 		return {
 			user: { username:  decodedToken.username }, // Example: Adjust fields as per your `UserSession` type
-			authStatus: 'authenticated',
 		};
 	} catch (err) {
 		return {
-			authStatus: 'invalid-auth';
+			errorCode: 403,
+			errorMessage: 'Forbidden: Invalid token'
 		}
 	}
 };

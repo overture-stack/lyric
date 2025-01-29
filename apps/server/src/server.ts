@@ -53,5 +53,5 @@ app.use('/health', healthRouter);
 app.use(errorHandler);
 // running the server
 app.listen(port, () => {
-	console.log(`Starting Express server on http://localhost:${port}`);
+	console.log(`Starting ExpressJS server on port ${port}`);
 });

@@ -14,7 +14,6 @@ export const authHandler = (_req: Request) => {
 	// Guest User Session
 	const authResult: UserSessionResult = {
 		user: { username: 'Guest' },
-		authStatus: 'authenticated',
 	};
 
 	return authResult;
