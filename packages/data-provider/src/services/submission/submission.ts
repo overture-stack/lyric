@@ -31,7 +31,7 @@ import processor from './processor.js';
 
 const service = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_SERVICE';
-	const { logger } = dependencies;
+	const { logger, onFinishCommit } = dependencies;
 	const { performCommitSubmissionAsync, performDataValidation } = processor(dependencies);
 
 	/**
@@ -125,6 +125,7 @@ const service = (dependencies: BaseDependencies) => {
 			submission,
 			dictionary: currentDictionary,
 			userName: userName,
+			onFinishCommit,
 		});
 
 		return {
