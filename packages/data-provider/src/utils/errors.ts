@@ -52,3 +52,11 @@ export const getErrorMessage = (error: unknown) => {
 	if (error instanceof Error) return error.message;
 	return String(error);
 };
+
+export class ValidationError extends Error {
+    code: string;
+    constructor(code: string, message: string) {
+        super(message);
+        this.code = code;
+    }
+}
