@@ -1,3 +1,6 @@
+import type { ExtractTablesWithRelations } from 'drizzle-orm';
+import type { PgTransaction } from 'drizzle-orm/pg-core';
+import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
 import { and, count, eq, or, SQL, sql } from 'drizzle-orm/sql';
 import * as _ from 'lodash-es';
 
@@ -18,12 +21,15 @@ const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTEDDATA_REPOSITORY';
 	const { db, logger, features } = dependencies;
 
-	const auditDeleteSubmittedData = async (input: {
-		recordDeleted: SubmittedData;
-		diff: DataDiff;
-		submissionId: number;
-		userName: string;
-	}) => {
+	const auditDeleteSubmittedData = async (
+		input: {
+			recordDeleted: SubmittedData;
+			diff: DataDiff;
+			submissionId: number;
+			userName: string;
+		},
+		tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
+	) => {
 		const { recordDeleted, diff, submissionId, userName } = input;
 		const newAudit: NewAuditSubmittedData = {
 			action: AUDIT_ACTION.Values.DELETE,
@@ -40,20 +46,23 @@ const repository = (dependencies: BaseDependencies) => {
 			createdAt: new Date(),
 			createdBy: userName,
 		};
-		return await db.insert(auditSubmittedData).values(newAudit);
+		return await (tx || db).insert(auditSubmittedData).values(newAudit);
 	};
 
-	const auditUpdateSubmittedData = async ({
-		dataDiff,
-		oldIsValid,
-		recordUpdated,
-		submissionId,
-	}: {
-		dataDiff: DataDiff;
-		oldIsValid: boolean;
-		recordUpdated: SubmittedData;
-		submissionId: number;
-	}) => {
+	const auditUpdateSubmittedData = async (
+		{
+			dataDiff,
+			oldIsValid,
+			recordUpdated,
+			submissionId,
+		}: {
+			dataDiff: DataDiff;
+			oldIsValid: boolean;
+			recordUpdated: SubmittedData;
+			submissionId: number;
+		},
+		tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
+	) => {
 		const newAudit: NewAuditSubmittedData = {
 			action: AUDIT_ACTION.Values.UPDATE,
 			dictionaryCategoryId: recordUpdated.dictionaryCategoryId,
@@ -69,7 +78,7 @@ const repository = (dependencies: BaseDependencies) => {
 			createdAt: new Date(),
 			createdBy: recordUpdated.updatedBy,
 		};
-		return await db.insert(auditSubmittedData).values(newAudit);
+		return await (tx || db).insert(auditSubmittedData).values(newAudit);
 	};
 
 	// Column name on the database used to build JSONB query
@@ -107,15 +116,22 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param params.submissionId The ID of the Submission associated with the record
 		 * @param params.systemId The unique identifier of the record to delete
 		 * @param params.userName The name of the user performing the deletion
+		 * @param tx The transaction to use for the operation, optional
 		 * @returns The deleted record
 		 */
-		deleteBySystemId: async (params: { diff: DataDiff; submissionId: number; systemId: string; userName: string }) => {
+		deleteBySystemId: async (
+			params: { diff: DataDiff; submissionId: number; systemId: string; userName: string },
+			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
+		) => {
 			const { diff, systemId, submissionId, userName } = params;
-			const deletedRecord = await db.delete(submittedData).where(eq(submittedData.systemId, systemId)).returning();
+			const deletedRecord = await (tx || db)
+				.delete(submittedData)
+				.where(eq(submittedData.systemId, systemId))
+				.returning();
 			logger.info(LOG_MODULE, `Deleting SubmittedData with system ID '${systemId}' succesfully`);
 
 			if (features?.audit?.enabled) {
-				await auditDeleteSubmittedData({ recordDeleted: deletedRecord[0], submissionId, diff, userName });
+				await auditDeleteSubmittedData({ recordDeleted: deletedRecord[0], submissionId, diff, userName }, tx);
 			}
 
 			return deletedRecord;
@@ -124,11 +140,15 @@ const repository = (dependencies: BaseDependencies) => {
 		/**
 		 * Save new SubmittedData in Database
 		 * @param data A SubmittedData object to be saved
+		 * @param tx The transaction to use for the operation, optional
 		 * @returns The created SubmittedData
 		 */
-		save: async (data: NewSubmittedData): Promise<SubmittedData> => {
+		save: async (
+			data: NewSubmittedData,
+			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
+		): Promise<SubmittedData> => {
 			try {
-				const savedSubmittedData = await db.insert(submittedData).values(data).returning();
+				const savedSubmittedData = await (tx || db).insert(submittedData).values(data).returning();
 				logger.debug(
 					LOG_MODULE,
 					`Submitting Data with entity name '${data.entityName}' on category '${data.dictionaryCategoryId}' saved successfully`,
@@ -329,30 +349,34 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param newData Set fields to update
 		 * @param oldIsValid Previous isValid value
 		 * @param submissionId Submission ID
+		 * @param tx The transaction to use for the operation, optional
 		 * @returns An updated record
 		 */
-		update: async ({
-			submittedDataId,
-			dataDiff,
-			newData,
-			oldIsValid,
-			submissionId,
-		}: {
-			submittedDataId: number;
-			dataDiff: DataDiff;
-			newData: Partial<SubmittedData>;
-			oldIsValid: boolean;
-			submissionId: number;
-		}): Promise<SubmittedData> => {
+		update: async (
+			{
+				submittedDataId,
+				dataDiff,
+				newData,
+				oldIsValid,
+				submissionId,
+			}: {
+				submittedDataId: number;
+				dataDiff: DataDiff;
+				newData: Partial<SubmittedData>;
+				oldIsValid: boolean;
+				submissionId: number;
+			},
+			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
+		): Promise<SubmittedData> => {
 			try {
-				const updated = await db
+				const updated = await (tx || db)
 					.update(submittedData)
 					.set({ ...newData, updatedAt: new Date() })
 					.where(eq(submittedData.id, submittedDataId))
 					.returning();
 
 				if (features?.audit?.enabled && !_.isEmpty(dataDiff.new) && !_.isEmpty(dataDiff.old)) {
-					await auditUpdateSubmittedData({ recordUpdated: updated[0], submissionId, dataDiff, oldIsValid });
+					await auditUpdateSubmittedData({ recordUpdated: updated[0], submissionId, dataDiff, oldIsValid }, tx);
 				}
 				return updated[0];
 			} catch (error) {
