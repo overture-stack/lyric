@@ -3,6 +3,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { DbConfig } from '@overture-stack/lyric-data-model';
 import * as schema from '@overture-stack/lyric-data-model/models';
 
+import type { ResultOnCommit } from '../utils/types.js';
 import { Logger } from './logger.js';
 
 export type AuditConfig = {
@@ -48,6 +49,7 @@ export type AppConfig = {
 	limits: LimitsConfig;
 	logger: LoggerConfig;
 	schemaService: SchemaServiceConfig;
+	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 };
 
 /**
@@ -60,4 +62,5 @@ export interface BaseDependencies {
 	limits: LimitsConfig;
 	logger: Logger;
 	schemaService: SchemaServiceConfig;
+	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }

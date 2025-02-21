@@ -40,6 +40,7 @@ const provider = (configData: AppConfig) => {
 		limits: configData.limits,
 		logger: getLogger(configData.logger),
 		schemaService: configData.schemaService,
+		onFinishCommit: configData.onFinishCommit,
 	};
 
 	return {

@@ -162,7 +162,7 @@ function formatForExcelCompatibility(data: string) {
 export function getSizeInBytes(size: string | number): number {
 	// Parse the string value into an integer in bytes.
 	// If value is a number it is assumed is in bytes.
-	return bytes.parse(size);
+	return bytes.parse(size) || 0;
 }
 
 /**
