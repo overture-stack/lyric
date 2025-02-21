@@ -19,7 +19,7 @@ import {
 } from '@overture-stack/lyric-data-model/models';
 
 import type { SchemaChildNode } from './dictionarySchemaRelations.js';
-import { getSchemaFieldNames } from './dictionaryUtils.js';
+import { getSchemaFieldDisplayNames } from './dictionaryUtils.js';
 import { readHeaders, readTextFile } from './fileUtils.js';
 import { deepCompare } from './formatUtils.js';
 import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
@@ -74,9 +74,9 @@ export const checkEntityFieldNames = async (
 		try {
 			const fileHeaders = await readHeaders(file);
 
-			const schemaFieldNames = getSchemaFieldNames(dictionary, entityName);
+			const schemaFieldDisplayNames = getSchemaFieldDisplayNames(dictionary, entityName);
 
-			const missingRequiredFields = schemaFieldNames.required.filter(
+			const missingRequiredFields = schemaFieldDisplayNames.required.filter(
 				(requiredField) => !fileHeaders.includes(requiredField),
 			);
 			if (missingRequiredFields.length > 0) {

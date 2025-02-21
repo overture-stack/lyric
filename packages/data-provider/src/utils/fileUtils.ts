@@ -105,7 +105,10 @@ export const readTextFile = async (
 		stream.on('data', (record: string[]) => {
 			lineNumber++;
 			if (!headers.length) {
-				headers = Object.values(record);
+				// Replace display names with field names if exists
+				headers = record.map(
+					(header) => schema.fields.find((field) => field.meta?.displayName === header)?.name || header,
+				);
 			} else {
 				const mappedRecord = mapRecordToHeaders(headers, record);
 
