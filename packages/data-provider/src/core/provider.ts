@@ -6,6 +6,11 @@ import categoryController from '../controllers/categoryController.js';
 import dictionaryController from '../controllers/dictionaryController.js';
 import submissionController from '../controllers/submissionController.js';
 import submittedDataController from '../controllers/submittedDataController.js';
+import submissionRepository from '../repository/activeSubmissionRepository.js';
+import auditRepository from '../repository/auditRepository.js';
+import categoryRepository from '../repository/categoryRepository.js';
+import dictionaryRepository from '../repository/dictionaryRepository.js';
+import submittedDataRepository from '../repository/submittedRepository.js';
 import auditRouter from '../routers/auditRouter.js';
 import categoryRouter from '../routers/categoryRouter.js';
 import dictionaryRouter from '../routers/dictionaryRouter.js';
@@ -21,7 +26,6 @@ import * as convertSqonToQueryUtils from '../utils/convertSqonToQuery.js';
 import * as dictionarySchemaRelationUtils from '../utils/dictionarySchemaRelations.js';
 import * as dictionaryUtils from '../utils/dictionaryUtils.js';
 import * as errorUtils from '../utils/errors.js';
-import * as fileUtils from '../utils/fileUtils.js';
 import * as schemaUtils from '../utils/schemas.js';
 import * as submissionUtils from '../utils/submissionUtils.js';
 import * as submittedDataUtils from '../utils/submittedDataUtils.js';
@@ -37,7 +41,6 @@ const provider = (configData: AppConfig) => {
 		db: connect(configData.db),
 		features: configData.features,
 		idService: configData.idService,
-		limits: configData.limits,
 		logger: getLogger(configData.logger),
 		schemaService: configData.schemaService,
 		onFinishCommit: configData.onFinishCommit,
@@ -66,13 +69,19 @@ const provider = (configData: AppConfig) => {
 			submission: submissionService(baseDeps),
 			submittedData: submittedDataService(baseDeps),
 		},
+		repositories: {
+			audit: auditRepository(baseDeps),
+			category: categoryRepository(baseDeps),
+			dictionary: dictionaryRepository(baseDeps),
+			submission: submissionRepository(baseDeps),
+			submittedData: submittedDataRepository(baseDeps),
+		},
 		utils: {
 			audit: auditUtils,
 			convertSqonToQuery: convertSqonToQueryUtils,
 			dictionarySchemaRelations: dictionarySchemaRelationUtils,
 			dictionary: dictionaryUtils,
 			errors: errorUtils,
-			file: fileUtils,
 			schema: schemaUtils,
 			submission: submissionUtils,
 			submittedData: submittedDataUtils,
