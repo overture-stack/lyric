@@ -1,104 +1,88 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import type { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
+import type { Schema } from '@overture-stack/lectern-client';
 
 import { getSchemaFieldNames } from '../../src/utils/dictionaryUtils.js';
 import { dictionarySportsData } from './fixtures/dictionarySchemasTestData.js';
 
 describe('Dictionary Utils', () => {
 	it('should return optional required fields', () => {
-		const dictionary: SchemasDictionary = {
-			name: 'test dictionary',
-			version: '1.0.0',
-			schemas: dictionarySportsData,
-		};
+		const sportSchema = dictionarySportsData.find((schema) => schema.name === 'sport');
 
-		const result = getSchemaFieldNames(dictionary, 'sport');
-
-		expect(Object.keys(result).length).to.eq(2);
-		expect(Object.keys(result)).to.eql(['required', 'optional']);
-		expect(result['optional'].length).to.eq(1);
-		expect(result['required'].length).to.eq(2);
-		expect(result['optional']).to.eql(['description']);
-		expect(result['required']).to.eql(['sport_id', 'name']);
+		if (sportSchema) {
+			const result = getSchemaFieldNames(sportSchema);
+			expect(Object.keys(result).length).to.eq(2);
+			expect(Object.keys(result)).to.eql(['required', 'optional']);
+			expect(result['optional'].length).to.eq(1);
+			expect(result['required'].length).to.eq(2);
+			expect(result['optional']).to.eql(['description']);
+			expect(result['required']).to.eql(['sport_id', 'name']);
+		} else {
+			throw new Error('Sport schema not found');
+		}
 	});
 	it('should return only optional fields', () => {
-		const dictionary: SchemasDictionary = {
-			name: 'test dictionary',
-			version: '2.0.0',
-			schemas: [
+		const sportSchema: Schema = {
+			name: 'sports',
+			fields: [
 				{
-					name: 'sports',
-					fields: [
+					name: 'id',
+					valueType: 'integer',
+					restrictions: [
 						{
-							name: 'id',
-							valueType: 'integer',
-							restrictions: [
-								{
-									required: true,
-								},
-							],
+							required: true,
 						},
+					],
+				},
+				{
+					name: 'name',
+					valueType: 'string',
+					restrictions: [
 						{
-							name: 'name',
-							valueType: 'string',
-							restrictions: [
-								{
-									required: true,
-								},
-							],
+							required: true,
 						},
+					],
+				},
+				{
+					name: 'description',
+					valueType: 'string',
+					restrictions: [
 						{
-							name: 'description',
-							valueType: 'string',
-							restrictions: [
-								{
-									if: {
-										conditions: [
-											{
-												fields: ['some-field'],
-												match: {
-													exists: true,
-												},
-											},
-										],
-									},
-									then: [
-										{
-											empty: false,
+							if: {
+								conditions: [
+									{
+										fields: ['some-field'],
+										match: {
+											exists: true,
 										},
-									],
-									else: {
-										empty: true,
 									},
+								],
+							},
+							then: [
+								{
+									empty: false,
 								},
 							],
+							else: {
+								empty: true,
+							},
 						},
 					],
 				},
 			],
 		};
 
-		const result = getSchemaFieldNames(dictionary, 'sports');
+		if (sportSchema) {
+			const result = getSchemaFieldNames(sportSchema);
 
-		expect(Object.keys(result).length).to.eq(2);
-		expect(Object.keys(result)).to.eql(['required', 'optional']);
-		expect(result['optional'].length).to.eq(3);
-		expect(result['required'].length).to.eq(0);
-		expect(result['optional']).to.eql(['id', 'name', 'description']);
-	});
-	it('should return error if schema is not found', () => {
-		const dictionary: SchemasDictionary = {
-			name: 'test dictionary',
-			version: '2.0.0',
-			schemas: [],
-		};
-
-		try {
-			getSchemaFieldNames(dictionary, 'sports');
-		} catch (e) {
-			expect(e.message).to.eql('no schema found for : sports');
+			expect(Object.keys(result).length).to.eq(2);
+			expect(Object.keys(result)).to.eql(['required', 'optional']);
+			expect(result['optional'].length).to.eq(3);
+			expect(result['required'].length).to.eq(0);
+			expect(result['optional']).to.eql(['id', 'name', 'description']);
+		} else {
+			throw new Error('Sport schema not found');
 		}
 	});
 });

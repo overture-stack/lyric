@@ -28,10 +28,6 @@ export type LoggerConfig = {
 	file?: boolean;
 };
 
-export type LimitsConfig = {
-	fileSize: string;
-};
-
 export type IdServiceConfig = {
 	useLocal: boolean;
 	customAlphabet: string;
@@ -46,7 +42,6 @@ export type AppConfig = {
 	db: DbConfig;
 	features?: FeaturesConfig;
 	idService: IdServiceConfig;
-	limits: LimitsConfig;
 	logger: LoggerConfig;
 	schemaService: SchemaServiceConfig;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
@@ -59,7 +54,6 @@ export interface BaseDependencies {
 	db: NodePgDatabase<typeof schema>;
 	features?: FeaturesConfig;
 	idService: IdServiceConfig;
-	limits: LimitsConfig;
 	logger: Logger;
 	schemaService: SchemaServiceConfig;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;

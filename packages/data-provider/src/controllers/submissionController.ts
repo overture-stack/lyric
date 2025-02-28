@@ -4,7 +4,6 @@ import { BaseDependencies } from '../config/config.js';
 import submissionService from '../services/submission/submission.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
-import { extractFileExtension, processFiles } from '../utils/fileUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
 	dataDeleteBySystemIdRequestSchema,
@@ -17,7 +16,7 @@ import {
 	submissionsByCategoryRequestSchema,
 	uploadSubmissionRequestSchema,
 } from '../utils/schemas.js';
-import { BATCH_ERROR_TYPE, BatchError, SUBMISSION_ACTION_TYPE, SUPPORTED_FILE_EXTENSIONS } from '../utils/types.js';
+import { SUBMISSION_ACTION_TYPE } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
 	const service = submissionService(dependencies);
@@ -123,43 +122,31 @@ const controller = (dependencies: BaseDependencies) => {
 		editSubmittedData: validateRequest(dataEditRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				const files = Array.isArray(req.files) ? req.files : [];
-				const organization = req.body.organization;
+				const entityName = req.query.entityName;
+				const organization = req.query.organization;
+				const payload = req.body;
 
 				logger.info(LOG_MODULE, `Request Edit Submitted Data`);
 
 				// TODO: get userName from auth
 				const userName = '';
 
-				if (!files || files.length == 0) {
+				if (!payload || payload.length == 0) {
 					throw new BadRequest(
-						'The "files" parameter is missing or empty. Please include files in the request for processing.',
+						'The "payload" parameter is missing or empty. Please include the records in the request for processing.',
 					);
 				}
 
-				const { validFiles, fileErrors } = await processFiles(files);
-
-				if (fileErrors.length == 0) {
-					logger.info(LOG_MODULE, `File uploaded successfully`);
-				} else {
-					logger.info(LOG_MODULE, 'Found some errors processing this request');
-				}
-
 				const editSubmittedDataResult = await dataService.editSubmittedData({
-					files: validFiles,
+					records: payload,
+					entityName,
 					categoryId,
 					organization,
 					userName,
 				});
 
-				const response = {
-					status: editSubmittedDataResult.status,
-					submissionId: editSubmittedDataResult.submissionId,
-					inProcessEntities: editSubmittedDataResult.inProcessEntities,
-					batchErrors: [...fileErrors, ...editSubmittedDataResult.batchErrors],
-				};
-
-				return res.status(200).send(response);
+				// This response provides the details of data Submission
+				return res.status(200).send(editSubmittedDataResult);
 			} catch (error) {
 				next(error);
 			}
@@ -254,66 +241,39 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		}),
-		upload: validateRequest(uploadSubmissionRequestSchema, async (req, res, next) => {
+		submit: validateRequest(uploadSubmissionRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				const files = Array.isArray(req.files) ? req.files : [];
-				const organization = req.body.organization;
+				const entityName = req.query.entityName;
+				const organization = req.query.organization;
+				const payload = req.body;
 
 				// TODO: get userName from auth
 				const userName = '';
 
 				logger.info(
 					LOG_MODULE,
-					`Upload Submission Request: categoryId '${categoryId}'`,
+					`Submission Request: categoryId '${categoryId}'`,
 					` organization '${organization}'`,
-					` files '${files?.map((f) => f.originalname)}'`,
+					` entityName '${entityName}'`,
 				);
 
-				if (!files || files.length == 0) {
+				if (!payload || payload.length == 0) {
 					throw new BadRequest(
-						'The "files" parameter is missing or empty. Please include files in the request for processing.',
+						'The "payload" parameter is missing or empty. Please include the records in the request for processing.',
 					);
 				}
 
-				// sort files into validFiles and fileErrors based on correct file extension
-				const { validFiles, fileErrors } = files.reduce<{
-					validFiles: Express.Multer.File[];
-					fileErrors: BatchError[];
-				}>(
-					(acc, file) => {
-						if (extractFileExtension(file.originalname)) {
-							acc.validFiles.push(file);
-						} else {
-							const batchError: BatchError = {
-								type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
-								message: `File '${file.originalname}' has invalid file extension. File extension must be '${SUPPORTED_FILE_EXTENSIONS.options}'.`,
-								batchName: file.originalname,
-							};
-							acc.fileErrors.push(batchError);
-						}
-						return acc;
-					},
-					{ validFiles: [], fileErrors: [] },
-				);
-
-				const resultSubmission = await service.uploadSubmission({
-					files: validFiles,
+				const resultSubmission = await service.submit({
+					records: payload,
+					entityName,
 					categoryId,
 					organization,
 					userName,
 				});
 
-				if (fileErrors.length == 0 && resultSubmission.batchErrors.length == 0) {
-					logger.info(LOG_MODULE, `Submission uploaded successfully`);
-				} else {
-					logger.info(LOG_MODULE, 'Found some errors processing this request');
-				}
-
-				// This response provides the details of file Submission
-				return res
-					.status(200)
-					.send({ ...resultSubmission, batchErrors: [...fileErrors, ...resultSubmission.batchErrors] });
+				// This response provides the details of data Submission
+				return res.status(200).send(resultSubmission);
 			} catch (error) {
 				next(error);
 			}

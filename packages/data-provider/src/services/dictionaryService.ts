@@ -68,6 +68,27 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		}
 	};
 
+	const getActiveDictionaryByCategory = async (categoryId: number): Promise<Dictionary | undefined> => {
+		const categoryRepo = categoryRepository(dependencies);
+		const dictionaryRepo = dictionaryRepository(dependencies);
+
+		const category = await categoryRepo.getCategoryById(categoryId);
+
+		if (!category) {
+			logger.error(LOG_MODULE, `Category with id '${categoryId}' not found`);
+			throw new Error(`Category with id '${categoryId}' not found`);
+		}
+
+		const dictionary = await dictionaryRepo.getDictionaryById(category.activeDictionaryId);
+
+		if (!dictionary) {
+			logger.error(LOG_MODULE, `Dictionary with id '${category.activeDictionaryId}' not found`);
+			throw new Error(`Dictionary with id '${category.activeDictionaryId}' not found`);
+		}
+
+		return dictionary;
+	};
+
 	const register = async ({
 		categoryName,
 		dictionaryName,
@@ -129,7 +150,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			return { dictionary: savedDictionary, category: savedCategory };
 		}
 	};
-	return { createDictionaryIfDoesNotExist, fetchDictionaryByVersion, register };
+	return { createDictionaryIfDoesNotExist, fetchDictionaryByVersion, getActiveDictionaryByCategory, register };
 };
 
 export default dictionaryService;

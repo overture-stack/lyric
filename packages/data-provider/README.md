@@ -33,9 +33,6 @@ const appConfig: AppConfig = {
 	schemaService: {
 		url: [INSERT_LECTERN_URL],
 	},
-	limits: {
-		fileSize: [INSERT_UPLOAD_LIMIT],
-	},
 	logger: {
 		level: [INSERT_LOG_LEVEL],
 	},

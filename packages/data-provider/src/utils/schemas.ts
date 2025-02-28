@@ -297,13 +297,23 @@ export const submissionDeleteEntityNameRequestSchema: RequestValidation<
 	}),
 };
 
-export const uploadSubmissionRequestSchema: RequestValidation<{ organization: string }, ParsedQs, categoryPathParams> =
-	{
-		body: z.object({
-			organization: organizationSchema,
-		}),
-		pathParams: categoryPathParamsSchema,
-	};
+export interface uploadSubmissionRequestQueryParams extends ParsedQs {
+	entityName: string;
+	organization: string;
+}
+
+export const uploadSubmissionRequestSchema: RequestValidation<
+	Array<Record<string, unknown>>,
+	uploadSubmissionRequestQueryParams,
+	categoryPathParams
+> = {
+	body: z.record(z.unknown()).array(),
+	pathParams: categoryPathParamsSchema,
+	query: z.object({
+		entityName: entityNameSchema,
+		organization: organizationSchema,
+	}),
+};
 
 // Submitted Data
 
@@ -319,11 +329,22 @@ export const dataDeleteBySystemIdRequestSchema: RequestValidation<object, Parsed
 	}),
 };
 
-export const dataEditRequestSchema: RequestValidation<{ organization: string }, ParsedQs, categoryPathParams> = {
-	body: z.object({
+export interface dataEditRequestSchemaQueryParams extends ParsedQs {
+	entityName: string;
+	organization: string;
+}
+
+export const dataEditRequestSchema: RequestValidation<
+	Array<Record<string, unknown>>,
+	dataEditRequestSchemaQueryParams,
+	categoryPathParams
+> = {
+	body: z.record(z.unknown()).array(),
+	pathParams: categoryPathParamsSchema,
+	query: z.object({
+		entityName: entityNameSchema,
 		organization: organizationSchema,
 	}),
-	pathParams: categoryPathParamsSchema,
 };
 
 export interface dataQueryParams extends paginationQueryParams {

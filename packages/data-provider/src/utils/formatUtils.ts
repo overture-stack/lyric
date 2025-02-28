@@ -111,3 +111,13 @@ export const deepCompare = (obj1: unknown, obj2: unknown): boolean => {
 function isObject(obj: unknown): obj is Record<string, unknown> {
 	return typeof obj === 'object' && obj !== null && !Array.isArray(obj);
 }
+
+export const convertRecordToString = (record: Record<string, unknown>): Record<string, string> => {
+	const convertedRecord: Record<string, string> = {};
+
+	for (const [key, value] of Object.entries(record)) {
+		convertedRecord[key] = String(value);
+	}
+
+	return convertedRecord;
+};
