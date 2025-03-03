@@ -133,32 +133,6 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
-/submission/category/{categoryId}/organization/{organization}:
-  get:
-    summary: Retrieve the Active Submission for a category and organization in this user session
-    deprecated: true
-    tags:
-      - Submission
-    parameters:
-      - $ref: '#/components/parameters/path/CategoryId'
-      - $ref: '#/components/parameters/path/Organization'
-    responses:
-      200:
-        description: Active Submission
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ActiveSubmissionSummaryResult'
-
-      401:
-        $ref: '#/components/responses/UnauthorizedError'
-      404:
-        $ref: '#/components/responses/NotFound'
-      500:
-        $ref: '#/components/responses/ServerError'
-      503:
-        $ref: '#/components/responses/ServiceUnavailableError'
-
 /submission/category/{categoryId}/commit/{submissionId}:
   post:
     summary: Commit Active Submission
