@@ -129,6 +129,8 @@ export type RegisterDictionaryResult = {
 	version: string;
 };
 
+export type { Schema, SchemasDictionary };
+
 /**
  * Enum matching Audit Action in database
  */
