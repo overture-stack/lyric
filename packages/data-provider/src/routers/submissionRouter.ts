@@ -1,15 +1,10 @@
 import { json, Router, urlencoded } from 'express';
-import multer from 'multer';
 
 import { BaseDependencies } from '../config/config.js';
 import submissionController from '../controllers/submissionController.js';
 import { auth } from '../middleware/auth.js';
-import { getSizeInBytes } from '../utils/fileUtils.js';
 
 const router = (dependencies: BaseDependencies): Router => {
-	const fileSizeLimit = getSizeInBytes(dependencies.limits.fileSize);
-	const upload = multer({ dest: '/tmp', limits: { fileSize: fileSizeLimit } });
-
 	const router = Router();
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
@@ -28,7 +23,7 @@ const router = (dependencies: BaseDependencies): Router => {
 		submissionController(dependencies).getActiveByOrganization,
 	);
 
-	router.post('/category/:categoryId/data', upload.array('files'), submissionController(dependencies).upload);
+	router.post('/category/:categoryId/data', submissionController(dependencies).submit);
 
 	router.delete(
 		`/category/:categoryId/data/:systemId`,
@@ -36,12 +31,7 @@ const router = (dependencies: BaseDependencies): Router => {
 		submissionController(dependencies).deleteSubmittedDataBySystemId,
 	);
 
-	router.put(
-		`/category/:categoryId/data`,
-		auth,
-		upload.array('files'),
-		submissionController(dependencies).editSubmittedData,
-	);
+	router.put(`/category/:categoryId/data`, auth, submissionController(dependencies).editSubmittedData);
 
 	router.post('/category/:categoryId/commit/:submissionId', auth, submissionController(dependencies).commit);
 
