@@ -1,0 +1,49 @@
+/validator/{categoryId}/entity/{entityName}:
+  get:
+    summary: Validate a record based on category, entity, study ID, and value
+    tags:
+      - Validation
+    parameters:
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID of the category to validate
+      - name: entityName
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Name of the entity to validate
+      - name: studyId
+        in: query
+        required: true
+        schema:
+          type: string
+        description: ID of the study related to the validation
+      - name: value
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Value to be validated
+    responses:
+      200:
+        description: Validation successful
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: Validation passed
+      400:
+        $ref: '#/components/responses/BadRequest'
+      404:
+        $ref: '#/components/responses/NotFound'
+      422:
+        $ref: '#/components/responses/ValidationError'
+      500:
+        $ref: '#/components/responses/ServerError'
