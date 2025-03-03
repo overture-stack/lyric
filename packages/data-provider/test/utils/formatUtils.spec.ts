@@ -3,10 +3,12 @@ import { describe, it } from 'mocha';
 
 import {
 	asArray,
+	convertRecordToString,
 	isArrayWithValues,
 	isEmptyString,
 	isValidDateFormat,
 	isValidIdNumber,
+	notEmpty,
 	uniqueCharacters,
 } from '../../src/utils/formatUtils.js';
 
@@ -52,6 +54,85 @@ describe('Format Utils', () => {
 			expect(result).to.eql([0, false, 'valid']);
 		});
 	});
+	describe('convert property values to string', () => {
+		it('should convert all values in the record to strings', () => {
+			const input = {
+				number: 123,
+				boolean: true,
+				nullValue: null,
+				undefinedValue: undefined,
+				object: { key: 'value' },
+				array: [1, 2, 3],
+			};
+			const expected = {
+				number: '123',
+				boolean: 'true',
+				nullValue: 'null',
+				undefinedValue: 'undefined',
+				object: '[object Object]',
+				array: '1,2,3',
+			};
+
+			const result = convertRecordToString(input);
+
+			expect(result).to.eql(expected);
+		});
+
+		it('should return an empty object when input is an empty object', () => {
+			const input = {};
+			const result = convertRecordToString(input);
+			expect(result).to.eql({});
+		});
+
+		it('should handle a record with all string values', () => {
+			const input = {
+				key1: 'value1',
+				key2: 'value2',
+			};
+			const result = convertRecordToString(input);
+			expect(result).to.eql(input); // Should not change as they are already strings
+		});
+
+		it('should convert boolean values to string correctly', () => {
+			const input = {
+				keyTrue: true,
+				keyFalse: false,
+			};
+			const expected = {
+				keyTrue: 'true',
+				keyFalse: 'false',
+			};
+			const result = convertRecordToString(input);
+			expect(result).to.eql(expected);
+		});
+
+		it('should handle null and undefined values properly', () => {
+			const input = {
+				keyNull: null,
+				keyUndefined: undefined,
+			};
+			const expected = {
+				keyNull: 'null',
+				keyUndefined: 'undefined',
+			};
+			const result = convertRecordToString(input);
+			expect(result).to.eql(expected);
+		});
+
+		it('should handle numeric values correctly', () => {
+			const input = {
+				integer: 10,
+				floating: 10.5,
+			};
+			const expected = {
+				integer: '10',
+				floating: '10.5',
+			};
+			const result = convertRecordToString(input);
+			expect(result).to.eql(expected);
+		});
+	});
+
 	describe('Validate if input is a valid ID number', () => {
 		it('should return true if input is a valid number', () => {
 			const validNumber = 1;
@@ -117,6 +198,63 @@ describe('Format Utils', () => {
 			const invalidNumber = Number.MAX_VALUE + 1;
 			const response = isValidIdNumber(invalidNumber);
 			expect(response).to.be.false;
+		});
+	});
+
+	describe('notEmpty function', () => {
+		it('should return false for null', () => {
+			const result = notEmpty(null);
+			expect(result).to.be.false;
+		});
+
+		it('should return false for undefined', () => {
+			const result = notEmpty(undefined);
+			expect(result).to.be.false;
+		});
+
+		it('should return false for empty string', () => {
+			const result = notEmpty('');
+			expect(result).to.be.false;
+		});
+
+		it('should return false for empty array', () => {
+			const result = notEmpty([]);
+			expect(result).to.be.false;
+		});
+
+		it('should return false for empty object', () => {
+			const result = notEmpty({});
+			expect(result).to.be.false;
+		});
+
+		it('should return false for NaN', () => {
+			const result = notEmpty(NaN);
+			expect(result).to.be.false;
+		});
+
+		it('should return true for non-empty string', () => {
+			const result = notEmpty('Hello');
+			expect(result).to.be.true;
+		});
+
+		it('should return true for non-empty array', () => {
+			const result = notEmpty([1, 2, 3]);
+			expect(result).to.be.true;
+		});
+
+		it('should return true for non-empty object', () => {
+			const result = notEmpty({ key: 'value' });
+			expect(result).to.be.true;
+		});
+
+		it('should return true for valid number', () => {
+			const result = notEmpty(42);
+			expect(result).to.be.true;
+		});
+
+		it('should return false for NaN (invalid number)', () => {
+			const result = notEmpty(NaN);
+			expect(result).to.be.false;
 		});
 	});
 

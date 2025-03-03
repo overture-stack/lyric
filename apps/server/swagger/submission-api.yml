@@ -115,7 +115,7 @@
       - $ref: '#/components/parameters/query/Page'
       - $ref: '#/components/parameters/query/PageSize'
       - $ref: '#/components/parameters/query/OnlyActive'
-      - $ref: '#/components/parameters/query/Organization'
+      - $ref: '#/components/parameters/query/OrganizationFilter'
     responses:
       200:
         description: Submissions details
@@ -123,32 +123,6 @@
           application/json:
             schema:
               $ref: '#/components/schemas/SubmissionsSummaryResult'
-
-      401:
-        $ref: '#/components/responses/UnauthorizedError'
-      404:
-        $ref: '#/components/responses/NotFound'
-      500:
-        $ref: '#/components/responses/ServerError'
-      503:
-        $ref: '#/components/responses/ServiceUnavailableError'
-
-/submission/category/{categoryId}/organization/{organization}:
-  get:
-    summary: Retrieve the Active Submission for a category and organization in this user session
-    deprecated: true
-    tags:
-      - Submission
-    parameters:
-      - $ref: '#/components/parameters/path/CategoryId'
-      - $ref: '#/components/parameters/path/Organization'
-    responses:
-      200:
-        description: Active Submission
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ActiveSubmissionSummaryResult'
 
       401:
         $ref: '#/components/responses/UnauthorizedError'
@@ -193,26 +167,19 @@
     summary: Add new data to a submission for the specified category. Returns an Active Submission containing the newly created records
     tags:
       - Submission
-    consumes:
-      - multipart/form-data
     parameters:
       - $ref: '#/components/parameters/path/CategoryId'
+      - $ref: '#/components/parameters/query/EntityName'
+      - $ref: '#/components/parameters/query/Organization'
     requestBody:
+      description: The JSON payload containing the data to be added to the submission
+      required: true
       content:
-        multipart/form-data:
+        application/json:
           schema:
-            type: object
-            properties:
-              files:
-                type: array
-                items:
-                  type: string
-                  format: binary
-              organization:
-                type: string
-            required:
-              - files
-              - organization
+            type: array
+            items:
+              type: object
     responses:
       200:
         description: Submission accepted
@@ -232,26 +199,19 @@
     summary: Modifies existing data for a submission. Returns an Active Submission containing the records that will be updated
     tags:
       - Submission
-    consumes:
-      - multipart/form-data
     parameters:
       - $ref: '#/components/parameters/path/CategoryId'
+      - $ref: '#/components/parameters/query/EntityName'
+      - $ref: '#/components/parameters/query/Organization'
     requestBody:
+      description: The JSON payload containing the data to be added to the submission
+      required: true
       content:
-        multipart/form-data:
+        application/json:
           schema:
-            type: object
-            properties:
-              files:
-                type: array
-                items:
-                  type: string
-                  format: binary
-              organization:
-                type: string
-            required:
-              - files
-              - organization
+            type: array
+            items:
+              type: object
     responses:
       200:
         description: Edit Data request accepted
