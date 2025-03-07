@@ -39,6 +39,9 @@ export const defaultAppConfig: AppConfig = {
 		audit: {
 			enabled: getBoolean(process.env.AUDIT_ENABLED, true),
 		},
+		recordHierarchy: {
+			pluralizeSchemasName: getBoolean(process.env.PLURALIZE_SCHEMAS_ENABLED, true),
+		},
 	},
 	idService: {
 		useLocal: getBoolean(process.env.ID_USELOCAL, true),
@@ -47,9 +50,6 @@ export const defaultAppConfig: AppConfig = {
 	},
 	schemaService: {
 		url: getRequiredConfig('LECTERN_URL'),
-	},
-	limits: {
-		fileSize: process.env.UPLOAD_LIMIT || '10mb',
 	},
 	logger: {
 		level: process.env.LOG_LEVEL || 'info',

@@ -1,5 +1,5 @@
 import { Schema } from '@overture-stack/lectern-client';
-import { Dictionary } from '@overture-stack/lyric-data-model';
+import { Dictionary } from '@overture-stack/lyric-data-model/models';
 
 export const dictionarySportsData: Schema[] = [
 	{
@@ -221,3 +221,88 @@ export const dictionarySportStatsNodeGraph = {
 	player: [],
 	game: [],
 } as const;
+
+export const dictionaryClinicalSchemas: Schema[] = [
+	{
+		name: 'study',
+		fields: [],
+	},
+	{
+		name: 'participant',
+		fields: [],
+		restrictions: {
+			foreignKey: [
+				{
+					schema: 'study',
+					mappings: [
+						{
+							local: 'study_id',
+							foreign: 'study_id',
+						},
+					],
+				},
+			],
+		},
+	},
+	{
+		name: 'sample',
+		fields: [],
+		restrictions: {
+			foreignKey: [
+				{
+					schema: 'study',
+					mappings: [
+						{
+							local: 'study_id',
+							foreign: 'study_id',
+						},
+					],
+				},
+				{
+					schema: 'participant',
+					mappings: [
+						{
+							local: 'submitter_participant_id',
+							foreign: 'submitter_participant_id',
+						},
+					],
+				},
+				{
+					schema: 'specimen',
+					mappings: [
+						{
+							local: 'submitter_specimen_id',
+							foreign: 'submitter_specimen_id',
+						},
+					],
+				},
+			],
+		},
+	},
+	{
+		name: 'specimen',
+		fields: [],
+		restrictions: {
+			foreignKey: [
+				{
+					schema: 'study',
+					mappings: [
+						{
+							local: 'study_id',
+							foreign: 'study_id',
+						},
+					],
+				},
+				{
+					schema: 'participant',
+					mappings: [
+						{
+							local: 'submitter_participant_id',
+							foreign: 'submitter_participant_id',
+						},
+					],
+				},
+			],
+		},
+	},
+];

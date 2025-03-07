@@ -1,20 +1,23 @@
-import { DeepReadonly } from 'deep-freeze';
 import { z } from 'zod';
 
 import {
 	type DataRecord,
+	type DataRecordValue,
 	Dictionary as SchemasDictionary,
 	DictionaryValidationRecordErrorDetails,
+	type Schema,
 } from '@overture-stack/lectern-client';
 import {
+	type Category,
 	type DataDiff,
+	type Dictionary,
 	NewSubmittedData,
 	Submission,
 	SubmissionData,
 	type SubmissionDeleteData,
 	type SubmissionUpdateData,
 	type SubmittedData,
-} from '@overture-stack/lyric-data-model';
+} from '@overture-stack/lyric-data-model/models';
 
 type ObjectValues<T> = T[keyof T];
 
@@ -94,7 +97,6 @@ export type AuditFilterOptions = PaginationOptions & {
 export const CREATE_SUBMISSION_STATUS = {
 	PROCESSING: 'PROCESSING',
 	INVALID_SUBMISSION: 'INVALID_SUBMISSION',
-	PARTIAL_SUBMISSION: 'PARTIAL_SUBMISSION',
 } as const;
 export type CreateSubmissionStatus = ObjectValues<typeof CREATE_SUBMISSION_STATUS>;
 
@@ -105,8 +107,6 @@ export type CreateSubmissionResult = {
 	submissionId?: number;
 	status: CreateSubmissionStatus;
 	description: string;
-	inProcessEntities: string[];
-	batchErrors: DeepReadonly<BatchError>[];
 };
 
 /**
@@ -128,6 +128,8 @@ export type RegisterDictionaryResult = {
 	name: string;
 	version: string;
 };
+
+export type { Schema, SchemasDictionary };
 
 /**
  * Enum matching Audit Action in database
@@ -158,9 +160,9 @@ export type BatchError = {
 };
 
 export interface ValidateFilesParams {
-	schemasDictionary: SchemasDictionary;
 	categoryId: number;
 	organization: string;
+	schema: Schema;
 	userName: string;
 }
 
@@ -174,6 +176,7 @@ export interface CommitSubmissionParams {
 	dictionary: SchemasDictionary & { id: number };
 	submission: Submission;
 	userName: string;
+	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }
 
 export type GroupedDataSubmission = {
@@ -193,16 +196,16 @@ export type PaginationOptions = {
 	pageSize: number;
 };
 
-export type DataInsertsActiveSubmissionSummary = {
+export type DataInsertsSubmissionSummary = {
 	batchName: string;
 	recordsCount: number;
 };
 
-export type DataUpdatesActiveSubmissionSummary = {
+export type DataUpdatesSubmissionSummary = {
 	recordsCount: number;
 };
 
-export type DataDeletesActiveSubmissionSummary = {
+export type DataDeletesSubmissionSummary = {
 	recordsCount: number;
 };
 
@@ -217,13 +220,13 @@ export type CategoryActiveSubmission = {
 };
 
 /**
- * Response type for Get Active Submission by Submission ID endpoint
+ * Response type for Get Submission by Submission ID endpoint
  */
-export type ActiveSubmissionResponse = {
+export type SubmissionResponse = {
 	id: number;
 	data: SubmissionData;
-	dictionary: DictionaryActiveSubmission | null;
-	dictionaryCategory: CategoryActiveSubmission | null;
+	dictionary: DictionaryActiveSubmission;
+	dictionaryCategory: CategoryActiveSubmission;
 	errors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> | null;
 	organization: string;
 	status: SubmissionStatus | null;
@@ -234,25 +237,25 @@ export type ActiveSubmissionResponse = {
 };
 
 /**
- * Response type of Get Active Submission by Organization Endpoint
+ * Response type of Get Submission by Organization Endpoint
  * override 'data' object to contain a summary of records
  */
-export type ActiveSubmissionSummaryResponse = Omit<ActiveSubmissionResponse, 'data'> & {
+export type SubmissionSummaryResponse = Omit<SubmissionResponse, 'data'> & {
 	data: {
-		inserts?: Record<string, DataInsertsActiveSubmissionSummary>;
-		updates?: Record<string, DataUpdatesActiveSubmissionSummary>;
-		deletes?: Record<string, DataDeletesActiveSubmissionSummary>;
+		inserts?: Record<string, DataInsertsSubmissionSummary>;
+		updates?: Record<string, DataUpdatesSubmissionSummary>;
+		deletes?: Record<string, DataDeletesSubmissionSummary>;
 	};
 };
 
 /**
- * Retrieve Active Submission object from repository
+ * Retrieve Submission object from repository
  */
-export type ActiveSubmissionSummaryRepository = {
+export type SubmissionSummaryRepository = {
 	id: number;
 	data: SubmissionData;
-	dictionary: object | null;
-	dictionaryCategory: object | null;
+	dictionary: Pick<Dictionary, 'name' | 'version'>;
+	dictionaryCategory: Pick<Category, 'id' | 'name'>;
 	errors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> | null;
 	organization: string | null;
 	status: SubmissionStatus | null;
@@ -264,7 +267,7 @@ export type ActiveSubmissionSummaryRepository = {
 
 export type CategoryDetailsResponse = {
 	id: number;
-	dictionary?: { name: string; version: string };
+	dictionary?: Pick<Dictionary, 'name' | 'version'>;
 	name: string;
 	organizations: string[];
 	createdAt: string;
@@ -289,11 +292,25 @@ export type ListAllCategoriesResponse = {
  * Submitted Raw Data information
  */
 export type SubmittedDataResponse = {
-	data: DataRecord;
+	data: DataRecordNested;
 	entityName: string;
 	isValid: boolean;
 	organization: string;
 	systemId: string;
+};
+
+/**
+ * Result type Post-Commit Submission
+ */
+export type ResultOnCommit = {
+	submissionId: number;
+	organization: string;
+	categoryId: number;
+	data?: {
+		inserts: SubmittedDataResponse[];
+		updates: SubmittedDataResponse[];
+		deletes: SubmittedDataResponse[];
+	};
 };
 
 /**
@@ -368,6 +385,10 @@ export type DataRecordReference = {
 	reference: SubmittedDataReference | NewSubmittedDataReference | EditSubmittedDataReference;
 };
 
+export interface DataRecordNested {
+	[key: string]: DataRecordValue | DataRecordNested | DataRecordNested[];
+}
+
 /**
  * Keys of an object type as a union
  *
@@ -399,3 +420,21 @@ export type Values<T> = T extends infer U ? U[keyof U] : never;
  * This will display type as an object with key: value pairs instead as an alias name.
  */
 export type Clean<T> = T extends infer U ? { [K in keyof U]: U[K] } : never;
+
+/**
+ * Enum matching Schema relationships types
+ */
+export const SCHEMA_RELATION_TYPE = z.enum(['parent', 'children']);
+export type SchemaRelationType = z.infer<typeof SCHEMA_RELATION_TYPE>;
+
+/**
+ * Enum matching Schema relationships order types
+ */
+export const ORDER_TYPE = z.enum(['asc', 'desc']);
+export type OrderType = z.infer<typeof ORDER_TYPE>;
+
+/**
+ * Enum matching Retrieve data views
+ */
+export const VIEW_TYPE = z.enum(['flat', 'compound']);
+export type ViewType = z.infer<typeof VIEW_TYPE>;

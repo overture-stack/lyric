@@ -53,6 +53,12 @@ export default tseslint.config(
 					],
 				},
 			],
+			'@typescript-eslint/consistent-type-assertions': [
+				'warn',
+				{
+					assertionStyle: 'never',
+				},
+			],
 			'simple-import-sort/exports': 'error',
 			'prettier/prettier': 'error',
 		},

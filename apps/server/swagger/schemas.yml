@@ -55,7 +55,7 @@ components:
             $ref: '#/components/responses/Error'
 
   schemas:
-    ActiveSubmissionResult:
+    SubmissionResult:
       type: object
       properties:
         id:
@@ -161,12 +161,26 @@ components:
           type: string
           description: User name who last updated the submission
 
-    ActiveSubmissionsSummaryResult:
-      type: array
-      items:
-        $ref: '#/components/schemas/ActiveSubmissionSummary'
+    SubmissionsSummaryResult:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            currentPage:
+              type: number
+            pageSize:
+              type: number
+            totalPages:
+              type: number
+            totalRecords:
+              type: number
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubmissionSummary'
 
-    ActiveSubmissionSummary:
+    SubmissionSummary:
       type: object
       properties:
         id:
@@ -258,7 +272,7 @@ components:
           description: Name of user who last updated the submission
 
     ActiveSubmissionSummaryResult:
-      $ref: '#/components/schemas/ActiveSubmissionSummary'
+      $ref: '#/components/schemas/SubmissionSummary'
 
     BatchError:
       type: object
@@ -400,38 +414,15 @@ components:
       required:
         - status
         - description
-        - batchErrors
-        - inProcessEntities
       type: object
       properties:
-        batchErrors:
-          type: array
-          description: List of all batch related errors, should be empty on success
-          items:
-            $ref: '#/components/schemas/BatchError'
         description:
           type: string
           description: Description of uploading Submission files
-        inProcessEntities:
-          type: array
-          description: Names of the entities that will be processed
-          items:
-            type: string
         status:
           type: string
           description: Result of uploading Submission files
-          enum: ['PROCESSING', 'INVALID_SUBMISSION', 'PARTIAL_SUBMISSION']
-        submissionId:
-          type: string
-          description: ID of the Submission
-
-    DeleteDataActiveSubmission:
-      type: object
-      properties:
-        records:
-          type: array
-          items:
-            $ref: '#/components/schemas/SubmittedDataRecord'
+          enum: ['PROCESSING', 'INVALID_SUBMISSION']
         submissionId:
           type: string
           description: ID of the Submission
@@ -503,10 +494,8 @@ components:
       type: object
       properties:
         data:
-          type: array
-          items:
-            type: object
-            description: Content of the record in JSON format
+          type: object
+          description: Content of the record in JSON format
         entityName:
           type: string
         isValid:

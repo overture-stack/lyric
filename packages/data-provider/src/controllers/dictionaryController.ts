@@ -13,18 +13,20 @@ const controller = (dependencies: BaseDependencies) => {
 			try {
 				const categoryName = req.body.categoryName;
 				const dictionaryName = req.body.dictionaryName;
-				const dictionaryVersion = req.body.version;
+				const dictionaryVersion = req.body.dictionaryVersion;
+				const defaultCentricEntity = req.body.defaultCentricEntity;
 
 				logger.info(
 					LOG_MODULE,
 					`Register Dictionary Request categoryName '${categoryName}' name '${dictionaryName}' version '${dictionaryVersion}'`,
 				);
 
-				const { dictionary, category } = await dictionaryService.register(
+				const { dictionary, category } = await dictionaryService.register({
 					categoryName,
 					dictionaryName,
 					dictionaryVersion,
-				);
+					defaultCentricEntity,
+				});
 
 				logger.info(LOG_MODULE, `Register Dictionary completed!`);
 

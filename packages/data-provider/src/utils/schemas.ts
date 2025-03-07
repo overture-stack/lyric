@@ -8,12 +8,20 @@ import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js'
 import { parseSQON } from './convertSqonToQuery.js';
 import { isValidDateFormat, isValidIdNumber } from './formatUtils.js';
 import { RequestValidation } from './requestValidation.js';
+import { VIEW_TYPE } from './types.js';
 
 const auditEventTypeSchema = z
 	.string()
 	.trim()
 	.min(1)
 	.refine((value) => isAuditEventValid(value), 'invalid Event Type');
+
+const booleanSchema = z
+	.string()
+	.toLowerCase()
+	.refine((value) => value === 'true' || value === 'false');
+
+const viewSchema = z.string().toLowerCase().trim().min(1).pipe(VIEW_TYPE);
 
 const categoryIdSchema = z
 	.string()
@@ -200,7 +208,8 @@ export const cagegoryDetailsRequestSchema: RequestValidation<object, ParsedQs, c
 export interface dictionaryRegisterBodyParams {
 	categoryName: string;
 	dictionaryName: string;
-	version: string;
+	dictionaryVersion: string;
+	defaultCentricEntity?: string;
 }
 
 export const dictionaryRegisterRequestSchema: RequestValidation<
@@ -211,17 +220,31 @@ export const dictionaryRegisterRequestSchema: RequestValidation<
 	body: z.object({
 		categoryName: stringNotEmpty,
 		dictionaryName: stringNotEmpty,
-		version: stringNotEmpty,
+		dictionaryVersion: stringNotEmpty,
+		defaultCentricEntity: stringNotEmpty.optional(),
 	}),
 };
 
 // Submission Requests
 
-export const submissionActiveyByCategoryRequestSchema: RequestValidation<object, ParsedQs, categoryPathParams> = {
+export interface submissionsByCategoryQueryParams extends paginationQueryParams {
+	onlyActive?: string;
+	organization?: string;
+}
+
+export const submissionsByCategoryRequestSchema: RequestValidation<
+	object,
+	submissionsByCategoryQueryParams,
+	categoryPathParams
+> = {
+	query: z.object({
+		onlyActive: booleanSchema.default('false'),
+		organization: organizationSchema.optional(),
+	}),
 	pathParams: categoryPathParamsSchema,
 };
 
-export const submissionActiveByIdRequestSchema: RequestValidation<object, ParsedQs, submissionIdPathParam> = {
+export const submissionByIdRequestSchema: RequestValidation<object, ParsedQs, submissionIdPathParam> = {
 	pathParams: submissionIdPathParamSchema,
 };
 
@@ -274,13 +297,23 @@ export const submissionDeleteEntityNameRequestSchema: RequestValidation<
 	}),
 };
 
-export const uploadSubmissionRequestSchema: RequestValidation<{ organization: string }, ParsedQs, categoryPathParams> =
-	{
-		body: z.object({
-			organization: organizationSchema,
-		}),
-		pathParams: categoryPathParamsSchema,
-	};
+export interface uploadSubmissionRequestQueryParams extends ParsedQs {
+	entityName: string;
+	organization: string;
+}
+
+export const uploadSubmissionRequestSchema: RequestValidation<
+	Array<Record<string, unknown>>,
+	uploadSubmissionRequestQueryParams,
+	categoryPathParams
+> = {
+	body: z.record(z.unknown()).array(),
+	pathParams: categoryPathParamsSchema,
+	query: z.object({
+		entityName: entityNameSchema,
+		organization: organizationSchema,
+	}),
+};
 
 // Submitted Data
 
@@ -296,23 +329,49 @@ export const dataDeleteBySystemIdRequestSchema: RequestValidation<object, Parsed
 	}),
 };
 
-export const dataEditRequestSchema: RequestValidation<{ organization: string }, ParsedQs, categoryPathParams> = {
-	body: z.object({
+export interface dataEditRequestSchemaQueryParams extends ParsedQs {
+	entityName: string;
+	organization: string;
+}
+
+export const dataEditRequestSchema: RequestValidation<
+	Array<Record<string, unknown>>,
+	dataEditRequestSchemaQueryParams,
+	categoryPathParams
+> = {
+	body: z.record(z.unknown()).array(),
+	pathParams: categoryPathParamsSchema,
+	query: z.object({
+		entityName: entityNameSchema,
 		organization: organizationSchema,
 	}),
-	pathParams: categoryPathParamsSchema,
 };
 
 export interface dataQueryParams extends paginationQueryParams {
 	entityName?: string | string[];
+	view?: string;
+}
+
+export interface getDataQueryParams extends ParsedQs {
+	view?: string;
 }
 
 export const dataGetByCategoryRequestSchema: RequestValidation<object, dataQueryParams, categoryPathParams> = {
 	query: z
 		.object({
 			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
+			view: viewSchema.optional(),
 		})
-		.merge(paginationQuerySchema),
+		.merge(paginationQuerySchema)
+		.superRefine((data, ctx) => {
+			if (data.view === VIEW_TYPE.Values.compound && data.entityName && data.entityName?.length > 0) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: 'is incompatible with `compound` view',
+					path: ['entityName'],
+				});
+			}
+		}),
 	pathParams: categoryPathParamsSchema,
 };
 
@@ -324,12 +383,22 @@ export const dataGetByOrganizationRequestSchema: RequestValidation<
 	query: z
 		.object({
 			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
+			view: viewSchema.optional(),
 		})
-		.merge(paginationQuerySchema),
+		.merge(paginationQuerySchema)
+		.superRefine((data, ctx) => {
+			if (data.view === VIEW_TYPE.Values.compound && data.entityName && data.entityName?.length > 0) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: 'is incompatible with `compound` view',
+					path: ['entityName'],
+				});
+			}
+		}),
 	pathParams: categoryOrganizationPathParamsSchema,
 };
 
-export const dataGetByQueryRequestschema: RequestValidation<object, dataQueryParams, categoryOrganizationPathParams> = {
+export const dataGetByQueryRequestSchema: RequestValidation<object, dataQueryParams, categoryOrganizationPathParams> = {
 	body: sqonSchema,
 	query: z
 		.object({
@@ -337,4 +406,23 @@ export const dataGetByQueryRequestschema: RequestValidation<object, dataQueryPar
 		})
 		.merge(paginationQuerySchema),
 	pathParams: categoryOrganizationPathParamsSchema,
+};
+
+export interface dataGetBySystemIdPathParams extends ParamsDictionary {
+	systemId: string;
+	categoryId: string;
+}
+
+export const dataGetBySystemIdRequestSchema: RequestValidation<
+	object,
+	getDataQueryParams,
+	dataGetBySystemIdPathParams
+> = {
+	query: z.object({
+		view: viewSchema.optional(),
+	}),
+	pathParams: z.object({
+		systemId: stringNotEmpty,
+		categoryId: categoryIdSchema,
+	}),
 };

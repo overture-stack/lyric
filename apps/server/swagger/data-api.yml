@@ -4,14 +4,9 @@
     tags:
       - Data
     parameters:
-      - name: categoryId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: ID of the category
+      - $ref: '#/components/parameters/path/CategoryId'
       - name: entityName
-        description: Array of strings to filter by entity names
+        description: Array of strings to filter by entity names. Incompatible with `compound` view
         in: query
         required: false
         schema:
@@ -19,18 +14,9 @@
           type: array
           items:
             type: string
-      - name: page
-        in: query
-        required: false
-        schema:
-          type: integer
-        description: Optional query parameter to specify the page number of the results. Default value is 1
-      - name: pageSize
-        in: query
-        required: false
-        schema:
-          type: integer
-        description: Optional query parameter to specify the number of results per page. Default value is 20
+      - $ref: '#/components/parameters/query/Page'
+      - $ref: '#/components/parameters/query/PageSize'
+      - $ref: '#/components/parameters/query/View'
     responses:
       200:
         description: Submitted Data
@@ -49,26 +35,48 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
+/data/category/{categoryId}/id/{systemId}:
+  get:
+    summary: Retrieve Submitted Data Record for a System ID
+    tags:
+      - Data
+    parameters:
+      - $ref: '#/components/parameters/path/CategoryId'
+      - name: systemId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID of the record
+      - $ref: '#/components/parameters/query/View'
+    responses:
+      200:
+        description: Submitted Data
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmittedDataRecord'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
 /data/category/{categoryId}/organization/{organization}:
   get:
     summary: Retrieve Submitted Data for a specific Category and Organization
     tags:
       - Data
     parameters:
-      - name: categoryId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: ID of the category
-      - name: organization
-        in: path
-        required: true
-        schema:
-          type: string
-        description: Organization name
+      - $ref: '#/components/parameters/path/CategoryId'
+      - $ref: '#/components/parameters/path/Organization'
       - name: entityName
-        description: Array of strings to filter by entity names
+        description: Array of strings to filter by entity names. Incompatible with `compound` view
         in: query
         required: false
         schema:
@@ -76,18 +84,9 @@
           type: array
           items:
             type: string
-      - name: page
-        in: query
-        required: false
-        schema:
-          type: integer
-        description: Optional query parameter to specify the page number of the results. Default value is 1
-      - name: pageSize
-        in: query
-        required: false
-        schema:
-          type: integer
-        description: Optional query parameter to specify the number of results per page. Default value is 20
+      - $ref: '#/components/parameters/query/Page'
+      - $ref: '#/components/parameters/query/PageSize'
+      - $ref: '#/components/parameters/query/View'
     responses:
       200:
         description: Submitted Data
@@ -112,18 +111,8 @@
     tags:
       - Data
     parameters:
-      - name: categoryId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: ID of the category
-      - name: organization
-        in: path
-        required: true
-        schema:
-          type: string
-        description: Organization name
+      - $ref: '#/components/parameters/path/CategoryId'
+      - $ref: '#/components/parameters/path/Organization'
       - name: entityName
         description: Array of strings to filter by entity names
         in: query
@@ -133,18 +122,8 @@
           type: array
           items:
             type: string
-      - name: page
-        in: query
-        required: false
-        schema:
-          type: integer
-        description: Optional query parameter to specify the page number of the results. Default value is 1
-      - name: pageSize
-        in: query
-        required: false
-        schema:
-          type: integer
-        description: Optional query parameter to specify the number of results per page. Default value is 20
+      - $ref: '#/components/parameters/query/Page'
+      - $ref: '#/components/parameters/query/PageSize'
     requestBody:
       description: Custom filter SQON Notation to provide a flexible system for combining filters in a JSON object format. Find more documentation on https://github.com/overture-stack/sqon-builder
       required: true
