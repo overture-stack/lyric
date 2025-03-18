@@ -244,13 +244,27 @@ export const mapAndMergeSubmittedDataToRecordReferences = ({
 		let record: DataRecordReference;
 		if (editSubmittedData && foundRecordToUpdateIndex >= 0) {
 			const recordToUpdate = editSubmittedData[entityData.entityName][foundRecordToUpdateIndex];
-			const newDataToUpdate: MutableDataRecord = entityData.data;
-			for (const key of Object.keys(recordToUpdate.old)) {
-				if (entityData.data[key] !== recordToUpdate.old[key]) {
-					// What to do if record on Submission doesn't match with current SubmittedData?
+			const existingData: DataRecord = entityData.data;
+
+			// Remove old keys
+			const keysToRemove = Object.keys(recordToUpdate.old);
+			const newDataToUpdate = Object.keys(existingData).reduce<MutableDataRecord>((acc, key) => {
+				if (!keysToRemove.includes(key)) {
+					acc[key] = existingData[key];
 				}
-				newDataToUpdate[key] = recordToUpdate.new[key];
+				return acc;
+			}, {});
+
+			// Filter undefined values from new object
+			const filteredNewObject: DataRecord = {};
+			for (const key in recordToUpdate.new) {
+				if (recordToUpdate.new[key] !== undefined) {
+					filteredNewObject[key] = recordToUpdate.new[key];
+				}
 			}
+
+			Object.assign(newDataToUpdate, filteredNewObject);
+
 			record = {
 				dataRecord: newDataToUpdate,
 				reference: {
