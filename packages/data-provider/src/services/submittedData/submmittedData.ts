@@ -8,7 +8,7 @@ import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelations.js';
-import { filterUpdatesFromDeletes, mergeRecords } from '../../utils/submissionUtils.js';
+import { filterUpdatesFromDeletes, mergeDeleteRecords } from '../../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
 	getEntityNamesFromFilterOptions,
@@ -95,6 +95,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 			organization: foundRecordToDelete.organization,
 			systemId: foundRecordToDelete.systemId,
 		});
+		logger.info(LOG_MODULE, `Found ${recordDependents.length} dependendencies on systemId '${systemId}'`);
 
 		const submittedDataToDelete = [foundRecordToDelete, ...recordDependents];
 
@@ -107,8 +108,8 @@ const submittedData = (dependencies: BaseDependencies) => {
 			organization: foundRecordToDelete.organization,
 		});
 
-		// Merge current Active Submission delete entities
-		const mergedSubmissionDeletes = mergeRecords(activeSubmission.data.deletes, recordsToDeleteMap);
+		// Merge current Active Submission delete entities with unique records to delete based on systemId
+		const mergedSubmissionDeletes = mergeDeleteRecords(activeSubmission.data.deletes || {}, recordsToDeleteMap);
 
 		const entitiesToProcess = Object.keys(mergedSubmissionDeletes);
 

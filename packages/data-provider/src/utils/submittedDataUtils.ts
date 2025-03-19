@@ -235,7 +235,9 @@ export const mapAndMergeSubmittedDataToRecordReferences = ({
 	editSubmittedData?: Record<string, SubmissionUpdateData[]>;
 	submissionId: number;
 }): Record<string, DataRecordReference[]> => {
-	if (!submittedData) return {};
+	if (!submittedData) {
+		return {};
+	}
 	return submittedData.reduce<Record<string, DataRecordReference[]>>((acc, entityData) => {
 		const foundRecordToUpdateIndex =
 			editSubmittedData && editSubmittedData[entityData.entityName]
@@ -244,13 +246,9 @@ export const mapAndMergeSubmittedDataToRecordReferences = ({
 		let record: DataRecordReference;
 		if (editSubmittedData && foundRecordToUpdateIndex >= 0) {
 			const recordToUpdate = editSubmittedData[entityData.entityName][foundRecordToUpdateIndex];
-			const newDataToUpdate: MutableDataRecord = entityData.data;
-			for (const key of Object.keys(recordToUpdate.old)) {
-				if (entityData.data[key] !== recordToUpdate.old[key]) {
-					// What to do if record on Submission doesn't match with current SubmittedData?
-				}
-				newDataToUpdate[key] = recordToUpdate.new[key];
-			}
+
+			const newDataToUpdate = updateEntityData(entityData.data, recordToUpdate);
+
 			record = {
 				dataRecord: newDataToUpdate,
 				reference: {
@@ -311,6 +309,13 @@ export const transformmSubmittedDataToSubmissionDeleteData = (submittedData: Sub
 	}, {});
 };
 
+/**
+ * Updates an array of existing Submitted data by applying the corresponding changes from the request update data.
+ * Identifies what element in the array to update by it's `systemId`
+ * @param submittedData
+ * @param editData
+ * @returns
+ */
 export const updateSubmittedDataArray = (
 	submittedData: SubmittedData[],
 	editData: SubmissionUpdateData[],
@@ -318,13 +323,41 @@ export const updateSubmittedDataArray = (
 	return submittedData.map((existingSubmittedData) => {
 		const found = editData.find((e) => e.systemId === existingSubmittedData.systemId);
 		if (found) {
-			const newData: MutableDataRecord = existingSubmittedData.data;
-			for (const key of Object.keys(found.old)) {
-				newData[key] = found.new[key];
-			}
-			existingSubmittedData.data = newData;
-			return existingSubmittedData;
+			const udpatedData = updateEntityData(existingSubmittedData.data, found);
+			existingSubmittedData.data = udpatedData;
 		}
 		return existingSubmittedData;
 	});
+};
+
+/**
+ * Updates the entity data based on the provided update request.
+ * It removes old keys, filters out undefined values from the new data,
+ * and merges the new data into the current data
+ * @param existingData
+ * @param updateRequest
+ * @returns
+ */
+export const updateEntityData = (existingData: DataRecord, updateRequest: SubmissionUpdateData): DataRecord => {
+	// Remove old keys
+	const keysToRemove = Object.keys(updateRequest.old);
+	const updatedData = Object.keys(existingData).reduce<MutableDataRecord>((result, key) => {
+		if (!keysToRemove.includes(key)) {
+			result[key] = existingData[key];
+		}
+		return result;
+	}, {});
+
+	// Filter out properties with undefined values from new object
+	const validNewData: DataRecord = {};
+	for (const key in updateRequest.new) {
+		if (updateRequest.new[key] !== undefined) {
+			validNewData[key] = updateRequest.new[key];
+		}
+	}
+
+	// Add new keys
+	Object.assign(updatedData, validNewData);
+
+	return updatedData;
 };
