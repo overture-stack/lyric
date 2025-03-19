@@ -225,7 +225,9 @@ export const groupSchemaErrorsByEntity = (input: {
 	const { resultValidation, dataValidated } = input;
 
 	const submissionSchemaErrors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> = {};
-	if (resultValidation.valid) return {};
+	if (resultValidation.valid) {
+		return {};
+	}
 	resultValidation.details.forEach((dictionaryValidationError) => {
 		const entityName = dictionaryValidationError.schemaName;
 		if (dictionaryValidationError.reason === 'INVALID_RECORDS') {
@@ -377,23 +379,6 @@ export const mergeAndReferenceEntityData = ({
 			return objValue.concat(srcValue);
 		}
 	});
-};
-
-/**
- * Merge two `Record<string, T[]>` objects into a single `Record<string, T[]>` object.
- * For each key in the records, the corresponding arrays from both records are concatenated.
- * @param record1 The first `Record<string, T[]>` object. If `undefined`, it is treated as an empty record.
- * @param record2 The second `Record<string, T[]>` object. If `undefined`, it is treated as an empty record.
- * @returns
- */
-export const mergeRecords = <T>(
-	record1: Record<string, T[]> | undefined,
-	record2: Record<string, T[]> | undefined,
-): Record<string, T[]> => {
-	return Object.keys({ ...record1, ...record2 }).reduce<Record<string, T[]>>((acc, key) => {
-		acc[key] = (record1?.[key] || []).concat(record2?.[key] || []);
-		return acc;
-	}, {});
 };
 
 /**

@@ -22,7 +22,9 @@ export function isNumber(value: unknown): value is number {
 }
 
 export function uniqueCharacters(value: string): string {
-	if (isEmptyString(value)) return '';
+	if (isEmptyString(value)) {
+		return '';
+	}
 	// Split the string to make array
 	const splitted = value.replace(/\s/g, '').split('');
 
@@ -79,7 +81,10 @@ export const asArray = <T>(val: T | T[]): T[] => {
  * @returns
  */
 export const deepCompare = (obj1: unknown, obj2: unknown): boolean => {
-	if (obj1 === obj2) return true; // Handle primitives and reference equality
+	// Handle primitives and reference equality
+	if (obj1 === obj2) {
+		return true;
+	}
 
 	if (typeof obj1 !== 'object' || typeof obj2 !== 'object' || obj1 === null || obj2 === null) {
 		return false; // Ensure both are non-null objects
@@ -93,7 +98,10 @@ export const deepCompare = (obj1: unknown, obj2: unknown): boolean => {
 	const keys1 = Object.keys(obj1);
 	const keys2 = Object.keys(obj2);
 
-	if (keys1.length !== keys2.length) return false; // Different number of keys
+	// Different number of keys
+	if (keys1.length !== keys2.length) {
+		return false;
+	}
 
 	for (const key of keys1) {
 		const val1 = obj1[key];

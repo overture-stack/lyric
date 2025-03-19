@@ -234,7 +234,9 @@ const controller = (dependencies: BaseDependencies) => {
 					organization,
 				});
 
-				if (isEmpty(activeSubmission)) throw new NotFound('Active Submission not found');
+				if (isEmpty(activeSubmission)) {
+					throw new NotFound('Active Submission not found');
+				}
 
 				return res.status(200).send(activeSubmission);
 			} catch (error) {
