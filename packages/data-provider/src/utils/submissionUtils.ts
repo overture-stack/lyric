@@ -225,7 +225,9 @@ export const groupSchemaErrorsByEntity = (input: {
 	const { resultValidation, dataValidated } = input;
 
 	const submissionSchemaErrors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> = {};
-	if (resultValidation.valid) return {};
+	if (resultValidation.valid) {
+		return {};
+	}
 	resultValidation.details.forEach((dictionaryValidationError) => {
 		const entityName = dictionaryValidationError.schemaName;
 		if (dictionaryValidationError.reason === 'INVALID_RECORDS') {

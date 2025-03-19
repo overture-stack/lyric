@@ -21,7 +21,9 @@ const client = (schemaServiceUrl: string, logger: Logger) => {
 				throw new ServiceUnavailable();
 			}
 
-			if (!newSchema) throw new BadRequest(`Schema with name '${name}' and version '${version}' not found`);
+			if (!newSchema) {
+				throw new BadRequest(`Schema with name '${name}' and version '${version}' not found`);
+			}
 			return newSchema;
 		},
 	};

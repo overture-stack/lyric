@@ -98,7 +98,9 @@ const processor = (dependencies: BaseDependencies) => {
 						submissionUpdateRecord,
 					);
 
-					if (filterDependents.length === 0) return { submissionUpdateData: submissionUpdateRecord, dependents: {} };
+					if (filterDependents.length === 0) {
+						return { submissionUpdateData: submissionUpdateRecord, dependents: {} };
+					}
 
 					const directDependents = await getSubmittedDataFiltered(organization, filterDependents);
 
@@ -166,7 +168,9 @@ const processor = (dependencies: BaseDependencies) => {
 						const acc2 = await acc2Promise;
 						const foundSubmittedData = await getSubmittedDataBySystemId(u.systemId);
 
-						if (!foundSubmittedData) return acc2;
+						if (!foundSubmittedData) {
+							return acc2;
+						}
 
 						const deleteRecord: SubmissionDeleteData = {
 							systemId: foundSubmittedData.systemId,
@@ -560,7 +564,9 @@ const processor = (dependencies: BaseDependencies) => {
 
 		const promises = records.map(async (record) => {
 			const systemId = record['systemId']?.toString();
-			if (!systemId) return;
+			if (!systemId) {
+				return;
+			}
 
 			const foundSubmittedData = await getSubmittedDataBySystemId(systemId);
 			if (foundSubmittedData?.data) {

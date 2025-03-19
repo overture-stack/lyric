@@ -50,7 +50,9 @@ const searchDataRelations = (dependencies: BaseDependencies) => {
 					dataValue: data[childNode.parent!.fieldName]?.toString(),
 				}));
 
-			if (filterData.length === 0) return [];
+			if (filterData.length === 0) {
+				return [];
+			}
 
 			logger.debug(
 				LOG_MODULE,
