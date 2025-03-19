@@ -30,6 +30,8 @@ import * as schemaUtils from '../utils/schemas.js';
 import * as submissionUtils from '../utils/submissionUtils.js';
 import * as submittedDataUtils from '../utils/submittedDataUtils.js';
 import * as typeUtils from '../utils/types.js';
+import validationRouter from '../routers/validationRouter.js';
+import validationService from '../services/validationService.js';
 
 /**
  * The main provider of submission resources
@@ -54,6 +56,7 @@ const provider = (configData: AppConfig) => {
 			dictionary: dictionaryRouter(baseDeps),
 			submission: submissionRouter(baseDeps),
 			submittedData: submittedDataRouter(baseDeps),
+			validator: validationRouter(baseDeps),
 		},
 		controllers: {
 			audit: auditController(baseDeps),
@@ -61,6 +64,7 @@ const provider = (configData: AppConfig) => {
 			dictionary: dictionaryController(baseDeps),
 			submission: submissionController(baseDeps),
 			submittedData: submittedDataController(baseDeps),
+			validator: validationService(baseDeps)
 		},
 		services: {
 			audit: auditService(baseDeps),
