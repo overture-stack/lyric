@@ -61,7 +61,7 @@ export default tseslint.config(
 			],
 			'simple-import-sort/exports': 'error',
 			'prettier/prettier': 'error',
-			curly: ['error', 'all'],
+			curly: ['warn', 'all'],
 		},
 		languageOptions: {
 			parserOptions: {
