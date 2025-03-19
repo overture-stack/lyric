@@ -380,23 +380,6 @@ export const mergeAndReferenceEntityData = ({
 };
 
 /**
- * Merge two `Record<string, T[]>` objects into a single `Record<string, T[]>` object.
- * For each key in the records, the corresponding arrays from both records are concatenated.
- * @param record1 The first `Record<string, T[]>` object. If `undefined`, it is treated as an empty record.
- * @param record2 The second `Record<string, T[]>` object. If `undefined`, it is treated as an empty record.
- * @returns
- */
-export const mergeRecords = <T>(
-	record1: Record<string, T[]> | undefined,
-	record2: Record<string, T[]> | undefined,
-): Record<string, T[]> => {
-	return Object.keys({ ...record1, ...record2 }).reduce<Record<string, T[]>>((acc, key) => {
-		acc[key] = (record1?.[key] || []).concat(record2?.[key] || []);
-		return acc;
-	}, {});
-};
-
-/**
  * Merges multiple `Record<string, SubmissionInsertData>` objects into a single object.
  * If there are duplicate keys between the objects, the `records` arrays of `SubmissionInsertData`
  * are concatenated for the matching keys, ensuring no duplicates.
