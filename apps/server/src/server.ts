@@ -29,6 +29,9 @@ app.use('/dictionary', lyricProvider.routers.dictionary);
 app.use('/submission', lyricProvider.routers.submission);
 
 // Swagger route
+app.get('/api-docs/spec.json', (req, res) => {
+	res.json(swaggerDoc);
+});
 app.use('/api-docs', serve, setup(swaggerDoc));
 
 app.use('/health', healthRouter);
