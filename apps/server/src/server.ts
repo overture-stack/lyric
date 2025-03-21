@@ -32,7 +32,13 @@ app.use('/submission', lyricProvider.routers.submission);
 app.get('/api-docs/spec.json', (req, res) => {
 	res.json(swaggerDoc);
 });
-app.use('/api-docs', serve, setup(swaggerDoc));
+app.use(
+	'/api-docs',
+	serve,
+	setup(undefined, {
+		swaggerOptions: { url: '/api-docs/spec.json' },
+	}),
+);
 
 app.use('/health', healthRouter);
 
