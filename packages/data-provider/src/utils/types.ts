@@ -1,4 +1,3 @@
-import { DeepReadonly } from 'deep-freeze';
 import { z } from 'zod';
 
 import {
@@ -6,6 +5,7 @@ import {
 	type DataRecordValue,
 	Dictionary as SchemasDictionary,
 	DictionaryValidationRecordErrorDetails,
+	type Schema,
 } from '@overture-stack/lectern-client';
 import {
 	type Category,
@@ -97,7 +97,6 @@ export type AuditFilterOptions = PaginationOptions & {
 export const CREATE_SUBMISSION_STATUS = {
 	PROCESSING: 'PROCESSING',
 	INVALID_SUBMISSION: 'INVALID_SUBMISSION',
-	PARTIAL_SUBMISSION: 'PARTIAL_SUBMISSION',
 } as const;
 export type CreateSubmissionStatus = ObjectValues<typeof CREATE_SUBMISSION_STATUS>;
 
@@ -108,8 +107,6 @@ export type CreateSubmissionResult = {
 	submissionId?: number;
 	status: CreateSubmissionStatus;
 	description: string;
-	inProcessEntities: string[];
-	batchErrors: DeepReadonly<BatchError>[];
 };
 
 /**
@@ -131,6 +128,8 @@ export type RegisterDictionaryResult = {
 	name: string;
 	version: string;
 };
+
+export type { Schema, SchemasDictionary };
 
 /**
  * Enum matching Audit Action in database
@@ -161,9 +160,9 @@ export type BatchError = {
 };
 
 export interface ValidateFilesParams {
-	schemasDictionary: SchemasDictionary;
 	categoryId: number;
 	organization: string;
+	schema: Schema;
 	userName: string;
 }
 
@@ -177,6 +176,7 @@ export interface CommitSubmissionParams {
 	dictionary: SchemasDictionary & { id: number };
 	submission: Submission;
 	userName: string;
+	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }
 
 export type GroupedDataSubmission = {
@@ -297,6 +297,20 @@ export type SubmittedDataResponse = {
 	isValid: boolean;
 	organization: string;
 	systemId: string;
+};
+
+/**
+ * Result type Post-Commit Submission
+ */
+export type ResultOnCommit = {
+	submissionId: number;
+	organization: string;
+	categoryId: number;
+	data?: {
+		inserts: SubmittedDataResponse[];
+		updates: SubmittedDataResponse[];
+		deletes: SubmittedDataResponse[];
+	};
 };
 
 /**
@@ -424,11 +438,3 @@ export type OrderType = z.infer<typeof ORDER_TYPE>;
  */
 export const VIEW_TYPE = z.enum(['flat', 'compound']);
 export type ViewType = z.infer<typeof VIEW_TYPE>;
-
-export const SUPPORTED_FILE_EXTENSIONS = z.enum(['tsv', 'csv']);
-export type SupportedFileExtensions = z.infer<typeof SUPPORTED_FILE_EXTENSIONS>;
-
-export const columnSeparatorValue = {
-	tsv: '\t',
-	csv: ',',
-} as const satisfies Record<SupportedFileExtensions, string>;

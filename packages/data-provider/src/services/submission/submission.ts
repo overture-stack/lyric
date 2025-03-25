@@ -11,8 +11,6 @@ import submittedRepository from '../../repository/submittedRepository.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
 import {
 	canTransitionToClosed,
-	checkEntityFieldNames,
-	checkFileNames,
 	parseSubmissionResponse,
 	parseSubmissionSummaryResponse,
 	removeItemsFromSubmission,
@@ -31,7 +29,7 @@ import processor from './processor.js';
 
 const service = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_SERVICE';
-	const { logger } = dependencies;
+	const { logger, onFinishCommit } = dependencies;
 	const { performCommitSubmissionAsync, performDataValidation } = processor(dependencies);
 
 	/**
@@ -125,6 +123,7 @@ const service = (dependencies: BaseDependencies) => {
 			submission,
 			dictionary: currentDictionary,
 			userName: userName,
+			onFinishCommit,
 		});
 
 		return {
@@ -364,40 +363,47 @@ const service = (dependencies: BaseDependencies) => {
 	/**
 	 * Validates and Creates the Entities Schemas of the Active Submission and stores it in the database
 	 * @param {object} params
-	 * @param {Express.Multer.File[]} params.files An array of files
+	 * @param {Record<string, unknown>[]} params.records An array of records
+	 * @param {string} params.entityName Entity Name of the Records
 	 * @param {number} params.categoryId Category ID of the Submission
 	 * @param {string} params.organization Organization name
 	 * @param {string} params.userName User name creating the Submission
 	 * @returns The Active Submission created or Updated
 	 */
-	const uploadSubmission = async ({
-		files,
+	const submit = async ({
+		records,
+		entityName,
 		categoryId,
 		organization,
 		userName,
 	}: {
-		files: Express.Multer.File[];
+		records: Record<string, unknown>[];
+		entityName: string;
 		categoryId: number;
 		organization: string;
 		userName: string;
 	}): Promise<CreateSubmissionResult> => {
-		logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
+		logger.info(
+			LOG_MODULE,
+			`Processing '${records.length}' records on category id '${categoryId}' organization '${organization}'`,
+		);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { validateFilesAsync } = processor(dependencies);
+		const { validateRecordsAsync } = processor(dependencies);
 
-		if (files.length === 0) {
+		if (records.length === 0) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: 'No valid files for submission',
-				batchErrors: [],
-				inProcessEntities: [],
+				description: 'No valid records for submission',
 			};
 		}
 
 		const currentDictionary = await getActiveDictionaryByCategory(categoryId);
 
 		if (_.isEmpty(currentDictionary)) {
-			throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+			return {
+				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				description: `Dictionary in category '${categoryId}' not found`,
+			};
 		}
 
 		const schemasDictionary: SchemasDictionary = {
@@ -406,59 +412,31 @@ const service = (dependencies: BaseDependencies) => {
 			schemas: currentDictionary.schemas,
 		};
 
-		// step 1 Validation. Validate entity type (filename matches dictionary entities, remove duplicates)
-		const schemaNames: string[] = schemasDictionary.schemas.map((item) => item.name);
-		const { validFileEntity, batchErrors: fileNamesErrors } = await checkFileNames(files, schemaNames);
-
-		if (_.isEmpty(validFileEntity)) {
-			logger.info(LOG_MODULE, `No valid files for submission`);
-		}
-
-		// step 2 Validation. Validate fieldNames (missing required fields based on schema)
-		const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
-
-		const batchErrors = [...fileNamesErrors, ...fieldNameErrors];
-		const entitiesToProcess = Object.keys(checkedEntities);
-
-		if (_.isEmpty(checkedEntities)) {
-			logger.info(LOG_MODULE, 'Found errors on Submission files.', JSON.stringify(batchErrors));
+		// Validate entity name
+		const entitySchema = schemasDictionary.schemas.find((item) => item.name === entityName);
+		if (!entitySchema) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: 'No valid entities in submission',
-				batchErrors,
-				inProcessEntities: entitiesToProcess,
+				description: `Invalid entity name ${entityName} for submission`,
 			};
 		}
 
 		// Get Active Submission or Open a new one
 		const activeSubmission = await getOrCreateActiveSubmission({ categoryId, userName, organization });
-		const activeSubmissionId = activeSubmission.id;
 
 		// Running Schema validation in the background do not need to wait
 		// Result of validations will be stored in database
-		validateFilesAsync(checkedEntities, {
-			schemasDictionary,
+		validateRecordsAsync(records, {
 			categoryId,
 			organization,
+			schema: entitySchema,
 			userName,
 		});
 
-		if (batchErrors.length === 0) {
-			return {
-				status: CREATE_SUBMISSION_STATUS.PROCESSING,
-				description: 'Submission files are being processed',
-				submissionId: activeSubmissionId,
-				batchErrors,
-				inProcessEntities: entitiesToProcess,
-			};
-		}
-
 		return {
-			status: CREATE_SUBMISSION_STATUS.PARTIAL_SUBMISSION,
-			description: 'Some Submission files are being processed while others were unable to process',
-			submissionId: activeSubmissionId,
-			batchErrors,
-			inProcessEntities: entitiesToProcess,
+			status: CREATE_SUBMISSION_STATUS.PROCESSING,
+			description: 'Submission records are being processed',
+			submissionId: activeSubmission.id,
 		};
 	};
 
@@ -470,7 +448,7 @@ const service = (dependencies: BaseDependencies) => {
 		getSubmissionById,
 		getActiveSubmissionByOrganization,
 		getOrCreateActiveSubmission,
-		uploadSubmission,
+		submit,
 	};
 };
 

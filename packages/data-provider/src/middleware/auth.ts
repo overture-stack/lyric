@@ -33,7 +33,9 @@ declare module 'express-serve-static-core' {
 export const authMiddleware = (authConfig: AuthConfig) => {
 	return (req: Request, res: Response, next: NextFunction) => {
 		// proceed to the next middleware or route handler if auth is disabled
-		if (!authConfig.enabled) return next();
+		if (!authConfig.enabled) {
+			return next();
+		}
 
 		try {
 			const authResult: UserSessionResult =
