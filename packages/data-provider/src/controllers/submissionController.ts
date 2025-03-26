@@ -308,7 +308,7 @@ const controller = ({
 				}
 
 				if (authConfig.enabled && !hasUserWriteAccess(organization, user)) {
-					throw new Forbidden(`User is not authorized to edit data from '${organization}'`);
+					throw new Forbidden(`User is not authorized to submit data to '${organization}'`);
 				}
 
 				const userName = user?.username || '';
