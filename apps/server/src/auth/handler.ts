@@ -11,9 +11,10 @@ import { type UserSessionResult } from '@overture-stack/lyric';
  * @returns User session result
  */
 export const authHandler = (_req: Request) => {
-	// Guest User Session
+	// Note: Customize this implementation with your auth provider.
+	// Setting an Admin Guest user for testing purposes.
 	const authResult: UserSessionResult = {
-		user: { username: 'Guest' },
+		user: { username: 'Guest', allowedWriteOrganizations: [], isAdmin: true },
 	};
 
 	return authResult;

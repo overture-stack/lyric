@@ -17,29 +17,77 @@ const router = ({
 
 	router.use(authMiddleware(authConfig));
 
-	router.get('/:submissionId', submissionController(baseDependencies).getSubmissionById);
+	router.get(
+		'/:submissionId',
+		submissionController({
+			baseDependencies,
+			authConfig,
+		}).getSubmissionById,
+	);
 
-	router.delete('/:submissionId', submissionController(baseDependencies).delete);
+	router.delete(
+		'/:submissionId',
+		submissionController({
+			baseDependencies,
+			authConfig,
+		}).delete,
+	);
 
-	router.delete('/:submissionId/:actionType', submissionController(baseDependencies).deleteEntityName);
+	router.delete(
+		'/:submissionId/:actionType',
+		submissionController({
+			baseDependencies,
+			authConfig,
+		}).deleteEntityName,
+	);
 
-	router.get('/category/:categoryId', submissionController(baseDependencies).getSubmissionsByCategory);
+	router.get(
+		'/category/:categoryId',
+		submissionController({
+			baseDependencies,
+			authConfig,
+		}).getSubmissionsByCategory,
+	);
 
 	router.get(
 		'/category/:categoryId/organization/:organization',
-		submissionController(baseDependencies).getActiveByOrganization,
+		submissionController({
+			baseDependencies,
+			authConfig,
+		}).getActiveByOrganization,
 	);
 
-	router.post('/category/:categoryId/data', submissionController(baseDependencies).submit);
+	router.post(
+		'/category/:categoryId/data',
+		submissionController({
+			baseDependencies,
+			authConfig,
+		}).submit,
+	);
 
 	router.delete(
 		`/category/:categoryId/data/:systemId`,
-		submissionController(baseDependencies).deleteSubmittedDataBySystemId,
+		submissionController({
+			baseDependencies,
+			authConfig,
+		}).deleteSubmittedDataBySystemId,
 	);
 
-	router.put(`/category/:categoryId/data`, submissionController(baseDependencies).editSubmittedData);
+	router.put(
+		`/category/:categoryId/data`,
+		submissionController({
+			baseDependencies,
+			authConfig,
+		}).editSubmittedData,
+	);
 
-	router.post('/category/:categoryId/commit/:submissionId', submissionController(baseDependencies).commit);
+	router.post(
+		'/category/:categoryId/commit/:submissionId',
+		submissionController({
+			baseDependencies,
+			authConfig,
+		}).commit,
+	);
 
 	return router;
 };

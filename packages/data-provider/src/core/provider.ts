@@ -59,7 +59,10 @@ const provider = (configData: AppConfig) => {
 			audit: auditController(baseDeps),
 			category: categoryController(baseDeps),
 			dictionary: dictionaryController(baseDeps),
-			submission: submissionController(baseDeps),
+			submission: submissionController({
+				baseDependencies: baseDeps,
+				authConfig: { enabled: configData.auth.enabled },
+			}),
 			submittedData: submittedDataController(baseDeps),
 		},
 		services: {

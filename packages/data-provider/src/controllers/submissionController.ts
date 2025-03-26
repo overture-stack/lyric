@@ -1,9 +1,11 @@
 import { isEmpty } from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
+import type { AuthConfig } from '../middleware/auth.js';
 import submissionService from '../services/submission/submission.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
-import { BadRequest, NotFound } from '../utils/errors.js';
+import { hasUserWriteAccess } from '../utils/authUtils.js';
+import { BadRequest, Forbidden, NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
 	dataDeleteBySystemIdRequestSchema,
@@ -18,10 +20,16 @@ import {
 } from '../utils/schemas.js';
 import { SUBMISSION_ACTION_TYPE } from '../utils/types.js';
 
-const controller = (dependencies: BaseDependencies) => {
-	const service = submissionService(dependencies);
-	const dataService = submittedDataService(dependencies);
-	const { logger } = dependencies;
+const controller = ({
+	baseDependencies,
+	authConfig,
+}: {
+	baseDependencies: BaseDependencies;
+	authConfig: AuthConfig;
+}) => {
+	const service = submissionService(baseDependencies);
+	const dataService = submittedDataService(baseDependencies);
+	const { logger } = baseDependencies;
 	const defaultPage = 1;
 	const defaultPageSize = 20;
 	const LOG_MODULE = 'SUBMISSION_CONTROLLER';
@@ -30,11 +38,20 @@ const controller = (dependencies: BaseDependencies) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const submissionId = Number(req.params.submissionId);
-
-				// Get userName from auth
-				const userName = req.user?.username || '';
+				const user = req.user;
 
 				logger.info(LOG_MODULE, `Request Commit Active Submission '${submissionId}' on category '${categoryId}'`);
+
+				const submission = await service.getSubmissionById(submissionId);
+				if (!submission) {
+					throw new BadRequest(`Submission '${submissionId}' not found`);
+				}
+
+				if (authConfig.enabled && !hasUserWriteAccess(submission.organization, user)) {
+					throw new Forbidden(`User is not authorized to commit the submission from '${submission.organization}'`);
+				}
+
+				const userName = user?.username || '';
 
 				const commitSubmission = await service.commitSubmission(categoryId, submissionId, userName);
 
@@ -46,11 +63,20 @@ const controller = (dependencies: BaseDependencies) => {
 		delete: validateRequest(submissionDeleteRequestSchema, async (req, res, next) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
+				const user = req.user;
 
 				logger.info(LOG_MODULE, `Request Delete Active Submission '${submissionId}'`);
 
-				// Get userName from auth
-				const userName = req.user?.username || '';
+				const submission = await service.getSubmissionById(submissionId);
+				if (!submission) {
+					throw new BadRequest(`Submission '${submissionId}' not found`);
+				}
+
+				if (authConfig.enabled && !hasUserWriteAccess(submission.organization, user)) {
+					throw new Forbidden(`User is not authorized to delete the submission from '${submission.organization}'`);
+				}
+
+				const userName = user?.username || '';
 
 				const activeSubmissionDelete = await service.deleteActiveSubmissionById(submissionId, userName);
 
@@ -67,17 +93,25 @@ const controller = (dependencies: BaseDependencies) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
 				const actionType = SUBMISSION_ACTION_TYPE.parse(req.params.actionType.toUpperCase());
-
 				const entityName = req.query.entityName;
 				const index = req.query.index ? parseInt(req.query.index) : null;
+				const user = req.user;
 
 				logger.info(
 					LOG_MODULE,
 					`Request Delete '${entityName ? entityName : 'all'}' records on '{${actionType}}' Active Submission '${submissionId}'`,
 				);
 
-				// Get userName from auth
-				const userName = req.user?.username || '';
+				const submission = await service.getSubmissionById(submissionId);
+				if (!submission) {
+					throw new BadRequest(`Submission '${submissionId}' not found`);
+				}
+
+				if (authConfig.enabled && !hasUserWriteAccess(submission.organization, user)) {
+					throw new Forbidden(`User is not authorized to delete the submission data from '${submission.organization}'`);
+				}
+
+				const userName = user?.username || '';
 
 				const activeSubmission = await service.deleteActiveSubmissionEntity(submissionId, userName, {
 					actionType,
@@ -98,22 +132,30 @@ const controller = (dependencies: BaseDependencies) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const systemId = req.params.systemId;
+				const user = req.user;
 
 				logger.info(LOG_MODULE, `Request Delete Submitted Data systemId '${systemId}' on categoryId '${categoryId}'`);
 
-				// Get userName from auth
-				const userName = req.user?.username || '';
+				// get SubmittedData by SystemId
+				const foundRecordToDelete = await dataService.getSubmittedDataBySystemId(categoryId, systemId, {
+					view: 'flat',
+				});
+
+				if (!foundRecordToDelete.result) {
+					throw new BadRequest(`No Submitted data found with systemId '${systemId}'`);
+				}
+
+				if (authConfig.enabled && !hasUserWriteAccess(foundRecordToDelete.result.organization, user)) {
+					throw new Forbidden(
+						`User is not authorized to delete data from '${foundRecordToDelete.result?.organization}'`,
+					);
+				}
+
+				const userName = user?.username || '';
 
 				const deletedRecordsResult = await dataService.deleteSubmittedDataBySystemId(categoryId, systemId, userName);
 
-				const response = {
-					status: deletedRecordsResult.status,
-					description: deletedRecordsResult.description,
-					inProcessEntities: deletedRecordsResult.inProcessEntities,
-					submissionId: deletedRecordsResult.submissionId,
-				};
-
-				return res.status(200).send(response);
+				return res.status(200).send(deletedRecordsResult);
 			} catch (error) {
 				next(error);
 			}
@@ -125,17 +167,21 @@ const controller = (dependencies: BaseDependencies) => {
 				const entityName = req.query.entityName;
 				const organization = req.query.organization;
 				const payload = req.body;
+				const user = req.user;
 
 				logger.info(LOG_MODULE, `Request Edit Submitted Data`);
-
-				// Get userName from auth
-				const userName = req.user?.username || '';
 
 				if (!payload || payload.length == 0) {
 					throw new BadRequest(
 						'The "payload" parameter is missing or empty. Please include the records in the request for processing.',
 					);
 				}
+
+				if (authConfig.enabled && !hasUserWriteAccess(organization, user)) {
+					throw new Forbidden(`User is not authorized to edit data from '${organization}'`);
+				}
+
+				const userName = user?.username || '';
 
 				const editSubmittedDataResult = await dataService.editSubmittedData({
 					records: payload,
@@ -158,6 +204,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const organization = req.query.organization;
 				const page = parseInt(String(req.query.page)) || defaultPage;
 				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+				const user = req.user;
 
 				logger.info(
 					LOG_MODULE,
@@ -167,8 +214,7 @@ const controller = (dependencies: BaseDependencies) => {
 					`organization '${organization}'`,
 				);
 
-				// Get userName from auth
-				const userName = req.user?.username || '';
+				const userName = user?.username || '';
 
 				const submissionsResult = await service.getSubmissionsByCategory(
 					categoryId,
@@ -246,9 +292,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const entityName = req.query.entityName;
 				const organization = req.query.organization;
 				const payload = req.body;
-
-				// Get userName from auth
-				const userName = req.user?.username || '';
+				const user = req.user;
 
 				logger.info(
 					LOG_MODULE,
@@ -262,6 +306,12 @@ const controller = (dependencies: BaseDependencies) => {
 						'The "payload" parameter is missing or empty. Please include the records in the request for processing.',
 					);
 				}
+
+				if (authConfig.enabled && !hasUserWriteAccess(organization, user)) {
+					throw new Forbidden(`User is not authorized to edit data from '${organization}'`);
+				}
+
+				const userName = user?.username || '';
 
 				const resultSubmission = await service.submit({
 					records: payload,

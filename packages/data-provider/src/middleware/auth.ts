@@ -2,6 +2,8 @@ import { NextFunction, Request, Response } from 'express';
 
 export type UserSession = {
 	username: string;
+	isAdmin: boolean;
+	allowedWriteOrganizations: string[];
 };
 
 export type UserSessionResult = {
