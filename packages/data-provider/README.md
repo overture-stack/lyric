@@ -54,19 +54,19 @@ const lyricProvider = provider(appConfig);
 
 The **authentication custom handler** is a customized function that can be used to verify and manage user authentication within the application. It is used by the auth middleware to process incoming requests.
 
-The handler returns a `UserSessionResult` response type, which provides information about the user's session or any errors encountered during the process.
+The handler receives an argument of type `Request` and returns a `UserSessionResult` response type, which provides information about the user's session or any errors encountered during the process.
 
-This result object can include:
+This result `UserSessionResult` object can include:
 
-- `user` (optional): A UserSession object containing details of the authenticated user, if available.
-- `errorCode` (optional): A numeric code representing an error that occurred while processing the session request.
-- `errorMessage` (optional): A descriptive message detailing the specific error, if an errorCode is provided.
+- **user**: A `UserSession` object containing details of the authenticated user, which might include fields like `username`, `isAdmin` and `allowedWriteOrganizations`.
+- **errorCode**: A numeric code representing an error that occurred while processing the session request.
+- **errorMessage**: A descriptive message detailing the specific error, if an errorCode is provided.
 
 Example how to implement a custom auth handler:
 
 ```javascript
-import { Request } from 'express';
-import { UserSessionResult } from '@overture-stack/lyric';
+import { type Request } from 'express';
+import { type UserSessionResult } from '@overture-stack/lyric';
 import jwt from 'jsonwebtoken';
 
 const authHandler = (req: Request): UserSessionResult => {
@@ -90,7 +90,11 @@ const authHandler = (req: Request): UserSessionResult => {
 		const decodedToken = jwt.verify(token, publicKey);
 
 		return {
-			user: { username:  decodedToken.username }, // Example: Adjust fields as per your `UserSession` type
+			user: {
+				username: decodedToken.username,
+				isAdmin: decodedToken.isAdmin,
+				allowedWriteOrganizations: decodedToken.scopes,
+			 },
 		};
 	} catch (err) {
 		return {
