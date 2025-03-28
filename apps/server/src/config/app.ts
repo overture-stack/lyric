@@ -5,6 +5,8 @@ import { AppConfig } from '@overture-stack/lyric';
 export const getServerConfig = () => {
 	return {
 		port: process.env.PORT || 3030,
+		allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || [],
+		corsEnabled: getBoolean(process.env.CORS_ENABLED, false),
 	};
 };
 
@@ -27,7 +29,10 @@ const getRequiredConfig = (name: string) => {
 	return value;
 };
 
-export const defaultAppConfig: AppConfig = {
+export const appConfig: AppConfig = {
+	auth: {
+		enabled: false,
+	},
 	db: {
 		host: getRequiredConfig('DB_HOST'),
 		port: Number(getRequiredConfig('DB_PORT')),
@@ -48,10 +53,10 @@ export const defaultAppConfig: AppConfig = {
 		customAlphabet: process.env.ID_CUSTOM_ALPHABET || '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
 		customSize: Number(process.env.ID_CUSTOM_SIZE) || 21,
 	},
-	schemaService: {
-		url: getRequiredConfig('LECTERN_URL'),
-	},
 	logger: {
 		level: process.env.LOG_LEVEL || 'info',
+	},
+	schemaService: {
+		url: getRequiredConfig('LECTERN_URL'),
 	},
 };

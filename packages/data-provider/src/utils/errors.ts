@@ -6,6 +6,13 @@ export class BadRequest extends Error {
 	}
 }
 
+export class Forbidden extends Error {
+	constructor(msg: string) {
+		super(msg);
+		this.name = 'Forbidden';
+	}
+}
+
 export class NotFound extends Error {
 	constructor(msg: string) {
 		super(msg);

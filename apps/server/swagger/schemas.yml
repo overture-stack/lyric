@@ -19,6 +19,13 @@ components:
           type: string
           decription: Description of the error
 
+    Forbidden:
+      description: Error response indicating invalid access due to inadequate permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
+
     NotFound:
       description: Requested resource could not be found
       content:

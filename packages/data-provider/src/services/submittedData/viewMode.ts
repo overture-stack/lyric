@@ -48,7 +48,7 @@ const viewMode = (dependencies: BaseDependencies) => {
 
 					record.data = { ...record.data, ...childNodes, ...parentNodes };
 				} catch (error) {
-					logger.error(`Error converting record ${record.systemId} into compound document`, error);
+					logger.error(LOG_MODULE, `Error converting record ${record.systemId} into compound document`, error);
 					throw new InternalServerError(`An error occurred while converting records into compound view`);
 				}
 				return record;
