@@ -10,7 +10,7 @@ import swaggerDoc from './config/swagger.js';
 import healthRouter from './routes/health.js';
 import pingRouter from './routes/ping.js';
 
-const { allowedOrigins, port } = getServerConfig();
+const { allowedOrigins, port, corsEnabled } = getServerConfig();
 
 const lyricProvider = provider(appConfig);
 
@@ -22,11 +22,13 @@ app.use(helmet());
 app.use(
 	cors({
 		origin: function (origin, callback) {
-			if (!origin) {
-				// allow requests with no origin
-				// (like mobile apps or curl requests)
+			// If CORS is disabled, allow the request regardless of the origin
+			if (!corsEnabled) {
 				return callback(null, true);
-			} else if (allowedOrigins && allowedOrigins.split(',').indexOf(origin) !== -1) {
+			}
+
+			// If the origin is in the allowed origins list, allow the request
+			if (origin && allowedOrigins.indexOf(origin) !== -1) {
 				return callback(null, true);
 			}
 			const msg = 'The CORS policy for this site does not allow access from the specified Origin.';

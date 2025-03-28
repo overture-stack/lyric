@@ -18,6 +18,9 @@ Import `AppConfig` and `provider` from `@overture-stack/lyric` module to initial
 import { AppConfig, provider } from '@overture-stack/lyric';
 
 const appConfig: AppConfig = {
+	auth: {
+		enabled: false,
+	}
 	db: {
 		host: 'localhost', // Database hostname or IP address
 		port: 5432, // Database port
@@ -52,7 +55,7 @@ const lyricProvider = provider(appConfig);
 
 ### Auth Custom Handler
 
-The **authentication custom handler** is a customized function that can be used to verify and manage user authentication within the application. It is used by the auth middleware to process incoming requests.
+The **authentication custom handler** is a customizable function that can be used to verify user authentication and grant write permissions to organizations. It is used by the auth middleware to process incoming requests before any operation is executed.
 
 The handler receives an argument of type `Request` and returns a `UserSessionResult` response type, which provides information about the user's session or any errors encountered during the process.
 
@@ -89,14 +92,16 @@ const authHandler = (req: Request): UserSessionResult => {
 		const publicKey = process.env.JWT_PUBLIC_KEY!;
 		const decodedToken = jwt.verify(token, publicKey);
 
+		// Return the user session information after successfully verifying the  token
 		return {
 			user: {
-				username: decodedToken.username,
-				isAdmin: decodedToken.isAdmin,
-				allowedWriteOrganizations: decodedToken.scopes,
+				username: decodedToken.username, // Extract username from the decoded token
+				isAdmin: decodedToken.isAdmin, // Check if the user has admin privileges
+				allowedWriteOrganizations: decodedToken.scopes, // Get the list of organizations the user can write to
 			 },
 		};
 	} catch (err) {
+		 // If the token is invalid or an error occurs, return a forbidden error
 		return {
 			errorCode: 403,
 			errorMessage: 'Forbidden: Invalid token'
@@ -105,7 +110,7 @@ const authHandler = (req: Request): UserSessionResult => {
 };
 ```
 
-Add the handler to your `AppConfig` object.
+To enable the authentication handler function, it must be enabled and added in the `AppConfig` object as follows.
 
 ```javascript
 import { AppConfig, provider, UserSession } from '@overture-stack/lyric';
