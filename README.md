@@ -20,6 +20,8 @@ The structure of this monorepo is app centric having `apps/` folder to keep depl
 - [Lectern](https://github.com/overture-stack/lectern) Dictionary Management and validation
 - [Postgres Database](https://www.postgresql.org/) For data storage
 
+> Note: A `docker-compose.yml` file is provided to help spin up the system dependencies
+
 ## Local development
 
 ### Development tools
