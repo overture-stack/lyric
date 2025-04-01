@@ -98,7 +98,9 @@ const processor = (dependencies: BaseDependencies) => {
 						submissionUpdateRecord,
 					);
 
-					if (filterDependents.length === 0) return { submissionUpdateData: submissionUpdateRecord, dependents: {} };
+					if (filterDependents.length === 0) {
+						return { submissionUpdateData: submissionUpdateRecord, dependents: {} };
+					}
 
 					const directDependents = await getSubmittedDataFiltered(organization, filterDependents);
 
@@ -166,7 +168,9 @@ const processor = (dependencies: BaseDependencies) => {
 						const acc2 = await acc2Promise;
 						const foundSubmittedData = await getSubmittedDataBySystemId(u.systemId);
 
-						if (!foundSubmittedData) return acc2;
+						if (!foundSubmittedData) {
+							return acc2;
+						}
 
 						const deleteRecord: SubmissionDeleteData = {
 							systemId: foundSubmittedData.systemId,
@@ -484,10 +488,22 @@ const processor = (dependencies: BaseDependencies) => {
 				submissionUpdateData: { [schema.name]: filesDataProcessed },
 			});
 
-			logger.info(
-				LOG_MODULE,
-				`Direct dependency found: ${foundDependentUpdates.map(({ submissionUpdateData, dependents }) => `'${Object.values(dependents).length}' dependents on system ID '${submissionUpdateData.systemId}'`)}`,
-			);
+			const systemIdsWithDependents: string[] = [];
+
+			// Iterate through the foundDependentUpdates once
+			for (const { submissionUpdateData, dependents } of foundDependentUpdates) {
+				const numDependents = Object.keys(dependents).length;
+
+				if (numDependents > 0) {
+					systemIdsWithDependents.push(`System ID '${submissionUpdateData.systemId}' has ${numDependents} dependents`);
+				}
+			}
+
+			if (systemIdsWithDependents.length) {
+				logger.info(LOG_MODULE, `Direct dependencies found: ${systemIdsWithDependents.join(', ')}`);
+			} else {
+				logger.info(LOG_MODULE, 'No dependents found on any system ID.');
+			}
 
 			const totalDependants = foundDependentUpdates.reduce<Record<string, SubmissionUpdateData[]>>((acc, o) => {
 				return mergeUpdatesBySystemId(acc, o.dependents);
@@ -530,9 +546,13 @@ const processor = (dependencies: BaseDependencies) => {
 				userName,
 			});
 		} catch (error) {
-			logger.error(`There was an error processing records on entity '${schema.name}'`, JSON.stringify(error));
+			logger.error(
+				LOG_MODULE,
+				`There was an error processing records on entity '${schema.name}'`,
+				JSON.stringify(error),
+			);
 		}
-		logger.info(`Finished validating files`);
+		logger.info(LOG_MODULE, `Finished validating files`);
 	};
 
 	/**
@@ -548,7 +568,9 @@ const processor = (dependencies: BaseDependencies) => {
 
 		const promises = records.map(async (record) => {
 			const systemId = record['systemId']?.toString();
-			if (!systemId) return;
+			if (!systemId) {
+				return;
+			}
 
 			const foundSubmittedData = await getSubmittedDataBySystemId(systemId);
 			if (foundSubmittedData?.data) {
@@ -654,9 +676,13 @@ const processor = (dependencies: BaseDependencies) => {
 				userName,
 			});
 		} catch (error) {
-			logger.error(`There was an error processing records on entity '${schema.name}'`, JSON.stringify(error));
+			logger.error(
+				LOG_MODULE,
+				`There was an error processing records on entity '${schema.name}'`,
+				JSON.stringify(error),
+			);
 		}
-		logger.info(`Finished validating files`);
+		logger.info(LOG_MODULE, `Finished validating files`);
 	};
 
 	return {
