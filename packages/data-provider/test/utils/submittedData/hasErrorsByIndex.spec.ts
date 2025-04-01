@@ -33,12 +33,12 @@ describe('Submitted Data Utils - hasErrorsByIndex', () => {
 		it('should return true if error is found on index', () => {
 			const errorsByIndex = groupErrorsByIndex(listOfErrors);
 			const response = hasErrorsByIndex(errorsByIndex, 1);
-			expect(response).to.be.true;
+			expect(response).to.eql(true);
 		});
 		it('should return false if no error is found on index', () => {
 			const errorsByIndex = groupErrorsByIndex(listOfErrors);
 			const response = hasErrorsByIndex(errorsByIndex, 0);
-			expect(response).to.be.false;
+			expect(response).to.eql(false);
 		});
 	});
 });

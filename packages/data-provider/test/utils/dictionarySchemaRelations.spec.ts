@@ -3,6 +3,7 @@ import { describe, it } from 'mocha';
 
 import { Schema } from '@overture-stack/lectern-client';
 
+/* eslint-disable @typescript-eslint/no-empty-object-type */
 interface SchemaDefinition extends Schema {}
 
 import { generateHierarchy, getDictionarySchemaRelations } from '../../src/utils/dictionarySchemaRelations.js';

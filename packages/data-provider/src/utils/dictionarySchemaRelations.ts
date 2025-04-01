@@ -12,6 +12,7 @@ export interface SchemaChildNode {
 	parent: SchemaParentNode;
 }
 
+/* eslint-disable @typescript-eslint/no-empty-object-type */
 interface SchemaDefinition extends Schema {}
 
 /**

@@ -17,7 +17,7 @@ describe('Submission Utils - Determine if processing object is a Submission or S
 			systemId: 'SBMT1234',
 		};
 		const response = determineIfIsSubmission(input);
-		expect(response).to.be.false;
+		expect(response).to.eql(false);
 	});
 	it('should return true if it is an insert on a Submission referenced object', () => {
 		const input: NewSubmittedDataReference = {
@@ -26,7 +26,7 @@ describe('Submission Utils - Determine if processing object is a Submission or S
 			type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
 		};
 		const response = determineIfIsSubmission(input);
-		expect(response).to.be.true;
+		expect(response).to.eql(true);
 	});
 	it('should return true if it is an update on a Submission referenced object', () => {
 		const input: EditSubmittedDataReference = {
@@ -36,6 +36,6 @@ describe('Submission Utils - Determine if processing object is a Submission or S
 			systemId: 'EDT432',
 		};
 		const response = determineIfIsSubmission(input);
-		expect(response).to.be.true;
+		expect(response).to.eql(true);
 	});
 });
