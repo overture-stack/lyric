@@ -546,7 +546,11 @@ const processor = (dependencies: BaseDependencies) => {
 				userName,
 			});
 		} catch (error) {
-			logger.error(`There was an error processing records on entity '${schema.name}'`, JSON.stringify(error));
+			logger.error(
+				LOG_MODULE,
+				`There was an error processing records on entity '${schema.name}'`,
+				JSON.stringify(error),
+			);
 		}
 		logger.info(LOG_MODULE, `Finished validating files`);
 	};
@@ -672,7 +676,11 @@ const processor = (dependencies: BaseDependencies) => {
 				userName,
 			});
 		} catch (error) {
-			logger.error(`There was an error processing records on entity '${schema.name}'`, JSON.stringify(error));
+			logger.error(
+				LOG_MODULE,
+				`There was an error processing records on entity '${schema.name}'`,
+				JSON.stringify(error),
+			);
 		}
 		logger.info(LOG_MODULE, `Finished validating files`);
 	};
