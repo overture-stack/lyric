@@ -1,4 +1,4 @@
-import type { UserSession } from '..//middleware/auth.js';
+import type { UserSession } from '../middleware/auth.js';
 
 /**
  * checks if a user has write access to a specific organization.
