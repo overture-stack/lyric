@@ -3,6 +3,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { DbConfig } from '@overture-stack/lyric-data-model';
 import * as schema from '@overture-stack/lyric-data-model/models';
 
+import type { AuthConfig } from '../middleware/auth.js';
 import type { ResultOnCommit } from '../utils/types.js';
 import { Logger } from './logger.js';
 
@@ -39,12 +40,13 @@ export type IdServiceConfig = {
  * (database, external services, logger, etc)
  */
 export type AppConfig = {
+	auth: AuthConfig;
 	db: DbConfig;
 	features?: FeaturesConfig;
 	idService: IdServiceConfig;
 	logger: LoggerConfig;
-	schemaService: SchemaServiceConfig;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
+	schemaService: SchemaServiceConfig;
 };
 
 /**
@@ -55,6 +57,6 @@ export interface BaseDependencies {
 	features?: FeaturesConfig;
 	idService: IdServiceConfig;
 	logger: Logger;
-	schemaService: SchemaServiceConfig;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
+	schemaService: SchemaServiceConfig;
 }
