@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 
 import {
 	BadRequest,
+	Forbidden,
 	InternalServerError,
 	NotFound,
 	NotImplemented,
@@ -26,6 +27,9 @@ export const errorHandler = (err: Error, req: Request, res: Response, _next: Nex
 	switch (true) {
 		case err instanceof BadRequest:
 			status = 400;
+			break;
+		case err instanceof Forbidden:
+			status = 403;
 			break;
 		case err instanceof NotFound:
 			status = 404;
