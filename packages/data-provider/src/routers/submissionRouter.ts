@@ -15,8 +15,6 @@ const router = ({
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	router.use(authMiddleware(authConfig));
-
 	router.get(
 		'/:submissionId',
 		submissionController({
@@ -27,6 +25,7 @@ const router = ({
 
 	router.delete(
 		'/:submissionId',
+		authMiddleware(authConfig),
 		submissionController({
 			baseDependencies,
 			authConfig,
@@ -35,6 +34,7 @@ const router = ({
 
 	router.delete(
 		'/:submissionId/:actionType',
+		authMiddleware(authConfig),
 		submissionController({
 			baseDependencies,
 			authConfig,
@@ -59,6 +59,7 @@ const router = ({
 
 	router.post(
 		'/category/:categoryId/data',
+		authMiddleware(authConfig),
 		submissionController({
 			baseDependencies,
 			authConfig,
@@ -67,6 +68,7 @@ const router = ({
 
 	router.delete(
 		`/category/:categoryId/data/:systemId`,
+		authMiddleware(authConfig),
 		submissionController({
 			baseDependencies,
 			authConfig,
@@ -75,6 +77,7 @@ const router = ({
 
 	router.put(
 		`/category/:categoryId/data`,
+		authMiddleware(authConfig),
 		submissionController({
 			baseDependencies,
 			authConfig,
@@ -83,6 +86,7 @@ const router = ({
 
 	router.post(
 		'/category/:categoryId/commit/:submissionId',
+		authMiddleware(authConfig),
 		submissionController({
 			baseDependencies,
 			authConfig,
