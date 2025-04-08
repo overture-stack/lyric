@@ -55,7 +55,7 @@ const lyricProvider = provider(appConfig);
 
 ### Auth Custom Handler
 
-The **authentication custom handler** is a customizable function that can be used to verify user authentication and grant write permissions to organizations. It is used by the auth middleware to process incoming requests before any operation is executed.
+The **authentication custom handler** is a customizable function that can be used to verify user authentication and grant write permissions to organizations. It is used by the auth middleware to process incoming requests to modification endpoints (POST, PUT, DELETE) before any operation is executed, and to identify the user for audit purposes on these endpoints.
 
 The handler receives an argument of type `Request` and returns a `UserSessionResult` response type, which provides information about the user's session or any errors encountered during the process.
 
@@ -75,7 +75,7 @@ This result `UserSessionResult` object may include the following:
   - **isAdmin**: A boolean value indicating whether the user has admin privileges. If `true`, the user has write access to all organizations.
   - **allowedWriteOrganization**: An array of strings representing the organizations to which the user is allowed to write data.
 
-  When the handler function returns this `user` object, the user has read access to all endpoints within the application. Otherwise, it should return the following error details:
+  When an authentication error occurs, the system should return the following error details:
 
 - **errorCode**: A numeric code representing an error that occurred while processing the session request.
 - **errorMessage**: A descriptive message detailing the specific error, if an errorCode is provided.
