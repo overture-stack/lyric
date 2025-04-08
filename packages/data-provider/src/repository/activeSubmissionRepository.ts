@@ -158,7 +158,7 @@ const repository = (dependencies: BaseDependencies) => {
 			paginationOptions: PaginationOptions,
 			filterOptions: {
 				onlyActive: boolean;
-				userName: string;
+				userName?: string;
 				organization?: string;
 			},
 		): Promise<SubmissionSummaryRepository[] | undefined> => {
@@ -167,7 +167,7 @@ const repository = (dependencies: BaseDependencies) => {
 				return await db.query.submissions.findMany({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
-						eq(submissions.createdBy, filterOptions.userName),
+						filterOptions.userName ? eq(submissions.createdBy, filterOptions.userName) : undefined,
 						getActiveStatusesCondition(filterOptions.onlyActive, openSubmissionStatus),
 						filterOptions.organization ? eq(submissions.organization, filterOptions.organization) : undefined,
 					),
@@ -196,7 +196,7 @@ const repository = (dependencies: BaseDependencies) => {
 			categoryId: number,
 			filterOptions: {
 				onlyActive: boolean;
-				userName: string;
+				userName?: string;
 				organization?: string;
 			},
 		): Promise<number> => {
@@ -207,7 +207,7 @@ const repository = (dependencies: BaseDependencies) => {
 					.where(
 						and(
 							eq(submissions.dictionaryCategoryId, categoryId),
-							eq(submissions.createdBy, filterOptions.userName),
+							filterOptions.userName ? eq(submissions.createdBy, filterOptions.userName) : undefined,
 							getActiveStatusesCondition(filterOptions.onlyActive, openSubmissionStatus),
 							filterOptions.organization ? eq(submissions.organization, filterOptions.organization) : undefined,
 						),

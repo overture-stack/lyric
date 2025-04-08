@@ -248,7 +248,7 @@ const service = (dependencies: BaseDependencies) => {
 		paginationOptions: PaginationOptions,
 		filterOptions: {
 			onlyActive: boolean;
-			userName: string;
+			userName?: string;
 			organization?: string;
 		},
 	): Promise<{

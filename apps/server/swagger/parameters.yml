@@ -58,6 +58,13 @@ components:
         schema:
           type: integer
         description: Optional query parameter to specify the number of results per page. Default value is 20
+      UserName:
+        name: userName
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Optional query parameter to filter results to include only submissions associated to a specific user. By default, returns submissions from all users
       View:
         name: view
         in: query

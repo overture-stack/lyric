@@ -204,7 +204,7 @@ const controller = ({
 				const organization = req.query.organization;
 				const page = parseInt(String(req.query.page)) || defaultPage;
 				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
-				const user = req.user;
+				const userName = req.query.userName;
 
 				logger.info(
 					LOG_MODULE,
@@ -213,8 +213,6 @@ const controller = ({
 					`onlyActive '${onlyActive}'`,
 					`organization '${organization}'`,
 				);
-
-				const userName = user?.username || '';
 
 				const submissionsResult = await service.getSubmissionsByCategory(
 					categoryId,
