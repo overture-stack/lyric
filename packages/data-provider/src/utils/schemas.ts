@@ -230,7 +230,7 @@ export const dictionaryRegisterRequestSchema: RequestValidation<
 export interface submissionsByCategoryQueryParams extends paginationQueryParams {
 	onlyActive?: string;
 	organization?: string;
-	userName?: string;
+	username?: string;
 }
 
 export const submissionsByCategoryRequestSchema: RequestValidation<
@@ -241,7 +241,7 @@ export const submissionsByCategoryRequestSchema: RequestValidation<
 	query: z.object({
 		onlyActive: booleanSchema.default('false'),
 		organization: organizationSchema.optional(),
-		userName: stringNotEmpty.optional(),
+		username: stringNotEmpty.optional(),
 	}),
 	pathParams: categoryPathParamsSchema,
 };

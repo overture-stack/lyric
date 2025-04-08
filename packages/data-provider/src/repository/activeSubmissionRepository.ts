@@ -72,24 +72,24 @@ const repository = (dependencies: BaseDependencies) => {
 		 * Finds the current Active Submission by parameters
 		 * @param {Object} params
 		 * @param {number} params.categoryId Category ID
-		 * @param {string} params.userName Name of the user
+		 * @param {string} params.username Name of the user
 		 * @param {string} params.organization Organization name
 		 * @returns
 		 */
 		getActiveSubmission: async ({
 			categoryId,
-			userName,
+			username,
 			organization,
 		}: {
 			categoryId: number;
-			userName: string;
+			username: string;
 			organization: string;
 		}): Promise<Submission | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
-						eq(submissions.createdBy, userName),
+						eq(submissions.createdBy, username),
 						eq(submissions.organization, organization),
 						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
 					),
@@ -149,7 +149,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {number} paginationOptions.pageSize - Items per page
 		 * @param {Object} filterOptions
 		 * @param {boolean} filterOptions.onlyActive - Filter by Active status
-		 * @param {string} filterOptions.userName - Filter by creator's username
+		 * @param {string} filterOptions.username - Filter by creator's username
 		 * @param {string} filterOptions.organization - Filter by Organization
 		 * @returns One or many Active Submissions
 		 */
@@ -158,7 +158,7 @@ const repository = (dependencies: BaseDependencies) => {
 			paginationOptions: PaginationOptions,
 			filterOptions: {
 				onlyActive: boolean;
-				userName?: string;
+				username?: string;
 				organization?: string;
 			},
 		): Promise<SubmissionSummaryRepository[] | undefined> => {
@@ -167,7 +167,7 @@ const repository = (dependencies: BaseDependencies) => {
 				return await db.query.submissions.findMany({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
-						filterOptions.userName ? eq(submissions.createdBy, filterOptions.userName) : undefined,
+						filterOptions.username ? eq(submissions.createdBy, filterOptions.username) : undefined,
 						getActiveStatusesCondition(filterOptions.onlyActive, openSubmissionStatus),
 						filterOptions.organization ? eq(submissions.organization, filterOptions.organization) : undefined,
 					),
@@ -188,7 +188,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {number} categoryId - Category ID
 		 * @param {Object} filterOptions
 		 * @param {boolean} filterOptions.onlyActive - Filter by Active status
-		 * @param {string} filterOptions.userName - Filter by creator's username
+		 * @param {string} filterOptions.username - Filter by creator's username
 		 * @param {string} filterOptions.organization - Filter by Organization
 		 * @returns One or many Active Submissions
 		 */
@@ -196,7 +196,7 @@ const repository = (dependencies: BaseDependencies) => {
 			categoryId: number,
 			filterOptions: {
 				onlyActive: boolean;
-				userName?: string;
+				username?: string;
 				organization?: string;
 			},
 		): Promise<number> => {
@@ -207,7 +207,7 @@ const repository = (dependencies: BaseDependencies) => {
 					.where(
 						and(
 							eq(submissions.dictionaryCategoryId, categoryId),
-							filterOptions.userName ? eq(submissions.createdBy, filterOptions.userName) : undefined,
+							filterOptions.username ? eq(submissions.createdBy, filterOptions.username) : undefined,
 							getActiveStatusesCondition(filterOptions.onlyActive, openSubmissionStatus),
 							filterOptions.organization ? eq(submissions.organization, filterOptions.organization) : undefined,
 						),
@@ -223,24 +223,24 @@ const repository = (dependencies: BaseDependencies) => {
 		 * Get Active Submission by Organization
 		 * @param {Object} filterParams
 		 * @param {number} filterParams.categoryId Category ID
-		 * @param {string} filterParams.userName User Name
+		 * @param {string} filterParams.username User Name
 		 * @param {string} filterParams.organization Organization name
 		 * @returns One Active Submission
 		 */
 		getActiveSubmissionWithRelationsByOrganization: async ({
 			categoryId,
-			userName,
+			username,
 			organization,
 		}: {
 			categoryId: number;
-			userName: string;
+			username: string;
 			organization: string;
 		}): Promise<SubmissionSummaryRepository | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
-						eq(submissions.createdBy, userName),
+						eq(submissions.createdBy, username),
 						eq(submissions.organization, organization),
 						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
 					),

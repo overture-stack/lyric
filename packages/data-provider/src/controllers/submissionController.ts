@@ -51,9 +51,9 @@ const controller = ({
 					throw new Forbidden(`User is not authorized to commit the submission from '${submission.organization}'`);
 				}
 
-				const userName = user?.username || '';
+				const username = user?.username || '';
 
-				const commitSubmission = await service.commitSubmission(categoryId, submissionId, userName);
+				const commitSubmission = await service.commitSubmission(categoryId, submissionId, username);
 
 				return res.status(200).send(commitSubmission);
 			} catch (error) {
@@ -76,9 +76,9 @@ const controller = ({
 					throw new Forbidden(`User is not authorized to delete the submission from '${submission.organization}'`);
 				}
 
-				const userName = user?.username || '';
+				const username = user?.username || '';
 
-				const activeSubmissionDelete = await service.deleteActiveSubmissionById(submissionId, userName);
+				const activeSubmissionDelete = await service.deleteActiveSubmissionById(submissionId, username);
 
 				if (isEmpty(activeSubmissionDelete)) {
 					throw new NotFound('Active Submission not found');
@@ -111,9 +111,9 @@ const controller = ({
 					throw new Forbidden(`User is not authorized to delete the submission data from '${submission.organization}'`);
 				}
 
-				const userName = user?.username || '';
+				const username = user?.username || '';
 
-				const activeSubmission = await service.deleteActiveSubmissionEntity(submissionId, userName, {
+				const activeSubmission = await service.deleteActiveSubmissionEntity(submissionId, username, {
 					actionType,
 					entityName,
 					index,
@@ -151,9 +151,9 @@ const controller = ({
 					);
 				}
 
-				const userName = user?.username || '';
+				const username = user?.username || '';
 
-				const deletedRecordsResult = await dataService.deleteSubmittedDataBySystemId(categoryId, systemId, userName);
+				const deletedRecordsResult = await dataService.deleteSubmittedDataBySystemId(categoryId, systemId, username);
 
 				return res.status(200).send(deletedRecordsResult);
 			} catch (error) {
@@ -181,14 +181,14 @@ const controller = ({
 					throw new Forbidden(`User is not authorized to edit data from '${organization}'`);
 				}
 
-				const userName = user?.username || '';
+				const username = user?.username || '';
 
 				const editSubmittedDataResult = await dataService.editSubmittedData({
 					records: payload,
 					entityName,
 					categoryId,
 					organization,
-					userName,
+					username,
 				});
 
 				// This response provides the details of data Submission
@@ -204,7 +204,7 @@ const controller = ({
 				const organization = req.query.organization;
 				const page = parseInt(String(req.query.page)) || defaultPage;
 				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
-				const userName = req.query.userName;
+				const username = req.query.username;
 
 				logger.info(
 					LOG_MODULE,
@@ -217,7 +217,7 @@ const controller = ({
 				const submissionsResult = await service.getSubmissionsByCategory(
 					categoryId,
 					{ page, pageSize },
-					{ onlyActive, userName, organization },
+					{ onlyActive, username, organization },
 				);
 
 				if (isEmpty(submissionsResult.result)) {
@@ -266,12 +266,12 @@ const controller = ({
 					`Request Active Submission categoryId '${categoryId}' and organization '${organization}'`,
 				);
 
-				// Get userName from auth
-				const userName = req.user?.username || '';
+				// Get username from auth
+				const username = req.user?.username || '';
 
 				const activeSubmission = await service.getActiveSubmissionByOrganization({
 					categoryId,
-					userName,
+					username,
 					organization,
 				});
 
@@ -309,14 +309,14 @@ const controller = ({
 					throw new Forbidden(`User is not authorized to submit data to '${organization}'`);
 				}
 
-				const userName = user?.username || '';
+				const username = user?.username || '';
 
 				const resultSubmission = await service.submit({
 					records: payload,
 					entityName,
 					categoryId,
 					organization,
-					userName,
+					username,
 				});
 
 				// This response provides the details of data Submission

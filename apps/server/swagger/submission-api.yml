@@ -116,7 +116,7 @@
       - $ref: '#/components/parameters/query/PageSize'
       - $ref: '#/components/parameters/query/OnlyActive'
       - $ref: '#/components/parameters/query/OrganizationFilter'
-      - $ref: '#/components/parameters/query/UserName'
+      - $ref: '#/components/parameters/query/Username'
     responses:
       200:
         description: Submissions details

@@ -41,7 +41,7 @@ const service = (dependencies: BaseDependencies) => {
 	const commitSubmission = async (
 		categoryId: number,
 		submissionId: number,
-		userName: string,
+		username: string,
 	): Promise<CommitSubmissionResult> => {
 		const { getSubmissionById } = submissionRepository(dependencies);
 		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
@@ -87,7 +87,7 @@ const service = (dependencies: BaseDependencies) => {
 						organization: submission.organization,
 						originalSchemaId: submission.dictionaryId,
 						systemId: generateIdentifier(entityName, record),
-						createdBy: userName,
+						createdBy: username,
 					}));
 				})
 			: [];
@@ -122,7 +122,7 @@ const service = (dependencies: BaseDependencies) => {
 			},
 			submission,
 			dictionary: currentDictionary,
-			userName: userName,
+			username: username,
 			onFinishCommit,
 		});
 
@@ -141,12 +141,12 @@ const service = (dependencies: BaseDependencies) => {
 	 * This action is allowed only if current Submission Status as OPEN, VALID or INVALID
 	 * Returns the resulting Active Submission with its status
 	 * @param {number} submissionId
-	 * @param {string} userName
+	 * @param {string} username
 	 * @returns {Promise<Submission | undefined>}
 	 */
 	const deleteActiveSubmissionById = async (
 		submissionId: number,
-		userName: string,
+		username: string,
 	): Promise<Submission | undefined> => {
 		const { getSubmissionById, update } = submissionRepository(dependencies);
 
@@ -161,7 +161,7 @@ const service = (dependencies: BaseDependencies) => {
 
 		const updatedRecord = await update(submission.id, {
 			status: SUBMISSION_STATUS.CLOSED,
-			updatedBy: userName,
+			updatedBy: username,
 		});
 
 		logger.info(LOG_MODULE, `Submission '${submissionId}' updated with new status '${SUBMISSION_STATUS.CLOSED}'`);
@@ -175,12 +175,12 @@ const service = (dependencies: BaseDependencies) => {
 	 * Returns the resulting Active Submission with its status
 	 * @param {number} submissionId
 	 * @param {string} entityName
-	 * @param {string} userName
+	 * @param {string} username
 	 * @returns { Promise<Submission | undefined>} Resulting Active Submittion
 	 */
 	const deleteActiveSubmissionEntity = async (
 		submissionId: number,
-		userName: string,
+		username: string,
 		filter: {
 			actionType: SubmissionActionType;
 			entityName: string;
@@ -223,7 +223,7 @@ const service = (dependencies: BaseDependencies) => {
 		const updatedRecord = await performDataValidation({
 			originalSubmission: submission,
 			submissionData: updatedActiveSubmissionData,
-			userName,
+			username,
 		});
 
 		logger.info(LOG_MODULE, `Submission '${updatedRecord.id}' updated with new status '${updatedRecord.status}'`);
@@ -239,7 +239,7 @@ const service = (dependencies: BaseDependencies) => {
 	 * @param {number} paginationOptions.pageSize - Items per page
 	 * @param {Object} filterOptions
 	 * @param {boolean} filterOptions.onlyActive - Filter by Active status
-	 * @param {string} filterOptions.userName - User Name
+	 * @param {string} filterOptions.username - User Name
 	 * @returns an array of Submission
 	 */
 
@@ -248,7 +248,7 @@ const service = (dependencies: BaseDependencies) => {
 		paginationOptions: PaginationOptions,
 		filterOptions: {
 			onlyActive: boolean;
-			userName?: string;
+			username?: string;
 			organization?: string;
 		},
 	): Promise<{
@@ -296,22 +296,22 @@ const service = (dependencies: BaseDependencies) => {
 	 * Get an active Submission by Organization
 	 * @param {Object} params
 	 * @param {number} params.categoryId
-	 * @param {string} params.userName
+	 * @param {string} params.username
 	 * @param {string} params.organization
 	 * @returns One Active Submission
 	 */
 	const getActiveSubmissionByOrganization = async ({
 		categoryId,
-		userName,
+		username,
 		organization,
 	}: {
 		categoryId: number;
-		userName: string;
+		username: string;
 		organization: string;
 	}): Promise<SubmissionSummaryResponse | undefined> => {
 		const { getActiveSubmissionWithRelationsByOrganization } = submissionRepository(dependencies);
 
-		const submission = await getActiveSubmissionWithRelationsByOrganization({ organization, userName, categoryId });
+		const submission = await getActiveSubmissionWithRelationsByOrganization({ organization, username, categoryId });
 		if (_.isEmpty(submission)) {
 			return;
 		}
@@ -322,21 +322,21 @@ const service = (dependencies: BaseDependencies) => {
 	/**
 	 * Find the current Active Submission or Create an Open Active Submission with initial values and no schema data.
 	 * @param {object} params
-	 * @param {string} params.userName Owner of the Submission
+	 * @param {string} params.username Owner of the Submission
 	 * @param {number} params.categoryId Category ID of the Submission
 	 * @param {string} params.organization Organization name
 	 * @returns {Submission} An Active Submission
 	 */
 	const getOrCreateActiveSubmission = async (params: {
-		userName: string;
+		username: string;
 		categoryId: number;
 		organization: string;
 	}): Promise<Submission> => {
-		const { categoryId, userName, organization } = params;
+		const { categoryId, username, organization } = params;
 		const submissionRepo = submissionRepository(dependencies);
 		const categoryRepo = categoryRepository(dependencies);
 
-		const activeSubmission = await submissionRepo.getActiveSubmission({ categoryId, userName, organization });
+		const activeSubmission = await submissionRepo.getActiveSubmission({ categoryId, username, organization });
 		if (activeSubmission) {
 			return activeSubmission;
 		}
@@ -348,7 +348,7 @@ const service = (dependencies: BaseDependencies) => {
 		}
 
 		const newSubmissionInput: NewSubmission = {
-			createdBy: userName,
+			createdBy: username,
 			data: {},
 			dictionaryCategoryId: categoryId,
 			dictionaryId: currentDictionary.id,
@@ -367,7 +367,7 @@ const service = (dependencies: BaseDependencies) => {
 	 * @param {string} params.entityName Entity Name of the Records
 	 * @param {number} params.categoryId Category ID of the Submission
 	 * @param {string} params.organization Organization name
-	 * @param {string} params.userName User name creating the Submission
+	 * @param {string} params.username User name creating the Submission
 	 * @returns The Active Submission created or Updated
 	 */
 	const submit = async ({
@@ -375,13 +375,13 @@ const service = (dependencies: BaseDependencies) => {
 		entityName,
 		categoryId,
 		organization,
-		userName,
+		username,
 	}: {
 		records: Record<string, unknown>[];
 		entityName: string;
 		categoryId: number;
 		organization: string;
-		userName: string;
+		username: string;
 	}): Promise<CreateSubmissionResult> => {
 		logger.info(
 			LOG_MODULE,
@@ -422,7 +422,7 @@ const service = (dependencies: BaseDependencies) => {
 		}
 
 		// Get Active Submission or Open a new one
-		const activeSubmission = await getOrCreateActiveSubmission({ categoryId, userName, organization });
+		const activeSubmission = await getOrCreateActiveSubmission({ categoryId, username, organization });
 
 		// Running Schema validation in the background do not need to wait
 		// Result of validations will be stored in database
@@ -430,7 +430,7 @@ const service = (dependencies: BaseDependencies) => {
 			categoryId,
 			organization,
 			schema: entitySchema,
-			userName,
+			username,
 		});
 
 		return {

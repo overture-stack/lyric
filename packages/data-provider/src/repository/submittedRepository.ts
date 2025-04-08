@@ -26,11 +26,11 @@ const repository = (dependencies: BaseDependencies) => {
 			recordDeleted: SubmittedData;
 			diff: DataDiff;
 			submissionId: number;
-			userName: string;
+			username: string;
 		},
 		tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
 	) => {
-		const { recordDeleted, diff, submissionId, userName } = input;
+		const { recordDeleted, diff, submissionId, username } = input;
 		const newAudit: NewAuditSubmittedData = {
 			action: AUDIT_ACTION.Values.DELETE,
 			dictionaryCategoryId: recordDeleted.dictionaryCategoryId,
@@ -44,7 +44,7 @@ const repository = (dependencies: BaseDependencies) => {
 			submissionId: submissionId,
 			systemId: recordDeleted.systemId,
 			createdAt: new Date(),
-			createdBy: userName,
+			createdBy: username,
 		};
 		return await (tx || db).insert(auditSubmittedData).values(newAudit);
 	};
@@ -115,15 +115,15 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param params.diff The difference between the old and new data, used for auditing
 		 * @param params.submissionId The ID of the Submission associated with the record
 		 * @param params.systemId The unique identifier of the record to delete
-		 * @param params.userName The name of the user performing the deletion
+		 * @param params.username The name of the user performing the deletion
 		 * @param tx The transaction to use for the operation, optional
 		 * @returns The deleted record
 		 */
 		deleteBySystemId: async (
-			params: { diff: DataDiff; submissionId: number; systemId: string; userName: string },
+			params: { diff: DataDiff; submissionId: number; systemId: string; username: string },
 			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
 		) => {
-			const { diff, systemId, submissionId, userName } = params;
+			const { diff, systemId, submissionId, username } = params;
 			const deletedRecord = await (tx || db)
 				.delete(submittedData)
 				.where(eq(submittedData.systemId, systemId))
@@ -131,7 +131,7 @@ const repository = (dependencies: BaseDependencies) => {
 			logger.info(LOG_MODULE, `Deleting SubmittedData with system ID '${systemId}' succesfully`);
 
 			if (features?.audit?.enabled) {
-				await auditDeleteSubmittedData({ recordDeleted: deletedRecord[0], submissionId, diff, userName }, tx);
+				await auditDeleteSubmittedData({ recordDeleted: deletedRecord[0], submissionId, diff, username }, tx);
 			}
 
 			return deletedRecord;
