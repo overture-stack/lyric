@@ -16,21 +16,21 @@ describe('Submitted Data Utils - convertToViewType', () => {
 
 	it('should return undefined for an invalid string', () => {
 		const result = convertToViewType('InvalidValue');
-		expect(result).to.be.undefined;
+		expect(result).to.eql(undefined);
 	});
 
 	it('should return undefined if input is not a string', () => {
 		const result = convertToViewType(123);
-		expect(result).to.be.undefined;
+		expect(result).to.eql(undefined);
 	});
 
 	it('should return undefined if the string is empty', () => {
 		const result = convertToViewType('');
-		expect(result).to.be.undefined;
+		expect(result).to.eql(undefined);
 	});
 
 	it('should return undefined for an undefined value is passed', () => {
 		const result = convertToViewType(undefined);
-		expect(result).to.be.undefined;
+		expect(result).to.eql(undefined);
 	});
 });

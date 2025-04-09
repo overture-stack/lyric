@@ -97,7 +97,7 @@ const sqonSchema = z.custom<SQON>((value) => {
 	try {
 		parseSQON(value);
 		return true;
-	} catch (error) {
+	} catch {
 		return false;
 	}
 }, 'invalid SQON format');

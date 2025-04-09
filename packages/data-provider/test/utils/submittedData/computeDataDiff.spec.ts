@@ -8,8 +8,8 @@ describe('Submitted Data Utils - computeDataDiff', () => {
 		it('should return a "DataDiff" object', () => {
 			const response = computeDataDiff({}, {});
 			expect(Object.keys(response).length).to.eq(2);
-			expect(Object.prototype.hasOwnProperty.call(response, 'old')).to.be.true;
-			expect(Object.prototype.hasOwnProperty.call(response, 'new')).to.be.true;
+			expect(Object.prototype.hasOwnProperty.call(response, 'old')).to.eql(true);
+			expect(Object.prototype.hasOwnProperty.call(response, 'new')).to.eql(true);
 		});
 		it('should return no change between 2 null values', () => {
 			const response = computeDataDiff(null, null);
