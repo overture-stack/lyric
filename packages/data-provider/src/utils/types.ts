@@ -163,7 +163,7 @@ export interface ValidateFilesParams {
 	categoryId: number;
 	organization: string;
 	schema: Schema;
-	userName: string;
+	username: string;
 }
 
 export interface CommitSubmissionParams {
@@ -175,7 +175,7 @@ export interface CommitSubmissionParams {
 	};
 	dictionary: SchemasDictionary & { id: number };
 	submission: Submission;
-	userName: string;
+	username: string;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }
 

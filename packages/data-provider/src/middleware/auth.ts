@@ -14,6 +14,7 @@ export type UserSessionResult = {
 
 export type AuthConfig = {
 	enabled: boolean;
+	protectedMethods?: Array<'GET' | 'POST' | 'PUT' | 'DELETE'>;
 	customAuthHandler?: (req: Request) => UserSessionResult;
 };
 
@@ -36,6 +37,16 @@ export const authMiddleware = (authConfig: AuthConfig) => {
 	return (req: Request, res: Response, next: NextFunction) => {
 		// proceed to the next middleware or route handler if auth is disabled
 		if (!authConfig.enabled) {
+			return next();
+		}
+
+		// Check if the HTTP method of the incoming request is in the list of protected methods in the configuration.
+		// If "protectedMethods" includes the incoming request method, it will be protected.
+		// If "protectedMethods" is not defined or is not an array, by default every method will be protected
+		if (
+			Array.isArray(authConfig.protectedMethods) &&
+			!authConfig.protectedMethods.some((method) => method === req.method)
+		) {
 			return next();
 		}
 
