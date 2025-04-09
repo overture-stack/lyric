@@ -49,8 +49,8 @@ const provider = (configData: AppConfig) => {
 	return {
 		configs: baseDeps,
 		routers: {
-			audit: auditRouter(baseDeps),
-			category: categoryRouter(baseDeps),
+			audit: auditRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
+			category: categoryRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 			dictionary: dictionaryRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 			submission: submissionRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 			submittedData: submittedDataRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),

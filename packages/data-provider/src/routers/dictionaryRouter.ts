@@ -15,7 +15,9 @@ const router = ({
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	router.post('/register', authMiddleware(authConfig), dictionaryController(baseDependencies).registerDictionary);
+	router.use(authMiddleware(authConfig));
+
+	router.post('/register', dictionaryController(baseDependencies).registerDictionary);
 	return router;
 };
 

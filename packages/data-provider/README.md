@@ -55,7 +55,7 @@ const lyricProvider = provider(appConfig);
 
 ### Auth Custom Handler
 
-The **authentication custom handler** is a customizable function that can be used to verify user authentication and grant write permissions to organizations. It is used by the auth middleware to process incoming requests to modification endpoints (POST, PUT, DELETE) before any operation is executed, and to identify the user for audit purposes on these endpoints.
+The **authentication custom handler** is a customizable function that can be used to verify user authentication and grant write permissions to organizations. It is used by the auth middleware to process incoming requests before any operation is executed, and to identify the user for audit purposes on these endpoints.
 
 The handler receives an argument of type `Request` and returns a `UserSessionResult` response type, which provides information about the user's session or any errors encountered during the process.
 
@@ -125,7 +125,9 @@ const authHandler = (req: Request): UserSessionResult => {
 };
 ```
 
-To enable the authentication handler function, it must be enabled and added in the `AppConfig` object as follows.
+To enable the authentication handler function, set `enabled: true` in the auth section of the **AppConfig** object, and provide your custom authentication handler with the `customAuthHandler` property.
+
+By default, all HTTP methods are protected. Optionally, you can specify which methods to protect by setting the `protectedMethods` array (e.g., ['DELETE', 'POST', 'PUT']).
 
 ```javascript
 import { AppConfig, provider, UserSession } from '@overture-stack/lyric';
@@ -135,6 +137,8 @@ const appConfig: AppConfig = {
 	auth: {
 		enabled: true,
 		customAuthHandler: authHandler,
+		// Optionally add protected methods
+		protectedMethods: ['DELETE', 'POST', 'PUT'],
 	};
 }
 ```

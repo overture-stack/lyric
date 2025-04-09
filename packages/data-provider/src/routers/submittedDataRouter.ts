@@ -15,6 +15,8 @@ const router = ({
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
+	router.use(authMiddleware(authConfig));
+
 	router.get('/category/:categoryId', submittedDataController(baseDependencies).getSubmittedDataByCategory);
 
 	router.get(
@@ -24,7 +26,6 @@ const router = ({
 
 	router.post(
 		'/category/:categoryId/organization/:organization/query',
-		authMiddleware(authConfig),
 		submittedDataController(baseDependencies).getSubmittedDataByQuery,
 	);
 
