@@ -42,7 +42,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 	const deleteSubmittedDataBySystemId = async (
 		categoryId: number,
 		systemId: string,
-		userName: string,
+		username: string,
 	): Promise<{
 		description: string;
 		inProcessEntities: string[];
@@ -104,7 +104,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		// Get Active Submission or Open a new one
 		const activeSubmission = await getOrCreateActiveSubmission({
 			categoryId: foundRecordToDelete.dictionaryCategoryId,
-			userName,
+			username,
 			organization: foundRecordToDelete.organization,
 		});
 
@@ -124,7 +124,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 				updates: filteredUpdates,
 				deletes: mergedSubmissionDeletes,
 			},
-			userName,
+			username,
 		});
 
 		logger.info(LOG_MODULE, `Added '${entitiesToProcess.length}' records to be deleted on the Active Submission`);
@@ -142,13 +142,13 @@ const submittedData = (dependencies: BaseDependencies) => {
 		entityName,
 		organization,
 		records,
-		userName,
+		username,
 	}: {
 		categoryId: number;
 		entityName: string;
 		organization: string;
 		records: Record<string, unknown>[];
-		userName: string;
+		username: string;
 	}): Promise<{
 		description?: string;
 		submissionId?: number;
@@ -194,14 +194,14 @@ const submittedData = (dependencies: BaseDependencies) => {
 		}
 
 		// Get Active Submission or Open a new one
-		const activeSubmission = await getOrCreateActiveSubmission({ categoryId, userName, organization });
+		const activeSubmission = await getOrCreateActiveSubmission({ categoryId, username, organization });
 
 		// Running Schema validation in the background do not need to wait
 		// Result of validations will be stored in database
 		processEditRecordsAsync(records, {
 			submission: activeSubmission,
 			schema: entitySchema,
-			userName,
+			username,
 		});
 
 		return {

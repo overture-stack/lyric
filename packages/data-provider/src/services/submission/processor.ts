@@ -208,14 +208,14 @@ const processor = (dependencies: BaseDependencies) => {
 	 * - `updates`: An array of records to be updated. Optional
 	 * @param params.dictionary A `Dictionary` object for Data Validation
 	 * @param params.submission A `Submission` object representing the Active Submission
-	 * @param params.userName User who performs the action
+	 * @param params.username User who performs the action
 	 * @returns void
 	 */
 	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<void> => {
 		const submissionRepo = submissionRepository(dependencies);
 		const dataSubmittedRepo = submittedRepository(dependencies);
 
-		const { dictionary, dataToValidate, submission, userName } = params;
+		const { dictionary, dataToValidate, submission, username } = params;
 
 		// Merge Submitted Data with items to be inserted, updated or deleted consist on 3 steps
 		// Step 1: Exclude items that are marked for deletion
@@ -283,7 +283,7 @@ const processor = (dependencies: BaseDependencies) => {
 						}
 
 						if (Object.values(inputUpdate)) {
-							inputUpdate.updatedBy = userName;
+							inputUpdate.updatedBy = username;
 							if (newIsValid) {
 								inputUpdate.lastValidSchemaId = dictionary.id;
 							}
@@ -338,7 +338,7 @@ const processor = (dependencies: BaseDependencies) => {
 						submissionId: submission.id,
 						systemId: item.systemId,
 						diff: computeDataDiff(item.data, null),
-						userName,
+						username,
 					},
 					tx,
 				);
@@ -382,9 +382,9 @@ const processor = (dependencies: BaseDependencies) => {
 	const performDataValidation = async (input: {
 		originalSubmission: Submission;
 		submissionData: SubmissionData;
-		userName: string;
+		username: string;
 	}): Promise<Submission> => {
-		const { originalSubmission, submissionData, userName } = input;
+		const { originalSubmission, submissionData, username } = input;
 
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
@@ -441,7 +441,7 @@ const processor = (dependencies: BaseDependencies) => {
 			},
 			schemaErrors: submissionSchemaErrors,
 			dictionaryId: currentDictionary.id,
-			userName: userName,
+			username,
 		});
 	};
 
@@ -452,18 +452,18 @@ const processor = (dependencies: BaseDependencies) => {
 	 * @param params
 	 * @param params.schema Schema to parse data with
 	 * @param params.submission A `Submission` object representing the Active Submission
-	 * @param params.userName User who performs the action
+	 * @param params.username User who performs the action
 	 */
 	const processEditRecordsAsync = async (
 		records: Record<string, unknown>[],
 		{
 			schema,
 			submission,
-			userName,
+			username,
 		}: {
 			schema: Schema;
 			submission: Submission;
-			userName: string;
+			username: string;
 		},
 	): Promise<void> => {
 		const { getDictionaryById } = dictionaryRepository(dependencies);
@@ -543,7 +543,7 @@ const processor = (dependencies: BaseDependencies) => {
 					deletes: filteredDeletes,
 					updates: updatedActiveSubmissionData,
 				},
-				userName,
+				username,
 			});
 		} catch (error) {
 			logger.error(
@@ -600,7 +600,7 @@ const processor = (dependencies: BaseDependencies) => {
 	 * @param {SubmissionData} input.submissionData Data to be submitted grouped on inserts, updates and deletes
 	 * @param {number} input.idActiveSubmission ID of the Active Submission
 	 * @param {Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>>} input.schemaErrors Array of schemaErrors
-	 * @param {string} input.userName User updating the active submission
+	 * @param {string} input.username User updating the active submission
 	 * @returns {Promise<Submission>} An Active Submission updated
 	 */
 	const updateActiveSubmission = async (input: {
@@ -608,9 +608,9 @@ const processor = (dependencies: BaseDependencies) => {
 		submissionData: SubmissionData;
 		idActiveSubmission: number;
 		schemaErrors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>>;
-		userName: string;
+		username: string;
 	}): Promise<Submission> => {
-		const { dictionaryId, submissionData, idActiveSubmission, schemaErrors, userName } = input;
+		const { dictionaryId, submissionData, idActiveSubmission, schemaErrors, username } = input;
 		const { update } = submissionRepository(dependencies);
 		const newStatusSubmission =
 			Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
@@ -619,7 +619,7 @@ const processor = (dependencies: BaseDependencies) => {
 			data: submissionData,
 			status: newStatusSubmission,
 			dictionaryId: dictionaryId,
-			updatedBy: userName,
+			updatedBy: username,
 			errors: schemaErrors,
 		});
 
@@ -638,17 +638,17 @@ const processor = (dependencies: BaseDependencies) => {
 	 * @param {number} params.categoryId Category Identifier
 	 * @param {string} params.organization Organization name
 	 * @param {Schema} params.schema Schema to validate records with
-	 * @param {string} params.userName User who performs the action
+	 * @param {string} params.username User who performs the action
 	 * @returns {void}
 	 */
 	const validateRecordsAsync = async (records: Record<string, unknown>[], params: ValidateFilesParams) => {
 		const { getActiveSubmission } = submissionRepository(dependencies);
 
-		const { categoryId, organization, userName, schema } = params;
+		const { categoryId, organization, username, schema } = params;
 
 		try {
 			// Get Active Submission from database
-			const activeSubmission = await getActiveSubmission({ categoryId, userName, organization });
+			const activeSubmission = await getActiveSubmission({ categoryId, username, organization });
 			if (!activeSubmission) {
 				throw new BadRequest(`Submission '${activeSubmission}' not found`);
 			}
@@ -673,7 +673,7 @@ const processor = (dependencies: BaseDependencies) => {
 					deletes: activeSubmission.data.deletes,
 					updates: activeSubmission.data.updates,
 				},
-				userName,
+				username,
 			});
 		} catch (error) {
 			logger.error(

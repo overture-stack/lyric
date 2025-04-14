@@ -1,7 +1,7 @@
 import { isEmpty } from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
-import type { AuthConfig } from '../middleware/auth.js';
+import { type AuthConfig, shouldBypassAuth } from '../middleware/auth.js';
 import submissionService from '../services/submission/submission.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
 import { hasUserWriteAccess } from '../utils/authUtils.js';
@@ -47,13 +47,13 @@ const controller = ({
 					throw new BadRequest(`Submission '${submissionId}' not found`);
 				}
 
-				if (authConfig.enabled && !hasUserWriteAccess(submission.organization, user)) {
+				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(submission.organization, user)) {
 					throw new Forbidden(`User is not authorized to commit the submission from '${submission.organization}'`);
 				}
 
-				const userName = user?.username || '';
+				const username = user?.username || '';
 
-				const commitSubmission = await service.commitSubmission(categoryId, submissionId, userName);
+				const commitSubmission = await service.commitSubmission(categoryId, submissionId, username);
 
 				return res.status(200).send(commitSubmission);
 			} catch (error) {
@@ -72,13 +72,13 @@ const controller = ({
 					throw new BadRequest(`Submission '${submissionId}' not found`);
 				}
 
-				if (authConfig.enabled && !hasUserWriteAccess(submission.organization, user)) {
+				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(submission.organization, user)) {
 					throw new Forbidden(`User is not authorized to delete the submission from '${submission.organization}'`);
 				}
 
-				const userName = user?.username || '';
+				const username = user?.username || '';
 
-				const activeSubmissionDelete = await service.deleteActiveSubmissionById(submissionId, userName);
+				const activeSubmissionDelete = await service.deleteActiveSubmissionById(submissionId, username);
 
 				if (isEmpty(activeSubmissionDelete)) {
 					throw new NotFound('Active Submission not found');
@@ -107,13 +107,13 @@ const controller = ({
 					throw new BadRequest(`Submission '${submissionId}' not found`);
 				}
 
-				if (authConfig.enabled && !hasUserWriteAccess(submission.organization, user)) {
+				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(submission.organization, user)) {
 					throw new Forbidden(`User is not authorized to delete the submission data from '${submission.organization}'`);
 				}
 
-				const userName = user?.username || '';
+				const username = user?.username || '';
 
-				const activeSubmission = await service.deleteActiveSubmissionEntity(submissionId, userName, {
+				const activeSubmission = await service.deleteActiveSubmissionEntity(submissionId, username, {
 					actionType,
 					entityName,
 					index,
@@ -145,15 +145,15 @@ const controller = ({
 					throw new BadRequest(`No Submitted data found with systemId '${systemId}'`);
 				}
 
-				if (authConfig.enabled && !hasUserWriteAccess(foundRecordToDelete.result.organization, user)) {
+				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(foundRecordToDelete.result.organization, user)) {
 					throw new Forbidden(
 						`User is not authorized to delete data from '${foundRecordToDelete.result?.organization}'`,
 					);
 				}
 
-				const userName = user?.username || '';
+				const username = user?.username || '';
 
-				const deletedRecordsResult = await dataService.deleteSubmittedDataBySystemId(categoryId, systemId, userName);
+				const deletedRecordsResult = await dataService.deleteSubmittedDataBySystemId(categoryId, systemId, username);
 
 				return res.status(200).send(deletedRecordsResult);
 			} catch (error) {
@@ -177,18 +177,18 @@ const controller = ({
 					);
 				}
 
-				if (authConfig.enabled && !hasUserWriteAccess(organization, user)) {
+				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(organization, user)) {
 					throw new Forbidden(`User is not authorized to edit data from '${organization}'`);
 				}
 
-				const userName = user?.username || '';
+				const username = user?.username || '';
 
 				const editSubmittedDataResult = await dataService.editSubmittedData({
 					records: payload,
 					entityName,
 					categoryId,
 					organization,
-					userName,
+					username,
 				});
 
 				// This response provides the details of data Submission
@@ -204,7 +204,7 @@ const controller = ({
 				const organization = req.query.organization;
 				const page = parseInt(String(req.query.page)) || defaultPage;
 				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
-				const user = req.user;
+				const username = req.query.username;
 
 				logger.info(
 					LOG_MODULE,
@@ -214,12 +214,10 @@ const controller = ({
 					`organization '${organization}'`,
 				);
 
-				const userName = user?.username || '';
-
 				const submissionsResult = await service.getSubmissionsByCategory(
 					categoryId,
 					{ page, pageSize },
-					{ onlyActive, userName, organization },
+					{ onlyActive, username, organization },
 				);
 
 				if (isEmpty(submissionsResult.result)) {
@@ -268,12 +266,12 @@ const controller = ({
 					`Request Active Submission categoryId '${categoryId}' and organization '${organization}'`,
 				);
 
-				// Get userName from auth
-				const userName = req.user?.username || '';
+				// Get username from auth
+				const username = req.user?.username || '';
 
 				const activeSubmission = await service.getActiveSubmissionByOrganization({
 					categoryId,
-					userName,
+					username,
 					organization,
 				});
 
@@ -307,18 +305,18 @@ const controller = ({
 					);
 				}
 
-				if (authConfig.enabled && !hasUserWriteAccess(organization, user)) {
+				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(organization, user)) {
 					throw new Forbidden(`User is not authorized to submit data to '${organization}'`);
 				}
 
-				const userName = user?.username || '';
+				const username = user?.username || '';
 
 				const resultSubmission = await service.submit({
 					records: payload,
 					entityName,
 					categoryId,
 					organization,
-					userName,
+					username,
 				});
 
 				// This response provides the details of data Submission
