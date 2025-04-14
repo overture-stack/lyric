@@ -1,7 +1,7 @@
 import { isEmpty } from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
-import type { AuthConfig } from '../middleware/auth.js';
+import { type AuthConfig, shouldBypassAuth } from '../middleware/auth.js';
 import submissionService from '../services/submission/submission.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
 import { hasUserWriteAccess } from '../utils/authUtils.js';
@@ -47,7 +47,7 @@ const controller = ({
 					throw new BadRequest(`Submission '${submissionId}' not found`);
 				}
 
-				if (authConfig.enabled && !hasUserWriteAccess(submission.organization, user)) {
+				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(submission.organization, user)) {
 					throw new Forbidden(`User is not authorized to commit the submission from '${submission.organization}'`);
 				}
 
@@ -72,7 +72,7 @@ const controller = ({
 					throw new BadRequest(`Submission '${submissionId}' not found`);
 				}
 
-				if (authConfig.enabled && !hasUserWriteAccess(submission.organization, user)) {
+				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(submission.organization, user)) {
 					throw new Forbidden(`User is not authorized to delete the submission from '${submission.organization}'`);
 				}
 
@@ -107,7 +107,7 @@ const controller = ({
 					throw new BadRequest(`Submission '${submissionId}' not found`);
 				}
 
-				if (authConfig.enabled && !hasUserWriteAccess(submission.organization, user)) {
+				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(submission.organization, user)) {
 					throw new Forbidden(`User is not authorized to delete the submission data from '${submission.organization}'`);
 				}
 
@@ -145,7 +145,7 @@ const controller = ({
 					throw new BadRequest(`No Submitted data found with systemId '${systemId}'`);
 				}
 
-				if (authConfig.enabled && !hasUserWriteAccess(foundRecordToDelete.result.organization, user)) {
+				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(foundRecordToDelete.result.organization, user)) {
 					throw new Forbidden(
 						`User is not authorized to delete data from '${foundRecordToDelete.result?.organization}'`,
 					);
@@ -177,7 +177,7 @@ const controller = ({
 					);
 				}
 
-				if (authConfig.enabled && !hasUserWriteAccess(organization, user)) {
+				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(organization, user)) {
 					throw new Forbidden(`User is not authorized to edit data from '${organization}'`);
 				}
 
@@ -305,7 +305,7 @@ const controller = ({
 					);
 				}
 
-				if (authConfig.enabled && !hasUserWriteAccess(organization, user)) {
+				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(organization, user)) {
 					throw new Forbidden(`User is not authorized to submit data to '${organization}'`);
 				}
 
