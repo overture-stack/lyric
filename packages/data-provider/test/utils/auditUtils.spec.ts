@@ -8,27 +8,27 @@ describe('Audit utils', () => {
 	describe('Validate Audit Event type', () => {
 		it('should return true if input corresponds to a valid Audit Event in uppercase (UPDATE)', () => {
 			const response = isAuditEventValid('UPDATE');
-			expect(response).to.be.true;
+			expect(response).to.eql(true);
 		});
 
 		it('should return true if input corresponds to a valid Audit Event in lowercase (delete)', () => {
 			const response = isAuditEventValid('delete');
-			expect(response).to.be.true;
+			expect(response).to.eql(true);
 		});
 
 		it('should return false if input does not correspond to an Audit Event', () => {
 			const response = isAuditEventValid('MODIFICATIONS');
-			expect(response).to.be.false;
+			expect(response).to.eql(false);
 		});
 
 		it('should return false if input is a number', () => {
 			const response = isAuditEventValid(123);
-			expect(response).to.be.false;
+			expect(response).to.eql(false);
 		});
 
 		it('should return false if input is an objec', () => {
 			const response = isAuditEventValid({});
-			expect(response).to.be.false;
+			expect(response).to.eql(false);
 		});
 	});
 
@@ -42,7 +42,7 @@ describe('Audit utils', () => {
 		});
 		it('should return undefined if input is not a valid Event', () => {
 			const response = convertToAuditEvent('MODIFICATIONS');
-			expect(response).to.be.undefined;
+			expect(response).to.eql(undefined);
 		});
 	});
 

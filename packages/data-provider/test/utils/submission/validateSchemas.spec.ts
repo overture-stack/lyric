@@ -101,7 +101,7 @@ describe('Submission Utils - Validate Data using a Dictionary', () => {
 		};
 
 		const response = validateSchemas(dictionary, data);
-		expect(response.valid).to.be.true;
+		expect(response.valid).to.eql(true);
 	});
 	it('returns invalid validation with unrecognized schema', () => {
 		const data: Record<string, DataRecord[]> = {
@@ -109,7 +109,7 @@ describe('Submission Utils - Validate Data using a Dictionary', () => {
 		};
 
 		const response = validateSchemas(dictionary, data);
-		expect(response.valid).to.be.false;
+		expect(response.valid).to.eql(false);
 		expect(Object.keys(response)).to.eql(['valid', 'details']);
 		const details: DictionaryValidationError[] = response.valid === false ? response.details : [];
 		expect(details.length).to.eq(1);
@@ -122,7 +122,7 @@ describe('Submission Utils - Validate Data using a Dictionary', () => {
 		};
 
 		const response = validateSchemas(dictionary, data);
-		expect(response.valid).to.be.false;
+		expect(response.valid).to.eql(false);
 		expect(Object.keys(response)).to.eql(['valid', 'details']);
 		const details: DictionaryValidationError[] = response.valid === false ? response.details : [];
 		expect(details.length).to.eq(1);
@@ -146,7 +146,7 @@ describe('Submission Utils - Validate Data using a Dictionary', () => {
 		};
 
 		const response = validateSchemas(dictionary, data);
-		expect(response.valid).to.be.false;
+		expect(response.valid).to.eql(false);
 		expect(Object.keys(response)).to.eql(['valid', 'details']);
 		const details: DictionaryValidationError[] = response.valid === false ? response.details : [];
 		expect(details.length).to.eq(1);
@@ -174,7 +174,7 @@ describe('Submission Utils - Validate Data using a Dictionary', () => {
 		};
 
 		const response = validateSchemas(dictionary, data);
-		expect(response.valid).to.be.false;
+		expect(response.valid).to.eql(false);
 		expect(Object.keys(response)).to.eql(['valid', 'details']);
 		const details: DictionaryValidationError[] = response.valid === false ? response.details : [];
 		expect(details.length).to.eq(1);
@@ -196,7 +196,7 @@ describe('Submission Utils - Validate Data using a Dictionary', () => {
 		};
 
 		const response = validateSchemas(dictionary, data);
-		expect(response.valid).to.be.false;
+		expect(response.valid).to.eql(false);
 		expect(Object.keys(response)).to.eql(['valid', 'details']);
 		const details: DictionaryValidationError[] = response.valid === false ? response.details : [];
 		expect(details.length).to.eq(1);

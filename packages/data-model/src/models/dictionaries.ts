@@ -1,6 +1,7 @@
 import { jsonb, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
 import { Schema } from '@overture-stack/lectern-client';
+/* eslint-disable @typescript-eslint/no-empty-object-type */
 interface SchemaDefinition extends Schema {}
 
 export const dictionaries = pgTable('dictionaries', {
