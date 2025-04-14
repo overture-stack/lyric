@@ -14,6 +14,7 @@ export type UserSessionResult = {
 
 export type AuthConfig = {
 	enabled: boolean;
+	protectedMethods?: Array<'GET' | 'POST' | 'PUT' | 'DELETE'>;
 	customAuthHandler?: (req: Request) => UserSessionResult;
 };
 
@@ -25,6 +26,29 @@ declare module 'express-serve-static-core' {
 }
 
 /**
+ * Determines whether the incoming request should bypass authentication,
+ * based on the application's authentication configuration.
+ * @param req
+ * @param authConfig
+ * @returns
+ */
+export const shouldBypassAuth = (req: Request, authConfig: AuthConfig) => {
+	if (!authConfig.enabled) {
+		// bypass auth if it's globally disabled
+		return true;
+	}
+
+	// Skip auth if configured protectedMethods is a valid array and does not include the request method
+	const protectedMethods = authConfig.protectedMethods;
+	if (Array.isArray(protectedMethods) && !protectedMethods.some((method) => method === req.method)) {
+		return true;
+	}
+
+	// Default: required auth
+	return false;
+};
+
+/**
  * Middleware to handle authentication based on the provided auth configuration.
  * It verifies the user's authentication implemented by the custom authentication handler
  * If authentication is valid, it attaches the user information to the request object;
@@ -34,8 +58,7 @@ declare module 'express-serve-static-core' {
  */
 export const authMiddleware = (authConfig: AuthConfig) => {
 	return (req: Request, res: Response, next: NextFunction) => {
-		// proceed to the next middleware or route handler if auth is disabled
-		if (!authConfig.enabled) {
+		if (shouldBypassAuth(req, authConfig)) {
 			return next();
 		}
 
