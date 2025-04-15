@@ -17,7 +17,7 @@ const router = ({
 
 	router.use(authMiddleware(authConfig));
 
-	router.get('/validator/:categoryId/entity/:entityName', validationController(baseDependencies).validateRecord);
+	router.get('/:categoryId/:organization/:entityName', validationController(baseDependencies).validateRecord);
 
 	return router;
 };

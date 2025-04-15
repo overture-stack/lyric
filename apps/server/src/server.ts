@@ -46,7 +46,7 @@ app.use('/category', lyricProvider.routers.category);
 app.use('/data', lyricProvider.routers.submittedData);
 app.use('/dictionary', lyricProvider.routers.dictionary);
 app.use('/submission', lyricProvider.routers.submission);
-app.use('', lyricProvider.routers.validator);
+app.use('/validator', lyricProvider.routers.validator);
 
 // Swagger route
 app.use('/api-docs', serve, setup(swaggerDoc));

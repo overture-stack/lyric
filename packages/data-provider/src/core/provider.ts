@@ -6,6 +6,7 @@ import categoryController from '../controllers/categoryController.js';
 import dictionaryController from '../controllers/dictionaryController.js';
 import submissionController from '../controllers/submissionController.js';
 import submittedDataController from '../controllers/submittedDataController.js';
+import validationController from '../controllers/validationController.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import auditRepository from '../repository/auditRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
@@ -67,7 +68,7 @@ const provider = (configData: AppConfig) => {
 				authConfig: { enabled: configData.auth.enabled },
 			}),
 			submittedData: submittedDataController(baseDeps),
-			validator: validationService(baseDeps),
+			validator: validationController(baseDeps),
 		},
 		services: {
 			audit: auditService(baseDeps),
@@ -75,6 +76,7 @@ const provider = (configData: AppConfig) => {
 			dictionary: dictionaryService(baseDeps),
 			submission: submissionService(baseDeps),
 			submittedData: submittedDataService(baseDeps),
+			validation: validationService(baseDeps),
 		},
 		repositories: {
 			audit: auditRepository(baseDeps),

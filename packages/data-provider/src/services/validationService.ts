@@ -1,45 +1,50 @@
-import { and, count, eq, sql } from 'drizzle-orm/sql';
-
-import { submittedData } from '@overture-stack/lyric-data-model/models';
-
 import { BaseDependencies } from '../config/config.js';
-import { NotFound } from '../utils/errors.js';
+import submittedRepository from '../repository/submittedRepository.js';
+import { convertSqonToQuery, parseSQON } from '../utils/convertSqonToQuery.js';
 
 const validationService = (dependencies: BaseDependencies) => {
-	const { db, logger } = dependencies;
+	const { logger } = dependencies;
+	const submittedDataRepo = submittedRepository(dependencies);
 	const LOG_MODULE = 'VALIDATION_SERVICE';
 
 	return {
+		/**
+		 * Validates whether a specific record exists in the database based on the given criteria.
+		 * @param param0
+		 * @returns A promise that resolves to `true` if the record exists, or `false` if not.
+		 */
 		validateRecord: async ({
 			categoryId,
 			entityName,
-			studyId,
+			field,
+			organization,
 			value,
 		}: {
 			categoryId: number;
 			entityName: string;
-			studyId: string;
+			field: string;
+			organization: string;
 			value: string;
 		}): Promise<boolean> => {
-			logger.debug(LOG_MODULE, 'Validating record', JSON.stringify({ categoryId, entityName, studyId, value }));
+			const { getTotalRecordsByCategoryIdAndOrganization } = submittedDataRepo;
 
 			try {
-				const resultCount = await db
-					.select({ total: count() })
-					.from(submittedData)
-					.where(
-						and(
-							eq(submittedData.dictionaryCategoryId, categoryId),
-							eq(submittedData.entityName, entityName),
-							eq(submittedData.organization, studyId),
-							sql`${submittedData.data} @> ${JSON.stringify({ [entityName]: value })}::jsonb`,
-						),
-					);
+				const filterSqon = convertSqonToQuery(
+					parseSQON({
+						op: 'in',
+						content: { fieldName: field, value: [value] },
+					}),
+				);
 
-				return resultCount[0]?.total > 0;
+				const totalRecords = await getTotalRecordsByCategoryIdAndOrganization(categoryId, organization, {
+					sql: filterSqon,
+					entityNames: [entityName],
+				});
+
+				return totalRecords > 0;
 			} catch (error) {
 				logger.error(LOG_MODULE, 'Error validating record', { error });
-				throw new NotFound('Error validating the record.');
+				throw new Error('Error validating the record.');
 			}
 		},
 	};

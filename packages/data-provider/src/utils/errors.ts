@@ -61,11 +61,3 @@ export const getErrorMessage = (error: unknown) => {
 	}
 	return String(error);
 };
-
-export class ValidationError extends Error {
-    code: string;
-    constructor(code: string, message: string) {
-        super(message);
-        this.code = code;
-    }
-}
