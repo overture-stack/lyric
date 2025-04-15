@@ -1,0 +1,28 @@
+/validator/{categoryId}/{organization}/{entityName}:
+  get:
+    summary: Validate a record based on category, organization, entity, and value
+    tags:
+      - Validation
+    parameters:
+      - $ref: '#/components/parameters/path/CategoryId'
+      - $ref: '#/components/parameters/path/Organization'
+      - $ref: '#/components/parameters/path/EntityName'
+      - $ref: '#/components/parameters/query/field'
+      - $ref: '#/components/parameters/query/value'
+    responses:
+      200:
+        description: Validation successful
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: Validation passed
+      400:
+        $ref: '#/components/responses/BadRequest'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'

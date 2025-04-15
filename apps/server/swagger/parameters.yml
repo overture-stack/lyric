@@ -8,6 +8,13 @@ components:
         schema:
           type: string
         description: ID of the category to which the data belongs
+      EntityName:
+        description: The name of the Entity
+        name: entityName
+        in: path
+        schema:
+          type: string
+        required: true
       Organization:
         name: organization
         in: path
@@ -19,6 +26,13 @@ components:
       EntityName:
         description: The name of the Entity
         name: entityName
+        in: query
+        schema:
+          type: string
+        required: true
+      Field:
+        description: The specific field name used to search for the record
+        name: field
         in: query
         schema:
           type: string
@@ -65,6 +79,13 @@ components:
         schema:
           type: string
         description: Optional query parameter to filter results to include only submissions associated to a specific user. By default, returns submissions from all users
+      Value:
+        name: value
+        in: query
+        required: true
+        schema:
+          type: string
+        description: The value to search for in the specified field
       View:
         name: view
         in: query
