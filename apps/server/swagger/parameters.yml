@@ -16,6 +16,34 @@ components:
           type: string
         description: Organization name
     query:
+      EntityName:
+        description: The name of the Entity
+        name: entityName
+        in: query
+        schema:
+          type: string
+        required: true
+      OnlyActive:
+        description: Optional query parameter to filter results to include only active submissions. Default value is false
+        name: onlyActive
+        in: query
+        schema:
+          type: boolean
+        required: false
+      Organization:
+        description: The name of the Organization
+        name: organization
+        in: query
+        schema:
+          type: string
+        required: true
+      OrganizationFilter:
+        description: Optional query parameter to filter results to include only submissions associated to an specific organization. By default, returns submissions from all organizations
+        name: organization
+        in: query
+        schema:
+          type: string
+        required: false
       Page:
         name: page
         in: query
@@ -30,6 +58,13 @@ components:
         schema:
           type: integer
         description: Optional query parameter to specify the number of results per page. Default value is 20
+      Username:
+        name: username
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Optional query parameter to filter results to include only submissions associated to a specific user. By default, returns submissions from all users
       View:
         name: view
         in: query

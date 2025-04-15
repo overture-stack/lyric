@@ -6,6 +6,13 @@ export class BadRequest extends Error {
 	}
 }
 
+export class Forbidden extends Error {
+	constructor(msg: string) {
+		super(msg);
+		this.name = 'Forbidden';
+	}
+}
+
 export class NotFound extends Error {
 	constructor(msg: string) {
 		super(msg);
@@ -49,7 +56,9 @@ export class InternalServerError extends Error {
 }
 
 export const getErrorMessage = (error: unknown) => {
-	if (error instanceof Error) return error.message;
+	if (error instanceof Error) {
+		return error.message;
+	}
 	return String(error);
 };
 

@@ -8,19 +8,13 @@ import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelations.js';
-import {
-	checkEntityFieldNames,
-	checkFileNames,
-	filterUpdatesFromDeletes,
-	mergeRecords,
-} from '../../utils/submissionUtils.js';
+import { filterUpdatesFromDeletes, mergeDeleteRecords } from '../../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
 	getEntityNamesFromFilterOptions,
 	transformmSubmittedDataToSubmissionDeleteData,
 } from '../../utils/submittedDataUtils.js';
 import {
-	type BatchError,
 	CREATE_SUBMISSION_STATUS,
 	type CreateSubmissionStatus,
 	PaginationOptions,
@@ -48,7 +42,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 	const deleteSubmittedDataBySystemId = async (
 		categoryId: number,
 		systemId: string,
-		userName: string,
+		username: string,
 	): Promise<{
 		description: string;
 		inProcessEntities: string[];
@@ -101,6 +95,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 			organization: foundRecordToDelete.organization,
 			systemId: foundRecordToDelete.systemId,
 		});
+		logger.info(LOG_MODULE, `Found ${recordDependents.length} dependendencies on systemId '${systemId}'`);
 
 		const submittedDataToDelete = [foundRecordToDelete, ...recordDependents];
 
@@ -109,12 +104,12 @@ const submittedData = (dependencies: BaseDependencies) => {
 		// Get Active Submission or Open a new one
 		const activeSubmission = await getOrCreateActiveSubmission({
 			categoryId: foundRecordToDelete.dictionaryCategoryId,
-			userName,
+			username,
 			organization: foundRecordToDelete.organization,
 		});
 
-		// Merge current Active Submission delete entities
-		const mergedSubmissionDeletes = mergeRecords(activeSubmission.data.deletes, recordsToDeleteMap);
+		// Merge current Active Submission delete entities with unique records to delete based on systemId
+		const mergedSubmissionDeletes = mergeDeleteRecords(activeSubmission.data.deletes || {}, recordsToDeleteMap);
 
 		const entitiesToProcess = Object.keys(mergedSubmissionDeletes);
 
@@ -129,7 +124,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 				updates: filteredUpdates,
 				deletes: mergedSubmissionDeletes,
 			},
-			userName,
+			username,
 		});
 
 		logger.info(LOG_MODULE, `Added '${entitiesToProcess.length}' records to be deleted on the Active Submission`);
@@ -144,30 +139,33 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 	const editSubmittedData = async ({
 		categoryId,
-		files,
+		entityName,
 		organization,
-		userName,
+		records,
+		username,
 	}: {
 		categoryId: number;
-		files: Express.Multer.File[];
+		entityName: string;
 		organization: string;
-		userName: string;
+		records: Record<string, unknown>[];
+		username: string;
 	}): Promise<{
-		batchErrors: BatchError[];
 		description?: string;
-		inProcessEntities: string[];
 		submissionId?: number;
 		status: string;
 	}> => {
+		logger.info(
+			LOG_MODULE,
+			`Processing '${records.length}' records on category id '${categoryId}' organization '${organization}'`,
+		);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
-		const { processEditFilesAsync } = processor(dependencies);
-		if (files.length === 0) {
+		const { processEditRecordsAsync } = processor(dependencies);
+
+		if (records.length === 0) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: 'No valid files for submission',
-				batchErrors: [],
-				inProcessEntities: [],
+				description: 'No valid records for submission',
 			};
 		}
 
@@ -177,8 +175,6 @@ const submittedData = (dependencies: BaseDependencies) => {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: `Dictionary in category '${categoryId}' not found`,
-				batchErrors: [],
-				inProcessEntities: [],
 			};
 		}
 
@@ -188,53 +184,30 @@ const submittedData = (dependencies: BaseDependencies) => {
 			schemas: currentDictionary.schemas,
 		};
 
-		// step 1 Validation. Validate entity type (filename matches dictionary entities, remove duplicates)
-		const schemaNames: string[] = schemasDictionary.schemas.map((item) => item.name);
-		const { validFileEntity, batchErrors: fileNamesErrors } = await checkFileNames(files, schemaNames);
-
-		// step 2 Validation. Validate fieldNames (missing required fields based on schema)
-		const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
-
-		const batchErrors = [...fileNamesErrors, ...fieldNameErrors];
-		const entitiesToProcess = Object.keys(checkedEntities);
-
-		if (_.isEmpty(checkedEntities)) {
+		// Validate entity name
+		const entitySchema = schemasDictionary.schemas.find((item) => item.name === entityName);
+		if (!entitySchema) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: 'No valid entities in submission',
-				batchErrors,
-				inProcessEntities: entitiesToProcess,
+				description: `Invalid entity name ${entityName} for submission`,
 			};
 		}
 
 		// Get Active Submission or Open a new one
-		const activeSubmission = await getOrCreateActiveSubmission({ categoryId, userName, organization });
+		const activeSubmission = await getOrCreateActiveSubmission({ categoryId, username, organization });
 
 		// Running Schema validation in the background do not need to wait
 		// Result of validations will be stored in database
-		processEditFilesAsync({
+		processEditRecordsAsync(records, {
 			submission: activeSubmission,
-			files: checkedEntities,
-			schemasDictionary,
-			userName,
+			schema: entitySchema,
+			username,
 		});
 
-		if (batchErrors.length === 0) {
-			return {
-				status: CREATE_SUBMISSION_STATUS.PROCESSING,
-				description: 'Submission files are being processed',
-				submissionId: activeSubmission.id,
-				batchErrors,
-				inProcessEntities: entitiesToProcess,
-			};
-		}
-
 		return {
-			status: CREATE_SUBMISSION_STATUS.PARTIAL_SUBMISSION,
-			description: 'Some Submission files are being processed while others were unable to process',
+			status: CREATE_SUBMISSION_STATUS.PROCESSING,
+			description: 'Submission records are being processed',
 			submissionId: activeSubmission.id,
-			batchErrors,
-			inProcessEntities: entitiesToProcess,
 		};
 	};
 

@@ -87,10 +87,14 @@ const findOrCreateNode = (tree: TreeNode[], schemaName: string, order: OrderType
  */
 const hasNestedNode = (treeNode: TreeNode, schemaName: string, type: SchemaRelationType): boolean => {
 	if (type === SCHEMA_RELATION_TYPE.Values.parent) {
-		if (!treeNode.parent) return false;
+		if (!treeNode.parent) {
+			return false;
+		}
 		return hasNestedNode(treeNode.parent, schemaName, type);
 	} else {
-		if (!treeNode.children) return false;
+		if (!treeNode.children) {
+			return false;
+		}
 		return treeNode.children.some(
 			(node) =>
 				node.schemaName === schemaName ||

@@ -1,16 +1,24 @@
-import { and, eq, or } from 'drizzle-orm/sql';
+import type { ExtractTablesWithRelations } from 'drizzle-orm';
+import type { PgTransaction } from 'drizzle-orm/pg-core';
+import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
+import { and, count, eq, or } from 'drizzle-orm/sql';
 
 import { NewSubmission, Submission, submissions } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
-import { ActiveSubmissionSummaryRepository, BooleanTrueObject } from '../utils/types.js';
+import {
+	BooleanTrueObject,
+	type PaginationOptions,
+	SUBMISSION_STATUS,
+	SubmissionSummaryRepository,
+} from '../utils/types.js';
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
 	const { db, logger } = dependencies;
 
-	const getActiveSubmissionColumns: BooleanTrueObject = {
+	const getSubmissionColumns: BooleanTrueObject = {
 		id: true,
 		status: true,
 		organization: true,
@@ -22,7 +30,7 @@ const repository = (dependencies: BaseDependencies) => {
 		updatedBy: true,
 	};
 
-	const getActiveSubmissionRelations: { [key: string]: { columns: BooleanTrueObject } } = {
+	const getSubmissionRelations: { [key: string]: { columns: BooleanTrueObject } } = {
 		dictionary: {
 			columns: {
 				name: true,
@@ -35,6 +43,12 @@ const repository = (dependencies: BaseDependencies) => {
 				name: true,
 			},
 		},
+	};
+
+	const openSubmissionStatus = [SUBMISSION_STATUS.OPEN, SUBMISSION_STATUS.VALID, SUBMISSION_STATUS.INVALID] as const;
+
+	const getActiveStatusesCondition = (onlyActive: boolean, activeStatuses: typeof openSubmissionStatus) => {
+		return onlyActive ? or(...activeStatuses.map((status) => eq(submissions.status, status))) : undefined;
 	};
 
 	return {
@@ -58,24 +72,24 @@ const repository = (dependencies: BaseDependencies) => {
 		 * Finds the current Active Submission by parameters
 		 * @param {Object} params
 		 * @param {number} params.categoryId Category ID
-		 * @param {string} params.userName Name of the user
+		 * @param {string} params.username Name of the user
 		 * @param {string} params.organization Organization name
 		 * @returns
 		 */
 		getActiveSubmission: async ({
 			categoryId,
-			userName,
+			username,
 			organization,
 		}: {
 			categoryId: number;
-			userName: string;
+			username: string;
 			organization: string;
 		}): Promise<Submission | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
-						eq(submissions.createdBy, userName),
+						eq(submissions.createdBy, username),
 						eq(submissions.organization, organization),
 						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
 					),
@@ -106,11 +120,16 @@ const repository = (dependencies: BaseDependencies) => {
 		 * Update a Submission record in database
 		 * @param {number} submissionId Submission ID to update
 		 * @param {Partial<Submission>} newData Set fields to update
+		 * @param tx The transaction to use for the operation, optional
 		 * @returns An updated record
 		 */
-		update: async (submissionId: number, newData: Partial<Submission>): Promise<Submission> => {
+		update: async (
+			submissionId: number,
+			newData: Partial<Submission>,
+			tx?: PgTransaction<PostgresJsQueryResultHKT, Submission, ExtractTablesWithRelations<Submission>>,
+		): Promise<Submission> => {
 			try {
-				const resultUpdate = await db
+				const resultUpdate = await (tx || db)
 					.update(submissions)
 					.set({ ...newData, updatedAt: new Date() })
 					.where(eq(submissions.id, submissionId))
@@ -123,31 +142,79 @@ const repository = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Get Active Submission by category
-		 * @param {Object} filterParams
-		 * @param {number} filterParams.categoryId Category ID
-		 * @param {string} filterParams.userName User Name
+		 * Get Submissions by category
+		 * @param {number} categoryId - Category ID
+		 * @param {Object} paginationOptions - Pagination properties
+		 * @param {number} paginationOptions.page - Page number
+		 * @param {number} paginationOptions.pageSize - Items per page
+		 * @param {Object} filterOptions
+		 * @param {boolean} filterOptions.onlyActive - Filter by Active status
+		 * @param {string} filterOptions.username - Filter by creator's username
+		 * @param {string} filterOptions.organization - Filter by Organization
 		 * @returns One or many Active Submissions
 		 */
-		getActiveSubmissionsWithRelationsByCategory: async ({
-			categoryId,
-			userName,
-		}: {
-			categoryId: number;
-			userName: string;
-		}): Promise<ActiveSubmissionSummaryRepository[] | undefined> => {
+		getSubmissionsWithRelationsByCategory: async (
+			categoryId: number,
+			paginationOptions: PaginationOptions,
+			filterOptions: {
+				onlyActive: boolean;
+				username?: string;
+				organization?: string;
+			},
+		): Promise<SubmissionSummaryRepository[] | undefined> => {
+			const { page, pageSize } = paginationOptions;
 			try {
 				return await db.query.submissions.findMany({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
-						eq(submissions.createdBy, userName),
-						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
+						filterOptions.username ? eq(submissions.createdBy, filterOptions.username) : undefined,
+						getActiveStatusesCondition(filterOptions.onlyActive, openSubmissionStatus),
+						filterOptions.organization ? eq(submissions.organization, filterOptions.organization) : undefined,
 					),
-					columns: getActiveSubmissionColumns,
-					with: getActiveSubmissionRelations,
+					columns: getSubmissionColumns,
+					with: getSubmissionRelations,
+					orderBy: (submissions, { desc }) => desc(submissions.createdAt),
+					limit: pageSize,
+					offset: (page - 1) * pageSize,
 				});
 			} catch (error) {
-				logger.error(LOG_MODULE, `Failed querying Active Submission with relations`, error);
+				logger.error(LOG_MODULE, `Failed querying Submissions by category with relations`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Count Submissions by category ID
+		 * @param {number} categoryId - Category ID
+		 * @param {Object} filterOptions
+		 * @param {boolean} filterOptions.onlyActive - Filter by Active status
+		 * @param {string} filterOptions.username - Filter by creator's username
+		 * @param {string} filterOptions.organization - Filter by Organization
+		 * @returns One or many Active Submissions
+		 */
+		getTotalSubmissionsByCategory: async (
+			categoryId: number,
+			filterOptions: {
+				onlyActive: boolean;
+				username?: string;
+				organization?: string;
+			},
+		): Promise<number> => {
+			try {
+				const resultCount = await db
+					.select({ total: count() })
+					.from(submissions)
+					.where(
+						and(
+							eq(submissions.dictionaryCategoryId, categoryId),
+							filterOptions.username ? eq(submissions.createdBy, filterOptions.username) : undefined,
+							getActiveStatusesCondition(filterOptions.onlyActive, openSubmissionStatus),
+							filterOptions.organization ? eq(submissions.organization, filterOptions.organization) : undefined,
+						),
+					);
+				return resultCount[0].total;
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed counting Submission with categoryId '${categoryId}'`, error);
 				throw new ServiceUnavailable();
 			}
 		},
@@ -156,29 +223,29 @@ const repository = (dependencies: BaseDependencies) => {
 		 * Get Active Submission by Organization
 		 * @param {Object} filterParams
 		 * @param {number} filterParams.categoryId Category ID
-		 * @param {string} filterParams.userName User Name
+		 * @param {string} filterParams.username User Name
 		 * @param {string} filterParams.organization Organization name
 		 * @returns One Active Submission
 		 */
 		getActiveSubmissionWithRelationsByOrganization: async ({
 			categoryId,
-			userName,
+			username,
 			organization,
 		}: {
 			categoryId: number;
-			userName: string;
+			username: string;
 			organization: string;
-		}): Promise<ActiveSubmissionSummaryRepository | undefined> => {
+		}): Promise<SubmissionSummaryRepository | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
-						eq(submissions.createdBy, userName),
+						eq(submissions.createdBy, username),
 						eq(submissions.organization, organization),
 						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
 					),
-					columns: getActiveSubmissionColumns,
-					with: getActiveSubmissionRelations,
+					columns: getSubmissionColumns,
+					with: getSubmissionRelations,
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying Active Submission with relations`, error);
@@ -187,24 +254,19 @@ const repository = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Get Active Submission by Submission ID
+		 * Get Submission by ID
 		 * @param {number} submissionId Submission ID
-		 * @returns One Active Submission
+		 * @returns A Submission
 		 */
-		getActiveSubmissionWithRelationsById: async (
-			submissionId: number,
-		): Promise<ActiveSubmissionSummaryRepository | undefined> => {
+		getSubmissionWithRelationsById: async (submissionId: number): Promise<SubmissionSummaryRepository | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
-					where: and(
-						eq(submissions.id, submissionId),
-						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
-					),
-					columns: getActiveSubmissionColumns,
-					with: getActiveSubmissionRelations,
+					where: and(eq(submissions.id, submissionId)),
+					columns: getSubmissionColumns,
+					with: getSubmissionRelations,
 				});
 			} catch (error) {
-				logger.error(LOG_MODULE, `Failed querying Active Submission with relations`, error);
+				logger.error(LOG_MODULE, `Failed querying Submission with relations`, error);
 				throw new ServiceUnavailable();
 			}
 		},

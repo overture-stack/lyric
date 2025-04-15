@@ -6,6 +6,8 @@ import {
 	Dictionary as SchemasDictionary,
 	DictionaryValidationError,
 	DictionaryValidationRecordErrorDetails,
+	parse,
+	Schema,
 	TestResult,
 	validate,
 } from '@overture-stack/lectern-client';
@@ -19,27 +21,23 @@ import {
 } from '@overture-stack/lyric-data-model/models';
 
 import type { SchemaChildNode } from './dictionarySchemaRelations.js';
-import { getSchemaFieldNames } from './dictionaryUtils.js';
-import { readHeaders, readTextFile } from './fileUtils.js';
 import { deepCompare } from './formatUtils.js';
 import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
-	ActiveSubmissionResponse,
-	ActiveSubmissionSummaryRepository,
-	ActiveSubmissionSummaryResponse,
-	BATCH_ERROR_TYPE,
-	BatchError,
-	type DataDeletesActiveSubmissionSummary,
-	DataInsertsActiveSubmissionSummary,
-	DataRecordReference,
-	type DataUpdatesActiveSubmissionSummary,
+	type DataDeletesSubmissionSummary,
+	type DataInsertsSubmissionSummary,
+	type DataRecordReference,
+	type DataUpdatesSubmissionSummary,
 	type EditSubmittedDataReference,
 	MERGE_REFERENCE_TYPE,
 	type NewSubmittedDataReference,
 	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
-	SubmissionStatus,
+	type SubmissionResponse,
+	type SubmissionStatus,
+	type SubmissionSummaryRepository,
+	type SubmissionSummaryResponse,
 	SubmittedDataReference,
 } from './types.js';
 
@@ -55,92 +53,6 @@ type StatusesAllowedToClose = typeof statusesAllowedToClose extends Array<infer 
 export const canTransitionToClosed = (status: SubmissionStatus): status is StatusesAllowedToClose => {
 	const openStatuses: SubmissionStatus[] = [...statusesAllowedToClose];
 	return openStatuses.includes(status);
-};
-
-/**
- * Checks if file contains required fields based on schema
- * @param {SchemasDictionary} dictionary A dictionary to validate with
- * @param {Record<string, Express.Multer.File>} entityFileMap A Record to map a file with a entityName as a key
- * @returns a list of valid files and a list of errors
- */
-export const checkEntityFieldNames = async (
-	dictionary: SchemasDictionary,
-	entityFileMap: Record<string, Express.Multer.File>,
-) => {
-	const checkedEntities: Record<string, Express.Multer.File> = {};
-	const fieldNameErrors: BatchError[] = [];
-
-	for (const [entityName, file] of Object.entries(entityFileMap)) {
-		try {
-			const fileHeaders = await readHeaders(file);
-
-			const schemaFieldNames = getSchemaFieldNames(dictionary, entityName);
-
-			const missingRequiredFields = schemaFieldNames.required.filter(
-				(requiredField) => !fileHeaders.includes(requiredField),
-			);
-			if (missingRequiredFields.length > 0) {
-				fieldNameErrors.push({
-					type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
-					message: `Missing required fields '${JSON.stringify(missingRequiredFields)}'`,
-					batchName: file.originalname,
-				});
-			} else {
-				checkedEntities[entityName] = file;
-			}
-		} catch (error) {
-			fieldNameErrors.push({
-				type: BATCH_ERROR_TYPE.FILE_READ_ERROR,
-				message: `Error reading file '${file.originalname}'`,
-				batchName: file.originalname,
-			});
-		}
-	}
-	return {
-		checkedEntities,
-		fieldNameErrors,
-	};
-};
-
-/**
- * Removes invalid/duplicated files
- * @param {Express.Multer.File[]} files An array of files
- * @param {string[]} dictionarySchemaNames Schema names in the dictionary
- * @returns A list of valid files mapped by schema/entity names
- */
-export const checkFileNames = async (
-	files: Express.Multer.File[],
-	dictionarySchemaNames: string[],
-): Promise<{ validFileEntity: Record<string, Express.Multer.File>; batchErrors: BatchError[] }> => {
-	const validFileEntity: Record<string, Express.Multer.File> = {};
-	const batchErrors: BatchError[] = [];
-
-	for (const file of files) {
-		const matchingName = dictionarySchemaNames.filter(
-			(schemaName) => schemaName.toLowerCase() == file.originalname.split('.')[0].toLowerCase(),
-		);
-
-		if (matchingName.length > 1) {
-			batchErrors.push({
-				type: BATCH_ERROR_TYPE.MULTIPLE_TYPED_FILES,
-				message: 'Multiple schemas matches this file',
-				batchName: file.originalname,
-			});
-		} else if (matchingName.length === 1) {
-			validFileEntity[matchingName[0]] = file;
-		} else {
-			batchErrors.push({
-				type: BATCH_ERROR_TYPE.INVALID_FILE_NAME,
-				message: 'Filename does not relate any schema name',
-				batchName: file.originalname,
-			});
-		}
-	}
-
-	return {
-		validFileEntity,
-		batchErrors,
-	};
 };
 
 /**
@@ -313,7 +225,9 @@ export const groupSchemaErrorsByEntity = (input: {
 	const { resultValidation, dataValidated } = input;
 
 	const submissionSchemaErrors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> = {};
-	if (resultValidation.valid) return {};
+	if (resultValidation.valid) {
+		return {};
+	}
 	resultValidation.details.forEach((dictionaryValidationError) => {
 		const entityName = dictionaryValidationError.schemaName;
 		if (dictionaryValidationError.reason === 'INVALID_RECORDS') {
@@ -468,23 +382,6 @@ export const mergeAndReferenceEntityData = ({
 };
 
 /**
- * Merge two `Record<string, T[]>` objects into a single `Record<string, T[]>` object.
- * For each key in the records, the corresponding arrays from both records are concatenated.
- * @param record1 The first `Record<string, T[]>` object. If `undefined`, it is treated as an empty record.
- * @param record2 The second `Record<string, T[]>` object. If `undefined`, it is treated as an empty record.
- * @returns
- */
-export const mergeRecords = <T>(
-	record1: Record<string, T[]> | undefined,
-	record2: Record<string, T[]> | undefined,
-): Record<string, T[]> => {
-	return Object.keys({ ...record1, ...record2 }).reduce<Record<string, T[]>>((acc, key) => {
-		acc[key] = (record1?.[key] || []).concat(record2?.[key] || []);
-		return acc;
-	}, {});
-};
-
-/**
  * Merges multiple `Record<string, SubmissionInsertData>` objects into a single object.
  * If there are duplicate keys between the objects, the `records` arrays of `SubmissionInsertData`
  * are concatenated for the matching keys, ensuring no duplicates.
@@ -604,13 +501,11 @@ export const mergeUpdatesBySystemId = (
 };
 
 /**
- * Utility to parse a raw Active Submission to a Response type
- * @param {ActiveSubmissionSummaryRepository} submission
- * @returns {ActiveSubmissionResponse}
+ * Utility to parse a raw Submission to a Response type
+ * @param {SubmissionSummaryRepository} submission
+ * @returns {SubmissionResponse}
  */
-export const parseActiveSubmissionResponse = (
-	submission: ActiveSubmissionSummaryRepository,
-): ActiveSubmissionResponse => {
+export const parseSubmissionResponse = (submission: SubmissionSummaryRepository): SubmissionResponse => {
 	return {
 		id: submission.id,
 		data: submission.data,
@@ -627,16 +522,14 @@ export const parseActiveSubmissionResponse = (
 };
 
 /**
- * Utility to parse a raw Active Submission to a Summary of the Active Submission
- * @param {ActiveSubmissionSummaryRepository} submission
- * @returns {ActiveSubmissionSummaryResponse}
+ * Utility to parse a raw Submission to a Summary of the Submission
+ * @param {SubmissionSummaryRepository} submission
+ * @returns {SubmissionSummaryResponse}
  */
-export const parseActiveSubmissionSummaryResponse = (
-	submission: ActiveSubmissionSummaryRepository,
-): ActiveSubmissionSummaryResponse => {
+export const parseSubmissionSummaryResponse = (submission: SubmissionSummaryRepository): SubmissionSummaryResponse => {
 	const dataInsertsSummary =
 		submission.data?.inserts &&
-		Object.entries(submission.data?.inserts).reduce<Record<string, DataInsertsActiveSubmissionSummary>>(
+		Object.entries(submission.data?.inserts).reduce<Record<string, DataInsertsSubmissionSummary>>(
 			(acc, [entityName, entityData]) => {
 				acc[entityName] = { ..._.omit(entityData, 'records'), recordsCount: entityData.records.length };
 				return acc;
@@ -646,7 +539,7 @@ export const parseActiveSubmissionSummaryResponse = (
 
 	const dataUpdatesSummary =
 		submission.data.updates &&
-		Object.entries(submission.data?.updates).reduce<Record<string, DataUpdatesActiveSubmissionSummary>>(
+		Object.entries(submission.data?.updates).reduce<Record<string, DataUpdatesSubmissionSummary>>(
 			(acc, [entityName, entityData]) => {
 				acc[entityName] = { recordsCount: entityData.length };
 				return acc;
@@ -656,7 +549,7 @@ export const parseActiveSubmissionSummaryResponse = (
 
 	const dataDeletesSummary =
 		submission.data.deletes &&
-		Object.entries(submission.data?.deletes).reduce<Record<string, DataDeletesActiveSubmissionSummary>>(
+		Object.entries(submission.data?.deletes).reduce<Record<string, DataDeletesSubmissionSummary>>(
 			(acc, [entityName, entityData]) => {
 				acc[entityName] = { recordsCount: entityData.length };
 				return acc;
@@ -826,34 +719,6 @@ export const segregateFieldChangeRecords = (
 };
 
 /**
- * Construct a SubmissionInsertData object per each file returning a Record type based on entityName
- * @param {Record<string, Express.Multer.File>} files
- * @param {SchemasDictionary} schemasDictionary
- * @returns {Promise<Record<string, SubmissionInsertData>>}
- */
-export const submissionInsertDataFromFiles = async (
-	files: Record<string, Express.Multer.File>,
-	schemasDictionary: SchemasDictionary,
-): Promise<Record<string, SubmissionInsertData>> => {
-	return await Object.entries(files).reduce<Promise<Record<string, SubmissionInsertData>>>(
-		async (accPromise, [entityName, file]) => {
-			const acc = await accPromise;
-			const schema = schemasDictionary.schemas.find((schema) => schema.name === entityName);
-			if (!schema) {
-				throw new Error(`No schema found for : '${entityName}'`);
-			}
-			const parsedFileData = await readTextFile(file, schema);
-			acc[entityName] = {
-				batchName: file.originalname,
-				records: parsedFileData.records,
-			};
-			return Promise.resolve(acc);
-		},
-		Promise.resolve({}),
-	);
-};
-
-/**
  * Validate a full set of Schema Data using a Dictionary
  * @param {SchemasDictionary & {id: number }} dictionary
  * @param {Record<string, DataRecord[]>} schemasData
@@ -874,4 +739,9 @@ export const validateSchemas = (
 	};
 
 	return validate.validateDictionary(schemasData, schemasDictionary);
+};
+
+export const parseToSchema = (schema: Schema) => (record: Record<string, string>) => {
+	const parsedRecord = parse.parseRecordValues(record, schema);
+	return parsedRecord.data.record;
 };
