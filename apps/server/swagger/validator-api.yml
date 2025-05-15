@@ -1,14 +1,13 @@
-/validator/{categoryId}/{organization}/{entityName}:
+/validator/{categoryId}/{entityName}:
   get:
     summary: Validate a record based on category, organization, entity, and value
     tags:
       - Validation
     parameters:
       - $ref: '#/components/parameters/path/CategoryId'
-      - $ref: '#/components/parameters/path/Organization'
       - $ref: '#/components/parameters/path/EntityName'
-      - $ref: '#/components/parameters/query/field'
-      - $ref: '#/components/parameters/query/value'
+      - $ref: '#/components/parameters/query/Organization'
+      - $ref: '#/components/parameters/query/Value'
     responses:
       200:
         description: Validation successful

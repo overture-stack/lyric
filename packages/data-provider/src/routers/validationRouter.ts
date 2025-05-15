@@ -1,15 +1,17 @@
 import { json, Router, urlencoded } from 'express';
 
-import { BaseDependencies } from '../config/config.js';
+import { BaseDependencies, type ValidatorConfig } from '../config/config.js';
 import validationController from '../controllers/validationController.js';
 import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
 
 const router = ({
 	baseDependencies,
 	authConfig,
+	validatorConfig,
 }: {
 	baseDependencies: BaseDependencies;
 	authConfig: AuthConfig;
+	validatorConfig: ValidatorConfig;
 }): Router => {
 	const router = Router();
 	router.use(urlencoded({ extended: false }));
@@ -17,7 +19,7 @@ const router = ({
 
 	router.use(authMiddleware(authConfig));
 
-	router.get('/:categoryId/:organization/:entityName', validationController(baseDependencies).validateRecord);
+	router.get('/:categoryId/:entityName', validationController({ baseDependencies, validatorConfig }).validateRecord);
 
 	return router;
 };

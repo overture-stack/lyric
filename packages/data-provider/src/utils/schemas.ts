@@ -431,22 +431,20 @@ export const dataGetBySystemIdRequestSchema: RequestValidation<
 
 export const validationPathParamsSchema = z.object({
 	categoryId: categoryIdSchema,
-	organization: organizationSchema,
 	entityName: entityNameSchema,
 });
 
 export interface validationPathParams extends ParamsDictionary {
 	categoryId: string;
-	organization: string;
 	entityName: string;
 }
 
 const validationQuerySchema = z.object({
-	field: stringNotEmpty,
+	organization: organizationSchema,
 	value: stringNotEmpty,
 });
 export interface validationQueryParam extends ParsedQs {
-	field: string;
+	organization: string;
 	value: string;
 }
 

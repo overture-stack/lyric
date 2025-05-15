@@ -30,13 +30,6 @@ components:
         schema:
           type: string
         required: true
-      Field:
-        description: The specific field name used to search for the record
-        name: field
-        in: query
-        schema:
-          type: string
-        required: true
       OnlyActive:
         description: Optional query parameter to filter results to include only active submissions. Default value is false
         name: onlyActive

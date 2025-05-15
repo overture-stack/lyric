@@ -57,7 +57,11 @@ const provider = (configData: AppConfig) => {
 			dictionary: dictionaryRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 			submission: submissionRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 			submittedData: submittedDataRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
-			validator: validationRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
+			validator: validationRouter({
+				baseDependencies: baseDeps,
+				authConfig: configData.auth,
+				validatorConfig: configData.validator,
+			}),
 		},
 		controllers: {
 			audit: auditController(baseDeps),
@@ -68,7 +72,7 @@ const provider = (configData: AppConfig) => {
 				authConfig: { enabled: configData.auth.enabled },
 			}),
 			submittedData: submittedDataController(baseDeps),
-			validator: validationController(baseDeps),
+			validator: validationController({ baseDependencies: baseDeps, validatorConfig: configData.validator }),
 		},
 		services: {
 			audit: auditService(baseDeps),
