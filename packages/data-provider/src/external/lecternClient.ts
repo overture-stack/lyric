@@ -13,18 +13,18 @@ const client = (schemaServiceUrl: string, logger: Logger) => {
 		 * @returns A Dictionary found
 		 */
 		async fetchDictionaryByVersion(name: string, version: string): Promise<SchemasDictionary> {
-			let newSchema;
 			try {
-				newSchema = await dictionaryRestClient.fetchSchema(schemaServiceUrl, name, version);
+				const dictionaryFetchResult = await dictionaryRestClient.getDictionary(schemaServiceUrl, { name, version });
+				if (dictionaryFetchResult.success) {
+					return dictionaryFetchResult.data;
+				} else {
+					logger.error(`Failed to fetch dictionary from schema service.`, dictionaryFetchResult.message);
+					throw new BadRequest(`Schema with name '${name}' and version '${version}' not found`);
+				}
 			} catch (error) {
 				logger.error(LOG_MODULE, `Error Fetching dictionary from lectern`, error);
 				throw new ServiceUnavailable();
 			}
-
-			if (!newSchema) {
-				throw new BadRequest(`Schema with name '${name}' and version '${version}' not found`);
-			}
-			return newSchema;
 		},
 	};
 };
