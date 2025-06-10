@@ -1,11 +1,11 @@
 import { eq } from 'drizzle-orm/sql';
-import { ListAllCategoriesResponse } from 'src/utils/types.js';
 
 import { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
 import { Category, Dictionary, dictionaryCategories, NewCategory } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
+import { ListAllCategoriesResponse } from '../utils/types.js';
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'CATEGORY_REPOSITORY';

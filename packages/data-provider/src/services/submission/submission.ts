@@ -1,5 +1,4 @@
 import * as _ from 'lodash-es';
-import { getSchemaByName } from 'src/utils/dictionaryUtils.js';
 
 import { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
 import { type NewSubmission, Submission, type SubmissionUpdateData } from '@overture-stack/lyric-data-model/models';
@@ -9,6 +8,7 @@ import systemIdGenerator from '../../external/systemIdGenerator.js';
 import submissionRepository from '../../repository/activeSubmissionRepository.js';
 import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
+import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
 import {
 	parseSubmissionDetailsResponse,
@@ -413,10 +413,10 @@ const service = (dependencies: BaseDependencies) => {
 
 		// Validate entity name
 		const invalidEntities = entityNames.filter((name) => !getSchemaByName(name, schemasDictionary));
-		if (invalidEntities) {
+		if (invalidEntities.length) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: `Invalid entity name ${invalidEntities} for submission`,
+				description: `Invalid entity name '${invalidEntities}' for submission`,
 			};
 		}
 

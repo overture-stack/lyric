@@ -188,10 +188,10 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		// Validate entity name
 		const invalidEntities = entityNames.filter((name) => !getSchemaByName(name, schemasDictionary));
-		if (invalidEntities) {
+		if (invalidEntities.length) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: `Invalid entity name ${invalidEntities} for submission`,
+				description: `Invalid entity name '${invalidEntities}' for submission`,
 			};
 		}
 
