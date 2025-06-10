@@ -34,7 +34,7 @@ export const convertToTypedRecords = (dataRecords: Record<string, unknown>[], sc
  * @param schemasDictionary A dictionary of schema definitions used to validate and convert each entity's records.
  * @returns A map of entity names to `DataRecord[]` containing typed records.
  */
-export const parseEditRecords = (
+export const parseRecordsToEdit = (
 	records: EntityData,
 	schemasDictionary: SchemasDictionary,
 ): Record<string, DataRecord[]> => {
@@ -66,7 +66,7 @@ export const parseEditRecords = (
  * @param schemasDictionary A dictionary of schema definitions used to validate and convert each entity's records.
  * @returns A map of entity names to `SubmissionInsertData` batches containing typed records.
  */
-export const buildInsertRecords = (
+export const parseRecordsToInsert = (
 	records: EntityData,
 	schemasDictionary: SchemasDictionary,
 ): Record<string, SubmissionInsertData> => {

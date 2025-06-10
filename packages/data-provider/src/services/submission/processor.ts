@@ -18,7 +18,7 @@ import { getDictionarySchemaRelations, type SchemaChildNode } from '../../utils/
 import { validateSchemas } from '../../utils/dictionaryUtils.js';
 import { BadRequest } from '../../utils/errors.js';
 import { mergeDeleteRecords, mergeInsertsRecords, mergeUpdatesBySystemId } from '../../utils/mergeRecords.js';
-import { buildInsertRecords, parseEditRecords } from '../../utils/recordsParser.js';
+import { parseRecordsToEdit, parseRecordsToInsert } from '../../utils/recordsParser.js';
 import {
 	extractSchemaDataFromMergedDataRecords,
 	filterDeletesFromUpdates,
@@ -461,7 +461,7 @@ const processor = (dependencies: BaseDependencies) => {
 		const { getSubmissionById, update } = submissionRepository(dependencies);
 
 		try {
-			const mapRecordsParsed = parseEditRecords(records, schemasDictionary);
+			const mapRecordsParsed = parseRecordsToEdit(records, schemasDictionary);
 
 			if (Object.keys(mapRecordsParsed).length === 0) {
 				// No entities to edit on this submission
@@ -665,7 +665,7 @@ const processor = (dependencies: BaseDependencies) => {
 				throw new Error(`Submission '${activeSubmission}' not found`);
 			}
 
-			const insertRecords = buildInsertRecords(records, schemasDictionary);
+			const insertRecords = parseRecordsToInsert(records, schemasDictionary);
 
 			// Merge Active Submission data with incoming TSV file data processed
 			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, insertRecords);
