@@ -464,8 +464,7 @@ const processor = (dependencies: BaseDependencies) => {
 			const mapRecordsParsed = parseRecordsToEdit(records, schemasDictionary);
 
 			if (Object.keys(mapRecordsParsed).length === 0) {
-				// No entities to edit on this submission
-				return;
+				throw new Error('No entities to edit on this submission');
 			}
 
 			const mapDataProcessed = Object.fromEntries(
@@ -539,20 +538,21 @@ const processor = (dependencies: BaseDependencies) => {
 			// filter out delete records found on update records
 			const filteredDeletes = filterDeletesFromUpdates(mergedDeletes, updatedActiveSubmissionData);
 
-			// Merge Active Submission data with incoming TSV file data processed
+			// Result merge Active Submission data with incoming TSV file data processed
+			const mergedSubmissionData: SubmissionData = {
+				inserts: mergedInserts,
+				deletes: filteredDeletes,
+				updates: updatedActiveSubmissionData,
+			};
 			await update(activeSubmission.id, {
-				data: { inserts: mergedInserts, deletes: filteredDeletes, updates: updatedActiveSubmissionData },
+				data: mergedSubmissionData,
 				updatedBy: username,
 			});
 
 			// Perform Schema Data validation Async.
 			performDataValidation({
 				originalSubmission: activeSubmission,
-				submissionData: {
-					inserts: mergedInserts,
-					deletes: filteredDeletes,
-					updates: updatedActiveSubmissionData,
-				},
+				submissionData: mergedSubmissionData,
 				username,
 			});
 		} catch (error) {
@@ -667,25 +667,25 @@ const processor = (dependencies: BaseDependencies) => {
 
 			const insertRecords = parseRecordsToInsert(records, schemasDictionary);
 
-			// Merge Active Submission data with incoming TSV file data processed
+			// Merge Active Submission insert records with incoming TSV file data processed
 			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, insertRecords);
+
+			// Result merged submission Data
+			const mergedSubmissionData: SubmissionData = {
+				inserts: insertActiveSubmissionData,
+				deletes: activeSubmission.data.deletes,
+				updates: activeSubmission.data.updates,
+			};
+
 			await update(activeSubmission.id, {
-				data: {
-					inserts: insertActiveSubmissionData,
-					deletes: activeSubmission.data.deletes,
-					updates: activeSubmission.data.updates,
-				},
+				data: mergedSubmissionData,
 				updatedBy: username,
 			});
 
 			// Perform Schema Data validation Async.
 			await performDataValidation({
 				originalSubmission: activeSubmission,
-				submissionData: {
-					inserts: insertActiveSubmissionData,
-					deletes: activeSubmission.data.deletes,
-					updates: activeSubmission.data.updates,
-				},
+				submissionData: mergedSubmissionData,
 				username,
 			});
 		} catch (error) {
