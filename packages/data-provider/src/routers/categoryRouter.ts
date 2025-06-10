@@ -19,6 +19,9 @@ const router = ({
 
 	router.get('/', categoryController(baseDependencies).listAll);
 	router.get('/:categoryId', categoryController(baseDependencies).getDetails);
+
+	router.get('/: categoryId/dictionary', categoryController(baseDependencies).getDictionaryJson);
+	router.get('/:categoryId/templates', categoryController(baseDependencies).downloadDataFileTemplates);
 	return router;
 };
 

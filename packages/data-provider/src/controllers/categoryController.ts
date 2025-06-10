@@ -1,8 +1,12 @@
 import { NextFunction, Request, Response } from 'express';
+import JSZip from 'jszip';
+import dictionaryService from 'src/services/dictionaryService.js';
+
+import { createDataFileTemplate } from '@overture-stack/lectern-client';
 
 import { BaseDependencies } from '../config/config.js';
 import categorySvc from '../services/categoryService.js';
-import { BadRequest } from '../utils/errors.js';
+import { BadRequest, NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import { cagegoryDetailsRequestSchema } from '../utils/schemas.js';
 
@@ -10,6 +14,7 @@ const controller = (dependencies: BaseDependencies) => {
 	const categoryService = categorySvc(dependencies);
 	const { logger } = dependencies;
 	const LOG_MODULE = 'CATEGORY_CONTROLLER';
+	const service = dictionaryService(dependencies);
 	return {
 		getDetails: validateRequest(cagegoryDetailsRequestSchema, async (req, res, next) => {
 			try {
@@ -34,6 +39,81 @@ const controller = (dependencies: BaseDependencies) => {
 				const categoryList = await categoryService.listAll();
 				return res.send(categoryList);
 			} catch (error) {
+				next(error);
+			}
+		},
+		downloadDataFileTemplates: async (
+			req: Request<{}, {}, {}, { name: string; version: string; fileType?: string }>,
+			res: Response,
+			next: NextFunction,
+		) => {
+			try {
+				const { name, version, fileType: fileTypeRaw } = req.query;
+
+				if (!name || !version) {
+					throw new BadRequest('Missing dictionary name or version in query.');
+				}
+
+				const fileTypeQueryParse = separatedValueFileTypeSchema.optional().safeParse(fileTypeRaw);
+				if (!fileTypeQueryParse.success) {
+					throw new BadRequest('Invalid fileType requested.');
+				}
+
+				const fileType = fileTypeQueryParse.data;
+				const dictionary = replaceReferences(await service.fetchDictionaryByVersion(name, version));
+
+				if (!dictionary) {
+					throw new NotFound(`Dictionary with name "${name}" and version "${version}" not found.`);
+				}
+
+				const zip = new JSZip();
+				for (const schema of dictionary.schemas || []) {
+					const template = createDataFileTemplate(schema, fileType ? { fileType } : undefined);
+					zip.file(template.fileName, template.content);
+				}
+
+				const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
+
+				res.set({
+					'Content-Disposition': `attachment; filename=${name}_${version}_templates.zip`,
+					'Content-Type': 'application/zip',
+				});
+
+				return res.status(200).send(zipContent);
+			} catch (error) {
+				logger.error(LOG_MODULE, 'Error generating dictionary templates', error);
+				next(error);
+			}
+		},
+		getDictionaryJson: async (
+			req: Request<{ dictId: string; schemaName: string }, {}, {}, {}>,
+			res: Response,
+			next: NextFunction,
+		) => {
+			try {
+				const { dictId, schemaName } = req.params;
+
+				if (!dictId) {
+					throw new BadRequest('Request is missing `dictId` parameter.');
+				}
+				if (!schemaName) {
+					throw new BadRequest('Request is missing `schemaName` parameter.');
+				}
+
+				const dictionary = await service.getOneById(dictId);
+				const formattedDictionary = replaceReferences(dictionary);
+
+				const schema = formattedDictionary.schemas.find((schema) => schema.name === schemaName);
+
+				if (!schema) {
+					throw new NotFound(
+						`Dictionary '${dictionary.name} ${dictionary.version}' does not have a schema named '${schemaName}'`,
+					);
+				}
+
+				return res.send(schema);
+			} catch (error) {
+				logger.error(LOG_MODULE, 'Error fetching schema', error);
 				next(error);
 			}
 		},
