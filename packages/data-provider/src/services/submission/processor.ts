@@ -1,6 +1,6 @@
 import * as _ from 'lodash-es';
 
-import { type DataRecord, DictionaryValidationRecordErrorDetails, type Schema } from '@overture-stack/lectern-client';
+import { type DataRecord, DictionaryValidationRecordErrorDetails } from '@overture-stack/lectern-client';
 import {
 	Submission,
 	SubmissionData,
@@ -13,14 +13,12 @@ import {
 import { BaseDependencies } from '../../config/config.js';
 import submissionRepository from '../../repository/activeSubmissionRepository.js';
 import categoryRepository from '../../repository/categoryRepository.js';
-import dictionaryRepository from '../../repository/dictionaryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { getDictionarySchemaRelations, type SchemaChildNode } from '../../utils/dictionarySchemaRelations.js';
 import { validateSchemas } from '../../utils/dictionaryUtils.js';
 import { BadRequest } from '../../utils/errors.js';
-import { convertRecordToString } from '../../utils/formatUtils.js';
 import { mergeDeleteRecords, mergeInsertsRecords, mergeUpdatesBySystemId } from '../../utils/mergeRecords.js';
-import { buildInsertRecords, getSchemaParser } from '../../utils/recordsParser.js';
+import { buildInsertRecords, parseEditRecords } from '../../utils/recordsParser.js';
 import {
 	extractSchemaDataFromMergedDataRecords,
 	filterDeletesFromUpdates,
@@ -442,44 +440,56 @@ const processor = (dependencies: BaseDependencies) => {
 	/**
 	 * Void function to process and validate uploaded records on an Active Submission.
 	 * Performs the schema data validation of data to be edited combined with all Submitted Data.
-	 * @param records Records to be processed
+	 * @param records A map of entity names to arrays of raw records to be processed.
 	 * @param params
-	 * @param params.schema Schema to parse data with
-	 * @param params.submission A `Submission` object representing the Active Submission
+	 * @param params.schemasDictionary A dictionary of schema definitions used for record validation.
+	 * @param params.submissionId Submission ID
 	 * @param params.username User who performs the action
 	 */
 	const processEditRecordsAsync = async (
-		records: Record<string, unknown>[],
+		records: EntityData,
 		{
-			schema,
-			submission,
+			schemasDictionary,
+			submissionId,
 			username,
 		}: {
-			schema: Schema;
-			submission: Submission;
+			schemasDictionary: SchemasDictionary;
+			submissionId: number;
 			username: string;
 		},
 	): Promise<void> => {
-		const { getDictionaryById } = dictionaryRepository(dependencies);
+		const { getSubmissionById, update } = submissionRepository(dependencies);
 
 		try {
-			// Parse file data
-			const recordsParsed = records.map(convertRecordToString).map(getSchemaParser(schema));
+			const mapRecordsParsed = parseEditRecords(records, schemasDictionary);
 
-			const filesDataProcessed = await compareUpdatedData(recordsParsed);
-
-			const currentDictionary = await getDictionaryById(submission.dictionaryId);
-			if (!currentDictionary) {
-				throw new BadRequest(`Dictionary in category '${submission.dictionaryCategoryId}' not found`);
+			if (Object.keys(mapRecordsParsed).length === 0) {
+				// No entities to edit on this submission
+				return;
 			}
 
+			const mapDataProcessed = Object.fromEntries(
+				await Promise.all(
+					Object.entries(mapRecordsParsed).map(async ([schemaName, dataRecords]) => {
+						const filesDataProcessed = await compareUpdatedData(dataRecords);
+						return [schemaName, filesDataProcessed];
+					}),
+				),
+			);
+
 			// get dictionary relations
-			const dictionaryRelations = getDictionarySchemaRelations(currentDictionary.dictionary);
+			const dictionaryRelations = getDictionarySchemaRelations(schemasDictionary.schemas);
+
+			// Get Active Submission from database
+			const activeSubmission = await getSubmissionById(submissionId);
+			if (!activeSubmission) {
+				throw new Error(`Submission '${activeSubmission}' not found`);
+			}
 
 			const foundDependentUpdates = await findUpdateDependents({
 				dictionaryRelations,
-				organization: submission.organization,
-				submissionUpdateData: { [schema.name]: filesDataProcessed },
+				organization: activeSubmission.organization,
+				submissionUpdateData: mapDataProcessed,
 			});
 
 			const systemIdsWithDependents: string[] = [];
@@ -505,14 +515,14 @@ const processor = (dependencies: BaseDependencies) => {
 
 			// Identify what requested updates involves ID and nonID field changes
 			const { idFieldChangeRecord, nonIdFieldChangeRecord } = segregateFieldChangeRecords(
-				{ [schema.name]: filesDataProcessed },
+				mapDataProcessed,
 				dictionaryRelations,
 			);
 
 			// Aggegates all Update changes on Submission
 			// Note: We do not include records involving primary ID fields changes in here. We would rather do a DELETE and an INSERT
 			const updatedActiveSubmissionData: Record<string, SubmissionUpdateData[]> = mergeUpdatesBySystemId(
-				submission.data.updates ?? {},
+				activeSubmission.data.updates ?? {},
 				totalDependants,
 				nonIdFieldChangeRecord,
 			);
@@ -521,17 +531,23 @@ const processor = (dependencies: BaseDependencies) => {
 			const additions = await handleIdFieldChanges(idFieldChangeRecord);
 
 			// Merge Active Submission Inserts with Edit generated new Inserts
-			const mergedInserts = mergeInsertsRecords(submission.data.inserts ?? {}, additions.inserts);
+			const mergedInserts = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, additions.inserts);
 
 			// Merge Active Submission Deletes with Edit generated new Deletes
-			const mergedDeletes = mergeDeleteRecords(submission.data.deletes ?? {}, additions.deletes);
+			const mergedDeletes = mergeDeleteRecords(activeSubmission.data.deletes ?? {}, additions.deletes);
 
 			// filter out delete records found on update records
 			const filteredDeletes = filterDeletesFromUpdates(mergedDeletes, updatedActiveSubmissionData);
 
+			// Merge Active Submission data with incoming TSV file data processed
+			await update(activeSubmission.id, {
+				data: { inserts: mergedInserts, deletes: filteredDeletes, updates: updatedActiveSubmissionData },
+				updatedBy: username,
+			});
+
 			// Perform Schema Data validation Async.
 			performDataValidation({
-				originalSubmission: submission,
+				originalSubmission: activeSubmission,
 				submissionData: {
 					inserts: mergedInserts,
 					deletes: filteredDeletes,
@@ -540,11 +556,7 @@ const processor = (dependencies: BaseDependencies) => {
 				username,
 			});
 		} catch (error) {
-			logger.error(
-				LOG_MODULE,
-				`There was an error processing records on entity '${schema.name}'`,
-				JSON.stringify(error),
-			);
+			logger.error(LOG_MODULE, `There was an error processing records on this submission`, JSON.stringify(error));
 		}
 		logger.info(LOG_MODULE, `Finished validating files`);
 	};

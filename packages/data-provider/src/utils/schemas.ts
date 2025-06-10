@@ -348,11 +348,11 @@ export interface dataEditRequestSchemaQueryParams extends ParsedQs {
 }
 
 export const dataEditRequestSchema: RequestValidation<
-	Array<Record<string, unknown>>,
+	Array<DataRecord>,
 	dataEditRequestSchemaQueryParams,
 	categoryPathParams
 > = {
-	body: z.record(z.unknown()).array(),
+	body: z.record(dataRecordValueSchema).array(),
 	pathParams: categoryPathParamsSchema,
 	query: z.object({
 		entityName: entityNameSchema,

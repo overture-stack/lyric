@@ -184,8 +184,7 @@ const controller = ({
 				const username = user?.username || '';
 
 				const editSubmittedDataResult = await dataService.editSubmittedData({
-					records: payload,
-					entityName,
+					data: { [entityName]: payload },
 					categoryId,
 					organization,
 					username,

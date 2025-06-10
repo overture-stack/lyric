@@ -28,6 +28,38 @@ export const convertToTypedRecords = (dataRecords: Record<string, unknown>[], sc
 };
 
 /**
+ * Converts a collection of raw entity records into typed records
+ * using schema definitions to validate and transform the data.
+ * @param records A map of entity names to arrays of raw records. Each record is untyped and unvalidated.
+ * @param schemasDictionary A dictionary of schema definitions used to validate and convert each entity's records.
+ * @returns A map of entity names to `DataRecord[]` containing typed records.
+ */
+export const parseEditRecords = (
+	records: EntityData,
+	schemasDictionary: SchemasDictionary,
+): Record<string, DataRecord[]> => {
+	return Object.fromEntries(
+		Object.entries(records)
+			.map(([schemaName, dataRecords]) => {
+				const entitySchema = getSchemaByName(schemaName, schemasDictionary);
+				if (!entitySchema) {
+					// Entity name not found
+					return null;
+				}
+
+				const parsedRecords = convertToTypedRecords(dataRecords, entitySchema);
+				if (parsedRecords.length === 0) {
+					// No records for this entity
+					return null;
+				}
+
+				return [schemaName, parsedRecords];
+			})
+			.filter(isNotNull),
+	);
+};
+
+/**
  * Converts a collection of raw entity records into typed batches ready for insertion,
  * using schema definitions to validate and transform the data.
  * @param records A map of entity names to arrays of raw records. Each record is untyped and unvalidated.
