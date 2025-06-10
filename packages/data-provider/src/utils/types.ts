@@ -159,13 +159,6 @@ export type BatchError = {
 	batchName: string;
 };
 
-export interface ValidateFilesParams {
-	categoryId: number;
-	organization: string;
-	schema: Schema;
-	username: string;
-}
-
 export interface CommitSubmissionParams {
 	dataToValidate: {
 		inserts: NewSubmittedData[];
@@ -179,9 +172,11 @@ export interface CommitSubmissionParams {
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }
 
+export type EntityData = Record<string, DataRecord[]>;
+
 export type GroupedDataSubmission = {
 	submittedDataByEntityName: Record<string, Array<NewSubmittedData | SubmittedData>>;
-	schemaDataByEntityName: Record<string, DataRecord[]>;
+	schemaDataByEntityName: EntityData;
 };
 
 export type BooleanTrueObject = {

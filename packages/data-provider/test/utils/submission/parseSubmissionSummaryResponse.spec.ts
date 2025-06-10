@@ -1,10 +1,10 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { parseSubmissionSummaryResponse } from '../../../src/utils/submissionUtils.js';
+import { parseSubmissionSummaryResponse } from '../../../src/utils/submissionResponseParser.js';
 import { SUBMISSION_STATUS, type SubmissionSummaryRepository } from '../../../src/utils/types.js';
 
-describe('Submission Utils - Parse a Submission object to a Summary of the Active Submission', () => {
+describe('Parse a Submission object to a Summary of the Active Submission', () => {
 	const todaysDate = new Date();
 	it('should return a Summary without any data ', () => {
 		const SubmissionSummaryRepository: SubmissionSummaryRepository = {

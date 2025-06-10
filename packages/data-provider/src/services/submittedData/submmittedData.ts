@@ -8,7 +8,8 @@ import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelations.js';
-import { filterUpdatesFromDeletes, mergeDeleteRecords } from '../../utils/submissionUtils.js';
+import { mergeDeleteRecords } from '../../utils/mergeRecords.js';
+import { filterUpdatesFromDeletes } from '../../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
 	getEntityNamesFromFilterOptions,

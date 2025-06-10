@@ -3,7 +3,7 @@ import type { PgTransaction } from 'drizzle-orm/pg-core';
 import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
 import { and, count, eq, or } from 'drizzle-orm/sql';
 
-import { NewSubmission, Submission, submissions } from '@overture-stack/lyric-data-model/models';
+import { NewSubmission, Submission, type SubmissionData, submissions } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
@@ -13,6 +13,38 @@ import {
 	SUBMISSION_STATUS,
 	SubmissionSummaryRepository,
 } from '../utils/types.js';
+
+const mergeRecords = (existing: SubmissionData, incoming: SubmissionData) => {
+	const result = { ...existing };
+
+	if (incoming.inserts) {
+		result.inserts = result.inserts || {};
+
+		for (const entity in incoming.inserts) {
+			result.inserts[entity] = result.inserts[entity] || { records: [] };
+
+			const currentRecords = result.inserts[entity].records || [];
+			result.inserts[entity].records = [...currentRecords, ...incoming.inserts[entity].records];
+		}
+	}
+
+	// ['inserts', 'updates', 'deletes'].forEach((op) => {
+	// 	const opData = (incoming as any)[op];
+	// 	if (!opData) return;
+
+	// 	result[op]
+	// 	result[op] = result[op] || {};
+
+	// 	for (const entity in opData) {
+	// 		result[op][entity] = result[op][entity] || { records: [] };
+
+	// 		const currentRecords = result[op][entity].records || [];
+	// 		result[op][entity].records = [...currentRecords, ...opData[entity].records];
+	// 	}
+	// });
+
+	return result;
+};
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
@@ -112,6 +144,44 @@ const repository = (dependencies: BaseDependencies) => {
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed getting Submission with id '${submissionId}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Update a Submission record in database
+		 * @param {number} submissionId Submission ID to update
+		 * @param {Partial<Submission>} newData Set fields to update
+		 * @param tx The transaction to use for the operation, optional
+		 * @returns An updated record
+		 */
+		mergeSubmissionData: async (
+			submissionId: number,
+			inputData: SubmissionData,
+			tx?: PgTransaction<PostgresJsQueryResultHKT, Submission, ExtractTablesWithRelations<Submission>>,
+		): Promise<Submission> => {
+			try {
+				const currentSubmissionData = await (tx || db)
+					.select({ data: submissions.data })
+					.from(submissions)
+					.where(eq(submissions.id, submissionId))
+					.limit(1)
+					.then((rows) => rows[0]);
+
+				if (!currentSubmissionData) {
+					throw new Error('Submission not found');
+				}
+
+				const merged = mergeRecords(currentSubmissionData.data, inputData);
+
+				const resp = await (tx || db)
+					.update(submissions)
+					.set({ data: merged })
+					.where(eq(submissions.id, submissionId))
+					.returning();
+				return resp[0]; // This is your updated Submission
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed updating Active Submission`, error);
 				throw new ServiceUnavailable();
 			}
 		},

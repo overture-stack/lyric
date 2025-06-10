@@ -1,4 +1,5 @@
 import * as _ from 'lodash-es';
+import { getSchemaByName } from 'src/utils/dictionaryUtils.js';
 
 import { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
 import { type NewSubmission, Submission, type SubmissionUpdateData } from '@overture-stack/lyric-data-model/models';
@@ -10,15 +11,15 @@ import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
 import {
-	canTransitionToClosed,
-	parseSubmissionResponse,
+	parseSubmissionDetailsResponse,
 	parseSubmissionSummaryResponse,
-	removeItemsFromSubmission,
-} from '../../utils/submissionUtils.js';
+} from '../../utils/submissionResponseParser.js';
+import { canTransitionToClosed, removeItemsFromSubmission } from '../../utils/submissionUtils.js';
 import {
 	CommitSubmissionResult,
 	CREATE_SUBMISSION_STATUS,
 	type CreateSubmissionResult,
+	type EntityData,
 	type PaginationOptions,
 	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
@@ -289,7 +290,7 @@ const service = (dependencies: BaseDependencies) => {
 			return;
 		}
 
-		return parseSubmissionResponse(submission);
+		return parseSubmissionDetailsResponse(submission);
 	};
 
 	/**
@@ -363,37 +364,35 @@ const service = (dependencies: BaseDependencies) => {
 	/**
 	 * Validates and Creates the Entities Schemas of the Active Submission and stores it in the database
 	 * @param {object} params
-	 * @param {Record<string, unknown>[]} params.records An array of records
-	 * @param {string} params.entityName Entity Name of the Records
+	 * @param {EntityData} params.data Data to be processed
 	 * @param {number} params.categoryId Category ID of the Submission
 	 * @param {string} params.organization Organization name
 	 * @param {string} params.username User name creating the Submission
 	 * @returns The Active Submission created or Updated
 	 */
 	const submit = async ({
-		records,
-		entityName,
+		data,
 		categoryId,
 		organization,
 		username,
 	}: {
-		records: Record<string, unknown>[];
-		entityName: string;
+		data: EntityData;
 		categoryId: number;
 		organization: string;
 		username: string;
 	}): Promise<CreateSubmissionResult> => {
+		const entityNames = Object.keys(data);
 		logger.info(
 			LOG_MODULE,
-			`Processing '${records.length}' records on category id '${categoryId}' organization '${organization}'`,
+			`Processing '${entityNames.length}' entities on category id '${categoryId}' organization '${organization}'`,
 		);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { validateRecordsAsync } = processor(dependencies);
+		const { processInsertRecordsAsync } = processor(dependencies);
 
-		if (records.length === 0) {
+		if (entityNames.length === 0) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: 'No valid records for submission',
+				description: 'No valid data for submission',
 			};
 		}
 
@@ -413,23 +412,23 @@ const service = (dependencies: BaseDependencies) => {
 		};
 
 		// Validate entity name
-		const entitySchema = schemasDictionary.schemas.find((item) => item.name === entityName);
-		if (!entitySchema) {
+		const invalidEntities = entityNames.filter((name) => !getSchemaByName(name, schemasDictionary));
+		if (invalidEntities) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: `Invalid entity name ${entityName} for submission`,
+				description: `Invalid entity name ${invalidEntities} for submission`,
 			};
 		}
 
 		// Get Active Submission or Open a new one
 		const activeSubmission = await getOrCreateActiveSubmission({ categoryId, username, organization });
 
-		// Running Schema validation in the background do not need to wait
-		// Result of validations will be stored in database
-		validateRecordsAsync(records, {
-			categoryId,
-			organization,
-			schema: entitySchema,
+		// Schema validation runs asynchronously and does not block execution.
+		// The results will be saved to the database.
+		processInsertRecordsAsync({
+			records: data,
+			submissionId: activeSubmission.id,
+			schemasDictionary,
 			username,
 		});
 
