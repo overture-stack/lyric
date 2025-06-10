@@ -99,7 +99,7 @@ const controller = ({
 
 				logger.info(
 					LOG_MODULE,
-					`Request Delete '${entityName ? entityName : 'all'}' records on '{${actionType}}' Active Submission '${submissionId}'`,
+					`Request Delete '${entityName ? entityName : 'all'}' records on '${actionType}' Active Submission '${submissionId}'`,
 				);
 
 				const submission = await service.getSubmissionById(submissionId);

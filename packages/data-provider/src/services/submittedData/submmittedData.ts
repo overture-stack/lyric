@@ -1,9 +1,11 @@
 import * as _ from 'lodash-es';
 
 import type { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
+import type { SubmissionData } from '@overture-stack/lyric-data-model/models';
 import { SQON } from '@overture-stack/sqon-builder';
 
 import { BaseDependencies } from '../../config/config.js';
+import submissionRepository from '../../repository/activeSubmissionRepository.js';
 import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
@@ -55,6 +57,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		const { getSubmittedDataBySystemId } = submittedDataRepo;
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
+		const { update } = submissionRepository(dependencies);
 		const { performDataValidation } = processor(dependencies);
 
 		// get SubmittedData by SystemId
@@ -119,14 +122,22 @@ const submittedData = (dependencies: BaseDependencies) => {
 		// filter out update records found matching systemID on delete records
 		const filteredUpdates = filterUpdatesFromDeletes(activeSubmission.data.updates ?? {}, mergedSubmissionDeletes);
 
+		// Result merged submissionData
+		const mergedSubmissionData: SubmissionData = {
+			inserts: activeSubmission.data.inserts,
+			updates: filteredUpdates,
+			deletes: mergedSubmissionDeletes,
+		};
+
+		await update(activeSubmission.id, {
+			data: mergedSubmissionData,
+			updatedBy: username,
+		});
+
 		// Validate and update Active Submission
 		performDataValidation({
 			originalSubmission: activeSubmission,
-			submissionData: {
-				inserts: activeSubmission.data.inserts,
-				updates: filteredUpdates,
-				deletes: mergedSubmissionDeletes,
-			},
+			submissionData: mergedSubmissionData,
 			username,
 		});
 

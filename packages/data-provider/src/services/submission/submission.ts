@@ -188,7 +188,7 @@ const service = (dependencies: BaseDependencies) => {
 			index: number | null;
 		},
 	): Promise<Submission | undefined> => {
-		const { getSubmissionById } = submissionRepository(dependencies);
+		const { getSubmissionById, update } = submissionRepository(dependencies);
 
 		const submission = await getSubmissionById(submissionId);
 		if (!submission) {
@@ -221,6 +221,11 @@ const service = (dependencies: BaseDependencies) => {
 			...filter,
 		});
 
+		await update(submission.id, {
+			data: updatedActiveSubmissionData,
+			updatedBy: username,
+		});
+
 		const updatedRecord = await performDataValidation({
 			originalSubmission: submission,
 			submissionData: updatedActiveSubmissionData,
@@ -228,7 +233,6 @@ const service = (dependencies: BaseDependencies) => {
 		});
 
 		logger.info(LOG_MODULE, `Submission '${updatedRecord.id}' updated with new status '${updatedRecord.status}'`);
-
 		return updatedRecord;
 	};
 

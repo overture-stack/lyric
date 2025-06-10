@@ -600,8 +600,8 @@ const processor = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Store validation results for the active submission in the database
-	 * Submission data is not updated
+	 * Store validation results for the active submission in the database.
+	 * IMPORTANT: Submission data is not updated
 	 * @param {Object} input
 	 * @param {number} input.dictionaryId The Dictionary ID of the Submission
 	 * @param {number} input.idActiveSubmission ID of the Active Submission
