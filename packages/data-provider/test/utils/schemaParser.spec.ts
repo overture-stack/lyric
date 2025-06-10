@@ -3,9 +3,9 @@ import { describe, it } from 'mocha';
 
 import type { Schema } from '@overture-stack/lectern-client';
 
-import { parseToSchema } from '../../../src/utils/submissionUtils.js';
+import { getSchemaParser } from '../../src/utils/recordsParser.js';
 
-describe('Submission Utils - Parse sunprocessed record into a schema data type', () => {
+describe('Parse sunprocessed record into a schema data type', () => {
 	it('should parse a valid string as boolean', () => {
 		const unProcessedRecords = {
 			sport_id: '1',
@@ -52,7 +52,7 @@ describe('Submission Utils - Parse sunprocessed record into a schema data type',
 			],
 		};
 
-		const parser = parseToSchema(schema);
+		const parser = getSchemaParser(schema);
 		const parsedRecord = parser(unProcessedRecords);
 		expect(Object.keys(parsedRecord).length).to.eql(4);
 		expect(parsedRecord).to.eql({
@@ -108,7 +108,7 @@ describe('Submission Utils - Parse sunprocessed record into a schema data type',
 			],
 		};
 
-		const parser = parseToSchema(schema);
+		const parser = getSchemaParser(schema);
 		const parsedRecord = parser(unProcessedRecords);
 		expect(Object.keys(parsedRecord).length).to.eql(4);
 		expect(parsedRecord).to.eql({
@@ -164,7 +164,7 @@ describe('Submission Utils - Parse sunprocessed record into a schema data type',
 			],
 		};
 
-		const parser = parseToSchema(schema);
+		const parser = getSchemaParser(schema);
 		const parsedRecord = parser(unProcessedRecords);
 		expect(Object.keys(parsedRecord).length).to.eql(4);
 		expect(parsedRecord).to.eql({

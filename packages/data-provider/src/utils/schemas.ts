@@ -2,6 +2,7 @@ import type { ParamsDictionary } from 'express-serve-static-core';
 import type { ParsedQs } from 'qs';
 import { z } from 'zod';
 
+import type { DataRecord } from '@overture-stack/lectern-client';
 import type { SQON } from '@overture-stack/sqon-builder';
 
 import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js';
@@ -304,12 +305,22 @@ export interface uploadSubmissionRequestQueryParams extends ParsedQs {
 	organization: string;
 }
 
+const dataRecordValueSchema = z.union([
+	z.string(),
+	z.number(),
+	z.boolean(),
+	z.array(z.string()),
+	z.array(z.number()),
+	z.array(z.boolean()),
+	z.undefined(),
+]);
+
 export const uploadSubmissionRequestSchema: RequestValidation<
-	Array<Record<string, unknown>>,
+	Array<DataRecord>,
 	uploadSubmissionRequestQueryParams,
 	categoryPathParams
 > = {
-	body: z.record(z.unknown()).array(),
+	body: z.record(dataRecordValueSchema).array(),
 	pathParams: categoryPathParamsSchema,
 	query: z.object({
 		entityName: entityNameSchema,
@@ -337,11 +348,11 @@ export interface dataEditRequestSchemaQueryParams extends ParsedQs {
 }
 
 export const dataEditRequestSchema: RequestValidation<
-	Array<Record<string, unknown>>,
+	Array<DataRecord>,
 	dataEditRequestSchemaQueryParams,
 	categoryPathParams
 > = {
-	body: z.record(z.unknown()).array(),
+	body: z.record(dataRecordValueSchema).array(),
 	pathParams: categoryPathParamsSchema,
 	query: z.object({
 		entityName: entityNameSchema,

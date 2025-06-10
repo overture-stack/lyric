@@ -99,7 +99,7 @@ const controller = ({
 
 				logger.info(
 					LOG_MODULE,
-					`Request Delete '${entityName ? entityName : 'all'}' records on '{${actionType}}' Active Submission '${submissionId}'`,
+					`Request Delete '${entityName ? entityName : 'all'}' records on '${actionType}' Active Submission '${submissionId}'`,
 				);
 
 				const submission = await service.getSubmissionById(submissionId);
@@ -184,8 +184,7 @@ const controller = ({
 				const username = user?.username || '';
 
 				const editSubmittedDataResult = await dataService.editSubmittedData({
-					records: payload,
-					entityName,
+					data: { [entityName]: payload },
 					categoryId,
 					organization,
 					username,
@@ -312,8 +311,7 @@ const controller = ({
 				const username = user?.username || '';
 
 				const resultSubmission = await service.submit({
-					records: payload,
-					entityName,
+					data: { [entityName]: payload },
 					categoryId,
 					organization,
 					username,

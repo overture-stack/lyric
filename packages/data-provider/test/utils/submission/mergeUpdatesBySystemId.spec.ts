@@ -3,9 +3,9 @@ import { describe, it } from 'mocha';
 
 import type { SubmissionUpdateData } from '@overture-stack/lyric-data-model/models';
 
-import { mergeUpdatesBySystemId } from '../../../src/utils/submissionUtils.js';
+import { mergeUpdatesBySystemId } from '../../../src/utils/mergeRecords.js';
 
-describe('Submission Utils - Merge multiple Submission Update records', () => {
+describe('Merge multiple Submission Update records', () => {
 	it('should return an object with 2 recrods withing the same key', () => {
 		const update1: Record<string, SubmissionUpdateData[]> = {
 			animal: [{ systemId: 'GRL3839', new: { name: 'Gorilla' }, old: { name: 'alliroG' } }],

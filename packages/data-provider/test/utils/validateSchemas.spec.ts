@@ -9,9 +9,9 @@ import type {
 	SchemaRecordError,
 } from '@overture-stack/lectern-client';
 
-import { validateSchemas } from '../../../src/utils/submissionUtils.js';
+import { validateSchemas } from '../../src/utils/dictionaryUtils.js';
 
-describe('Submission Utils - Validate Data using a Dictionary', () => {
+describe('Validate Data using a Dictionary', () => {
 	const dictionary: SchemasDictionary & {
 		id: number;
 	} = {

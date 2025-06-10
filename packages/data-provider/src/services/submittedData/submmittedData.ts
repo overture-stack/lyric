@@ -1,14 +1,18 @@
 import * as _ from 'lodash-es';
 
 import type { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
+import type { SubmissionData } from '@overture-stack/lyric-data-model/models';
 import { SQON } from '@overture-stack/sqon-builder';
 
 import { BaseDependencies } from '../../config/config.js';
+import submissionRepository from '../../repository/activeSubmissionRepository.js';
 import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelations.js';
-import { filterUpdatesFromDeletes, mergeDeleteRecords } from '../../utils/submissionUtils.js';
+import { getSchemaByName } from '../../utils/dictionaryUtils.js';
+import { mergeDeleteRecords } from '../../utils/mergeRecords.js';
+import { filterUpdatesFromDeletes } from '../../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
 	getEntityNamesFromFilterOptions,
@@ -17,6 +21,7 @@ import {
 import {
 	CREATE_SUBMISSION_STATUS,
 	type CreateSubmissionStatus,
+	type EntityData,
 	PaginationOptions,
 	SubmittedDataResponse,
 	VIEW_TYPE,
@@ -52,6 +57,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		const { getSubmittedDataBySystemId } = submittedDataRepo;
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
+		const { update } = submissionRepository(dependencies);
 		const { performDataValidation } = processor(dependencies);
 
 		// get SubmittedData by SystemId
@@ -116,14 +122,22 @@ const submittedData = (dependencies: BaseDependencies) => {
 		// filter out update records found matching systemID on delete records
 		const filteredUpdates = filterUpdatesFromDeletes(activeSubmission.data.updates ?? {}, mergedSubmissionDeletes);
 
+		// Result merged submissionData
+		const mergedSubmissionData: SubmissionData = {
+			inserts: activeSubmission.data.inserts,
+			updates: filteredUpdates,
+			deletes: mergedSubmissionDeletes,
+		};
+
+		await update(activeSubmission.id, {
+			data: mergedSubmissionData,
+			updatedBy: username,
+		});
+
 		// Validate and update Active Submission
 		performDataValidation({
 			originalSubmission: activeSubmission,
-			submissionData: {
-				inserts: activeSubmission.data.inserts,
-				updates: filteredUpdates,
-				deletes: mergedSubmissionDeletes,
-			},
+			submissionData: mergedSubmissionData,
 			username,
 		});
 
@@ -139,33 +153,32 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 	const editSubmittedData = async ({
 		categoryId,
-		entityName,
+		data,
 		organization,
-		records,
 		username,
 	}: {
 		categoryId: number;
-		entityName: string;
+		data: EntityData;
 		organization: string;
-		records: Record<string, unknown>[];
 		username: string;
 	}): Promise<{
 		description?: string;
 		submissionId?: number;
 		status: string;
 	}> => {
+		const entityNames = Object.keys(data);
 		logger.info(
 			LOG_MODULE,
-			`Processing '${records.length}' records on category id '${categoryId}' organization '${organization}'`,
+			`Processing '${entityNames.length}' entities on category id '${categoryId}' organization '${organization}'`,
 		);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
 		const { processEditRecordsAsync } = processor(dependencies);
 
-		if (records.length === 0) {
+		if (entityNames.length === 0) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: 'No valid records for submission',
+				description: 'No valid data for submission',
 			};
 		}
 
@@ -185,11 +198,11 @@ const submittedData = (dependencies: BaseDependencies) => {
 		};
 
 		// Validate entity name
-		const entitySchema = schemasDictionary.schemas.find((item) => item.name === entityName);
-		if (!entitySchema) {
+		const invalidEntities = entityNames.filter((name) => !getSchemaByName(name, schemasDictionary));
+		if (invalidEntities.length) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: `Invalid entity name ${entityName} for submission`,
+				description: `Invalid entity name '${invalidEntities}' for submission`,
 			};
 		}
 
@@ -198,9 +211,9 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		// Running Schema validation in the background do not need to wait
 		// Result of validations will be stored in database
-		processEditRecordsAsync(records, {
-			submission: activeSubmission,
-			schema: entitySchema,
+		processEditRecordsAsync(data, {
+			submissionId: activeSubmission.id,
+			schemasDictionary,
 			username,
 		});
 

@@ -3,9 +3,9 @@ import { describe, it } from 'mocha';
 
 import type { SubmissionDeleteData } from '@overture-stack/lyric-data-model/models';
 
-import { mergeDeleteRecords } from '../../../src/utils/submissionUtils.js';
+import { mergeDeleteRecords } from '../../../src/utils/mergeRecords.js';
 
-describe('Submission Utils - Merge multiple Submission delete records', () => {
+describe('Merge multiple Submission delete records', () => {
 	it('should return an object with 2 records within the same key', () => {
 		const deletes1: Record<string, SubmissionDeleteData[]> = {
 			food: [
