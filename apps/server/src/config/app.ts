@@ -48,6 +48,9 @@ export const appConfig: AppConfig = {
 			pluralizeSchemasName: getBoolean(process.env.PLURALIZE_SCHEMAS_ENABLED, true),
 		},
 	},
+	files: {
+		limitSize: process.env.FILES_LIMIT_SIZE || '10mb',
+	},
 	idService: {
 		useLocal: getBoolean(process.env.ID_USELOCAL, true),
 		customAlphabet: process.env.ID_CUSTOM_ALPHABET || '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',

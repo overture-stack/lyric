@@ -2,7 +2,6 @@ import type { ParamsDictionary } from 'express-serve-static-core';
 import type { ParsedQs } from 'qs';
 import { z } from 'zod';
 
-import type { DataRecord } from '@overture-stack/lectern-client';
 import type { SQON } from '@overture-stack/sqon-builder';
 
 import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js';
@@ -301,29 +300,16 @@ export const submissionDeleteEntityNameRequestSchema: RequestValidation<
 };
 
 export interface uploadSubmissionRequestQueryParams extends ParsedQs {
-	entityName: string;
 	organization: string;
 }
 
-const dataRecordValueSchema = z.union([
-	z.string(),
-	z.number(),
-	z.boolean(),
-	z.array(z.string()),
-	z.array(z.number()),
-	z.array(z.boolean()),
-	z.undefined(),
-]);
-
 export const uploadSubmissionRequestSchema: RequestValidation<
-	Array<DataRecord>,
+	object,
 	uploadSubmissionRequestQueryParams,
 	categoryPathParams
 > = {
-	body: z.record(dataRecordValueSchema).array(),
 	pathParams: categoryPathParamsSchema,
 	query: z.object({
-		entityName: entityNameSchema,
 		organization: organizationSchema,
 	}),
 };
@@ -343,19 +329,12 @@ export const dataDeleteBySystemIdRequestSchema: RequestValidation<object, Parsed
 };
 
 export interface dataEditRequestSchemaQueryParams extends ParsedQs {
-	entityName: string;
 	organization: string;
 }
 
-export const dataEditRequestSchema: RequestValidation<
-	Array<DataRecord>,
-	dataEditRequestSchemaQueryParams,
-	categoryPathParams
-> = {
-	body: z.record(dataRecordValueSchema).array(),
+export const dataEditRequestSchema: RequestValidation<object, dataEditRequestSchemaQueryParams, categoryPathParams> = {
 	pathParams: categoryPathParamsSchema,
 	query: z.object({
-		entityName: entityNameSchema,
 		organization: organizationSchema,
 	}),
 };

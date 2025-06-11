@@ -544,6 +544,7 @@ const processor = (dependencies: BaseDependencies) => {
 				deletes: filteredDeletes,
 				updates: updatedActiveSubmissionData,
 			};
+
 			await update(activeSubmission.id, {
 				data: mergedSubmissionData,
 				updatedBy: username,

@@ -1,16 +1,27 @@
 import { json, Router, urlencoded } from 'express';
+import multer from 'multer';
 
-import { BaseDependencies } from '../config/config.js';
+import { BaseDependencies, FilesConfig } from '../config/config.js';
 import submissionController from '../controllers/submissionController.js';
 import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
+import { fileFilter } from '../middleware/fileFilter.js';
+import { getSizeInBytes } from '../utils/files.js';
 
 const router = ({
 	baseDependencies,
 	authConfig,
+	filesConfig,
 }: {
 	baseDependencies: BaseDependencies;
 	authConfig: AuthConfig;
+	filesConfig: FilesConfig;
 }): Router => {
+	const fileSizeLimit = getSizeInBytes(filesConfig.limitSize);
+	const upload = multer({
+		dest: '/tmp',
+		limits: { fileSize: fileSizeLimit },
+		fileFilter,
+	});
 	const router = Router();
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
@@ -59,6 +70,7 @@ const router = ({
 
 	router.post(
 		'/category/:categoryId/data',
+		upload.array('files'),
 		submissionController({
 			baseDependencies,
 			authConfig,
@@ -75,6 +87,7 @@ const router = ({
 
 	router.put(
 		`/category/:categoryId/data`,
+		upload.array('files'),
 		submissionController({
 			baseDependencies,
 			authConfig,
