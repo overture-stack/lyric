@@ -3,9 +3,9 @@ import { describe, it } from 'mocha';
 
 import type { SubmissionInsertData } from '@overture-stack/lyric-data-model/models';
 
-import { mergeInsertsRecords } from '../../../src/utils/submissionUtils.js';
+import { mergeInsertsRecords } from '../../../src/utils/mergeRecords.js';
 
-describe('Submission Utils - Merge multiple Submission insert records', () => {
+describe('Merge multiple Submission insert records', () => {
 	it('should return a record object with one key and merged array items', () => {
 		const obj1: Record<string, SubmissionInsertData> = {
 			sports: { batchName: 'sports.tsv', records: [{ title: 'footbal' }] },

@@ -52,7 +52,11 @@ const provider = (configData: AppConfig) => {
 			audit: auditRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 			category: categoryRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 			dictionary: dictionaryRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
-			submission: submissionRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
+			submission: submissionRouter({
+				baseDependencies: baseDeps,
+				authConfig: configData.auth,
+				filesConfig: configData.files,
+			}),
 			submittedData: submittedDataRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 		},
 		controllers: {

@@ -20,6 +20,10 @@ export type FeaturesConfig = {
 	recordHierarchy: RecordHierarchyConfig;
 };
 
+export type FilesConfig = {
+	limitSize: string;
+};
+
 export type SchemaServiceConfig = {
 	url: string;
 };
@@ -43,6 +47,7 @@ export type AppConfig = {
 	auth: AuthConfig;
 	db: DbConfig;
 	features?: FeaturesConfig;
+	files: FilesConfig;
 	idService: IdServiceConfig;
 	logger: LoggerConfig;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;

@@ -168,19 +168,26 @@
     summary: Add new data to a submission for the specified category. Returns an Active Submission containing the newly created records
     tags:
       - Submission
+    consumes:
+      - multipart/form-data
     parameters:
       - $ref: '#/components/parameters/path/CategoryId'
-      - $ref: '#/components/parameters/query/EntityName'
       - $ref: '#/components/parameters/query/Organization'
     requestBody:
-      description: The JSON payload containing the data to be added to the submission
+      description: Files to be submitted. Accepted file extensions are '.tsv' and '.csv'.
       required: true
       content:
-        application/json:
+        multipart/form-data:
           schema:
-            type: array
-            items:
-              type: object
+            type: object
+            properties:
+              files:
+                type: array
+                items:
+                  type: string
+                  format: binary
+            required:
+              - files
     responses:
       200:
         description: Submission accepted
@@ -200,19 +207,26 @@
     summary: Modifies existing data for a submission. Returns an Active Submission containing the records that will be updated
     tags:
       - Submission
+    consumes:
+      - multipart/form-data
     parameters:
       - $ref: '#/components/parameters/path/CategoryId'
-      - $ref: '#/components/parameters/query/EntityName'
       - $ref: '#/components/parameters/query/Organization'
     requestBody:
-      description: The JSON payload containing the data to be added to the submission
+      description: Files to be submitted. Accepted file extensions are '.tsv' and '.csv'.
       required: true
       content:
-        application/json:
+        multipart/form-data:
           schema:
-            type: array
-            items:
-              type: object
+            type: object
+            properties:
+              files:
+                type: array
+                items:
+                  type: string
+                  format: binary
+            required:
+              - files
     responses:
       200:
         description: Edit Data request accepted

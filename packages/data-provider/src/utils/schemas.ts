@@ -300,19 +300,16 @@ export const submissionDeleteEntityNameRequestSchema: RequestValidation<
 };
 
 export interface uploadSubmissionRequestQueryParams extends ParsedQs {
-	entityName: string;
 	organization: string;
 }
 
 export const uploadSubmissionRequestSchema: RequestValidation<
-	Array<Record<string, unknown>>,
+	object,
 	uploadSubmissionRequestQueryParams,
 	categoryPathParams
 > = {
-	body: z.record(z.unknown()).array(),
 	pathParams: categoryPathParamsSchema,
 	query: z.object({
-		entityName: entityNameSchema,
 		organization: organizationSchema,
 	}),
 };
@@ -332,19 +329,12 @@ export const dataDeleteBySystemIdRequestSchema: RequestValidation<object, Parsed
 };
 
 export interface dataEditRequestSchemaQueryParams extends ParsedQs {
-	entityName: string;
 	organization: string;
 }
 
-export const dataEditRequestSchema: RequestValidation<
-	Array<Record<string, unknown>>,
-	dataEditRequestSchemaQueryParams,
-	categoryPathParams
-> = {
-	body: z.record(z.unknown()).array(),
+export const dataEditRequestSchema: RequestValidation<object, dataEditRequestSchemaQueryParams, categoryPathParams> = {
 	pathParams: categoryPathParamsSchema,
 	query: z.object({
-		entityName: entityNameSchema,
 		organization: organizationSchema,
 	}),
 };

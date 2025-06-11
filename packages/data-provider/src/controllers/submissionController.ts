@@ -2,10 +2,13 @@ import { isEmpty } from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
 import { type AuthConfig, shouldBypassAuth } from '../middleware/auth.js';
+import categoryRepository from '../repository/categoryRepository.js';
 import submissionService from '../services/submission/submission.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
 import { hasUserWriteAccess } from '../utils/authUtils.js';
+import { getSchemaByName } from '../utils/dictionaryUtils.js';
 import { BadRequest, Forbidden, NotFound } from '../utils/errors.js';
+import { extractEntityNameFromFileName, parseFileToRecords, prevalidateDataFile } from '../utils/files.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
 	dataDeleteBySystemIdRequestSchema,
@@ -18,7 +21,13 @@ import {
 	submissionsByCategoryRequestSchema,
 	uploadSubmissionRequestSchema,
 } from '../utils/schemas.js';
-import { SUBMISSION_ACTION_TYPE } from '../utils/types.js';
+import {
+	BATCH_ERROR_TYPE,
+	type BatchError,
+	CREATE_SUBMISSION_STATUS,
+	type EntityData,
+	SUBMISSION_ACTION_TYPE,
+} from '../utils/types.js';
 
 const controller = ({
 	baseDependencies,
@@ -99,7 +108,7 @@ const controller = ({
 
 				logger.info(
 					LOG_MODULE,
-					`Request Delete '${entityName ? entityName : 'all'}' records on '{${actionType}}' Active Submission '${submissionId}'`,
+					`Request Delete '${entityName ? entityName : 'all'}' records on '${actionType}' Active Submission '${submissionId}'`,
 				);
 
 				const submission = await service.getSubmissionById(submissionId);
@@ -164,28 +173,75 @@ const controller = ({
 		editSubmittedData: validateRequest(dataEditRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				const entityName = req.query.entityName;
 				const organization = req.query.organization;
-				const payload = req.body;
+				const files = Array.isArray(req.files) ? req.files : [];
 				const user = req.user;
+				const username = user?.username || '';
 
-				logger.info(LOG_MODULE, `Request Edit Submitted Data`);
-
-				if (!payload || payload.length == 0) {
-					throw new BadRequest(
-						'The "payload" parameter is missing or empty. Please include the records in the request for processing.',
-					);
-				}
+				logger.info(
+					LOG_MODULE,
+					`Request Edit Submitted Data: categoryId '${categoryId}'`,
+					` organization '${organization}'`,
+					` files '${files.length}'`,
+				);
 
 				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(organization, user)) {
 					throw new Forbidden(`User is not authorized to edit data from '${organization}'`);
 				}
 
-				const username = user?.username || '';
+				const { getActiveDictionaryByCategory } = categoryRepository(baseDependencies);
+				const currentDictionary = await getActiveDictionaryByCategory(categoryId);
+				if (!currentDictionary) {
+					throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+				}
+
+				const fileErrors: BatchError[] = [];
+				const entityData: EntityData = {};
+
+				for (const file of files) {
+					try {
+						// Step 1 prevalidation: validate filename matches the schema name in the dictionary
+						const entityName = extractEntityNameFromFileName(file.originalname);
+						const schema = getSchemaByName(entityName, currentDictionary);
+						if (!schema || !entityName) {
+							fileErrors.push({
+								type: BATCH_ERROR_TYPE.INVALID_FILE_NAME,
+								message: `Invalid entity name for submission`,
+								batchName: file.originalname,
+							});
+							continue;
+						}
+
+						// Step 2 prevalidation: validate file extension is accepted and check required column names based on schema
+						const { error } = await prevalidateDataFile(file, schema, true);
+						if (error) {
+							fileErrors.push(error);
+							continue;
+						}
+
+						// Converts TSV/CSV file into a JSON object format
+						const extractedData = await parseFileToRecords(file, schema);
+						entityData[entityName] = extractedData;
+					} catch (error) {
+						logger.error(LOG_MODULE, `Error processing file`, error);
+					}
+				}
+
+				if (fileErrors.length > 0) {
+					logger.info(
+						LOG_MODULE,
+						'Submission could not be processed because some files contain errors',
+						JSON.stringify(fileErrors),
+					);
+					return res.status(200).send({
+						status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+						batchErrors: fileErrors,
+						inProcessEntities: [],
+					});
+				}
 
 				const editSubmittedDataResult = await dataService.editSubmittedData({
-					records: payload,
-					entityName,
+					data: entityData,
 					categoryId,
 					organization,
 					username,
@@ -287,40 +343,83 @@ const controller = ({
 		submit: validateRequest(uploadSubmissionRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				const entityName = req.query.entityName;
 				const organization = req.query.organization;
-				const payload = req.body;
+				const files = Array.isArray(req.files) ? req.files : [];
 				const user = req.user;
+				const username = user?.username || '';
 
 				logger.info(
 					LOG_MODULE,
 					`Submission Request: categoryId '${categoryId}'`,
 					` organization '${organization}'`,
-					` entityName '${entityName}'`,
+					` files '${files.length}'`,
 				);
-
-				if (!payload || payload.length == 0) {
-					throw new BadRequest(
-						'The "payload" parameter is missing or empty. Please include the records in the request for processing.',
-					);
-				}
 
 				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(organization, user)) {
 					throw new Forbidden(`User is not authorized to submit data to '${organization}'`);
 				}
 
-				const username = user?.username || '';
+				const { getActiveDictionaryByCategory } = categoryRepository(baseDependencies);
+				const currentDictionary = await getActiveDictionaryByCategory(categoryId);
+				if (!currentDictionary) {
+					throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+				}
 
+				const fileErrors: BatchError[] = [];
+				const entityData: EntityData = {};
+
+				for (const file of files) {
+					try {
+						// Step 1 prevalidation: validate filename matches the schema name in the dictionary
+						const entityName = extractEntityNameFromFileName(file.originalname);
+						const schema = getSchemaByName(entityName, currentDictionary);
+						if (!schema || !entityName) {
+							fileErrors.push({
+								type: BATCH_ERROR_TYPE.INVALID_FILE_NAME,
+								message: `Invalid entity name for submission`,
+								batchName: file.originalname,
+							});
+							continue;
+						}
+
+						// Step 2 prevalidation: validate file extension is accepted and check required column names based on schema
+						const { error } = await prevalidateDataFile(file, schema);
+						if (error) {
+							fileErrors.push(error);
+							continue;
+						}
+
+						// Converts TSV/CSV file into a JSON object format
+						const extractedData = await parseFileToRecords(file, schema);
+						entityData[entityName] = extractedData;
+					} catch (error) {
+						logger.error(LOG_MODULE, `Error processing file`, error);
+					}
+				}
+
+				if (fileErrors.length > 0) {
+					logger.info(LOG_MODULE, 'Submission could not be processed because some files contain errors', fileErrors);
+					return res.status(200).send({
+						status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+						batchErrors: fileErrors,
+						inProcessEntities: [],
+					});
+				}
+
+				// Send submission data, organized by entity.
 				const resultSubmission = await service.submit({
-					records: payload,
-					entityName,
+					data: entityData,
 					categoryId,
 					organization,
 					username,
 				});
 
-				// This response provides the details of data Submission
-				return res.status(200).send(resultSubmission);
+				// This response provides the details of file Submission
+				return res.status(200).send({
+					submissionId: resultSubmission.submissionId,
+					status: resultSubmission.status,
+					inProcessEntities: Object.keys(entityData),
+				});
 			} catch (error) {
 				next(error);
 			}
