@@ -80,9 +80,6 @@ importers:
       helmet:
         specifier: ^7.1.0
         version: 7.1.0
-      jszip:
-        specifier: ^3.10.1
-        version: 3.10.1
       swagger-jsdoc:
         specifier: ^6.2.8
         version: 6.2.8(openapi-types@12.1.3)
@@ -102,9 +99,6 @@ importers:
       '@types/express-serve-static-core':
         specifier: ^4.19.5
         version: 4.19.5
-      '@types/jszip':
-        specifier: ^3.4.1
-        version: 3.4.1
       '@types/qs':
         specifier: ^6.9.15
         version: 6.9.15
@@ -127,8 +121,8 @@ importers:
   packages/data-model:
     dependencies:
       '@overture-stack/lectern-client':
-        specifier: 2.0.0-beta.4
-        version: 2.0.0-beta.4
+        specifier: 2.0.0-beta.5
+        version: 2.0.0-beta.5
       copyfiles:
         specifier: ^2.4.1
         version: 2.4.1
@@ -161,8 +155,8 @@ importers:
   packages/data-provider:
     dependencies:
       '@overture-stack/lectern-client':
-        specifier: 2.0.0-beta.4
-        version: 2.0.0-beta.4
+        specifier: 2.0.0-beta.5
+        version: 2.0.0-beta.5
       '@overture-stack/lyric-data-model':
         specifier: workspace:^
         version: link:../data-model
@@ -178,6 +172,9 @@ importers:
       express:
         specifier: ^4.19.2
         version: 4.19.2
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.1
       lodash-es:
         specifier: ^4.17.21
         version: 4.17.21
@@ -209,6 +206,9 @@ importers:
       '@types/express-serve-static-core':
         specifier: ^4.19.5
         version: 4.19.5
+      '@types/jszip':
+        specifier: ^3.4.1
+        version: 3.4.1
       '@types/lodash':
         specifier: ^4.17.7
         version: 4.17.7
@@ -754,11 +754,20 @@ packages:
   '@overture-stack/lectern-client@2.0.0-beta.4':
     resolution: {integrity: sha512-liWphdJFLWVZKdN+SzA+KMMeLm9/qKk2xYFhv4u+desH7HhyrxielKWnbVlIITbBCIff2xUQ453CxS4Tlx546g==}
 
+  '@overture-stack/lectern-client@2.0.0-beta.5':
+    resolution: {integrity: sha512-dm5QRs+52uX+XwELgSWHosN8J/G8vGqSib09hCw3m6XHZo7Cjg8cQJQN89znFJiw0lCgJSAXgxyBS3imyrbWmw==}
+
   '@overture-stack/lectern-dictionary@2.0.0-beta.4':
     resolution: {integrity: sha512-CCh38L/7lKk7yVqMAhBEsErHS3l0yddjBhaNJH1uZFJ8UJmFK3wpHH8erV+axumDN2vZJBG9SyZNAoISqaarsQ==}
 
+  '@overture-stack/lectern-dictionary@2.0.0-beta.5':
+    resolution: {integrity: sha512-enAB6FUaYXR/nsp7x90xk0/krEzzqMRDlA17qzXiPxDsIXTeSBd20C5AKwFEsgVk8Y4+eU3TICIDU5dzpz2x3g==}
+
   '@overture-stack/lectern-validation@2.0.0-beta.4':
     resolution: {integrity: sha512-uTbyEgOPR4f3Z5eOQ4SHHdJR9tmMzMH3JWFtJkn3uRO6MsCnF6Jn5Fal2C2FWOabd814QBYyGxg3721U6HabxQ==}
+
+  '@overture-stack/lectern-validation@2.0.0-beta.5':
+    resolution: {integrity: sha512-DGi+Yo6WAmrt5AR9wdUvLNkwIpQzXwg2V2TgwvXi8HP6+brCRpU2xzGYoksJmrIzxLEmUo0xKnTS2IJlTY3I+A==}
 
   '@overture-stack/sqon-builder@1.1.0':
     resolution: {integrity: sha512-HpxJBbhN2FIIpSKOHoezua7/2by9S7qpnuaG5qgpm69nLUX0KnW2fwGVELJ3PMW1DpU8qg74kASozUnST0F+cQ==}
@@ -2964,7 +2973,24 @@ snapshots:
     transitivePeerDependencies:
       - debug
 
+  '@overture-stack/lectern-client@2.0.0-beta.5':
+    dependencies:
+      '@overture-stack/lectern-dictionary': 2.0.0-beta.5
+      '@overture-stack/lectern-validation': 2.0.0-beta.5
+      axios: 1.9.0
+      cd: 0.3.3
+      lodash: 4.17.21
+      zod: 3.23.8
+    transitivePeerDependencies:
+      - debug
+
   '@overture-stack/lectern-dictionary@2.0.0-beta.4':
+    dependencies:
+      immer: 10.1.1
+      lodash: 4.17.21
+      zod: 3.23.8
+
+  '@overture-stack/lectern-dictionary@2.0.0-beta.5':
     dependencies:
       immer: 10.1.1
       lodash: 4.17.21
@@ -2973,6 +2999,12 @@ snapshots:
   '@overture-stack/lectern-validation@2.0.0-beta.4':
     dependencies:
       '@overture-stack/lectern-dictionary': 2.0.0-beta.4
+      lodash: 4.17.21
+      zod: 3.23.8
+
+  '@overture-stack/lectern-validation@2.0.0-beta.5':
+    dependencies:
+      '@overture-stack/lectern-dictionary': 2.0.0-beta.5
       lodash: 4.17.21
       zod: 3.23.8
 
