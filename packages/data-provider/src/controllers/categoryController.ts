@@ -3,7 +3,7 @@ import JSZip from 'jszip';
 import dictionaryService from 'src/services/dictionaryService.js';
 
 import { createDataFileTemplate } from '@overture-stack/lectern-client';
-import { replaceReferences, separatedValueFileTypeSchema } from '@overture-stack/lectern-dictionary';
+import { replaceReferences } from '@overture-stack/lectern-dictionary';
 
 import { BaseDependencies } from '../config/config.js';
 import categorySvc from '../services/categoryService.js';
@@ -76,11 +76,7 @@ const controller = (dependencies: BaseDependencies) => {
 				}
 			},
 		),
-		getDictionaryJson: async (
-			req: Request<{ dictId: number; schemaName: string }, {}, {}, {}>,
-			res: Response,
-			next: NextFunction,
-		) => {
+		getDictionaryJson: async (req: Request, res: Response, next: NextFunction) => {
 			try {
 				const { dictId, schemaName } = req.params;
 
@@ -91,10 +87,16 @@ const controller = (dependencies: BaseDependencies) => {
 					throw new BadRequest('Request is missing `schemaName` parameter.');
 				}
 
-				const dictionary = await service.getOneById(dictId);
+				const numericDictId = parseInt(dictId, 10);
+
+				if (isNaN(numericDictId)) {
+					throw new BadRequest("'dictId' must be a valid number");
+				}
+
+				const dictionary = await service.getOneById(numericDictId);
 				const formattedDictionary = replaceReferences(dictionary);
 
-				const schema = formattedDictionary.schemas.find((schema) => schema.name === schemaName);
+				const schema = formattedDictionary.schemas.find((schema: { name: string }) => schema.name === schemaName);
 
 				if (!schema) {
 					throw new NotFound(

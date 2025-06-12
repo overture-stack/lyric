@@ -2,6 +2,7 @@ import type { ParamsDictionary } from 'express-serve-static-core';
 import type { ParsedQs } from 'qs';
 import { z } from 'zod';
 
+import { DictionaryBase } from '@overture-stack/lectern-dictionary';
 import type { SQON } from '@overture-stack/sqon-builder';
 
 import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js';
@@ -436,3 +437,21 @@ export const downloadDataFileTemplatesSchema = {
 		fileType: z.enum(['csv', 'tsv']).optional(),
 	}),
 };
+
+/**
+ * A Dictionary stored in the DB is represented as a document and gets an `_id` property
+ */
+export const DictionaryDocument = DictionaryBase.extend({
+	_id: z.string(),
+	createdAt: z.string(),
+	updatedAt: z.string(),
+});
+export type DictionaryDocument = z.infer<typeof DictionaryDocument>;
+
+export const DictionaryDocumentSummary = DictionaryDocument.pick({
+	name: true,
+	version: true,
+	description: true,
+	_id: true,
+});
+export type DictionaryDocumentSummary = z.infer<typeof DictionaryDocumentSummary>;

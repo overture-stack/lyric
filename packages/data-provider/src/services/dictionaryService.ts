@@ -1,4 +1,5 @@
 import { isEmpty } from 'lodash-es';
+import { DictionaryDocument } from 'src/utils/schemas.js';
 
 import { Dictionary as SchemasDictionary, Schema } from '@overture-stack/lectern-client';
 import { Category, Dictionary, NewCategory, NewDictionary } from '@overture-stack/lyric-data-model/models';
@@ -178,7 +179,13 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			return { dictionary: savedDictionary, category: savedCategory };
 		}
 	};
-	return { createDictionaryIfDoesNotExist, fetchDictionaryByVersion, getActiveDictionaryByCategory, register };
+	return {
+		createDictionaryIfDoesNotExist,
+		fetchDictionaryByVersion,
+		getActiveDictionaryByCategory,
+		register,
+		getOneById,
+	};
 };
 
 export default dictionaryService;
