@@ -3,12 +3,13 @@ import JSZip from 'jszip';
 import dictionaryService from 'src/services/dictionaryService.js';
 
 import { createDataFileTemplate } from '@overture-stack/lectern-client';
+import { replaceReferences, separatedValueFileTypeSchema } from '@overture-stack/lectern-dictionary';
 
 import { BaseDependencies } from '../config/config.js';
 import categorySvc from '../services/categoryService.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
-import { cagegoryDetailsRequestSchema } from '../utils/schemas.js';
+import { cagegoryDetailsRequestSchema, downloadDataFileTemplatesSchema } from '../utils/schemas.js';
 
 const controller = (dependencies: BaseDependencies) => {
 	const categoryService = categorySvc(dependencies);
@@ -42,51 +43,41 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		},
-		downloadDataFileTemplates: async (
-			req: Request<{}, {}, {}, { name: string; version: string; fileType?: string }>,
-			res: Response,
-			next: NextFunction,
-		) => {
-			try {
-				const { name, version, fileType: fileTypeRaw } = req.query;
 
-				if (!name || !version) {
-					throw new BadRequest('Missing dictionary name or version in query.');
+		downloadDataFileTemplates: validateRequest(
+			downloadDataFileTemplatesSchema,
+			async (req: Request, res: Response, next: NextFunction) => {
+				try {
+					const { name, version, fileType } = downloadDataFileTemplatesSchema.query.parse(req.query);
+
+					const dictionary = replaceReferences(await service.fetchDictionaryByVersion(name, version));
+
+					if (!dictionary) {
+						throw new NotFound(`Dictionary with name "${name}" and version "${version}" not found.`);
+					}
+
+					const zip = new JSZip();
+					for (const schema of dictionary.schemas || []) {
+						const template = createDataFileTemplate(schema, fileType ? { fileType } : undefined);
+						zip.file(template.fileName, template.content);
+					}
+
+					const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
+
+					res.set({
+						'Content-Disposition': `attachment; filename=${name}_${version}_templates.zip`,
+						'Content-Type': 'application/zip',
+					});
+
+					return res.status(200).send(zipContent);
+				} catch (error) {
+					logger.error(LOG_MODULE, 'Error generating dictionary templates', error);
+					next(error);
 				}
-
-				const fileTypeQueryParse = separatedValueFileTypeSchema.optional().safeParse(fileTypeRaw);
-				if (!fileTypeQueryParse.success) {
-					throw new BadRequest('Invalid fileType requested.');
-				}
-
-				const fileType = fileTypeQueryParse.data;
-				const dictionary = replaceReferences(await service.fetchDictionaryByVersion(name, version));
-
-				if (!dictionary) {
-					throw new NotFound(`Dictionary with name "${name}" and version "${version}" not found.`);
-				}
-
-				const zip = new JSZip();
-				for (const schema of dictionary.schemas || []) {
-					const template = createDataFileTemplate(schema, fileType ? { fileType } : undefined);
-					zip.file(template.fileName, template.content);
-				}
-
-				const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
-
-				res.set({
-					'Content-Disposition': `attachment; filename=${name}_${version}_templates.zip`,
-					'Content-Type': 'application/zip',
-				});
-
-				return res.status(200).send(zipContent);
-			} catch (error) {
-				logger.error(LOG_MODULE, 'Error generating dictionary templates', error);
-				next(error);
-			}
-		},
+			},
+		),
 		getDictionaryJson: async (
-			req: Request<{ dictId: string; schemaName: string }, {}, {}, {}>,
+			req: Request<{ dictId: number; schemaName: string }, {}, {}, {}>,
 			res: Response,
 			next: NextFunction,
 		) => {

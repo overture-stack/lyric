@@ -89,6 +89,34 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		return dictionary;
 	};
 
+	/**
+	 * Return a single dictionary by id
+	 * @param id id of the Dictionary
+	 * @returns Dictionary matching the provided ID
+	 * @throws NotFoundError if ID is not found
+	 */
+	const getOneById = async (dictionaryId: number): Promise<DictionaryDocument> => {
+		logger.debug(`Finding dictionary by ID: ${dictionaryId}`);
+		try {
+			const dictionaryRepo = dictionaryRepository(dependencies);
+			const dict = await dictionaryRepo.getDictionaryById(dictionaryId);
+
+			if (dict == undefined) {
+				logger.debug(`Unable to find dictionary by ID: ${dictionaryId}`);
+				throw new Error(`Cannot find`);
+			}
+			return dict;
+		} catch (e) {
+			if (e instanceof Error && e.name === 'CastError') {
+				// Handle case where provided id is not matching the mongoDB _id format
+				logger.error(`Mongoose CastError thrown while searching for Dictionary by ID: ${dictionaryId}`, e);
+				throw new Error(`Cannot find dictionary with id '${dictionaryId}'`);
+			}
+			// Something unknown occurred, throw as usual:
+			throw e;
+		}
+	};
+
 	const register = async ({
 		categoryName,
 		dictionaryName,

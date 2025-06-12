@@ -428,3 +428,11 @@ export const dataGetBySystemIdRequestSchema: RequestValidation<
 		categoryId: categoryIdSchema,
 	}),
 };
+
+export const downloadDataFileTemplatesSchema = {
+	query: z.object({
+		name: z.string().min(1, { message: 'name is required' }),
+		version: z.string().min(1, { message: 'version is required' }),
+		fileType: z.enum(['csv', 'tsv']).optional(),
+	}),
+};
