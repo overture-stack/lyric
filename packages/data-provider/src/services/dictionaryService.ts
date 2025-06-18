@@ -1,6 +1,4 @@
 import { isEmpty } from 'lodash-es';
-import { DictionaryDocument } from 'src/utils/schemas.js';
-
 import { Dictionary as SchemasDictionary, Schema } from '@overture-stack/lectern-client';
 import { Category, Dictionary, NewCategory, NewDictionary } from '@overture-stack/lyric-data-model/models';
 
@@ -96,7 +94,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 	 * @returns Dictionary matching the provided ID
 	 * @throws NotFoundError if ID is not found
 	 */
-	const getOneById = async (dictionaryId: number): Promise<DictionaryDocument> => {
+	const getOneById = async (dictionaryId: number): Promise<SchemasDictionary> => {
 		logger.debug(`Finding dictionary by ID: ${dictionaryId}`);
 		try {
 			const dictionaryRepo = dictionaryRepository(dependencies);
