@@ -3,6 +3,16 @@ import { Dictionary as SchemasDictionary, type Schema } from '@overture-stack/le
 import type { FieldNamesByPriorityMap } from './types.js';
 
 /**
+ * Retrieves a schema definition by its name from the provided schemas dictionary.
+ * @param schemaName The name of the schema to look up.
+ * @param schemasDictionary The dictionary containing all available schemas.
+ * @returns The matching schema if found, otherwise `undefined`
+ */
+export const getSchemaByName = (schemaName: string, schemasDictionary: SchemasDictionary): Schema | undefined => {
+	return schemasDictionary.schemas.find((schema) => schema.name === schemaName);
+};
+
+/**
  * Get Fields from Schema
  * @param {Schema} schema Schema object
  * @returns The arrays of requied and options fields from the schema
