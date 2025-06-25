@@ -3,7 +3,6 @@ import JSZip from 'jszip';
 import dictionaryService from 'src/services/dictionaryService.js';
 
 import { createDataFileTemplate } from '@overture-stack/lectern-client';
-import { replaceReferences } from '@overture-stack/lectern-dictionary';
 
 import { BaseDependencies } from '../config/config.js';
 import categorySvc from '../services/categoryService.js';
@@ -50,7 +49,7 @@ const controller = (dependencies: BaseDependencies) => {
 				try {
 					const { name, version, fileType } = downloadDataFileTemplatesSchema.query.parse(req.query);
 
-					const dictionary = replaceReferences(await service.fetchDictionaryByVersion(name, version));
+					const dictionary = await service.fetchDictionaryByVersion(name, version);
 
 					if (!dictionary) {
 						throw new NotFound(`Dictionary with name "${name}" and version "${version}" not found.`);
@@ -94,7 +93,7 @@ const controller = (dependencies: BaseDependencies) => {
 				}
 
 				const dictionary = await service.getOneById(numericDictId);
-				const formattedDictionary = replaceReferences(dictionary);
+				const formattedDictionary = await service.fetchDictionaryByVersion(dictionary.name, dictionary.version);
 
 				const schema = formattedDictionary.schemas.find((schema: { name: string }) => schema.name === schemaName);
 

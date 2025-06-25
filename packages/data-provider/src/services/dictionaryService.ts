@@ -94,7 +94,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 	 * @returns Dictionary matching the provided ID
 	 * @throws NotFoundError if ID is not found
 	 */
-	const getOneById = async (dictionaryId: number): Promise<SchemasDictionary> => {
+	const getOneById = async (dictionaryId: number): Promise<Dictionary> => {
 		logger.debug(`Finding dictionary by ID: ${dictionaryId}`);
 		try {
 			const dictionaryRepo = dictionaryRepository(dependencies);
