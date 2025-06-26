@@ -11,9 +11,6 @@ importers:
       '@types/chai':
         specifier: ^4.3.16
         version: 4.3.16
-      '@types/jszip':
-        specifier: ^3.4.1
-        version: 3.4.1
       '@types/mocha':
         specifier: ^10.0.7
         version: 10.0.7
@@ -751,20 +748,11 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@overture-stack/lectern-client@2.0.0-beta.4':
-    resolution: {integrity: sha512-liWphdJFLWVZKdN+SzA+KMMeLm9/qKk2xYFhv4u+desH7HhyrxielKWnbVlIITbBCIff2xUQ453CxS4Tlx546g==}
-
   '@overture-stack/lectern-client@2.0.0-beta.5':
     resolution: {integrity: sha512-dm5QRs+52uX+XwELgSWHosN8J/G8vGqSib09hCw3m6XHZo7Cjg8cQJQN89znFJiw0lCgJSAXgxyBS3imyrbWmw==}
 
-  '@overture-stack/lectern-dictionary@2.0.0-beta.4':
-    resolution: {integrity: sha512-CCh38L/7lKk7yVqMAhBEsErHS3l0yddjBhaNJH1uZFJ8UJmFK3wpHH8erV+axumDN2vZJBG9SyZNAoISqaarsQ==}
-
   '@overture-stack/lectern-dictionary@2.0.0-beta.5':
     resolution: {integrity: sha512-enAB6FUaYXR/nsp7x90xk0/krEzzqMRDlA17qzXiPxDsIXTeSBd20C5AKwFEsgVk8Y4+eU3TICIDU5dzpz2x3g==}
-
-  '@overture-stack/lectern-validation@2.0.0-beta.4':
-    resolution: {integrity: sha512-uTbyEgOPR4f3Z5eOQ4SHHdJR9tmMzMH3JWFtJkn3uRO6MsCnF6Jn5Fal2C2FWOabd814QBYyGxg3721U6HabxQ==}
 
   '@overture-stack/lectern-validation@2.0.0-beta.5':
     resolution: {integrity: sha512-DGi+Yo6WAmrt5AR9wdUvLNkwIpQzXwg2V2TgwvXi8HP6+brCRpU2xzGYoksJmrIzxLEmUo0xKnTS2IJlTY3I+A==}
@@ -2962,17 +2950,6 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.17.1
 
-  '@overture-stack/lectern-client@2.0.0-beta.4':
-    dependencies:
-      '@overture-stack/lectern-dictionary': 2.0.0-beta.4
-      '@overture-stack/lectern-validation': 2.0.0-beta.4
-      axios: 1.9.0
-      cd: 0.3.3
-      lodash: 4.17.21
-      zod: 3.23.8
-    transitivePeerDependencies:
-      - debug
-
   '@overture-stack/lectern-client@2.0.0-beta.5':
     dependencies:
       '@overture-stack/lectern-dictionary': 2.0.0-beta.5
@@ -2984,21 +2961,9 @@ snapshots:
     transitivePeerDependencies:
       - debug
 
-  '@overture-stack/lectern-dictionary@2.0.0-beta.4':
-    dependencies:
-      immer: 10.1.1
-      lodash: 4.17.21
-      zod: 3.23.8
-
   '@overture-stack/lectern-dictionary@2.0.0-beta.5':
     dependencies:
       immer: 10.1.1
-      lodash: 4.17.21
-      zod: 3.23.8
-
-  '@overture-stack/lectern-validation@2.0.0-beta.4':
-    dependencies:
-      '@overture-stack/lectern-dictionary': 2.0.0-beta.4
       lodash: 4.17.21
       zod: 3.23.8
 

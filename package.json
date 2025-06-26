@@ -35,8 +35,7 @@
 		"sinon": "^18.0.0",
 		"tsx": "^4.16.2",
 		"typescript": "^5.5.3",
-		"typescript-eslint": "^7.16.1",
-		"@types/jszip": "^3.4.1"
+		"typescript-eslint": "^7.16.1"
 	},
 	"type": "module"
 }
