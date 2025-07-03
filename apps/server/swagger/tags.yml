@@ -13,3 +13,5 @@ tags:
     description: Test reachability
   - name: Submission
     description: Create, View, Edit and Commit a Submission. A Submission represents a collection of data that is staged for validation before finalization
+  - name: Validator
+    description: Operations related to validating records against existing data. This includes checking if a record exists based on category, organization, entity, and value

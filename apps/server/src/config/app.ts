@@ -1,7 +1,6 @@
 import 'dotenv/config';
 
-import { AppConfig } from '@overture-stack/lyric';
-import type { ValidatorEntry } from '@overture-stack/lyric/dist/src/config/config.js';
+import { type AppConfig, type ValidatorEntry } from '@overture-stack/lyric';
 
 export const getServerConfig = () => {
 	return {

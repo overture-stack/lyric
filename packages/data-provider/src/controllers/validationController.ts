@@ -1,6 +1,6 @@
 import { BaseDependencies, type ValidatorConfig } from '../config/config.js';
 import validationService from '../services/validationService.js';
-import { BadRequest } from '../utils/errors.js';
+import { BadRequest, NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import { validationRequestSchema } from '../utils/schemas.js';
 import { findValidatorEntry } from '../utils/validator.js';
@@ -17,7 +17,7 @@ const controller = ({
 	const validationSvc = validationService(baseDependencies);
 
 	return {
-		validateRecord: validateRequest(validationRequestSchema, async (req, res, next) => {
+		existsRecord: validateRequest(validationRequestSchema, async (req, res, next) => {
 			try {
 				const { categoryId, entityName } = req.params;
 				const { organization, value } = req.query;
@@ -40,7 +40,7 @@ const controller = ({
 					);
 				}
 
-				const isValid = await validationSvc.validateRecord({
+				const isValid = await validationSvc.existsRecord({
 					categoryId: Number(categoryId),
 					entityName,
 					field: validatorEntry.fieldName,
@@ -49,11 +49,11 @@ const controller = ({
 				});
 
 				if (!isValid) {
-					throw new BadRequest('The specified value was not found.');
+					throw new NotFound('The specified value was not found.');
 				}
 
 				return res.status(200).send({
-					message: 'Validation passed',
+					message: 'Record found',
 				});
 			} catch (error) {
 				next(error);

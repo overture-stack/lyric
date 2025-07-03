@@ -1,8 +1,8 @@
-/validator/{categoryId}/{entityName}:
+/validator/category/{categoryId}/entity/{entityName}/exists:
   get:
-    summary: Validate a record based on category, organization, entity, and value
+    summary: Check if a record exists based on category, organization, entity, and value
     tags:
-      - Validation
+      - Validator
     parameters:
       - $ref: '#/components/parameters/path/CategoryId'
       - $ref: '#/components/parameters/path/EntityName'
@@ -10,7 +10,7 @@
       - $ref: '#/components/parameters/query/Value'
     responses:
       200:
-        description: Validation successful
+        description: Record exists
         content:
           application/json:
             schema:
@@ -18,7 +18,7 @@
               properties:
                 message:
                   type: string
-                  example: Validation passed
+                  example: Record found
       400:
         $ref: '#/components/responses/BadRequest'
       404:

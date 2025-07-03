@@ -19,7 +19,10 @@ const router = ({
 
 	router.use(authMiddleware(authConfig));
 
-	router.get('/:categoryId/:entityName', validationController({ baseDependencies, validatorConfig }).validateRecord);
+	router.get(
+		'/category/:categoryId/entity/:entityName/exists',
+		validationController({ baseDependencies, validatorConfig }).existsRecord,
+	);
 
 	return router;
 };

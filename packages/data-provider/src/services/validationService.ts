@@ -9,11 +9,11 @@ const validationService = (dependencies: BaseDependencies) => {
 
 	return {
 		/**
-		 * Validates whether a specific record exists in the database based on the given criteria.
+		 * Checks whether a specific record exists in the database based on the given criteria.
 		 * @param param0
 		 * @returns A promise that resolves to `true` if the record exists, or `false` if not.
 		 */
-		validateRecord: async ({
+		existsRecord: async ({
 			categoryId,
 			entityName,
 			field,
