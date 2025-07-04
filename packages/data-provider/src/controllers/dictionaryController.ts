@@ -49,7 +49,7 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		}),
-		downloadDataFileTemplates: validateRequest(downloadDataFileTemplatesSchema, async (req: Request, res, next) => {
+		downloadDataFileTemplates: validateRequest(downloadDataFileTemplatesSchema, async (req, res, next) => {
 			try {
 				const { name, version, fileType } = downloadDataFileTemplatesSchema.query.parse(req.query);
 
