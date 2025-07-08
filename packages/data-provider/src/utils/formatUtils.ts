@@ -115,10 +115,6 @@ export const deepCompare = (obj1: unknown, obj2: unknown): boolean => {
 	return true;
 };
 
-export const isNotNull = <T>(value: T): value is Exclude<T, null> => {
-	return value !== null;
-};
-
 // Helper function to check if an object is a plain object
 function isObject(obj: unknown): obj is Record<string, unknown> {
 	return typeof obj === 'object' && obj !== null && !Array.isArray(obj);

@@ -29,7 +29,7 @@ describe('parseRecordsToInsert', () => {
 			},
 		],
 	};
-	it('should build insert records correctly for valid input', () => {
+	it('should convert a collection of raw entity records into typed batches ready for insertion', () => {
 		const records: EntityData = {
 			user: [
 				{ id: '1', name: 'Alice', birthYear: '2000', hasAllergies: 'false' },

@@ -6,7 +6,6 @@ import {
 	convertRecordToString,
 	isArrayWithValues,
 	isEmptyString,
-	isNotNull,
 	isValidDateFormat,
 	isValidIdNumber,
 	notEmpty,
@@ -199,21 +198,6 @@ describe('Format Utils', () => {
 			const invalidNumber = Number.MAX_VALUE + 1;
 			const response = isValidIdNumber(invalidNumber);
 			expect(response).to.be.false;
-		});
-	});
-
-	describe('Not null value', () => {
-		it('should return true for non-null values', () => {
-			expect(isNotNull('string')).to.be.true;
-			expect(isNotNull(42)).to.be.true;
-			expect(isNotNull(false)).to.be.true;
-			expect(isNotNull([])).to.be.true;
-			expect(isNotNull({})).to.be.true;
-			expect(isNotNull(undefined)).to.be.true; // still returns true (not null)
-		});
-
-		it('should return false for null', () => {
-			expect(isNotNull(null)).to.be.false;
 		});
 	});
 
