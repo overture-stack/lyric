@@ -1,4 +1,4 @@
-import type { ValidatorConfig } from '../config/config.js';
+import type { ValidatorConfig, ValidatorEntry } from '../config/config.js';
 
 /**
  * Finds a matching validator configuration entry based on the provided 'categoryId' and 'entityName
@@ -16,7 +16,7 @@ export const findValidatorEntry = ({
 	validatorConfig: ValidatorConfig;
 	categoryId: string;
 	entityName: string;
-}) => {
+}): ValidatorEntry | undefined => {
 	return validatorConfig.find(
 		(config) => config.categoryId.toString() === categoryId.toString() && config.entityName === entityName,
 	);

@@ -1,6 +1,8 @@
+import SQONBuilder from '@overture-stack/sqon-builder';
+
 import { BaseDependencies } from '../config/config.js';
 import submittedRepository from '../repository/submittedRepository.js';
-import { convertSqonToQuery, parseSQON } from '../utils/convertSqonToQuery.js';
+import { convertSqonToQuery } from '../utils/convertSqonToQuery.js';
 
 const validationService = (dependencies: BaseDependencies) => {
 	const { logger } = dependencies;
@@ -29,15 +31,11 @@ const validationService = (dependencies: BaseDependencies) => {
 			const { getTotalRecordsByCategoryIdAndOrganization } = submittedDataRepo;
 
 			try {
-				const filterSqon = convertSqonToQuery(
-					parseSQON({
-						op: 'in',
-						content: { fieldName: field, value: [value] },
-					}),
-				);
+				const sqonFilter = SQONBuilder.default.in(field, value);
+				const sqlFilter = convertSqonToQuery(sqonFilter);
 
 				const totalRecords = await getTotalRecordsByCategoryIdAndOrganization(categoryId, organization, {
-					sql: filterSqon,
+					sql: sqlFilter,
 					entityNames: [entityName],
 				});
 
