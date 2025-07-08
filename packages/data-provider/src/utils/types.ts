@@ -179,6 +179,8 @@ export interface CommitSubmissionParams {
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }
 
+export type EntityData = Record<string, DataRecord[]>;
+
 export type GroupedDataSubmission = {
 	submittedDataByEntityName: Record<string, Array<NewSubmittedData | SubmittedData>>;
 	schemaDataByEntityName: Record<string, DataRecord[]>;

@@ -312,8 +312,7 @@ const controller = ({
 				const username = user?.username || '';
 
 				const resultSubmission = await service.submit({
-					records: payload,
-					entityName,
+					data: { [entityName]: payload },
 					categoryId,
 					organization,
 					username,
