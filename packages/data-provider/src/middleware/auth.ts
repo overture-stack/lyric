@@ -15,7 +15,7 @@ export type UserSessionResult = {
 export type AuthConfig = {
 	enabled: boolean;
 	protectedMethods?: Array<'GET' | 'POST' | 'PUT' | 'DELETE'>;
-	customAuthHandler?: (req: Request) => UserSessionResult;
+	customAuthHandler?: (req: Request) => UserSessionResult | Promise<UserSessionResult>;
 };
 
 // Extends the Request interface to include a custom `user` object
@@ -57,14 +57,14 @@ export const shouldBypassAuth = (req: Request, authConfig: AuthConfig) => {
  * @returns
  */
 export const authMiddleware = (authConfig: AuthConfig) => {
-	return (req: Request, res: Response, next: NextFunction) => {
+	return async (req: Request, res: Response, next: NextFunction) => {
 		if (shouldBypassAuth(req, authConfig)) {
 			return next();
 		}
 
 		try {
-			const authResult: UserSessionResult =
-				typeof authConfig.customAuthHandler === 'function' ? authConfig.customAuthHandler(req) : {};
+			const authResult =
+				typeof authConfig.customAuthHandler === 'function' ? await authConfig.customAuthHandler(req) : {};
 
 			if (authResult.errorCode) {
 				return res.status(authResult.errorCode).json({ message: authResult.errorMessage });

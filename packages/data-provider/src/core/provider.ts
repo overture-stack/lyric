@@ -6,6 +6,7 @@ import categoryController from '../controllers/categoryController.js';
 import dictionaryController from '../controllers/dictionaryController.js';
 import submissionController from '../controllers/submissionController.js';
 import submittedDataController from '../controllers/submittedDataController.js';
+import validationController from '../controllers/validationController.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import auditRepository from '../repository/auditRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
@@ -16,11 +17,13 @@ import categoryRouter from '../routers/categoryRouter.js';
 import dictionaryRouter from '../routers/dictionaryRouter.js';
 import submissionRouter from '../routers/submissionRouter.js';
 import submittedDataRouter from '../routers/submittedDataRouter.js';
+import validationRouter from '../routers/validationRouter.js';
 import auditService from '../services/auditService.js';
 import categoryService from '../services/categoryService.js';
 import dictionaryService from '../services/dictionaryService.js';
 import submissionService from '../services/submission/submission.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
+import validationService from '../services/validationService.js';
 import * as auditUtils from '../utils/auditUtils.js';
 import * as convertSqonToQueryUtils from '../utils/convertSqonToQuery.js';
 import * as dictionarySchemaRelationUtils from '../utils/dictionarySchemaRelations.js';
@@ -54,6 +57,11 @@ const provider = (configData: AppConfig) => {
 			dictionary: dictionaryRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 			submission: submissionRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 			submittedData: submittedDataRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
+			validator: validationRouter({
+				baseDependencies: baseDeps,
+				authConfig: configData.auth,
+				validatorConfig: configData.validator,
+			}),
 		},
 		controllers: {
 			audit: auditController(baseDeps),
@@ -64,6 +72,7 @@ const provider = (configData: AppConfig) => {
 				authConfig: { enabled: configData.auth.enabled },
 			}),
 			submittedData: submittedDataController(baseDeps),
+			validator: validationController({ baseDependencies: baseDeps, validatorConfig: configData.validator }),
 		},
 		services: {
 			audit: auditService(baseDeps),
@@ -71,6 +80,7 @@ const provider = (configData: AppConfig) => {
 			dictionary: dictionaryService(baseDeps),
 			submission: submissionService(baseDeps),
 			submittedData: submittedDataService(baseDeps),
+			validation: validationService(baseDeps),
 		},
 		repositories: {
 			audit: auditRepository(baseDeps),

@@ -1,0 +1,27 @@
+/validator/category/{categoryId}/entity/{entityName}/exists:
+  get:
+    summary: Check if a record exists based on category, organization, entity, and value
+    tags:
+      - Validator
+    parameters:
+      - $ref: '#/components/parameters/path/CategoryId'
+      - $ref: '#/components/parameters/path/EntityName'
+      - $ref: '#/components/parameters/query/Organization'
+      - $ref: '#/components/parameters/query/Value'
+    responses:
+      200:
+        description: Record exists
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: Record found
+      400:
+        $ref: '#/components/responses/BadRequest'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'

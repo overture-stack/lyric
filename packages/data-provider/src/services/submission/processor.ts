@@ -18,6 +18,7 @@ import submittedRepository from '../../repository/submittedRepository.js';
 import { getDictionarySchemaRelations, type SchemaChildNode } from '../../utils/dictionarySchemaRelations.js';
 import { BadRequest } from '../../utils/errors.js';
 import { convertRecordToString } from '../../utils/formatUtils.js';
+import { parseRecordsToInsert } from '../../utils/recordsParser.js';
 import {
 	extractSchemaDataFromMergedDataRecords,
 	filterDeletesFromUpdates,
@@ -44,9 +45,10 @@ import {
 } from '../../utils/submittedDataUtils.js';
 import {
 	CommitSubmissionParams,
+	type EntityData,
+	type SchemasDictionary,
 	SUBMISSION_STATUS,
 	type SubmittedDataResponse,
-	type ValidateFilesParams,
 } from '../../utils/types.js';
 import searchDataRelations from '../submittedData/searchDataRelations.js';
 
@@ -631,54 +633,63 @@ const processor = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Void function to process and validate records on an Active Submission.
-	 * Performs the schema data validation combined with all Submitted Data.
-	 * @param {Record<string, unknown>} records Records to be processed
-	 * @param {Object} params
-	 * @param {number} params.categoryId Category Identifier
-	 * @param {string} params.organization Organization name
-	 * @param {Schema} params.schema Schema to validate records with
-	 * @param {string} params.username User who performs the action
-	 * @returns {void}
+	 * Processes and validates a batch of incoming records for an active submission.
+	 * This function updates the submission merging the new records with existing submission data.
+	 * Performs a full schema data validation against the combined dataset
+	 * @param params
+	 * @param params.records A map of entity names to arrays of raw records to be processed.
+	 * @param params.schemasDictionary A dictionary of schema definitions used for record validation.
+	 * @param params.submissionId Submission ID
+	 * @param params.username User who performs the action
+	 * @returns
 	 */
-	const validateRecordsAsync = async (records: Record<string, unknown>[], params: ValidateFilesParams) => {
-		const { getActiveSubmission } = submissionRepository(dependencies);
-
-		const { categoryId, organization, username, schema } = params;
+	const processInsertRecordsAsync = async ({
+		records,
+		schemasDictionary,
+		submissionId,
+		username,
+	}: {
+		records: EntityData;
+		schemasDictionary: SchemasDictionary;
+		submissionId: number;
+		username: string;
+	}) => {
+		const { getSubmissionById, update } = submissionRepository(dependencies);
 
 		try {
 			// Get Active Submission from database
-			const activeSubmission = await getActiveSubmission({ categoryId, username, organization });
+			const activeSubmission = await getSubmissionById(submissionId);
 			if (!activeSubmission) {
-				throw new BadRequest(`Submission '${activeSubmission}' not found`);
+				throw new Error(`Submission '${activeSubmission}' not found`);
 			}
 
-			const recordsParsed = records.map(convertRecordToString).map(parseToSchema(schema));
+			const insertRecords = parseRecordsToInsert(records, schemasDictionary);
 
-			const insertRecords: Record<string, SubmissionInsertData> = {
-				[schema.name]: {
-					batchName: schema.name,
-					records: recordsParsed,
-				},
+			// Merge Active Submission insert records with incoming TSV file data processed
+			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, insertRecords);
+
+			// Result merged submission Data
+			const mergedSubmissionData: SubmissionData = {
+				inserts: insertActiveSubmissionData,
+				deletes: activeSubmission.data.deletes,
+				updates: activeSubmission.data.updates,
 			};
 
-			// Merge Active Submission data with incoming TSV file data processed
-			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, insertRecords);
+			await update(activeSubmission.id, {
+				data: mergedSubmissionData,
+				updatedBy: username,
+			});
 
 			// Perform Schema Data validation Async.
 			await performDataValidation({
 				originalSubmission: activeSubmission,
-				submissionData: {
-					inserts: insertActiveSubmissionData,
-					deletes: activeSubmission.data.deletes,
-					updates: activeSubmission.data.updates,
-				},
+				submissionData: mergedSubmissionData,
 				username,
 			});
 		} catch (error) {
 			logger.error(
 				LOG_MODULE,
-				`There was an error processing records on entity '${schema.name}'`,
+				`There was an error processing records on submission '${submissionId}'`,
 				JSON.stringify(error),
 			);
 		}
@@ -690,7 +701,7 @@ const processor = (dependencies: BaseDependencies) => {
 		performCommitSubmissionAsync,
 		performDataValidation,
 		updateActiveSubmission,
-		validateRecordsAsync,
+		processInsertRecordsAsync,
 	};
 };
 

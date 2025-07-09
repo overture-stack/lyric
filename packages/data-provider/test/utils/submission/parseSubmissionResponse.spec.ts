@@ -1,6 +1,9 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
+import type { DataRecord } from '@overture-stack/lectern-client';
+
+import { createBatchResponse } from '../../../src/utils/submissionResponseParser.js';
 import { parseSubmissionResponse } from '../../../src/utils/submissionUtils.js';
 import { SUBMISSION_STATUS, type SubmissionSummaryRepository } from '../../../src/utils/types.js';
 
@@ -124,6 +127,26 @@ describe('Submission Utils - Parse a Submisison object to a response format', ()
 			createdBy: 'me',
 			updatedAt: '',
 			updatedBy: '',
+		});
+	});
+
+	describe('Create Submission Insert Response', () => {
+		it('should return a Submission Insert Response with records', () => {
+			const records: DataRecord[] = [
+				{ id: 1, name: 'ABC' },
+				{ id: 2, name: 'XYZ' },
+			];
+			const result = createBatchResponse('sample', records);
+			expect(result.batchName).eql('sample');
+			expect(result.records.length).eql(2);
+			expect(result.records).eql([
+				{ id: 1, name: 'ABC' },
+				{ id: 2, name: 'XYZ' },
+			]);
+		});
+		it('should return a Submission Insert Response with no records', () => {
+			const result = createBatchResponse('sample', []);
+			expect(result).eql({ batchName: 'sample', records: [] });
 		});
 	});
 });

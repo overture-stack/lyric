@@ -35,6 +35,14 @@ export type IdServiceConfig = {
 	customSize: number;
 };
 
+export type ValidatorEntry = {
+	categoryId: number;
+	entityName: string;
+	fieldName: string;
+};
+
+export type ValidatorConfig = ValidatorEntry[];
+
 /**
  * Environment variables to configure internal and external resources
  * (database, external services, logger, etc)
@@ -47,6 +55,7 @@ export type AppConfig = {
 	logger: LoggerConfig;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 	schemaService: SchemaServiceConfig;
+	validator: ValidatorConfig;
 };
 
 /**
