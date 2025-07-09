@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-import { AppConfig } from '@overture-stack/lyric';
+import { type AppConfig, type ValidatorEntry } from '@overture-stack/lyric';
 
 export const getServerConfig = () => {
 	return {
@@ -27,6 +27,39 @@ const getRequiredConfig = (name: string) => {
 		throw new Error(`No Environment Variable provided for required configuration parameter '${name}'`);
 	}
 	return value;
+};
+
+const getJSONConfig = (name: string) => {
+	const value = process.env[name];
+
+	if (!value) {
+		return;
+	}
+
+	try {
+		return JSON.parse(value);
+	} catch (error) {
+		throw new Error(`Environment variable '${name}' must be a valid JSON.`);
+	}
+};
+
+const isValidValidatorEntry = (obj: unknown): obj is ValidatorEntry => {
+	return typeof obj === 'object' && obj !== null && 'categoryId' in obj && 'entityName' in obj && 'fieldName' in obj;
+};
+
+const getValidatorConfig = (name: string) => {
+	const jsonConfig = getJSONConfig(name);
+
+	if (!Array.isArray(jsonConfig)) {
+		throw new Error(`Environment variable '${name}' must be a JSON array.`);
+	}
+
+	if (!jsonConfig.every(isValidValidatorEntry)) {
+		throw new Error(
+			`Environment variable '${name}' must be an array of objects with properties: 'categoryId', 'entityName', and 'fieldName'.`,
+		);
+	}
+	return jsonConfig;
 };
 
 export const appConfig: AppConfig = {
@@ -59,4 +92,5 @@ export const appConfig: AppConfig = {
 	schemaService: {
 		url: getRequiredConfig('LECTERN_URL'),
 	},
+	validator: getValidatorConfig('VALIDATOR_CONFIG'),
 };

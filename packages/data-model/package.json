@@ -44,7 +44,7 @@
 		"tsx": "^4.16.2"
 	},
 	"dependencies": {
-		"@overture-stack/lectern-client": "2.0.0-beta.3",
+		"@overture-stack/lectern-client": "2.0.0-beta.4",
 		"copyfiles": "^2.4.1",
 		"dotenv": "^16.4.5",
 		"drizzle-orm": "^0.29.5",
