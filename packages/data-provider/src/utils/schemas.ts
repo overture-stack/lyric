@@ -1,6 +1,7 @@
 import type { ParamsDictionary } from 'express-serve-static-core';
 import type { ParsedQs } from 'qs';
 import { z } from 'zod';
+import type { DataRecord } from '@overture-stack/lectern-client';
 import type { SQON } from '@overture-stack/sqon-builder';
 
 import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js';
@@ -303,12 +304,22 @@ export interface uploadSubmissionRequestQueryParams extends ParsedQs {
 	organization: string;
 }
 
+const dataRecordValueSchema = z.union([
+	z.string(),
+	z.number(),
+	z.boolean(),
+	z.array(z.string()),
+	z.array(z.number()),
+	z.array(z.boolean()),
+	z.undefined(),
+]);
+
 export const uploadSubmissionRequestSchema: RequestValidation<
-	Array<Record<string, unknown>>,
+	Array<DataRecord>,
 	uploadSubmissionRequestQueryParams,
 	categoryPathParams
 > = {
-	body: z.record(z.unknown()).array(),
+	body: z.record(dataRecordValueSchema).array(),
 	pathParams: categoryPathParamsSchema,
 	query: z.object({
 		entityName: entityNameSchema,
@@ -428,6 +439,7 @@ export const dataGetBySystemIdRequestSchema: RequestValidation<
 	}),
 };
 
+
 export const downloadDataFileTemplatesSchema = {
 	query: z.object({
 		fileType: z.enum(['csv', 'tsv']).optional(),
@@ -436,4 +448,26 @@ export const downloadDataFileTemplatesSchema = {
 			invalid_type_error: 'categoryId must be a number',
 		}),
 	}),
+export const validationPathParamsSchema = z.object({
+	categoryId: categoryIdSchema,
+	entityName: entityNameSchema,
+});
+
+export interface validationPathParams extends ParamsDictionary {
+	categoryId: string;
+	entityName: string;
+}
+
+const validationQuerySchema = z.object({
+	organization: organizationSchema,
+	value: stringNotEmpty,
+});
+export interface validationQueryParam extends ParsedQs {
+	organization: string;
+	value: string;
+}
+
+export const validationRequestSchema: RequestValidation<object, validationQueryParam, validationPathParams> = {
+	query: validationQuerySchema,
+	pathParams: validationPathParamsSchema,
 };

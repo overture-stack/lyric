@@ -8,6 +8,7 @@ import systemIdGenerator from '../../external/systemIdGenerator.js';
 import submissionRepository from '../../repository/activeSubmissionRepository.js';
 import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
+import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
 import {
 	canTransitionToClosed,
@@ -19,6 +20,7 @@ import {
 	CommitSubmissionResult,
 	CREATE_SUBMISSION_STATUS,
 	type CreateSubmissionResult,
+	type EntityData,
 	type PaginationOptions,
 	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
@@ -371,29 +373,28 @@ const service = (dependencies: BaseDependencies) => {
 	 * @returns The Active Submission created or Updated
 	 */
 	const submit = async ({
-		records,
-		entityName,
+		data,
 		categoryId,
 		organization,
 		username,
 	}: {
-		records: Record<string, unknown>[];
-		entityName: string;
+		data: EntityData;
 		categoryId: number;
 		organization: string;
 		username: string;
 	}): Promise<CreateSubmissionResult> => {
+		const entityNames = Object.keys(data);
 		logger.info(
 			LOG_MODULE,
-			`Processing '${records.length}' records on category id '${categoryId}' organization '${organization}'`,
+			`Processing '${entityNames.length}' entities on category id '${categoryId}' organization '${organization}'`,
 		);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { validateRecordsAsync } = processor(dependencies);
+		const { processInsertRecordsAsync } = processor(dependencies);
 
-		if (records.length === 0) {
+		if (entityNames.length === 0) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: 'No valid records for submission',
+				description: 'No valid data for submission',
 			};
 		}
 
@@ -413,23 +414,23 @@ const service = (dependencies: BaseDependencies) => {
 		};
 
 		// Validate entity name
-		const entitySchema = schemasDictionary.schemas.find((item) => item.name === entityName);
-		if (!entitySchema) {
+		const invalidEntities = entityNames.filter((name) => !getSchemaByName(name, schemasDictionary));
+		if (invalidEntities.length) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: `Invalid entity name ${entityName} for submission`,
+				description: `Invalid entity name '${invalidEntities}' for submission`,
 			};
 		}
 
 		// Get Active Submission or Open a new one
 		const activeSubmission = await getOrCreateActiveSubmission({ categoryId, username, organization });
 
-		// Running Schema validation in the background do not need to wait
-		// Result of validations will be stored in database
-		validateRecordsAsync(records, {
-			categoryId,
-			organization,
-			schema: entitySchema,
+		// Schema validation runs asynchronously and does not block execution.
+		// The results will be saved to the database.
+		processInsertRecordsAsync({
+			records: data,
+			submissionId: activeSubmission.id,
+			schemasDictionary,
 			username,
 		});
 
