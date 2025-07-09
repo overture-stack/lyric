@@ -430,8 +430,10 @@ export const dataGetBySystemIdRequestSchema: RequestValidation<
 
 export const downloadDataFileTemplatesSchema = {
 	query: z.object({
-		name: z.string().min(1, { message: 'name is required' }),
-		version: z.string().min(1, { message: 'version is required' }),
 		fileType: z.enum(['csv', 'tsv']).optional(),
+		categoryId: z.number({
+			required_error: 'categoryId is required',
+			invalid_type_error: 'categoryId must be a number',
+		}),
 	}),
 };

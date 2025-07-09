@@ -51,16 +51,16 @@ const controller = (dependencies: BaseDependencies) => {
 		}),
 		downloadDataFileTemplates: validateRequest(downloadDataFileTemplatesSchema, async (req, res, next) => {
 			try {
-				const { name, version, fileType } = downloadDataFileTemplatesSchema.query.parse(req.query);
+				const { fileType, categoryId } = downloadDataFileTemplatesSchema.query.parse(req.query);
 
-				const dictionary = await dictionaryService.fetchDictionaryByVersion(name, version);
+				const dictionary = await dictionaryService.getActiveDictionaryByCategory(categoryId);
 
 				if (!dictionary) {
-					throw new NotFound(`Dictionary with name "${name}" and version "${version}" not found.`);
+					throw new NotFound(`Dictionary with categoryId "${categoryId}" not found.`);
 				}
 
 				const zip = new JSZip();
-				for (const schema of dictionary.schemas || []) {
+				for (const schema of dictionary.dictionary || []) {
 					const template = createDataFileTemplate(schema, fileType ? { fileType } : undefined);
 					zip.file(template.fileName, template.content);
 				}
@@ -68,7 +68,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
 
 				res.set({
-					'Content-Disposition': `attachment; filename=${name}_${version}_templates.zip`,
+					'Content-Disposition': `attachment; filename=${dictionary.name}_${categoryId}_templates.zip`,
 					'Content-Type': 'application/zip',
 				});
 
@@ -81,20 +81,6 @@ const controller = (dependencies: BaseDependencies) => {
 		getDictionaryJson: async (req: Request, res: Response, next: NextFunction) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				const { dictId, schemaName } = req.params;
-
-				if (!dictId) {
-					throw new BadRequest('Request is missing `dictId` parameter.');
-				}
-				if (!schemaName) {
-					throw new BadRequest('Request is missing `schemaName` parameter.');
-				}
-
-				const numericDictId = parseInt(dictId, 10);
-
-				if (isNaN(numericDictId)) {
-					throw new BadRequest("'dictId' must be a valid number");
-				}
 
 				const dictionary = await dictionaryService.getActiveDictionaryByCategory(categoryId);
 				if (!dictionary) {
@@ -105,15 +91,7 @@ const controller = (dependencies: BaseDependencies) => {
 					dictionary.version,
 				);
 
-				const schema = formattedDictionary.schemas.find((schema: { name: string }) => schema.name === schemaName);
-
-				if (!schema) {
-					throw new NotFound(
-						`Dictionary '${dictionary.name} ${dictionary.version}' does not have a schema named '${schemaName}'`,
-					);
-				}
-
-				return res.send(schema);
+				return res.send(formattedDictionary);
 			} catch (error) {
 				logger.error(LOG_MODULE, 'Error fetching schema', error);
 				next(error);

@@ -44,7 +44,7 @@
         $ref: '#/components/responses/ServerError'
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
-/dictionary/{categoryId}:
+/dictionary/category/{categoryId}:
   get:
     summary: Get schema JSON for a specific dictionary by ID and schema name
     tags:
@@ -77,7 +77,7 @@
       500:
         $ref: '#/components/responses/ServerError'
 
-/dictionary/{categoryId}/templates:
+/dictionary/category/{categoryId}/templates:
   get:
     summary: Download data file templates for a dictionary
     tags:
@@ -89,18 +89,6 @@
         schema:
           type: integer
         description: The ID of the category containing the dictionary
-      - name: name
-        in: query
-        required: true
-        schema:
-          type: string
-        description: Dictionary name
-      - name: version
-        in: query
-        required: true
-        schema:
-          type: string
-        description: Dictionary version
       - name: fileType
         in: query
         required: false
