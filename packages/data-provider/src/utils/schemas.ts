@@ -439,7 +439,6 @@ export const dataGetBySystemIdRequestSchema: RequestValidation<
 	}),
 };
 
-
 export const downloadDataFileTemplatesSchema = {
 	query: z.object({
 		fileType: z.enum(['csv', 'tsv']).optional(),
@@ -448,6 +447,7 @@ export const downloadDataFileTemplatesSchema = {
 			invalid_type_error: 'categoryId must be a number',
 		}),
 	}),
+};
 export const validationPathParamsSchema = z.object({
 	categoryId: categoryIdSchema,
 	entityName: entityNameSchema,
