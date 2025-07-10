@@ -5,7 +5,7 @@ import { createDataFileTemplate } from '@overture-stack/lectern-client';
 
 import { BaseDependencies } from '../config/config.js';
 import dictionarySvc from '../services/dictionaryService.js';
-import { BadRequest, NotFound } from '../utils/errors.js';
+import { NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import { dictionaryRegisterRequestSchema } from '../utils/schemas.js';
 import { downloadDataFileTemplatesSchema } from '../utils/schemas.js';
@@ -51,7 +51,8 @@ const controller = (dependencies: BaseDependencies) => {
 		}),
 		downloadDataFileTemplates: validateRequest(downloadDataFileTemplatesSchema, async (req, res, next) => {
 			try {
-				const { fileType, categoryId } = downloadDataFileTemplatesSchema.query.parse(req.query);
+				const { fileType } = req.query;
+				const categoryId = Number(req.params.categoryId);
 
 				const dictionary = await dictionaryService.getActiveDictionaryByCategory(categoryId);
 

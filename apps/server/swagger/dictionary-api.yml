@@ -56,12 +56,6 @@
         schema:
           type: integer
         description: The ID of the category containing the dictionary
-      - name: schemaName
-        in: query
-        required: true
-        schema:
-          type: string
-        description: Name of the schema to fetch from the dictionary
     responses:
       200:
         description: Dictionary schema JSON
