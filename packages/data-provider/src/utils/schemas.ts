@@ -1,7 +1,6 @@
 import type { ParamsDictionary } from 'express-serve-static-core';
 import type { ParsedQs } from 'qs';
 import { z } from 'zod';
-
 import type { DataRecord } from '@overture-stack/lectern-client';
 import type { SQON } from '@overture-stack/sqon-builder';
 
@@ -440,6 +439,14 @@ export const dataGetBySystemIdRequestSchema: RequestValidation<
 	}),
 };
 
+export const downloadDataFileTemplatesSchema = {
+	query: z.object({
+		fileType: z.enum(['csv', 'tsv']).optional(),
+	}),
+	pathParams: z.object({
+		categoryId: categoryIdSchema,
+	}),
+};
 export const validationPathParamsSchema = z.object({
 	categoryId: categoryIdSchema,
 	entityName: entityNameSchema,
