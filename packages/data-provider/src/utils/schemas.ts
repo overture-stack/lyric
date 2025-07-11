@@ -440,6 +440,14 @@ export const dataGetBySystemIdRequestSchema: RequestValidation<
 	}),
 };
 
+export const downloadDataFileTemplatesSchema = {
+	query: z.object({
+		fileType: z.enum(['csv', 'tsv']).optional(),
+	}),
+	pathParams: z.object({
+		categoryId: categoryIdSchema,
+	}),
+};
 export const validationPathParamsSchema = z.object({
 	categoryId: categoryIdSchema,
 	entityName: entityNameSchema,

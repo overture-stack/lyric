@@ -22,8 +22,6 @@ A model-agnostic, tabular data submission system designed to manage and validate
 
 - A [Postgres Database](https://www.postgresql.org/) for data storage
 
-> Note: A `docker-compose.yml` file is provided to help spin up the system dependencies
-
 ### Complementary Services
 
 - [Lectern](https://github.com/overture-stack/lectern) Dictionary Management and validation

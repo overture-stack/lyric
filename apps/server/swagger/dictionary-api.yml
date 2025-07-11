@@ -44,3 +44,63 @@
         $ref: '#/components/responses/ServerError'
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
+/dictionary/category/{categoryId}:
+  get:
+    summary: Get schema JSON for a specific dictionary by ID and schema name
+    tags:
+      - Dictionary
+    parameters:
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The ID of the category containing the dictionary
+    responses:
+      200:
+        description: Dictionary schema JSON
+        content:
+          application/json:
+            schema:
+              type: object
+              description: The schema definition JSON
+      400:
+        $ref: '#/components/responses/BadRequest'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+
+/dictionary/category/{categoryId}/templates:
+  get:
+    summary: Download data file templates for a dictionary
+    tags:
+      - Dictionary
+    parameters:
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: The ID of the category containing the dictionary
+      - name: fileType
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [csv, tsv]
+        description: File type for the templates
+    responses:
+      200:
+        description: A ZIP file containing all the templates
+        content:
+          application/zip:
+            schema:
+              type: string
+              format: binary
+      400:
+        $ref: '#/components/responses/BadRequest'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'

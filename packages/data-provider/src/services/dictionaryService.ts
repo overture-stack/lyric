@@ -150,7 +150,12 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			return { dictionary: savedDictionary, category: savedCategory };
 		}
 	};
-	return { createDictionaryIfDoesNotExist, fetchDictionaryByVersion, getActiveDictionaryByCategory, register };
+	return {
+		createDictionaryIfDoesNotExist,
+		fetchDictionaryByVersion,
+		getActiveDictionaryByCategory,
+		register,
+	};
 };
 
 export default dictionaryService;
