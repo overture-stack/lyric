@@ -191,6 +191,25 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		}),
+		getSubmittedDataByCategoryStream: validateRequest(dataGetByCategoryRequestSchema, async (req, res, next) => {
+			try {
+				const categoryId = Number(req.params.categoryId);
+				res.setHeader('Transfer-Encoding', 'chunked');
+				res.setHeader('Content-Type', 'application/json');
+
+				logger.info(LOG_MODULE, `Request Submitted Data on categoryId '${categoryId}'`);
+
+				for await (const data of service.getSubmittedDataByCategoryStream(categoryId, { view: 'flat' })) {
+					// const output = config.transformer(category);
+					res.write(JSON.stringify(data) + '\n');
+				}
+
+				res.end();
+				return;
+			} catch (error) {
+				next(error);
+			}
+		}),
 	};
 };
 

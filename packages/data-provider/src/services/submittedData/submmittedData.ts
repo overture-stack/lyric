@@ -433,12 +433,57 @@ const submittedData = (dependencies: BaseDependencies) => {
 		};
 	};
 
+	async function* getSubmittedDataByCategoryStream(
+		categoryId: number,
+		filterOptions: { entityName?: string[]; view: ViewType },
+	) {
+		const { getSubmittedDataByCategoryIdPaginated } = submittedDataRepo;
+
+		const { getCategoryById } = categoryRepository(dependencies);
+
+		const category = await getCategoryById(categoryId);
+
+		if (!category?.activeDictionary) {
+			return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.INVALID_CATEGORY_ID);
+		}
+
+		const PAGE_SIZE = 3;
+		let currentPage = 1;
+
+		for (
+			let submittedDataResponse = await getSubmittedDataByCategoryIdPaginated(categoryId, {
+				page: currentPage,
+				pageSize: PAGE_SIZE,
+			});
+			submittedDataResponse.length;
+			submittedDataResponse = await getSubmittedDataByCategoryIdPaginated(categoryId, {
+				page: currentPage,
+				pageSize: PAGE_SIZE,
+			})
+		) {
+			if (filterOptions.view === VIEW_TYPE.Values.compound) {
+				submittedDataResponse = await convertRecordsToCompoundDocuments({
+					dictionary: category.activeDictionary.dictionary,
+					records: submittedDataResponse,
+				});
+			}
+
+			for (const currentData of submittedDataResponse) {
+				yield currentData;
+			}
+			currentPage++;
+		}
+
+		return;
+	}
+
 	return {
 		deleteSubmittedDataBySystemId,
 		editSubmittedData,
 		getSubmittedDataByCategory,
 		getSubmittedDataByOrganization,
 		getSubmittedDataBySystemId,
+		getSubmittedDataByCategoryStream,
 	};
 };
 
