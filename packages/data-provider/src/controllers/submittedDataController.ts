@@ -194,12 +194,14 @@ const controller = (dependencies: BaseDependencies) => {
 		getSubmittedDataByCategoryStream: validateRequest(dataGetByCategoryRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
+				const view = convertToViewType(String(req.query.view)) || defaultView;
+
 				res.setHeader('Transfer-Encoding', 'chunked');
 				res.setHeader('Content-Type', 'application/json');
 
 				logger.info(LOG_MODULE, `Request Submitted Data on categoryId '${categoryId}'`);
 
-				for await (const data of service.getSubmittedDataByCategoryStream(categoryId, { view: 'flat' })) {
+				for await (const data of service.getSubmittedDataByCategoryStream(categoryId, { view })) {
 					// const output = config.transformer(category);
 					res.write(JSON.stringify(data) + '\n');
 				}
