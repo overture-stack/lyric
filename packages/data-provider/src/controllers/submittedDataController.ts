@@ -17,7 +17,7 @@ import { SubmittedDataPaginatedResponse, VIEW_TYPE } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
 	const service = submittedDataService(dependencies);
-	const { logger } = dependencies;
+	const { logger, transformer } = dependencies;
 	const LOG_MODULE = 'SUBMITTED_DATA_CONTROLLER';
 	const defaultPage = 1;
 	const defaultPageSize = 20;
@@ -202,8 +202,7 @@ const controller = (dependencies: BaseDependencies) => {
 				logger.info(LOG_MODULE, `Request Submitted Data on categoryId '${categoryId}'`);
 
 				for await (const data of service.getSubmittedDataByCategoryStream(categoryId, { view })) {
-					// const output = config.transformer(category);
-					res.write(JSON.stringify(data) + '\n');
+					res.write(transformer ? JSON.stringify(transformer(data)) + '\n' : data + '\n');
 				}
 
 				res.end();
