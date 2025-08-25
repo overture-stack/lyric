@@ -9,6 +9,7 @@ export { type DbConfig, migrate } from '@overture-stack/lyric-data-model';
 export { default as dictionaryRouters } from './src/routers/dictionaryRouter.js';
 export { default as submissionRouter } from './src/routers/submissionRouter.js';
 export { default as submittedDataRouter } from './src/routers/submittedDataRouter.js';
+export { default as organizationRouter } from './src/routers/organizationRouter.js';
 
 // utils
 export * from './src/utils/dictionaryUtils.js';

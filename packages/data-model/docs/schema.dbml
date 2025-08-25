@@ -48,6 +48,12 @@ table dictionary_categories {
   updated_by varchar
 }
 
+table organizations {
+  id serial [pk, not null, increment]
+  name varchar [not null, unique]
+  created_at timestamp [not null, default: `now()`]
+}
+
 table submissions {
   id serial [pk, not null, increment]
   data jsonb [not null]
