@@ -455,7 +455,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 			entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
 		});
 
-		for (let x = 0, currentPage = 1; x < totalRecords; x++, currentPage++) {
+		for (let x = 0, currentPage = 1; x < totalRecords; currentPage++) {
 			let submittedDataResponse = await getSubmittedDataByCategoryIdPaginated(categoryId, {
 				page: currentPage,
 				pageSize: PAGE_SIZE,
@@ -470,6 +470,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 			for (const currentData of submittedDataResponse) {
 				yield currentData;
 			}
+			x += submittedDataResponse.length;
 		}
 
 		return;
