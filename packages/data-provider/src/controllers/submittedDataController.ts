@@ -17,7 +17,7 @@ import { SubmittedDataPaginatedResponse, VIEW_TYPE } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
 	const service = submittedDataService(dependencies);
-	const { logger } = dependencies;
+	const { logger, transformer } = dependencies;
 	const LOG_MODULE = 'SUBMITTED_DATA_CONTROLLER';
 	const defaultPage = 1;
 	const defaultPageSize = 20;
@@ -187,6 +187,25 @@ const controller = (dependencies: BaseDependencies) => {
 				}
 
 				return res.status(200).send(submittedDataResult.result);
+			} catch (error) {
+				next(error);
+			}
+		}),
+		getSubmittedDataByCategoryStream: validateRequest(dataGetByCategoryRequestSchema, async (req, res, next) => {
+			try {
+				const categoryId = Number(req.params.categoryId);
+				const view = convertToViewType(String(req.query.view)) || defaultView;
+
+				res.setHeader('Transfer-Encoding', 'chunked');
+				res.setHeader('Content-Type', 'application/x-ndjson');
+
+				logger.info(LOG_MODULE, `Request Submitted Data on categoryId '${categoryId}'`);
+
+				for await (const data of service.getSubmittedDataByCategoryStream(categoryId, { view })) {
+					res.write(JSON.stringify(transformer ? transformer(data) : data) + '\n');
+				}
+
+				res.end();
 			} catch (error) {
 				next(error);
 			}

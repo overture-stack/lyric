@@ -33,6 +33,10 @@ const router = ({
 		'/category/:categoryId/id/:systemId',
 		submittedDataController(baseDependencies).getSubmittedDataBySystemId,
 	);
+	router.get(
+		'/category/:categoryId/stream',
+		submittedDataController(baseDependencies).getSubmittedDataByCategoryStream,
+	);
 
 	return router;
 };
