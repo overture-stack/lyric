@@ -437,7 +437,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		categoryId: number,
 		filterOptions: { entityName?: string[]; view: ViewType },
 	) {
-		const { getSubmittedDataByCategoryIdPaginated } = submittedDataRepo;
+		const { getSubmittedDataByCategoryIdPaginated, getTotalRecordsByCategoryId } = submittedDataRepo;
 
 		const { getCategoryById } = categoryRepository(dependencies);
 
@@ -447,20 +447,19 @@ const submittedData = (dependencies: BaseDependencies) => {
 			return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.INVALID_CATEGORY_ID);
 		}
 
-		const PAGE_SIZE = 3;
-		let currentPage = 1;
+		const defaultCentricEntity = category.defaultCentricEntity || undefined;
 
-		for (
+		const PAGE_SIZE = 3;
+
+		const totalRecords = await getTotalRecordsByCategoryId(categoryId, {
+			entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
+		});
+
+		for (let x = 0, currentPage = 1; x < totalRecords; x++, currentPage++) {
 			let submittedDataResponse = await getSubmittedDataByCategoryIdPaginated(categoryId, {
 				page: currentPage,
 				pageSize: PAGE_SIZE,
 			});
-			submittedDataResponse.length;
-			submittedDataResponse = await getSubmittedDataByCategoryIdPaginated(categoryId, {
-				page: currentPage,
-				pageSize: PAGE_SIZE,
-			})
-		) {
 			if (filterOptions.view === VIEW_TYPE.Values.compound) {
 				submittedDataResponse = await convertRecordsToCompoundDocuments({
 					dictionary: category.activeDictionary.dictionary,
@@ -471,7 +470,6 @@ const submittedData = (dependencies: BaseDependencies) => {
 			for (const currentData of submittedDataResponse) {
 				yield currentData;
 			}
-			currentPage++;
 		}
 
 		return;
