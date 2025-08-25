@@ -197,16 +197,15 @@ const controller = (dependencies: BaseDependencies) => {
 				const view = convertToViewType(String(req.query.view)) || defaultView;
 
 				res.setHeader('Transfer-Encoding', 'chunked');
-				res.setHeader('Content-Type', 'application/json');
+				res.setHeader('Content-Type', 'application/x-ndjson');
 
 				logger.info(LOG_MODULE, `Request Submitted Data on categoryId '${categoryId}'`);
 
 				for await (const data of service.getSubmittedDataByCategoryStream(categoryId, { view })) {
-					res.write(transformer ? JSON.stringify(transformer(data)) + '\n' : data + '\n');
+					res.write(JSON.stringify(transformer ? transformer(data) : data) + '\n');
 				}
 
 				res.end();
-				return;
 			} catch (error) {
 				next(error);
 			}
