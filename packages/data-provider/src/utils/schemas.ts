@@ -470,3 +470,17 @@ export const validationRequestSchema: RequestValidation<object, validationQueryP
 	query: validationQuerySchema,
 	pathParams: validationPathParamsSchema,
 };
+
+export const registerOrganizationSchema = {
+	body: z.object({
+		name: z.string().min(1, 'Organization name is required'),
+	}),
+};
+
+export const deleteOrganizationSchema = {
+	params: z.object({
+		id: z.string().regex(/^\d+$/, 'ID must be a number'),
+	}),
+	query: z.object({}),
+	body: z.object({}),
+};

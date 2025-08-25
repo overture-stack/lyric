@@ -19,6 +19,7 @@ import {
 	uploadSubmissionRequestSchema,
 } from '../utils/schemas.js';
 import { SUBMISSION_ACTION_TYPE } from '../utils/types.js';
+import organizationService from '../services/organizationService.js';
 
 const controller = ({
 	baseDependencies,
@@ -29,6 +30,7 @@ const controller = ({
 }) => {
 	const service = submissionService(baseDependencies);
 	const dataService = submittedDataService(baseDependencies);
+	const orgService = organizationService(baseDependencies);
 	const { logger } = baseDependencies;
 	const defaultPage = 1;
 	const defaultPageSize = 20;
@@ -307,6 +309,14 @@ const controller = ({
 
 				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(organization, user)) {
 					throw new Forbidden(`User is not authorized to submit data to '${organization}'`);
+				}
+
+				// Check if organization exists before submitting
+				const existingOrg = await orgService.getOrganizationByName(String(organization));
+
+				if (!existingOrg) {
+					// Organization does not exist, return error
+					throw new BadRequest(`Organization '${organization}' not found`);
 				}
 
 				const username = user?.username || '';

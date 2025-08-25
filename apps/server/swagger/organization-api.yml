@@ -1,0 +1,132 @@
+# Description of Organization API
+
+/organization:
+  post:
+    summary: Register a new organization
+    tags:
+      - Organization
+    requestBody:
+      description: Organization registration payload
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - name
+            properties:
+              name:
+                type: string
+                description: The name of the organization to register
+    responses:
+      200:
+        description: Organization registered successfully
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Organization'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      409:
+        description: Conflict - organization already exists
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
+/organization/{id}:
+  delete:
+    summary: Delete an organization by ID
+    tags:
+      - Organization
+    parameters:
+      - name: id
+        in: path
+        description: The ID of the organization to delete
+        required: true
+        schema:
+          type: integer
+    responses:
+      200:
+        description: Organization deleted successfully
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                id:
+                  type: integer
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
+components:
+  schemas:
+    Organization:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+    UnauthorizedError:
+      description: Unauthorized access
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+    ServiceUnavailableError:
+      description: Service unavailable
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string

@@ -1,3 +1,4 @@
+import organizationRouter from '../routers/organizationRouter.js';
 import { AppConfig, BaseDependencies } from '../config/config.js';
 import { connect } from '../config/db.js';
 import { getLogger } from '../config/logger.js';
@@ -7,11 +8,13 @@ import dictionaryController from '../controllers/dictionaryController.js';
 import submissionController from '../controllers/submissionController.js';
 import submittedDataController from '../controllers/submittedDataController.js';
 import validationController from '../controllers/validationController.js';
+import organizationController from '../controllers/organizationController.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import auditRepository from '../repository/auditRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import dictionaryRepository from '../repository/dictionaryRepository.js';
 import submittedDataRepository from '../repository/submittedRepository.js';
+import organizationRepository from '../repository/organizationRepository.js';
 import auditRouter from '../routers/auditRouter.js';
 import categoryRouter from '../routers/categoryRouter.js';
 import dictionaryRouter from '../routers/dictionaryRouter.js';
@@ -33,6 +36,8 @@ import * as schemaUtils from '../utils/schemas.js';
 import * as submissionUtils from '../utils/submissionUtils.js';
 import * as submittedDataUtils from '../utils/submittedDataUtils.js';
 import * as typeUtils from '../utils/types.js';
+import { organizations } from '@overture-stack/lyric-data-model/models';
+import organizationService from '../services/organizationService.js';
 
 /**
  * The main provider of submission resources
@@ -62,6 +67,7 @@ const provider = (configData: AppConfig) => {
 				authConfig: configData.auth,
 				validatorConfig: configData.validator,
 			}),
+			organization: organizationRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 		},
 		controllers: {
 			audit: auditController(baseDeps),
@@ -73,6 +79,7 @@ const provider = (configData: AppConfig) => {
 			}),
 			submittedData: submittedDataController(baseDeps),
 			validator: validationController({ baseDependencies: baseDeps, validatorConfig: configData.validator }),
+			organizations: organizationController(baseDeps),
 		},
 		services: {
 			audit: auditService(baseDeps),
@@ -81,6 +88,7 @@ const provider = (configData: AppConfig) => {
 			submission: submissionService(baseDeps),
 			submittedData: submittedDataService(baseDeps),
 			validation: validationService(baseDeps),
+			organization: organizationService(baseDeps),
 		},
 		repositories: {
 			audit: auditRepository(baseDeps),
@@ -88,6 +96,7 @@ const provider = (configData: AppConfig) => {
 			dictionary: dictionaryRepository(baseDeps),
 			submission: submissionRepository(baseDeps),
 			submittedData: submittedDataRepository(baseDeps),
+			organization: organizationRepository(baseDeps),
 		},
 		utils: {
 			audit: auditUtils,
