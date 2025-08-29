@@ -377,10 +377,10 @@ export const isDataRecordValue = (
 		const firstValue = input[0];
 		// Check if array has values, if not, we treat it as a DataRecordNested[]
 		if (firstValue === undefined) {
-			return true;
+			return false;
 		}
 
-		// If the firstValue is an object, that means it is not a DataRecordValue, return false
+		// If the firstValue is an object, that means it is not a DataRecordValue
 		if (typeof firstValue === 'object') {
 			return false;
 		}
