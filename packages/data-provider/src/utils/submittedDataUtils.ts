@@ -2,6 +2,7 @@ import { groupBy, has } from 'lodash-es';
 
 import {
 	type DataRecord,
+	DataRecordValue,
 	DictionaryValidationRecordErrorDetails,
 	type SchemaRecordError,
 } from '@overture-stack/lectern-client';
@@ -14,6 +15,7 @@ import {
 } from '@overture-stack/lyric-data-model/models';
 
 import {
+	DataRecordNested,
 	DataRecordReference,
 	type GroupedDataSubmission,
 	MERGE_REFERENCE_TYPE,
@@ -360,4 +362,36 @@ export const updateEntityData = (existingData: DataRecord, updateRequest: Submis
 	Object.assign(updatedData, validNewData);
 
 	return updatedData;
+};
+
+/**
+ * Helper function to determine if "input" is a DataRecordValue
+ * @param input
+ * @returns boolean
+ */
+export const isDataRecordValue = (
+	input: DataRecordValue | DataRecordNested | DataRecordNested[],
+): input is DataRecordValue => {
+	// Check for if an array
+	if (Array.isArray(input)) {
+		const firstValue = input[0];
+		// Check if array has values, if not, we treat it as a DataRecordNested[]
+		if (firstValue === undefined) {
+			return true;
+		}
+
+		// If the firstValue is an object, that means it is not a DataRecordValue, return false
+		if (typeof firstValue === 'object') {
+			return false;
+		}
+
+		return true;
+	}
+
+	// If input is an object, then its a DataRecordNested value
+	if (typeof input === 'object') {
+		return false;
+	}
+
+	return true;
 };
