@@ -176,33 +176,6 @@ const appConfig: AppConfig = {
 }
 ```
 
-### Transformer Callback Function
-
-The `transformer` callback function is invoked automatically upon execution of the streaming endpoint `data/category/:categoryId/stream`. Its primary role is to process and transform the streamed data payload into a customized response format, conforming to the client’s expected data schema or presentation requirements.
-
-Example:
-
-```javascript
-const transformer = (dataRequestResult: SubmittedDataResponse) => {
-	// Ignore invalid submitted data
-	if(!data.isValid){
-	 	return
-	}
-	// You can also change values like replacing systemId with "REDACTED"
-	return {...data, systemId: "REDACTED"}
-}
-```
-
-To use the `transformer` callback, it requires to be defined in the AppConfig object:
-
-```javascript
-
-const appConfig: AppConfig = {
-	...// Other configuration
-	transformer: transformFunction;
-}
-```
-
 ## Usage
 
 ### Express Routers

@@ -47,7 +47,6 @@ const provider = (configData: AppConfig) => {
 		logger: getLogger(configData.logger),
 		schemaService: configData.schemaService,
 		onFinishCommit: configData.onFinishCommit,
-		transformer: configData.transformer,
 	};
 
 	return {

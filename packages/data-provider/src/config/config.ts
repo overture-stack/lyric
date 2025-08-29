@@ -56,7 +56,6 @@ export type AppConfig = {
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 	schemaService: SchemaServiceConfig;
 	validator: ValidatorConfig;
-	transformer?: (dataRequestResult: SubmittedDataResponse) => void;
 };
 
 /**
@@ -69,5 +68,4 @@ export interface BaseDependencies {
 	logger: Logger;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 	schemaService: SchemaServiceConfig;
-	transformer?: (dataRequestResult: SubmittedDataResponse) => void;
 }
