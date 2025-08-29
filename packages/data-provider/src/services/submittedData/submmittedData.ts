@@ -433,12 +433,56 @@ const submittedData = (dependencies: BaseDependencies) => {
 		};
 	};
 
+	async function* getSubmittedDataByCategoryStream(
+		categoryId: number,
+		filterOptions: { entityName?: string[]; view: ViewType },
+	) {
+		const { getSubmittedDataByCategoryIdPaginated, getTotalRecordsByCategoryId } = submittedDataRepo;
+
+		const { getCategoryById } = categoryRepository(dependencies);
+
+		const category = await getCategoryById(categoryId);
+
+		if (!category?.activeDictionary) {
+			return fetchDataErrorResponse(PAGINATION_ERROR_MESSAGES.INVALID_CATEGORY_ID);
+		}
+
+		const defaultCentricEntity = category.defaultCentricEntity || undefined;
+
+		const PAGE_SIZE = 3;
+
+		const totalRecords = await getTotalRecordsByCategoryId(categoryId, {
+			entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
+		});
+
+		for (let x = 0, currentPage = 1; x < totalRecords; currentPage++) {
+			let submittedDataResponse = await getSubmittedDataByCategoryIdPaginated(categoryId, {
+				page: currentPage,
+				pageSize: PAGE_SIZE,
+			});
+			if (filterOptions.view === VIEW_TYPE.Values.compound) {
+				submittedDataResponse = await convertRecordsToCompoundDocuments({
+					dictionary: category.activeDictionary.dictionary,
+					records: submittedDataResponse,
+				});
+			}
+
+			for (const currentData of submittedDataResponse) {
+				yield currentData;
+			}
+			x += submittedDataResponse.length;
+		}
+
+		return;
+	}
+
 	return {
 		deleteSubmittedDataBySystemId,
 		editSubmittedData,
 		getSubmittedDataByCategory,
 		getSubmittedDataByOrganization,
 		getSubmittedDataBySystemId,
+		getSubmittedDataByCategoryStream,
 	};
 };
 
