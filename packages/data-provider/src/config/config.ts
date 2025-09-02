@@ -4,7 +4,7 @@ import type { DbConfig } from '@overture-stack/lyric-data-model';
 import * as schema from '@overture-stack/lyric-data-model/models';
 
 import type { AuthConfig } from '../middleware/auth.js';
-import type { ResultOnCommit, SubmittedDataResponse } from '../utils/types.js';
+import type { ResultOnCommit } from '../utils/types.js';
 import { Logger } from './logger.js';
 
 export type AuditConfig = {
