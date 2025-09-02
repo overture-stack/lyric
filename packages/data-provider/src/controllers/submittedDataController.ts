@@ -199,7 +199,7 @@ const controller = (dependencies: BaseDependencies) => {
 				res.setHeader('Transfer-Encoding', 'chunked');
 				res.setHeader('Content-Type', 'application/x-ndjson');
 
-				logger.info(LOG_MODULE, `Request Submitted Data on categoryId '${categoryId}'`);
+				logger.info(LOG_MODULE, `Request stream for submitted data on categoryId '${categoryId}'`);
 
 				for await (const data of service.getSubmittedDataByCategoryStream(categoryId, { view })) {
 					res.write(JSON.stringify(data) + '\n');
