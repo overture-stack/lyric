@@ -477,6 +477,11 @@ const submittedData = (dependencies: BaseDependencies) => {
 					entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
 				},
 			);
+
+			if (submittedDataResponse.length === 0) {
+				return;
+			}
+
 			if (filterOptions.view === VIEW_TYPE.Values.compound) {
 				submittedDataResponse = await convertRecordsToCompoundDocuments({
 					dictionary: category.activeDictionary.dictionary,
