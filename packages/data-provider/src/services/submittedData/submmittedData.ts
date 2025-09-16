@@ -433,6 +433,17 @@ const submittedData = (dependencies: BaseDependencies) => {
 		};
 	};
 
+	/**
+	 * Fetches submitted data from the database based on the specified category ID
+	 *
+	 * This async generator function retrieves the submitted data associated with a given `categoryId` and returns submitted data records as promises.
+	 *
+	 * @param categoryId - The ID of the category for which data is being fetched.
+	 * @param filterOptions - An object containing options for data representation.
+	 * @param filterOptions.view - The desired view type for the data representation, such as 'flat' or 'compound'.
+	 * @param filterOptions.entityName - An optional array of entity names to filter the data by. Can include undefined entries.
+	 * @returns Promise that resolves to an object containing submitted data records
+	 */
 	async function* getSubmittedDataByCategoryStream(
 		categoryId: number,
 		filterOptions: { entityName?: string[]; view: ViewType },
@@ -456,10 +467,16 @@ const submittedData = (dependencies: BaseDependencies) => {
 		});
 
 		for (let x = 0, currentPage = 1; x < totalRecords; currentPage++) {
-			let submittedDataResponse = await getSubmittedDataByCategoryIdPaginated(categoryId, {
-				page: currentPage,
-				pageSize: PAGE_SIZE,
-			});
+			let submittedDataResponse = await getSubmittedDataByCategoryIdPaginated(
+				categoryId,
+				{
+					page: currentPage,
+					pageSize: PAGE_SIZE,
+				},
+				{
+					entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
+				},
+			);
 			if (filterOptions.view === VIEW_TYPE.Values.compound) {
 				submittedDataResponse = await convertRecordsToCompoundDocuments({
 					dictionary: category.activeDictionary.dictionary,
