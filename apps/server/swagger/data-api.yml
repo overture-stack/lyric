@@ -208,6 +208,15 @@
     parameters:
       - $ref: '#/components/parameters/path/CategoryId'
       - $ref: '#/components/parameters/query/View'
+      - name: entityName
+        description: Array of strings to filter by entity names. Incompatible with `compound` view
+        in: query
+        required: false
+        schema:
+          collectionFormat: multi
+          type: array
+          items:
+            type: string
     responses:
       200:
         description: Submitted Data
