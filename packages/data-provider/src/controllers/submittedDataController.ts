@@ -191,6 +191,26 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		}),
+		getSubmittedDataByCategoryStream: validateRequest(dataGetByCategoryRequestSchema, async (req, res, next) => {
+			try {
+				const categoryId = Number(req.params.categoryId);
+				const entityName = asArray(req.query.entityName || []);
+				const view = convertToViewType(String(req.query.view)) || defaultView;
+
+				res.setHeader('Transfer-Encoding', 'chunked');
+				res.setHeader('Content-Type', 'application/x-ndjson');
+
+				logger.info(LOG_MODULE, `Request stream for submitted data on categoryId '${categoryId}'`);
+
+				for await (const data of service.getSubmittedDataByCategoryStream(categoryId, { view, entityName })) {
+					res.write(JSON.stringify(data) + '\n');
+				}
+
+				res.end();
+			} catch (error) {
+				next(error);
+			}
+		}),
 	};
 };
 
