@@ -59,6 +59,8 @@ WORKDIR ${WORKDIR}
 
 USER ${APP_USER}:${APP_USER}
 
+ENV CI=true
+
 # pnpm will not install any package listed in devDependencies
 RUN pnpm install --prod
 
