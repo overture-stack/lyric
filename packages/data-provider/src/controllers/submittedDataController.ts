@@ -2,9 +2,11 @@ import * as _ from 'lodash-es';
 
 import { convertToViewType } from '..//utils/submittedDataUtils.js';
 import { BaseDependencies } from '../config/config.js';
+import { type AuthConfig, shouldBypassAuth } from '../middleware/auth.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
+import { getUserReadableOrganizations } from '../utils/authUtils.js';
 import { parseSQON } from '../utils/convertSqonToQuery.js';
-import { NotFound } from '../utils/errors.js';
+import { Forbidden, NotFound } from '../utils/errors.js';
 import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
@@ -15,9 +17,15 @@ import {
 } from '../utils/schemas.js';
 import { SubmittedDataPaginatedResponse, VIEW_TYPE } from '../utils/types.js';
 
-const controller = (dependencies: BaseDependencies) => {
-	const service = submittedDataService(dependencies);
-	const { logger } = dependencies;
+const controller = ({
+	baseDependencies,
+	authConfig,
+}: {
+	baseDependencies: BaseDependencies;
+	authConfig: AuthConfig;
+}) => {
+	const service = submittedDataService(baseDependencies);
+	const { logger } = baseDependencies;
 	const LOG_MODULE = 'SUBMITTED_DATA_CONTROLLER';
 	const defaultPage = 1;
 	const defaultPageSize = 20;
@@ -33,6 +41,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const page = parseInt(String(req.query.page)) || defaultPage;
 				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
 				const view = convertToViewType(req.query.view) || defaultView;
+				const user = req.user;
 
 				logger.info(
 					LOG_MODULE,
@@ -41,10 +50,16 @@ const controller = (dependencies: BaseDependencies) => {
 					`view '${view}'`,
 				);
 
+				if (!shouldBypassAuth(req, authConfig)) {
+					throw new Forbidden(`User is not authorized to read submitted data`);
+				}
+
+				const readableOrganizations = getUserReadableOrganizations(user);
+
 				const submittedDataResult = await service.getSubmittedDataByCategory(
 					categoryId,
 					{ page, pageSize },
-					{ entityName, view },
+					{ entityName, view, organization: readableOrganizations },
 				);
 
 				if (_.isEmpty(submittedDataResult.result)) {
@@ -77,6 +92,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const page = parseInt(String(req.query.page)) || defaultPage;
 				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
 				const view = convertToViewType(String(req.query.view)) || defaultView;
+				const user = req.user;
 
 				logger.info(
 					LOG_MODULE,
@@ -84,6 +100,14 @@ const controller = (dependencies: BaseDependencies) => {
 					`pagination params: page '${page}' pageSize '${pageSize}'`,
 					`view '${view}'`,
 				);
+
+				if (!shouldBypassAuth(req, authConfig)) {
+					throw new Forbidden(`User is not authorized to read submitted data`);
+				}
+
+				if (user?.isAdmin === false && !getUserReadableOrganizations(user)?.includes(organization)) {
+					throw new Forbidden(`User is not authorized to read submitted data for organization '${organization}'`);
+				}
 
 				const submittedDataResult = await service.getSubmittedDataByOrganization(
 					categoryId,
@@ -125,6 +149,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const entityName = asArray(req.query.entityName || []);
 				const page = parseInt(String(req.query.page)) || defaultPage;
 				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+				const user = req.user;
 
 				logger.info(
 					LOG_MODULE,
@@ -134,6 +159,14 @@ const controller = (dependencies: BaseDependencies) => {
 					`sqon '${JSON.stringify(sqon)}'`,
 					`pagination params: page '${page}' pageSize '${pageSize}'`,
 				);
+
+				if (!shouldBypassAuth(req, authConfig)) {
+					throw new Forbidden(`User is not authorized to read submitted data`);
+				}
+
+				if (user?.isAdmin === false && !getUserReadableOrganizations(user)?.includes(organization)) {
+					throw new Forbidden(`User is not authorized to read submitted data for organization '${organization}'`);
+				}
 
 				const submittedDataResult = await service.getSubmittedDataByOrganization(
 					categoryId,
@@ -169,6 +202,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const categoryId = Number(req.params.categoryId);
 				const systemId = req.params.systemId;
 				const view = convertToViewType(String(req.query.view)) || defaultView;
+				const user = req.user;
 
 				logger.info(
 					LOG_MODULE,
@@ -178,8 +212,15 @@ const controller = (dependencies: BaseDependencies) => {
 					`params: view '${view}'`,
 				);
 
+				if (!shouldBypassAuth(req, authConfig)) {
+					throw new Forbidden(`User is not authorized to read submitted data`);
+				}
+
+				const readableOrganizations = getUserReadableOrganizations(user);
+
 				const submittedDataResult = await service.getSubmittedDataBySystemId(categoryId, systemId, {
 					view,
+					organization: readableOrganizations,
 				});
 
 				if (submittedDataResult.metadata.errorMessage) {
@@ -196,13 +237,24 @@ const controller = (dependencies: BaseDependencies) => {
 				const categoryId = Number(req.params.categoryId);
 				const entityName = asArray(req.query.entityName || []);
 				const view = convertToViewType(String(req.query.view)) || defaultView;
+				const user = req.user;
+
+				logger.info(LOG_MODULE, `Request stream for submitted data on categoryId '${categoryId}'`);
+
+				if (!shouldBypassAuth(req, authConfig)) {
+					throw new Forbidden(`User is not authorized to read submitted data`);
+				}
+
+				const readableOrganizations = getUserReadableOrganizations(user);
 
 				res.setHeader('Transfer-Encoding', 'chunked');
 				res.setHeader('Content-Type', 'application/x-ndjson');
 
-				logger.info(LOG_MODULE, `Request stream for submitted data on categoryId '${categoryId}'`);
-
-				for await (const data of service.getSubmittedDataByCategoryStream(categoryId, { view, entityName })) {
+				for await (const data of service.getSubmittedDataByCategoryStream(categoryId, {
+					view,
+					entityName,
+					organization: readableOrganizations,
+				})) {
 					res.write(JSON.stringify(data) + '\n');
 				}
 

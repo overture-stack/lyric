@@ -4,6 +4,7 @@ export type UserSession = {
 	username: string;
 	isAdmin: boolean;
 	allowedWriteOrganizations: string[];
+	allowedReadOrganizations: string[];
 };
 
 export type UserSessionResult = {

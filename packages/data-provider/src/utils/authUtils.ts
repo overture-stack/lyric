@@ -18,3 +18,22 @@ export const hasUserWriteAccess = (organization: string, user?: UserSession): bo
 
 	return user.allowedWriteOrganizations.includes(organization);
 };
+
+/**
+ * retrieves the list of organizations a user has read access to.
+ * @param user
+ * @returns
+ */
+export const getUserReadableOrganizations = (user?: UserSession) => {
+	if (!user) {
+		// no user info, authentication is not enabled, allow all access
+		return undefined;
+	}
+
+	if (user.isAdmin) {
+		// admin has access to all organizations
+		return undefined;
+	}
+
+	return user.allowedReadOrganizations;
+};

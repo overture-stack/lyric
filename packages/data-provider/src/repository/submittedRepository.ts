@@ -108,6 +108,17 @@ const repository = (dependencies: BaseDependencies) => {
 		return undefined;
 	};
 
+	const filterByOrganizationArray = (organizationArray?: string[]): SQL<unknown> | undefined => {
+		if (Array.isArray(organizationArray)) {
+			return or(
+				...organizationArray
+					.filter((org) => org !== undefined)
+					.map((org) => eq(submittedData.organization, org.trim())),
+			);
+		}
+		return undefined;
+	};
+
 	return {
 		/**
 		 * Deletes a submitted data record by its system ID, logs the deletion, and optionally audits the deletion if auditing is enabled.
@@ -210,20 +221,22 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {PaginationOptions} paginationOptions Pagination properties
 		 * @param {object} filter Filter Options
 		 * @param {string[] | undefined} filter.entityNames Array of entity names to filter
+		 * @param {string[] | undefined} filter.organization Array of organizations to filter
 		 * @returns The SubmittedData found
 		 */
 		getSubmittedDataByCategoryIdPaginated: async (
 			categoryId: number,
 			paginationOptions: PaginationOptions,
-			filter?: { entityNames?: string[] },
+			filter?: { entityNames?: string[]; organization?: string[] },
 		): Promise<SubmittedDataResponse[]> => {
 			const { page, pageSize } = paginationOptions;
 
 			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
+			const filterOrganizationSql = filterByOrganizationArray(filter?.organization);
 
 			try {
 				return await db.query.submittedData.findMany({
-					where: and(eq(submittedData.dictionaryCategoryId, categoryId), filterEntityNameSql),
+					where: and(eq(submittedData.dictionaryCategoryId, categoryId), filterEntityNameSql, filterOrganizationSql),
 					columns: paginatedColumns,
 					orderBy: (submittedData, { asc }) => [asc(submittedData.entityName), asc(submittedData.id)],
 					limit: pageSize,
@@ -323,18 +336,20 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {object} filter Filter options
 		 * @param {SQL | undefined} filter.sql SQL command
 		 * @param {string[] | undefined} filter.entityNames Array of entity names to filter
+		 * @param {string[] | undefined} filter.organization Organization name to filter
 		 * @returns Total number of recourds
 		 */
 		getTotalRecordsByCategoryId: async (
 			categoryId: number,
-			filter?: { sql?: SQL; entityNames?: string[] },
+			filter?: { sql?: SQL; entityNames?: string[]; organization?: string[] },
 		): Promise<number> => {
 			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
+			const filterOrganizationSql = filterByOrganizationArray(filter?.organization);
 			try {
 				const resultCount = await db
 					.select({ total: count() })
 					.from(submittedData)
-					.where(and(eq(submittedData.dictionaryCategoryId, categoryId), filterEntityNameSql));
+					.where(and(eq(submittedData.dictionaryCategoryId, categoryId), filterEntityNameSql, filterOrganizationSql));
 				return resultCount[0].total;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed counting SubmittedData with categoryId '${categoryId}'`, error);
@@ -389,12 +404,16 @@ const repository = (dependencies: BaseDependencies) => {
 		 * Query to retrieve an unique SubmittedData record searching by System ID
 		 * Returns a SubmittedData record if found. Otherwise returns undefined
 		 * @param {string} systemId
+		 * @param {string[] | undefined} organization Optional array of organizations to filter the data by. if not provided, no organization filter is applied.
 		 * @returns {Promise<SubmittedData | undefined>}
 		 */
-		getSubmittedDataBySystemId: async (systemId: string): Promise<SubmittedData | undefined> => {
+		getSubmittedDataBySystemId: async (
+			systemId: string,
+			organization?: string[],
+		): Promise<SubmittedData | undefined> => {
 			try {
 				return await db.query.submittedData.findFirst({
-					where: eq(submittedData.systemId, systemId),
+					where: and(eq(submittedData.systemId, systemId), filterByOrganizationArray(organization)),
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying SubmittedData by systemId '${systemId}'`, error);

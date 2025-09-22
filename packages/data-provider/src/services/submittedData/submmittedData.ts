@@ -223,6 +223,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 	 * @param filterOptions - An object containing options for filtering the data.
 	 * @param filterOptions.entityName - An optional array of entity names to filter the data by.
 	 * @param filterOptions.view - An optional flag indicating the view type
+	 * @param filterOptions.organization - An optional array of organizations to filter the data by. if not provided, no organization filter is applied.
 	 * @returns A promise that resolves to an object containing:
 	 * - `result`: An array of `SubmittedDataResponse` objects, representing the fetched data.
 	 * - `metadata`: An object containing metadata about the fetched data, including the total number of records.
@@ -231,7 +232,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 	const getSubmittedDataByCategory = async (
 		categoryId: number,
 		paginationOptions: PaginationOptions,
-		filterOptions: { entityName?: string[]; view: ViewType },
+		filterOptions: { entityName?: string[]; view: ViewType; organization?: string[] },
 	): Promise<{
 		result: SubmittedDataResponse[];
 		metadata: { totalRecords: number; errorMessage?: string };
@@ -250,6 +251,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		let recordsPaginated = await getSubmittedDataByCategoryIdPaginated(categoryId, paginationOptions, {
 			entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
+			organization: filterOptions.organization,
 		});
 
 		if (recordsPaginated.length === 0) {
@@ -368,6 +370,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 	 * @param systemId - The unique identifier for the system associated with the submitted data.
 	 * @param filterOptions - An object containing options for data representation.
 	 * @param filterOptions.view - The desired view type for the data representation, such as 'flat' or 'compound'.
+	 * @param filterOptions.organization - An optional array of organizations to filter the data by. if not provided, no organization filter is applied.
 	 * @returns A promise that resolves to an object containing:
 	 * - `result`: The fetched `SubmittedDataResponse`, or `undefined` if no data is found.
 	 * - `metadata`: An object containing metadata about the fetched data, including an optional `errorMessage` property.
@@ -375,13 +378,13 @@ const submittedData = (dependencies: BaseDependencies) => {
 	const getSubmittedDataBySystemId = async (
 		categoryId: number,
 		systemId: string,
-		filterOptions: { view: ViewType },
+		filterOptions: { view: ViewType; organization?: string[] },
 	): Promise<{
 		result: SubmittedDataResponse | undefined;
 		metadata: { errorMessage?: string };
 	}> => {
 		// get SubmittedData by SystemId
-		const foundRecord = await submittedDataRepo.getSubmittedDataBySystemId(systemId);
+		const foundRecord = await submittedDataRepo.getSubmittedDataBySystemId(systemId, filterOptions.organization);
 		logger.info(LOG_MODULE, `Found Submitted Data with system ID '${systemId}'`);
 
 		if (!foundRecord) {
@@ -442,11 +445,12 @@ const submittedData = (dependencies: BaseDependencies) => {
 	 * @param filterOptions - An object containing options for data representation.
 	 * @param filterOptions.view - The desired view type for the data representation, such as 'flat' or 'compound'.
 	 * @param filterOptions.entityName - An optional array of entity names to filter the data by. Can include undefined entries.
+	 * @param filterOptions.organization - An optional array of organizations to filter the data by. if not provided, no organization filter is applied.
 	 * @returns Promise that resolves to an object containing submitted data records
 	 */
 	async function* getSubmittedDataByCategoryStream(
 		categoryId: number,
-		filterOptions: { entityName?: string[]; view: ViewType },
+		filterOptions: { entityName?: string[]; view: ViewType; organization?: string[] },
 	) {
 		const { getSubmittedDataByCategoryIdPaginated, getTotalRecordsByCategoryId } = submittedDataRepo;
 
@@ -464,6 +468,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		const totalRecords = await getTotalRecordsByCategoryId(categoryId, {
 			entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
+			organization: filterOptions.organization,
 		});
 
 		for (let x = 0, currentPage = 1; x < totalRecords; currentPage++) {
@@ -475,6 +480,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 				},
 				{
 					entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
+					organization: filterOptions.organization,
 				},
 			);
 

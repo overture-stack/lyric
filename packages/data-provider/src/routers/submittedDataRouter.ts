@@ -17,25 +17,28 @@ const router = ({
 
 	router.use(authMiddleware(authConfig));
 
-	router.get('/category/:categoryId', submittedDataController(baseDependencies).getSubmittedDataByCategory);
+	router.get(
+		'/category/:categoryId',
+		submittedDataController({ baseDependencies, authConfig }).getSubmittedDataByCategory,
+	);
 
 	router.get(
 		'/category/:categoryId/organization/:organization',
-		submittedDataController(baseDependencies).getSubmittedDataByOrganization,
+		submittedDataController({ baseDependencies, authConfig }).getSubmittedDataByOrganization,
 	);
 
 	router.post(
 		'/category/:categoryId/organization/:organization/query',
-		submittedDataController(baseDependencies).getSubmittedDataByQuery,
+		submittedDataController({ baseDependencies, authConfig }).getSubmittedDataByQuery,
 	);
 
 	router.get(
 		'/category/:categoryId/id/:systemId',
-		submittedDataController(baseDependencies).getSubmittedDataBySystemId,
+		submittedDataController({ baseDependencies, authConfig }).getSubmittedDataBySystemId,
 	);
 	router.get(
 		'/category/:categoryId/stream',
-		submittedDataController(baseDependencies).getSubmittedDataByCategoryStream,
+		submittedDataController({ baseDependencies, authConfig }).getSubmittedDataByCategoryStream,
 	);
 
 	return router;
