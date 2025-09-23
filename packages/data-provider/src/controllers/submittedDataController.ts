@@ -4,7 +4,7 @@ import { convertToViewType } from '..//utils/submittedDataUtils.js';
 import { BaseDependencies } from '../config/config.js';
 import { type AuthConfig, shouldBypassAuth } from '../middleware/auth.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
-import { getUserReadableOrganizations } from '../utils/authUtils.js';
+import { getUserReadableOrganizations, hasUserReadAccess } from '../utils/authUtils.js';
 import { parseSQON } from '../utils/convertSqonToQuery.js';
 import { Forbidden, NotFound } from '../utils/errors.js';
 import { asArray } from '../utils/formatUtils.js';
@@ -49,10 +49,6 @@ const controller = ({
 					`pagination params: page '${page}' pageSize '${pageSize}'`,
 					`view '${view}'`,
 				);
-
-				if (!shouldBypassAuth(req, authConfig)) {
-					throw new Forbidden(`User is not authorized to read submitted data`);
-				}
 
 				const readableOrganizations = getUserReadableOrganizations(user);
 
@@ -101,11 +97,7 @@ const controller = ({
 					`view '${view}'`,
 				);
 
-				if (!shouldBypassAuth(req, authConfig)) {
-					throw new Forbidden(`User is not authorized to read submitted data`);
-				}
-
-				if (user?.isAdmin === false && !getUserReadableOrganizations(user)?.includes(organization)) {
+				if (!shouldBypassAuth(req, authConfig) && !hasUserReadAccess(organization, user)) {
 					throw new Forbidden(`User is not authorized to read submitted data for organization '${organization}'`);
 				}
 
@@ -160,11 +152,7 @@ const controller = ({
 					`pagination params: page '${page}' pageSize '${pageSize}'`,
 				);
 
-				if (!shouldBypassAuth(req, authConfig)) {
-					throw new Forbidden(`User is not authorized to read submitted data`);
-				}
-
-				if (user?.isAdmin === false && !getUserReadableOrganizations(user)?.includes(organization)) {
+				if (!shouldBypassAuth(req, authConfig) && !hasUserReadAccess(organization, user)) {
 					throw new Forbidden(`User is not authorized to read submitted data for organization '${organization}'`);
 				}
 
@@ -212,10 +200,6 @@ const controller = ({
 					`params: view '${view}'`,
 				);
 
-				if (!shouldBypassAuth(req, authConfig)) {
-					throw new Forbidden(`User is not authorized to read submitted data`);
-				}
-
 				const readableOrganizations = getUserReadableOrganizations(user);
 
 				const submittedDataResult = await service.getSubmittedDataBySystemId(categoryId, systemId, {
@@ -240,10 +224,6 @@ const controller = ({
 				const user = req.user;
 
 				logger.info(LOG_MODULE, `Request stream for submitted data on categoryId '${categoryId}'`);
-
-				if (!shouldBypassAuth(req, authConfig)) {
-					throw new Forbidden(`User is not authorized to read submitted data`);
-				}
 
 				const readableOrganizations = getUserReadableOrganizations(user);
 
