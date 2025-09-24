@@ -221,18 +221,18 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {PaginationOptions} paginationOptions Pagination properties
 		 * @param {object} filter Filter Options
 		 * @param {string[] | undefined} filter.entityNames Array of entity names to filter
-		 * @param {string[] | undefined} filter.organization Array of organizations to filter
+		 * @param {string[] | undefined} filter.organizations Array of organizations to filter
 		 * @returns The SubmittedData found
 		 */
 		getSubmittedDataByCategoryIdPaginated: async (
 			categoryId: number,
 			paginationOptions: PaginationOptions,
-			filter?: { entityNames?: string[]; organization?: string[] },
+			filter?: { entityNames?: string[]; organizations?: string[] },
 		): Promise<SubmittedDataResponse[]> => {
 			const { page, pageSize } = paginationOptions;
 
 			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
-			const filterOrganizationSql = filterByOrganizationArray(filter?.organization);
+			const filterOrganizationSql = filterByOrganizationArray(filter?.organizations);
 
 			try {
 				return await db.query.submittedData.findMany({
@@ -336,15 +336,15 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {object} filter Filter options
 		 * @param {SQL | undefined} filter.sql SQL command
 		 * @param {string[] | undefined} filter.entityNames Array of entity names to filter
-		 * @param {string[] | undefined} filter.organization Organization name to filter
+		 * @param {string[] | undefined} filter.organizations Organization name to filter
 		 * @returns Total number of recourds
 		 */
 		getTotalRecordsByCategoryId: async (
 			categoryId: number,
-			filter?: { sql?: SQL; entityNames?: string[]; organization?: string[] },
+			filter?: { sql?: SQL; entityNames?: string[]; organizations?: string[] },
 		): Promise<number> => {
 			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
-			const filterOrganizationSql = filterByOrganizationArray(filter?.organization);
+			const filterOrganizationSql = filterByOrganizationArray(filter?.organizations);
 			try {
 				const resultCount = await db
 					.select({ total: count() })
@@ -404,16 +404,12 @@ const repository = (dependencies: BaseDependencies) => {
 		 * Query to retrieve an unique SubmittedData record searching by System ID
 		 * Returns a SubmittedData record if found. Otherwise returns undefined
 		 * @param {string} systemId
-		 * @param {string[] | undefined} organization Optional array of organizations to filter the data by. if not provided, no organization filter is applied.
 		 * @returns {Promise<SubmittedData | undefined>}
 		 */
-		getSubmittedDataBySystemId: async (
-			systemId: string,
-			organization?: string[],
-		): Promise<SubmittedData | undefined> => {
+		getSubmittedDataBySystemId: async (systemId: string): Promise<SubmittedData | undefined> => {
 			try {
 				return await db.query.submittedData.findFirst({
-					where: and(eq(submittedData.systemId, systemId), filterByOrganizationArray(organization)),
+					where: eq(submittedData.systemId, systemId),
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying SubmittedData by systemId '${systemId}'`, error);

@@ -55,7 +55,7 @@ const controller = ({
 				const submittedDataResult = await service.getSubmittedDataByCategory(
 					categoryId,
 					{ page, pageSize },
-					{ entityName, view, organization: readableOrganizations },
+					{ entityName, view, organizations: readableOrganizations },
 				);
 
 				if (_.isEmpty(submittedDataResult.result)) {
@@ -200,15 +200,21 @@ const controller = ({
 					`params: view '${view}'`,
 				);
 
-				const readableOrganizations = getUserReadableOrganizations(user);
-
 				const submittedDataResult = await service.getSubmittedDataBySystemId(categoryId, systemId, {
 					view,
-					organization: readableOrganizations,
 				});
 
 				if (submittedDataResult.metadata.errorMessage) {
 					throw new NotFound(submittedDataResult.metadata.errorMessage);
+				}
+
+				if (
+					!shouldBypassAuth(req, authConfig) &&
+					!hasUserReadAccess(submittedDataResult.result?.organization || '', user)
+				) {
+					throw new Forbidden(
+						`User is not authorized to read submitted data for organization '${submittedDataResult.result?.organization}'`,
+					);
 				}
 
 				return res.status(200).send(submittedDataResult.result);
@@ -233,7 +239,7 @@ const controller = ({
 				for await (const data of service.getSubmittedDataByCategoryStream(categoryId, {
 					view,
 					entityName,
-					organization: readableOrganizations,
+					organizations: readableOrganizations,
 				})) {
 					res.write(JSON.stringify(data) + '\n');
 				}
