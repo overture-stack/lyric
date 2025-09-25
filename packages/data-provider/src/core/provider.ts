@@ -71,7 +71,7 @@ const provider = (configData: AppConfig) => {
 				baseDependencies: baseDeps,
 				authConfig: { enabled: configData.auth.enabled },
 			}),
-			submittedData: submittedDataController(baseDeps),
+			submittedData: submittedDataController({ baseDependencies: baseDeps, authConfig: configData.auth }),
 			validator: validationController({ baseDependencies: baseDeps, validatorConfig: configData.validator }),
 		},
 		services: {

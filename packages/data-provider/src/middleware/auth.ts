@@ -4,26 +4,25 @@ export type UserSession = {
 	username: string;
 	isAdmin: boolean;
 	allowedWriteOrganizations: string[];
+	allowedReadOrganizations: string[];
 };
 
-export type UserSessionResult = {
-	user?: UserSession;
+export type UserSessionResult<TUser extends UserSession = UserSession> = {
+	user?: TUser;
 	errorCode?: number;
 	errorMessage?: string;
 };
 
-export type AuthConfig = {
+export type AuthConfig<TResult extends UserSessionResult = UserSessionResult> = {
 	enabled: boolean;
 	protectedMethods?: Array<'GET' | 'POST' | 'PUT' | 'DELETE'>;
-	customAuthHandler?: (req: Request) => UserSessionResult | Promise<UserSessionResult>;
+	customAuthHandler?: (req: Request) => TResult | Promise<TResult>;
 };
 
 // Extends the Request interface to include a custom `user` object
-declare module 'express-serve-static-core' {
-	interface Request {
-		user?: UserSession;
-	}
-}
+export type RequestWithUser<TUser extends UserSession = UserSession> = Request & {
+	user?: TUser;
+};
 
 /**
  * Determines whether the incoming request should bypass authentication,
@@ -57,7 +56,7 @@ export const shouldBypassAuth = (req: Request, authConfig: AuthConfig) => {
  * @returns
  */
 export const authMiddleware = (authConfig: AuthConfig) => {
-	return async (req: Request, res: Response, next: NextFunction) => {
+	return async (req: RequestWithUser, res: Response, next: NextFunction) => {
 		if (shouldBypassAuth(req, authConfig)) {
 			return next();
 		}

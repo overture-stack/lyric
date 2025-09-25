@@ -1,6 +1,9 @@
-import { RequestHandler } from 'express-serve-static-core';
+import { NextFunction, Request, Response } from 'express';
+import type { ParamsDictionary, RequestHandler } from 'express-serve-static-core';
+import type { ParsedQs } from 'qs';
 import { ZodError, ZodSchema } from 'zod';
 
+import type { UserSession } from '../middleware/auth.js';
 import { BadRequest, InternalServerError } from './errors.js';
 
 export declare type RequestValidation<TBody, TQuery, TParams> = {
@@ -9,14 +12,25 @@ export declare type RequestValidation<TBody, TQuery, TParams> = {
 	pathParams?: ZodSchema<TParams>;
 };
 
+type RequestWithUser<
+	TParams extends ParamsDictionary = ParamsDictionary,
+	TBody = unknown,
+	TQuery extends ParsedQs = ParsedQs,
+> = Request<TParams, unknown, TBody, TQuery> & {
+	user?: UserSession;
+};
 /**
  * Validate the body using Zod parse
  * @param schema Zod objects used to validate request
  * @returns Throws a Bad Request when validation fails
  */
-export function validateRequest<TBody, TQuery, TParams>(
+export function validateRequest<
+	TBody,
+	TQuery extends ParsedQs = ParsedQs,
+	TParams extends ParamsDictionary = ParamsDictionary,
+>(
 	schema: RequestValidation<TBody, TQuery, TParams>,
-	handler: RequestHandler<TParams, unknown, TBody, TQuery>,
+	handler: (req: RequestWithUser<TParams, TBody, TQuery>, res: Response, next: NextFunction) => unknown,
 ): RequestHandler<TParams, unknown, TBody, TQuery> {
 	const LOG_MODULE = 'REQUEST_VALIDATION';
 	return async (req, res, next) => {
