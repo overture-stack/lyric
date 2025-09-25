@@ -55,7 +55,7 @@ const lyricProvider = provider(appConfig);
 
 ### Auth Custom Handler
 
-The **authentication custom handler** is a customizable function that can be used to verify user authentication and grant write permissions to organizations. It is used by the auth middleware to process incoming requests before any operation is executed, and to identify the user for audit purposes on these endpoints.
+The **authentication custom handler** is a customizable function that can be used to verify user authentication and grant write and read permissions to organizations. It is used by the auth middleware to process incoming requests before any operation is executed, and to identify the user for audit purposes on these endpoints.
 
 The handler receives an argument of type `Request` and returns a `UserSessionResult` response type, which provides information about the user's session or any errors encountered during the process.
 
@@ -68,17 +68,28 @@ This result `UserSessionResult` object may include the following:
   		username: string;
   		isAdmin: boolean;
   		allowedWriteOrganizations: string[];
+  		allowedReadOrganizations: string[];
   	}
   ```
 
   - **username**: A string representing the user's identifier (e.g., email address).
   - **isAdmin**: A boolean value indicating whether the user has admin privileges. If `true`, the user has write access to all organizations.
-  - **allowedWriteOrganization**: An array of strings representing the organizations to which the user is allowed to write data.
+  - **allowedWriteOrganizations**: An array of strings representing the organizations to which the user is allowed to write data.
+  - **allowedReadOrganizations**: An array of strings representing the organizations to which the user is allowed to read data.
 
-  When an authentication error occurs, the system should return the following error details:
+When an authentication error occurs, the system should return the following error details:
 
 - **errorCode**: A numeric code representing an error that occurred while processing the session request.
 - **errorMessage**: A descriptive message detailing the specific error, if an errorCode is provided.
+
+> **Note:** To include additional properties in the `UserSession` object (for example: groups, department or any other application specific information), you can create a custom user session type that extends `UserSession`. Example:
+>
+> ```javascript
+> type CustomUserSession = UserSession & {
+>   department?: string;
+>   groups?: string[];
+> };
+> ```
 
 Example how to implement a custom auth handler:
 
@@ -87,7 +98,7 @@ import { type Request } from 'express';
 import { type UserSessionResult } from '@overture-stack/lyric';
 import jwt from 'jsonwebtoken';
 
-const authHandler = (req: Request): UserSessionResult => {
+const authHandler = (req: Request): UserSessionResult<CustomUserSession> => {
     // Extract the token from the request header
     const authHeader = req.headers['authorization'];
 
@@ -112,7 +123,9 @@ const authHandler = (req: Request): UserSessionResult => {
 			user: {
 				username: decodedToken.username, // Extract username from the decoded token
 				isAdmin: decodedToken.isAdmin, // Check if the user has admin privileges
-				allowedWriteOrganizations: decodedToken.scopes, // Get the list of organizations the user can write to
+				allowedWriteOrganizations: decodedToken.writeScopes, // Get the list of organizations the user can write to
+				allowedReadOrganizations: decodedToken.readScopes, // Get the list of organizations the user can read
+				groups: decodedToken.groups, // List of the groups the user is part of
 			 },
 		};
 	} catch (err) {
