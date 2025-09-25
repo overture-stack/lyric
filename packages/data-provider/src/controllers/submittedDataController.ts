@@ -1,6 +1,5 @@
 import * as _ from 'lodash-es';
 
-import { convertToViewType } from '..//utils/submittedDataUtils.js';
 import { BaseDependencies } from '../config/config.js';
 import { type AuthConfig, shouldBypassAuth } from '../middleware/auth.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
@@ -15,6 +14,7 @@ import {
 	dataGetByQueryRequestSchema,
 	dataGetBySystemIdRequestSchema,
 } from '../utils/schemas.js';
+import { convertToViewType } from '../utils/submittedDataUtils.js';
 import { SubmittedDataPaginatedResponse, VIEW_TYPE } from '../utils/types.js';
 
 const controller = ({
@@ -50,12 +50,12 @@ const controller = ({
 					`view '${view}'`,
 				);
 
-				const readableOrganizations = getUserReadableOrganizations(user);
+				const organizations = getUserReadableOrganizations(user);
 
 				const submittedDataResult = await service.getSubmittedDataByCategory(
 					categoryId,
 					{ page, pageSize },
-					{ entityName, view, organizations: readableOrganizations },
+					{ entityName, view, organizations },
 				);
 
 				if (_.isEmpty(submittedDataResult.result)) {
@@ -231,7 +231,7 @@ const controller = ({
 
 				logger.info(LOG_MODULE, `Request stream for submitted data on categoryId '${categoryId}'`);
 
-				const readableOrganizations = getUserReadableOrganizations(user);
+				const organizations = getUserReadableOrganizations(user);
 
 				res.setHeader('Transfer-Encoding', 'chunked');
 				res.setHeader('Content-Type', 'application/x-ndjson');
@@ -239,7 +239,7 @@ const controller = ({
 				for await (const data of service.getSubmittedDataByCategoryStream(categoryId, {
 					view,
 					entityName,
-					organizations: readableOrganizations,
+					organizations,
 				})) {
 					res.write(JSON.stringify(data) + '\n');
 				}
