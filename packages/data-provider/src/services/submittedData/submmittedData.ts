@@ -223,6 +223,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 	 * @param filterOptions - An object containing options for filtering the data.
 	 * @param filterOptions.entityName - An optional array of entity names to filter the data by.
 	 * @param filterOptions.view - An optional flag indicating the view type
+	 * @param filterOptions.organization - An optional array of organizations to filter the data by. if not provided, no organization filter is applied.
 	 * @returns A promise that resolves to an object containing:
 	 * - `result`: An array of `SubmittedDataResponse` objects, representing the fetched data.
 	 * - `metadata`: An object containing metadata about the fetched data, including the total number of records.
@@ -231,7 +232,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 	const getSubmittedDataByCategory = async (
 		categoryId: number,
 		paginationOptions: PaginationOptions,
-		filterOptions: { entityName?: string[]; view: ViewType },
+		filterOptions: { entityName?: string[]; view: ViewType; organizations?: string[] },
 	): Promise<{
 		result: SubmittedDataResponse[];
 		metadata: { totalRecords: number; errorMessage?: string };
@@ -250,6 +251,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		let recordsPaginated = await getSubmittedDataByCategoryIdPaginated(categoryId, paginationOptions, {
 			entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
+			organizations: filterOptions.organizations,
 		});
 
 		if (recordsPaginated.length === 0) {
@@ -266,6 +268,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		const totalRecords = await getTotalRecordsByCategoryId(categoryId, {
 			entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
+			organizations: filterOptions.organizations,
 		});
 
 		logger.info(LOG_MODULE, `Retrieved '${recordsPaginated.length}' Submitted data on categoryId '${categoryId}'`);
@@ -442,11 +445,12 @@ const submittedData = (dependencies: BaseDependencies) => {
 	 * @param filterOptions - An object containing options for data representation.
 	 * @param filterOptions.view - The desired view type for the data representation, such as 'flat' or 'compound'.
 	 * @param filterOptions.entityName - An optional array of entity names to filter the data by. Can include undefined entries.
+	 * @param filterOptions.organization - An optional array of organizations to filter the data by. if not provided, no organization filter is applied.
 	 * @returns Promise that resolves to an object containing submitted data records
 	 */
 	async function* getSubmittedDataByCategoryStream(
 		categoryId: number,
-		filterOptions: { entityName?: string[]; view: ViewType },
+		filterOptions: { entityName?: string[]; view: ViewType; organizations?: string[] },
 	) {
 		const { getSubmittedDataByCategoryIdPaginated, getTotalRecordsByCategoryId } = submittedDataRepo;
 
@@ -464,6 +468,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		const totalRecords = await getTotalRecordsByCategoryId(categoryId, {
 			entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
+			organizations: filterOptions.organizations,
 		});
 
 		for (let x = 0, currentPage = 1; x < totalRecords; currentPage++) {
@@ -475,6 +480,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 				},
 				{
 					entityNames: getEntityNamesFromFilterOptions(filterOptions, defaultCentricEntity),
+					organizations: filterOptions.organizations,
 				},
 			);
 
