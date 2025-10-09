@@ -16,6 +16,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 	 * @param dictionaryName The name of the dictionary to create
 	 * @param version The version of the dictionary to create
 	 * @param schemas The Schema of the dictionary
+	 * @param defaultCentricEntity The Centric schema of the dictionary
 	 * @returns The new dictionary created or the existing one
 	 */
 	const createDictionaryIfDoesNotExist = async (
@@ -45,7 +46,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Fetch the dictionary from Schema Service (Lectern)
+	 * Fetch the dictionary from Schema Service(Lectern)
 	 * @param dictionaryName The dictionary name we want to fetch
 	 * @param version The version of the dictionary we want to fetch
 	 * @returns {SchemasDictionary} The found Dictionary
@@ -90,7 +91,6 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 				`Fetch failed for '${dictionaryName}' with version '${version}'. Retrying with '${alt}'.`,
 			);
 
-			// If fallback also fails, let that error bubble up (it tends to be more informative)
 			const dict = await fetchDictionaryByVersion(dictionaryName, alt);
 			return { dict, usedVersion: alt };
 		}
@@ -135,7 +135,6 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 
 		const categoryRepo = categoryRepository(dependencies);
 
-		// Fetch with fallback (e.g., "1" -> try "1.0" automatically if first attempt fails)
 		const { dict: remoteDict, usedVersion } = await fetchWithVersionFallback(dictionaryName, dictionaryVersion);
 
 		if (defaultCentricEntity && !remoteDict.schemas.some((schema) => schema.name === defaultCentricEntity)) {
@@ -143,11 +142,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			throw new Error(`Entity '${defaultCentricEntity}' does not exist in this dictionary`);
 		}
 
-		const savedDictionary = await createDictionaryIfDoesNotExist(
-			dictionaryName,
-			usedVersion, // persist the version that actually worked
-			remoteDict.schemas,
-		);
+		const savedDictionary = await createDictionaryIfDoesNotExist(dictionaryName, usedVersion, remoteDict.schemas);
 
 		// Check if Category exist
 		const foundCategory = await categoryRepo.getCategoryByName(categoryName);
@@ -155,6 +150,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		if (foundCategory && foundCategory.activeDictionaryId === savedDictionary.id) {
 			// Dictionary and Category already exists
 			logger.info(LOG_MODULE, `Dictionary and Category already exists`);
+
 			return { dictionary: savedDictionary, category: foundCategory };
 		} else if (foundCategory && foundCategory.activeDictionaryId !== savedDictionary.id) {
 			// Update the dictionary on existing Category
@@ -182,7 +178,6 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			return { dictionary: savedDictionary, category: savedCategory };
 		}
 	};
-
 	return {
 		createDictionaryIfDoesNotExist,
 		fetchDictionaryByVersion,

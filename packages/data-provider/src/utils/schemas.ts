@@ -208,15 +208,14 @@ export const cagegoryDetailsRequestSchema: RequestValidation<object, ParsedQs, c
 export interface dictionaryRegisterBodyParams {
 	categoryName: string;
 	dictionaryName: string;
-	dictionaryVersion: string; // string only (e.g., "1.0")
-	defaultCentricEntity?: string | string[]; // union (schema input == output)
+	dictionaryVersion: string;
+	defaultCentricEntity?: string | string[];
 }
 
 const dictionaryRegisterBodySchema = z.object({
 	categoryName: stringNotEmpty,
 	dictionaryName: stringNotEmpty,
 	dictionaryVersion: z.string().trim().min(1),
-	// allow "", string, string[], or omit; we normalize in controller
 	defaultCentricEntity: z.union([z.string(), z.array(z.string())]).optional(),
 });
 

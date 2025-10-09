@@ -15,19 +15,13 @@ const controller = (dependencies: BaseDependencies) => {
 	const dictionaryService = dictionarySvc(dependencies);
 	const { logger } = dependencies;
 	const LOG_MODULE = 'DICTIONARY_CONTROLLER';
-
 	return {
 		registerDictionary: validateRequest(dictionaryRegisterRequestSchema, async (req, res, next) => {
 			try {
 				const categoryName: string = String(req.body.categoryName).trim();
 				const dictionaryName: string = String(req.body.dictionaryName).trim();
-				// Must match Lectern exactly, e.g. "1.0"
 				const dictionaryVersion: string = String(req.body.dictionaryVersion).trim();
-
-				// Schema allows union: string | string[] | undefined
 				const rawDce: string | string[] | undefined = req.body.defaultCentricEntity;
-
-				// Normalize to string | undefined (service expects string)
 				let defaultCentricEntity: string | undefined;
 				if (Array.isArray(rawDce)) {
 					const firstNonEmpty = rawDce.map((s) => String(s).trim()).find((s) => s.length > 0);
@@ -65,7 +59,6 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		}),
-
 		downloadDataFileTemplates: validateRequest(downloadDataFileTemplatesSchema, async (req, res, next) => {
 			try {
 				const { fileType } = req.query;
@@ -96,7 +89,6 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		}),
-
 		getDictionaryJson: async (req: Request, res: Response, next: NextFunction) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
