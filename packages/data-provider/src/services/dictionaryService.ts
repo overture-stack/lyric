@@ -135,14 +135,11 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			return { dictionary: savedDictionary, category: foundCategory };
 		} else if (foundCategory && foundCategory.activeDictionaryId !== savedDictionary.id) {
 			// Update the dictionary on existing Category
-			const updatedCategory = await categoryRepo.update(
-				foundCategory.id,
-				{
-					activeDictionaryId: savedDictionary.id,
-					defaultCentricEntity,
-				},
-				username,
-			);
+			const updatedCategory = await categoryRepo.update(foundCategory.id, {
+				activeDictionaryId: savedDictionary.id,
+				defaultCentricEntity,
+				updatedBy: username,
+			});
 
 			logger.info(
 				LOG_MODULE,
