@@ -1,4 +1,5 @@
 import { isEmpty } from 'lodash-es';
+
 import { Dictionary as SchemasDictionary, Schema } from '@overture-stack/lectern-client';
 import { Category, Dictionary, NewCategory, NewDictionary } from '@overture-stack/lyric-data-model/models';
 
@@ -23,6 +24,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		dictionaryName: string,
 		version: string,
 		schemas: Schema[],
+		username?: string,
 	): Promise<Dictionary> => {
 		const dictionaryRepo = dictionaryRepository(dependencies);
 		try {
@@ -36,6 +38,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 				name: dictionaryName,
 				version: version,
 				dictionary: schemas,
+				createdBy: username,
 			};
 			const savedDictionary = await dictionaryRepo.save(newDictionary);
 			return savedDictionary;
@@ -93,11 +96,13 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		dictionaryName,
 		dictionaryVersion,
 		defaultCentricEntity,
+		username,
 	}: {
 		categoryName: string;
 		dictionaryName: string;
 		dictionaryVersion: string;
 		defaultCentricEntity?: string;
+		username?: string;
 	}): Promise<{ dictionary: Dictionary; category: Category }> => {
 		logger.debug(
 			LOG_MODULE,
@@ -113,7 +118,12 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			throw new Error(`Entity '${defaultCentricEntity}' does not exist in this dictionary`);
 		}
 
-		const savedDictionary = await createDictionaryIfDoesNotExist(dictionaryName, dictionaryVersion, dictionary.schemas);
+		const savedDictionary = await createDictionaryIfDoesNotExist(
+			dictionaryName,
+			dictionaryVersion,
+			dictionary.schemas,
+			username,
+		);
 
 		// Check if Category exist
 		const foundCategory = await categoryRepo.getCategoryByName(categoryName);
@@ -125,14 +135,18 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			return { dictionary: savedDictionary, category: foundCategory };
 		} else if (foundCategory && foundCategory.activeDictionaryId !== savedDictionary.id) {
 			// Update the dictionary on existing Category
-			const updatedCategory = await categoryRepo.update(foundCategory.id, {
-				activeDictionaryId: savedDictionary.id,
-				defaultCentricEntity,
-			});
+			const updatedCategory = await categoryRepo.update(
+				foundCategory.id,
+				{
+					activeDictionaryId: savedDictionary.id,
+					defaultCentricEntity,
+				},
+				username,
+			);
 
 			logger.info(
 				LOG_MODULE,
-				`Category '${updatedCategory.name}' updated succesfully with Dictionary '${savedDictionary.name}' version '${savedDictionary.version}'`,
+				`Category '${updatedCategory.name}' updated successfully with Dictionary '${savedDictionary.name}' version '${savedDictionary.version}'`,
 			);
 
 			return { dictionary: savedDictionary, category: updatedCategory };
@@ -142,6 +156,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 				name: categoryName,
 				activeDictionaryId: savedDictionary.id,
 				defaultCentricEntity,
+				createdBy: username,
 			};
 
 			const savedCategory = await categoryRepo.save(newCategory);

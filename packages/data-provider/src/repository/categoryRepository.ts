@@ -143,11 +143,11 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param newData Set fields to update
 		 * @returns The updated record
 		 */
-		update: async (categoryId: number, newData: Partial<Category>): Promise<Category> => {
+		update: async (categoryId: number, newData: Partial<Category>, username?: string): Promise<Category> => {
 			try {
 				const updated = await db
 					.update(dictionaryCategories)
-					.set({ ...newData, updatedAt: new Date() })
+					.set({ ...newData, updatedAt: new Date(), updatedBy: username })
 					.where(eq(dictionaryCategories.id, categoryId))
 					.returning();
 				return updated[0];
