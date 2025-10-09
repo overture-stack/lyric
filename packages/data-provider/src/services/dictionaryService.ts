@@ -16,7 +16,6 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 	 * @param dictionaryName The name of the dictionary to create
 	 * @param version The version of the dictionary to create
 	 * @param schemas The Schema of the dictionary
-	 * @param defaultCentricEntity The Centric schema of the dictionary
 	 * @returns The new dictionary created or the existing one
 	 */
 	const createDictionaryIfDoesNotExist = async (
@@ -46,10 +45,10 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Fetch the dictionary from Schema Service(Lectern)
+	 * Fetch the dictionary from Schema Service (Lectern)
 	 * @param dictionaryName The dictionary name we want to fetch
 	 * @param version The version of the dictionary we want to fetch
-	 * @returns {SchemaDictionary} The found Dictionary
+	 * @returns {SchemasDictionary} The found Dictionary
 	 */
 	const fetchDictionaryByVersion = async (dictionaryName: string, version: string): Promise<SchemasDictionary> => {
 		try {
@@ -64,6 +63,36 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		} catch (error) {
 			logger.error(LOG_MODULE, `Error Fetching dictionary from lectern`, error);
 			throw error;
+		}
+	};
+
+	/**
+	 * Try a fetch; if it fails and the version looks like a whole number (e.g., "1"),
+	 * retry once with a ".0" suffix (e.g., "1.0"). Returns the dictionary and the
+	 * version string that actually worked.
+	 */
+	const fetchWithVersionFallback = async (
+		dictionaryName: string,
+		version: string,
+	): Promise<{ dict: SchemasDictionary; usedVersion: string }> => {
+		try {
+			const dict = await fetchDictionaryByVersion(dictionaryName, version);
+			return { dict, usedVersion: version };
+		} catch (firstErr) {
+			const isWholeNumber = /^\d+$/.test(version);
+			if (!isWholeNumber) {
+				throw firstErr;
+			}
+
+			const alt = `${version}.0`;
+			logger.warn(
+				LOG_MODULE,
+				`Fetch failed for '${dictionaryName}' with version '${version}'. Retrying with '${alt}'.`,
+			);
+
+			// If fallback also fails, let that error bubble up (it tends to be more informative)
+			const dict = await fetchDictionaryByVersion(dictionaryName, alt);
+			return { dict, usedVersion: alt };
 		}
 	};
 
@@ -106,14 +135,19 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 
 		const categoryRepo = categoryRepository(dependencies);
 
-		const dictionary = await fetchDictionaryByVersion(dictionaryName, dictionaryVersion);
+		// Fetch with fallback (e.g., "1" -> try "1.0" automatically if first attempt fails)
+		const { dict: remoteDict, usedVersion } = await fetchWithVersionFallback(dictionaryName, dictionaryVersion);
 
-		if (defaultCentricEntity && !dictionary.schemas.some((schema) => schema.name === defaultCentricEntity)) {
+		if (defaultCentricEntity && !remoteDict.schemas.some((schema) => schema.name === defaultCentricEntity)) {
 			logger.error(LOG_MODULE, `Entity '${defaultCentricEntity}' does not exist in this dictionary`);
 			throw new Error(`Entity '${defaultCentricEntity}' does not exist in this dictionary`);
 		}
 
-		const savedDictionary = await createDictionaryIfDoesNotExist(dictionaryName, dictionaryVersion, dictionary.schemas);
+		const savedDictionary = await createDictionaryIfDoesNotExist(
+			dictionaryName,
+			usedVersion, // persist the version that actually worked
+			remoteDict.schemas,
+		);
 
 		// Check if Category exist
 		const foundCategory = await categoryRepo.getCategoryByName(categoryName);
@@ -121,7 +155,6 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		if (foundCategory && foundCategory.activeDictionaryId === savedDictionary.id) {
 			// Dictionary and Category already exists
 			logger.info(LOG_MODULE, `Dictionary and Category already exists`);
-
 			return { dictionary: savedDictionary, category: foundCategory };
 		} else if (foundCategory && foundCategory.activeDictionaryId !== savedDictionary.id) {
 			// Update the dictionary on existing Category
@@ -149,6 +182,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			return { dictionary: savedDictionary, category: savedCategory };
 		}
 	};
+
 	return {
 		createDictionaryIfDoesNotExist,
 		fetchDictionaryByVersion,

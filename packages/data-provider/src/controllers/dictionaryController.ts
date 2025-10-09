@@ -15,13 +15,29 @@ const controller = (dependencies: BaseDependencies) => {
 	const dictionaryService = dictionarySvc(dependencies);
 	const { logger } = dependencies;
 	const LOG_MODULE = 'DICTIONARY_CONTROLLER';
+
 	return {
 		registerDictionary: validateRequest(dictionaryRegisterRequestSchema, async (req, res, next) => {
 			try {
-				const categoryName = req.body.categoryName;
-				const dictionaryName = req.body.dictionaryName;
-				const dictionaryVersion = req.body.dictionaryVersion;
-				const defaultCentricEntity = req.body.defaultCentricEntity;
+				const categoryName: string = String(req.body.categoryName).trim();
+				const dictionaryName: string = String(req.body.dictionaryName).trim();
+				// Must match Lectern exactly, e.g. "1.0"
+				const dictionaryVersion: string = String(req.body.dictionaryVersion).trim();
+
+				// Schema allows union: string | string[] | undefined
+				const rawDce: string | string[] | undefined = req.body.defaultCentricEntity;
+
+				// Normalize to string | undefined (service expects string)
+				let defaultCentricEntity: string | undefined;
+				if (Array.isArray(rawDce)) {
+					const firstNonEmpty = rawDce.map((s) => String(s).trim()).find((s) => s.length > 0);
+					defaultCentricEntity = firstNonEmpty || undefined;
+				} else if (typeof rawDce === 'string') {
+					const t = rawDce.trim();
+					defaultCentricEntity = t.length > 0 ? t : undefined;
+				} else {
+					defaultCentricEntity = undefined;
+				}
 
 				logger.info(
 					LOG_MODULE,
@@ -49,6 +65,7 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		}),
+
 		downloadDataFileTemplates: validateRequest(downloadDataFileTemplatesSchema, async (req, res, next) => {
 			try {
 				const { fileType } = req.query;
@@ -79,6 +96,7 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		}),
+
 		getDictionaryJson: async (req: Request, res: Response, next: NextFunction) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
