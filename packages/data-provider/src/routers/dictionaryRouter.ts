@@ -18,6 +18,7 @@ const router = ({
 	router.use(authMiddleware(authConfig));
 
 	router.post('/register', dictionaryController(baseDependencies).registerDictionary);
+
 	router.get('/category/:categoryId', dictionaryController(baseDependencies).getDictionaryJson);
 	router.get('/category/:categoryId/templates', dictionaryController(baseDependencies).downloadDataFileTemplates);
 	return router;

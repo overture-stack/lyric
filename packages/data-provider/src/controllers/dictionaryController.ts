@@ -22,6 +22,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const dictionaryName = req.body.dictionaryName;
 				const dictionaryVersion = req.body.dictionaryVersion;
 				const defaultCentricEntity = req.body.defaultCentricEntity;
+				const user = req.user;
 
 				logger.info(
 					LOG_MODULE,
@@ -33,6 +34,7 @@ const controller = (dependencies: BaseDependencies) => {
 					dictionaryName,
 					dictionaryVersion,
 					defaultCentricEntity,
+					username: user?.username,
 				});
 
 				logger.info(LOG_MODULE, `Register Dictionary completed!`);

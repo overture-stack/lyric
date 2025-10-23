@@ -19,6 +19,7 @@ const router = ({
 
 	router.get('/', categoryController(baseDependencies).listAll);
 	router.get('/:categoryId', categoryController(baseDependencies).getDetails);
+
 	return router;
 };
 
