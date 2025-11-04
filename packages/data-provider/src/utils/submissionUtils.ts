@@ -41,6 +41,25 @@ import {
 	SubmittedDataReference,
 } from './types.js';
 
+/**
+ * Checks whether a record exists within a collection of submitted data records marked for update.
+ * The lookup is performed by matching the given 'entityName' and 'systemId'.
+ *
+ * @Returns true if found, false otherwise
+ */
+export const foundEditSubbmittedData = (
+	entityName: string,
+	systemId: string,
+	dataByEntityName: Record<string, DataRecordReference[]>,
+) => {
+	return (
+		dataByEntityName[entityName]?.some(
+			(data) =>
+				data.reference.type === MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA && data.reference.systemId === systemId,
+		) ?? false
+	);
+};
+
 // export default utils;
 // Only "open", "valid", and "invalid" statuses are considered Active Submission
 const statusesAllowedToClose = [SUBMISSION_STATUS.OPEN, SUBMISSION_STATUS.VALID, SUBMISSION_STATUS.INVALID] as const;
