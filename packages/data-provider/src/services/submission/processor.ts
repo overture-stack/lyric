@@ -24,8 +24,8 @@ import {
 	extractSchemaDataFromMergedDataRecords,
 	filterDeletesFromUpdates,
 	filterRelationsForPrimaryIdUpdate,
+	findEditSubmittedData,
 	findInvalidRecordErrorsBySchemaName,
-	foundEditSubbmittedData,
 	groupSchemaErrorsByEntity,
 	mapGroupedUpdateSubmissionData,
 	mergeAndReferenceEntityData,
@@ -427,7 +427,7 @@ const processor = (dependencies: BaseDependencies) => {
 		// Any error found will cause the submission to be marked as 'invalid'
 		Object.entries(submissionData.updates ?? {}).forEach(([entityName, recordsToUpdate]) => {
 			recordsToUpdate.forEach((submissionEditData, index) => {
-				const found = foundEditSubbmittedData(entityName, submissionEditData.systemId, dataMergedByEntityName);
+				const found = findEditSubmittedData(entityName, submissionEditData.systemId, dataMergedByEntityName);
 
 				if (found) {
 					return;
