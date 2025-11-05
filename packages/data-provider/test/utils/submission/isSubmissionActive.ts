@@ -1,28 +1,28 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { canTransitionToClosed } from '../../../src/utils/submissionUtils.js';
+import { isSubmissionActive } from '../../../src/utils/submissionUtils.js';
 
-describe('Submission Utils - canTransitionToClosed', () => {
-	describe('Determine if a Submission is on the right status to be closed', () => {
+describe('Submission Utils - isSubmissionActive', () => {
+	describe('Determine if a Submission is considered active by its status', () => {
 		it('should return true if a Submission status is OPEN', () => {
-			const response = canTransitionToClosed('OPEN');
+			const response = isSubmissionActive('OPEN');
 			expect(response).to.be.true;
 		});
 		it('should return true if a Submission status is VALID', () => {
-			const response = canTransitionToClosed('VALID');
+			const response = isSubmissionActive('VALID');
 			expect(response).to.be.true;
 		});
 		it('should return true if a Submission status is INVALID', () => {
-			const response = canTransitionToClosed('INVALID');
+			const response = isSubmissionActive('INVALID');
 			expect(response).to.be.true;
 		});
 		it('should return false if a Submission status is CLOSED', () => {
-			const response = canTransitionToClosed('CLOSED');
+			const response = isSubmissionActive('CLOSED');
 			expect(response).to.be.false;
 		});
 		it('should return false if a Submission status is COMMITTED', () => {
-			const response = canTransitionToClosed('COMMITTED');
+			const response = isSubmissionActive('COMMITTED');
 			expect(response).to.be.false;
 		});
 	});
