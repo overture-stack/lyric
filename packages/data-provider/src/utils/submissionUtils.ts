@@ -42,14 +42,18 @@ import {
 } from './types.js';
 
 // Only "open", "valid", and "invalid" statuses are considered Active Submission
-const openSubmissionStatus = [SUBMISSION_STATUS.OPEN, SUBMISSION_STATUS.VALID, SUBMISSION_STATUS.INVALID] as const;
-type OpenSubmissionStatus = typeof openSubmissionStatus extends Array<infer T> ? T : never;
+export const openSubmissionStatus = [
+	SUBMISSION_STATUS.OPEN,
+	SUBMISSION_STATUS.VALID,
+	SUBMISSION_STATUS.INVALID,
+] as const;
+export type OpenSubmissionStatus = typeof openSubmissionStatus;
 
 /** Determines if a Submission status is considered active based on its status
  * @param {SubmissionStatus} status Status of a Submission
  * @returns {boolean}
  */
-export const isSubmissionActive = (status: SubmissionStatus): status is OpenSubmissionStatus => {
+export const isSubmissionActive = (status: SubmissionStatus): status is OpenSubmissionStatus[number] => {
 	const openStatuses: SubmissionStatus[] = [...openSubmissionStatus];
 	return openStatuses.includes(status);
 };
