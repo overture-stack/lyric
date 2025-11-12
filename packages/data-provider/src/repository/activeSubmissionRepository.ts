@@ -1,18 +1,14 @@
-import type { ExtractTablesWithRelations } from 'drizzle-orm';
+import type { ExtractTablesWithRelations, SQL } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
-import { and, count, eq, or } from 'drizzle-orm/sql';
+import { and, count, eq, inArray, or } from 'drizzle-orm/sql';
 
 import { NewSubmission, Submission, submissions } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
-import {
-	BooleanTrueObject,
-	type PaginationOptions,
-	SUBMISSION_STATUS,
-	SubmissionSummaryRepository,
-} from '../utils/types.js';
+import { openSubmissionStatus } from '../utils/submissionUtils.js';
+import { BooleanTrueObject, type PaginationOptions, SubmissionSummaryRepository } from '../utils/types.js';
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
@@ -45,11 +41,17 @@ const repository = (dependencies: BaseDependencies) => {
 		},
 	};
 
-	const openSubmissionStatus = [SUBMISSION_STATUS.OPEN, SUBMISSION_STATUS.VALID, SUBMISSION_STATUS.INVALID] as const;
-
-	const getActiveStatusesCondition = (onlyActive: boolean, activeStatuses: typeof openSubmissionStatus) => {
-		return onlyActive ? or(...activeStatuses.map((status) => eq(submissions.status, status))) : undefined;
-	};
+	/**
+	 * SQL condition used to filter submissions that are in an active state.
+	 * Example usage:
+	 * ```ts
+	 * where: and(
+	 *   eq(submissions.dictionaryCategoryId, categoryId),
+	 *   activeStatusesCondition,
+	 * )
+	 * ```
+	 */
+	const activeStatusesCondition: SQL = inArray(submissions.status, [...openSubmissionStatus]);
 
 	return {
 		/**
@@ -91,7 +93,7 @@ const repository = (dependencies: BaseDependencies) => {
 						eq(submissions.dictionaryCategoryId, categoryId),
 						eq(submissions.createdBy, username),
 						eq(submissions.organization, organization),
-						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
+						activeStatusesCondition,
 					),
 				});
 			} catch (error) {
@@ -168,7 +170,7 @@ const repository = (dependencies: BaseDependencies) => {
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
 						filterOptions.username ? eq(submissions.createdBy, filterOptions.username) : undefined,
-						getActiveStatusesCondition(filterOptions.onlyActive, openSubmissionStatus),
+						filterOptions.onlyActive ? activeStatusesCondition : undefined,
 						filterOptions.organization ? eq(submissions.organization, filterOptions.organization) : undefined,
 					),
 					columns: getSubmissionColumns,
@@ -208,7 +210,7 @@ const repository = (dependencies: BaseDependencies) => {
 						and(
 							eq(submissions.dictionaryCategoryId, categoryId),
 							filterOptions.username ? eq(submissions.createdBy, filterOptions.username) : undefined,
-							getActiveStatusesCondition(filterOptions.onlyActive, openSubmissionStatus),
+							filterOptions.onlyActive ? activeStatusesCondition : undefined,
 							filterOptions.organization ? eq(submissions.organization, filterOptions.organization) : undefined,
 						),
 					);
