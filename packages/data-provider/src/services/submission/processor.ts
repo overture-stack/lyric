@@ -19,7 +19,7 @@ import { getDictionarySchemaRelations, type SchemaChildNode } from '../../utils/
 import { BadRequest } from '../../utils/errors.js';
 import { convertRecordToString } from '../../utils/formatUtils.js';
 import { parseRecordsToInsert } from '../../utils/recordsParser.js';
-import { createUnrecognizedFieldBatchError } from '../../utils/submissionResponseParser.js';
+import { createInvalidValueBatchError } from '../../utils/submissionResponseParser.js';
 import {
 	extractSchemaDataFromMergedDataRecords,
 	filterDeletesFromUpdates,
@@ -447,7 +447,7 @@ const processor = (dependencies: BaseDependencies) => {
 				}
 
 				submissionSchemaErrors.updates[entityName].push(
-					createUnrecognizedFieldBatchError({
+					createInvalidValueBatchError({
 						fieldName: 'systemId',
 						fieldValue: submissionEditData.systemId,
 						index,

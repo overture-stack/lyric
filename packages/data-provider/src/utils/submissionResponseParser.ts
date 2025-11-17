@@ -2,9 +2,9 @@ import type { DataRecord, DictionaryValidationRecordErrorDetails } from '@overtu
 import type { SubmissionInsertData } from '@overture-stack/lyric-data-model/models';
 
 /**
- * Creates an error object for unrecognized fields in a batch submission.
+ * Creates an error object for invalid value in a batch submission.
  */
-export const createUnrecognizedFieldBatchError = ({
+export const createInvalidValueBatchError = ({
 	fieldName,
 	fieldValue,
 	index,
@@ -16,7 +16,16 @@ export const createUnrecognizedFieldBatchError = ({
 	const errorDetails: DictionaryValidationRecordErrorDetails = {
 		fieldName,
 		fieldValue,
-		reason: 'UNRECOGNIZED_FIELD',
+		reason: 'INVALID_BY_RESTRICTION',
+		errors: [
+			{
+				message: 'Value does not match any existing record.',
+				restriction: {
+					rule: true,
+					type: 'required',
+				},
+			},
+		],
 	};
 
 	return {

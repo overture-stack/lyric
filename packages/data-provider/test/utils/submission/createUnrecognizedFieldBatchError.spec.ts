@@ -1,11 +1,11 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { createUnrecognizedFieldBatchError } from '../../../src/utils/submissionResponseParser.js';
+import { createInvalidValueBatchError } from '../../../src/utils/submissionResponseParser.js';
 
 describe('Submission Utils - Create Unrecognized Field Batch Error', () => {
 	it('should create an error object with correct structure and values', () => {
-		const result = createUnrecognizedFieldBatchError({
+		const result = createInvalidValueBatchError({
 			fieldName: 'systemId',
 			fieldValue: 'DOESNOTEXIST',
 			index: 3,
@@ -15,12 +15,21 @@ describe('Submission Utils - Create Unrecognized Field Batch Error', () => {
 			index: 3,
 			fieldName: 'systemId',
 			fieldValue: 'DOESNOTEXIST',
-			reason: 'UNRECOGNIZED_FIELD',
+			reason: 'INVALID_BY_RESTRICTION',
+			errors: [
+				{
+					message: 'Value does not match any existing record.',
+					restriction: {
+						rule: true,
+						type: 'required',
+					},
+				},
+			],
 		});
 	});
 
 	it('should handle zero index correctly', () => {
-		const result = createUnrecognizedFieldBatchError({
+		const result = createInvalidValueBatchError({
 			fieldName: '',
 			fieldValue: '',
 			index: 0,
@@ -30,12 +39,21 @@ describe('Submission Utils - Create Unrecognized Field Batch Error', () => {
 			index: 0,
 			fieldName: '',
 			fieldValue: '',
-			reason: 'UNRECOGNIZED_FIELD',
+			reason: 'INVALID_BY_RESTRICTION',
+			errors: [
+				{
+					message: 'Value does not match any existing record.',
+					restriction: {
+						rule: true,
+						type: 'required',
+					},
+				},
+			],
 		});
 	});
 
 	it('should handle empty values correctly', () => {
-		const result = createUnrecognizedFieldBatchError({
+		const result = createInvalidValueBatchError({
 			fieldName: '',
 			fieldValue: '',
 			index: 2,
@@ -45,7 +63,16 @@ describe('Submission Utils - Create Unrecognized Field Batch Error', () => {
 			index: 2,
 			fieldName: '',
 			fieldValue: '',
-			reason: 'UNRECOGNIZED_FIELD',
+			reason: 'INVALID_BY_RESTRICTION',
+			errors: [
+				{
+					message: 'Value does not match any existing record.',
+					restriction: {
+						rule: true,
+						type: 'required',
+					},
+				},
+			],
 		});
 	});
 });
