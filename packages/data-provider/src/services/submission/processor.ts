@@ -27,6 +27,7 @@ import {
 	findEditSubmittedData,
 	findInvalidRecordErrorsBySchemaName,
 	groupSchemaErrorsByEntity,
+	isSubmissionActive,
 	mapGroupedUpdateSubmissionData,
 	mergeAndReferenceEntityData,
 	mergeDeleteRecords,
@@ -716,6 +717,10 @@ const processor = (dependencies: BaseDependencies) => {
 			const activeSubmission = await getSubmissionById(submissionId);
 			if (!activeSubmission) {
 				throw new Error(`Submission '${activeSubmission}' not found`);
+			}
+
+			if (!isSubmissionActive(activeSubmission.status)) {
+				throw new Error(`Submission '${activeSubmission.id}' is not active`);
 			}
 
 			const insertRecords = parseRecordsToInsert(records, schemasDictionary);

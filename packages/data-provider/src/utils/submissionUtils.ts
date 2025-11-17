@@ -41,17 +41,20 @@ import {
 	SubmittedDataReference,
 } from './types.js';
 
-// export default utils;
 // Only "open", "valid", and "invalid" statuses are considered Active Submission
-const statusesAllowedToClose = [SUBMISSION_STATUS.OPEN, SUBMISSION_STATUS.VALID, SUBMISSION_STATUS.INVALID] as const;
-type StatusesAllowedToClose = typeof statusesAllowedToClose extends Array<infer T> ? T : never;
+export const openSubmissionStatus = [
+	SUBMISSION_STATUS.OPEN,
+	SUBMISSION_STATUS.VALID,
+	SUBMISSION_STATUS.INVALID,
+] as const;
+export type OpenSubmissionStatus = typeof openSubmissionStatus;
 
-/** Determines if a Submission can be closed based on it's current status
+/** Determines if a Submission status is considered active based on its status
  * @param {SubmissionStatus} status Status of a Submission
  * @returns {boolean}
  */
-export const canTransitionToClosed = (status: SubmissionStatus): status is StatusesAllowedToClose => {
-	const openStatuses: SubmissionStatus[] = [...statusesAllowedToClose];
+export const isSubmissionActive = (status: SubmissionStatus): status is OpenSubmissionStatus[number] => {
+	const openStatuses: SubmissionStatus[] = [...openSubmissionStatus];
 	return openStatuses.includes(status);
 };
 
