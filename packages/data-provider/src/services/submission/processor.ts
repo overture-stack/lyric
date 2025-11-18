@@ -1,11 +1,13 @@
 import * as _ from 'lodash-es';
 
-import { type DataRecord, DictionaryValidationRecordErrorDetails, type Schema } from '@overture-stack/lectern-client';
+import { type DataRecord, type Schema } from '@overture-stack/lectern-client';
 import {
 	Submission,
 	SubmissionData,
 	type SubmissionDeleteData,
+	type SubmissionErrors,
 	type SubmissionInsertData,
+	type SubmissionRecordErrorDetails,
 	type SubmissionUpdateData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
@@ -19,7 +21,6 @@ import { getDictionarySchemaRelations, type SchemaChildNode } from '../../utils/
 import { BadRequest } from '../../utils/errors.js';
 import { convertRecordToString } from '../../utils/formatUtils.js';
 import { parseRecordsToInsert } from '../../utils/recordsParser.js';
-import { createInvalidValueBatchError } from '../../utils/submissionResponseParser.js';
 import {
 	extractSchemaDataFromMergedDataRecords,
 	filterDeletesFromUpdates,
@@ -447,13 +448,14 @@ const processor = (dependencies: BaseDependencies) => {
 					submissionSchemaErrors.updates[entityName] = [];
 				}
 
-				submissionSchemaErrors.updates[entityName].push(
-					createInvalidValueBatchError({
-						fieldName: 'systemId',
-						fieldValue: submissionEditData.systemId,
-						index,
-					}),
-				);
+				const unrecodgnizedValueError: SubmissionRecordErrorDetails = {
+					fieldName: 'systemId',
+					fieldValue: submissionEditData.systemId,
+					index,
+					reason: 'UNRECOGNIZED_VALUE',
+				};
+
+				submissionSchemaErrors.updates[entityName].push(unrecodgnizedValueError);
 			});
 		});
 
@@ -657,7 +659,7 @@ const processor = (dependencies: BaseDependencies) => {
 	 * @param {number} input.dictionaryId The Dictionary ID of the Submission
 	 * @param {SubmissionData} input.submissionData Data to be submitted grouped on inserts, updates and deletes
 	 * @param {number} input.idActiveSubmission ID of the Active Submission
-	 * @param {Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>>} input.schemaErrors Array of schemaErrors
+	 * @param {SubmissionErrors} input.schemaErrors Array of schemaErrors
 	 * @param {string} input.username User updating the active submission
 	 * @returns {Promise<Submission>} An Active Submission updated
 	 */
@@ -665,7 +667,7 @@ const processor = (dependencies: BaseDependencies) => {
 		dictionaryId: number;
 		submissionData: SubmissionData;
 		idActiveSubmission: number;
-		schemaErrors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>>;
+		schemaErrors: SubmissionErrors;
 		username: string;
 	}): Promise<Submission> => {
 		const { dictionaryId, submissionData, idActiveSubmission, schemaErrors, username } = input;

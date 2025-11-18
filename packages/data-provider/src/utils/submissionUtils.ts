@@ -5,7 +5,6 @@ import {
 	type DataRecord,
 	Dictionary as SchemasDictionary,
 	DictionaryValidationError,
-	DictionaryValidationRecordErrorDetails,
 	parse,
 	Schema,
 	TestResult,
@@ -15,6 +14,7 @@ import {
 	type Submission,
 	SubmissionData,
 	type SubmissionDeleteData,
+	type SubmissionErrors,
 	type SubmissionInsertData,
 	type SubmissionUpdateData,
 	type SubmittedData,
@@ -237,15 +237,15 @@ export const filterRelationsForPrimaryIdUpdate = (
  * @param {object} input
  * @param {TestResult<DictionaryValidationError[]>} input.resultValidation
  * @param {Record<string, DataRecordReference[]>} input.dataValidated
- * @returns {Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>>}
+ * @returns {SubmissionErrors}
  */
 export const groupSchemaErrorsByEntity = (input: {
 	resultValidation: TestResult<DictionaryValidationError[]>;
 	dataValidated: Record<string, DataRecordReference[]>;
-}): Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> => {
+}): SubmissionErrors => {
 	const { resultValidation, dataValidated } = input;
 
-	const submissionSchemaErrors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> = {};
+	const submissionSchemaErrors: SubmissionErrors = {};
 	if (resultValidation.valid) {
 		return {};
 	}
