@@ -245,45 +245,47 @@ export const groupSchemaErrorsByEntity = (input: {
 }): SubmissionErrors => {
 	const { resultValidation, dataValidated } = input;
 
-	const submissionSchemaErrors: SubmissionErrors = {};
 	if (resultValidation.valid) {
 		return {};
 	}
+
+	const submissionSchemaErrors: SubmissionErrors = {};
 	resultValidation.details.forEach((dictionaryValidationError) => {
 		const entityName = dictionaryValidationError.schemaName;
-		if (dictionaryValidationError.reason === 'INVALID_RECORDS') {
-			const validationErrors = dictionaryValidationError.invalidRecords;
-
-			const hasErrorByIndex = groupErrorsByIndex(validationErrors);
-
-			if (!_.isEmpty(hasErrorByIndex)) {
-				Object.entries(hasErrorByIndex).map(([indexBasedOnCrossSchemas, schemaValidationErrors]) => {
-					const mapping = dataValidated[entityName][Number(indexBasedOnCrossSchemas)];
-					if (determineIfIsSubmission(mapping.reference)) {
-						const submissionIndex = mapping.reference.index;
-						const actionType =
-							mapping.reference.type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA ? 'inserts' : 'updates';
-
-						const mutableSchemaValidationErrors = schemaValidationErrors.map((errors) => {
-							return {
-								...errors,
-								index: submissionIndex,
-							};
-						});
-
-						if (!submissionSchemaErrors[actionType]) {
-							submissionSchemaErrors[actionType] = {};
-						}
-
-						if (!submissionSchemaErrors[actionType][entityName]) {
-							submissionSchemaErrors[actionType][entityName] = [];
-						}
-
-						submissionSchemaErrors[actionType][entityName].push(...mutableSchemaValidationErrors);
-					}
-				});
-			}
+		if (dictionaryValidationError.reason !== 'INVALID_RECORDS') {
+			return;
 		}
+
+		const groupedErrorsByIndex = groupErrorsByIndex(dictionaryValidationError.invalidRecords);
+
+		if (!groupedErrorsByIndex || Object.keys(groupedErrorsByIndex).length === 0) {
+			return;
+		}
+
+		Object.entries(groupedErrorsByIndex).forEach(([indexBasedOnCrossSchemas, schemaValidationErrors]) => {
+			const mapping = dataValidated[entityName][Number(indexBasedOnCrossSchemas)];
+			if (!determineIfIsSubmission(mapping.reference)) {
+				return;
+			}
+
+			const submissionIndex = mapping.reference.index;
+			const actionType = mapping.reference.type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA ? 'inserts' : 'updates';
+
+			const mutableSchemaValidationErrors = schemaValidationErrors.map((errors) => ({
+				...errors,
+				index: submissionIndex,
+			}));
+
+			if (!submissionSchemaErrors[actionType]) {
+				submissionSchemaErrors[actionType] = {};
+			}
+
+			if (!submissionSchemaErrors[actionType][entityName]) {
+				submissionSchemaErrors[actionType][entityName] = [];
+			}
+
+			submissionSchemaErrors[actionType][entityName].push(...mutableSchemaValidationErrors);
+		});
 	});
 	return submissionSchemaErrors;
 };
