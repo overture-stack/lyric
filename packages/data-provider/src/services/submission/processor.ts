@@ -1,11 +1,13 @@
 import * as _ from 'lodash-es';
 
-import { type DataRecord, DictionaryValidationRecordErrorDetails, type Schema } from '@overture-stack/lectern-client';
+import { type DataRecord, type Schema } from '@overture-stack/lectern-client';
 import {
 	Submission,
 	SubmissionData,
 	type SubmissionDeleteData,
+	type SubmissionErrors,
 	type SubmissionInsertData,
+	type SubmissionRecordErrorDetails,
 	type SubmissionUpdateData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
@@ -23,6 +25,7 @@ import {
 	extractSchemaDataFromMergedDataRecords,
 	filterDeletesFromUpdates,
 	filterRelationsForPrimaryIdUpdate,
+	findEditSubmittedData,
 	findInvalidRecordErrorsBySchemaName,
 	groupSchemaErrorsByEntity,
 	isSubmissionActive,
@@ -422,6 +425,40 @@ const processor = (dependencies: BaseDependencies) => {
 			dataValidated: dataMergedByEntityName,
 		});
 
+		// Check for records to be updated that its systemId was not found in the Submitted Data collection.
+		// Any error found will cause the submission to be marked as 'invalid'
+		Object.entries(submissionData.updates ?? {}).forEach(([entityName, recordsToUpdate]) => {
+			recordsToUpdate.forEach((submissionEditData, index) => {
+				const found = findEditSubmittedData(entityName, submissionEditData.systemId, dataMergedByEntityName);
+
+				if (found) {
+					return;
+				}
+
+				logger.error(
+					LOG_MODULE,
+					`Record with systemId '${submissionEditData.systemId}' not found in entity '${entityName}'`,
+				);
+
+				if (!submissionSchemaErrors.updates) {
+					submissionSchemaErrors.updates = {};
+				}
+
+				if (!submissionSchemaErrors.updates[entityName]) {
+					submissionSchemaErrors.updates[entityName] = [];
+				}
+
+				const unrecodgnizedValueError: SubmissionRecordErrorDetails = {
+					fieldName: 'systemId',
+					fieldValue: submissionEditData.systemId,
+					index,
+					reason: 'UNRECOGNIZED_VALUE',
+				};
+
+				submissionSchemaErrors.updates[entityName].push(unrecodgnizedValueError);
+			});
+		});
+
 		if (_.isEmpty(submissionSchemaErrors)) {
 			logger.info(LOG_MODULE, `No error found on data submission`);
 		} else {
@@ -475,7 +512,7 @@ const processor = (dependencies: BaseDependencies) => {
 			// Parse file data
 			const recordsParsed = records.map(convertRecordToString).map(parseToSchema(schema));
 
-			const filesDataProcessed = await compareUpdatedData(recordsParsed);
+			const filesDataProcessed = await compareUpdatedData(recordsParsed, schema.name);
 
 			const currentDictionary = await getDictionaryById(submission.dictionaryId);
 			if (!currentDictionary) {
@@ -561,11 +598,12 @@ const processor = (dependencies: BaseDependencies) => {
 	/**
 	 * Processes a list of data records and compares them with previously submitted data.
 	 * @param {DataRecord[]} records An array of data records to be processed
+	 * @param {string} schemaName The name of the schema associated with the records
 	 * @returns {Promise<SubmissionUpdateData[]>} An array of `SubmissionUpdateData` objects. Each object
 	 *          contains the `systemId`, `old` data, and `new` data representing the differences
 	 *          between the previously submitted data and the updated record.
 	 */
-	const compareUpdatedData = async (records: DataRecord[]): Promise<SubmissionUpdateData[]> => {
+	const compareUpdatedData = async (records: DataRecord[], schemaName: string): Promise<SubmissionUpdateData[]> => {
 		const { getSubmittedDataBySystemId } = submittedRepository(dependencies);
 		const results: SubmissionUpdateData[] = [];
 
@@ -577,6 +615,18 @@ const processor = (dependencies: BaseDependencies) => {
 
 			const foundSubmittedData = await getSubmittedDataBySystemId(systemId);
 			if (foundSubmittedData?.data) {
+				if (foundSubmittedData.entityName !== schemaName) {
+					logger.error(
+						LOG_MODULE,
+						`Entity name mismatch for system ID '${systemId}': expected '${schemaName}', found '${foundSubmittedData.entityName}'`,
+					);
+					results.push({
+						systemId: systemId,
+						old: {},
+						new: {},
+					});
+					return;
+				}
 				const changeData = _.omit(record, 'systemId');
 				const diffData = computeDataDiff(foundSubmittedData.data, changeData);
 				if (!_.isEmpty(diffData.old) && !_.isEmpty(diffData.new)) {
@@ -586,6 +636,13 @@ const processor = (dependencies: BaseDependencies) => {
 						new: diffData.new,
 					});
 				}
+			} else {
+				logger.error(LOG_MODULE, `No submitted data found for system ID '${systemId}'`);
+				results.push({
+					systemId: systemId,
+					old: {},
+					new: {},
+				});
 			}
 			return;
 		});
@@ -602,7 +659,7 @@ const processor = (dependencies: BaseDependencies) => {
 	 * @param {number} input.dictionaryId The Dictionary ID of the Submission
 	 * @param {SubmissionData} input.submissionData Data to be submitted grouped on inserts, updates and deletes
 	 * @param {number} input.idActiveSubmission ID of the Active Submission
-	 * @param {Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>>} input.schemaErrors Array of schemaErrors
+	 * @param {SubmissionErrors} input.schemaErrors Array of schemaErrors
 	 * @param {string} input.username User updating the active submission
 	 * @returns {Promise<Submission>} An Active Submission updated
 	 */
@@ -610,7 +667,7 @@ const processor = (dependencies: BaseDependencies) => {
 		dictionaryId: number;
 		submissionData: SubmissionData;
 		idActiveSubmission: number;
-		schemaErrors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>>;
+		schemaErrors: SubmissionErrors;
 		username: string;
 	}): Promise<Submission> => {
 		const { dictionaryId, submissionData, idActiveSubmission, schemaErrors, username } = input;
