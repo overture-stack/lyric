@@ -10,8 +10,8 @@ const swaggerDefinition: swaggerJSDoc.OAS3Definition = {
 		version,
 	},
 	externalDocs: {
-		url: '/api-docs/swagger.json',
-		description: 'Swagger Spec (JSON)',
+		url: '/api-docs/openapi.json',
+		description: 'OpenAPI Spec (JSON)',
 	},
 };
 

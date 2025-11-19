@@ -49,9 +49,9 @@ app.use('/submission', lyricProvider.routers.submission);
 app.use('/validator', lyricProvider.routers.validator);
 
 // Swagger route
-app.get('/api-docs/swagger.json', (req, res) => res.json(swaggerDoc));
+app.get('/api-docs/openapi.json', (req, res) => res.json(swaggerDoc));
 
-app.use('/api-docs', serve, setup(swaggerDoc, { swaggerUrl: '/swagger.json' }));
+app.use('/api-docs', serve, setup(swaggerDoc, { swaggerUrl: '/openapi.json' }));
 
 app.use('/health', healthRouter);
 
