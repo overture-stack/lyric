@@ -222,7 +222,7 @@ export const dictionaryRegisterRequestSchema: RequestValidation<
 		categoryName: stringNotEmpty,
 		dictionaryName: stringNotEmpty,
 		dictionaryVersion: stringNotEmpty,
-		defaultCentricEntity: stringNotEmpty.or(z.literal('')).optional(),
+		defaultCentricEntity: z.string().optional(),
 	}),
 };
 
