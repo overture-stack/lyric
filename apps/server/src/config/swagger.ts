@@ -9,6 +9,10 @@ const swaggerDefinition: swaggerJSDoc.OAS3Definition = {
 		title: 'Lyric',
 		version,
 	},
+	externalDocs: {
+		url: '/api-docs/openapi.json',
+		description: 'OpenAPI Spec (JSON)',
+	},
 };
 
 const options: swaggerJSDoc.OAS3Options = {
