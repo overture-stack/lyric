@@ -4,7 +4,6 @@ import {
 	type DataRecord,
 	type DataRecordValue,
 	Dictionary as SchemasDictionary,
-	DictionaryValidationRecordErrorDetails,
 	type Schema,
 } from '@overture-stack/lectern-client';
 import {
@@ -15,6 +14,7 @@ import {
 	Submission,
 	SubmissionData,
 	type SubmissionDeleteData,
+	type SubmissionErrors,
 	type SubmissionUpdateData,
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
@@ -229,7 +229,7 @@ export type SubmissionResponse = {
 	data: SubmissionData;
 	dictionary: DictionaryActiveSubmission;
 	dictionaryCategory: CategoryActiveSubmission;
-	errors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> | null;
+	errors: SubmissionErrors | null;
 	organization: string;
 	status: SubmissionStatus | null;
 	createdAt: string | null;
@@ -258,7 +258,7 @@ export type SubmissionSummaryRepository = {
 	data: SubmissionData;
 	dictionary: Pick<Dictionary, 'name' | 'version'>;
 	dictionaryCategory: Pick<Category, 'id' | 'name'>;
-	errors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> | null;
+	errors: SubmissionErrors | null;
 	organization: string | null;
 	status: SubmissionStatus | null;
 	createdAt: Date | null;

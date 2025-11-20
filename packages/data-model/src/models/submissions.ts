@@ -1,7 +1,11 @@
 import { relations } from 'drizzle-orm';
 import { integer, jsonb, pgEnum, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
-import { type DataRecord, type DictionaryValidationRecordErrorDetails } from '@overture-stack/lectern-client';
+import {
+	type DataRecord,
+	type DataRecordValue,
+	type DictionaryValidationRecordErrorDetails,
+} from '@overture-stack/lectern-client';
 
 import { dictionaries } from './dictionaries.js';
 import { dictionaryCategories } from './dictionary_categories.js';
@@ -33,6 +37,27 @@ export type SubmissionData = {
 	deletes?: Record<string, SubmissionDeleteData[]>;
 };
 
+export type FieldDetails = {
+	fieldName: string;
+	fieldValue: DataRecordValue;
+};
+
+export type UnrecognizedValueReason = {
+	reason: 'UNRECOGNIZED_VALUE';
+};
+
+export type RecordErrorInvalidValue = FieldDetails & UnrecognizedValueReason;
+
+export type SubmissionRecordErrorDetails = {
+	index: number;
+} & (DictionaryValidationRecordErrorDetails | RecordErrorInvalidValue);
+
+export type SubmissionErrors = {
+	inserts?: Record<string, SubmissionRecordErrorDetails[]>;
+	updates?: Record<string, SubmissionRecordErrorDetails[]>;
+	deletes?: Record<string, SubmissionRecordErrorDetails[]>;
+};
+
 export const submissions = pgTable('submissions', {
 	id: serial('id').primaryKey(),
 	data: jsonb('data').$type<SubmissionData>().notNull(),
@@ -42,7 +67,7 @@ export const submissions = pgTable('submissions', {
 	dictionaryId: integer('dictionary_id')
 		.references(() => dictionaries.id)
 		.notNull(),
-	errors: jsonb('errors').$type<Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>>>(),
+	errors: jsonb('errors').$type<SubmissionErrors>(),
 	organization: varchar('organization').notNull(),
 	status: submissionStatusEnum('status').notNull(),
 	createdAt: timestamp('created_at').defaultNow(),

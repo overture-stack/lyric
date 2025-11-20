@@ -11,7 +11,7 @@ import submittedRepository from '../../repository/submittedRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
 import {
-	canTransitionToClosed,
+	isSubmissionActive,
 	parseSubmissionResponse,
 	parseSubmissionSummaryResponse,
 	removeItemsFromSubmission,
@@ -157,8 +157,8 @@ const service = (dependencies: BaseDependencies) => {
 			throw new BadRequest(`Submission '${submissionId}' not found`);
 		}
 
-		if (!canTransitionToClosed(submission.status)) {
-			throw new StatusConflict('Only Submissions with statuses "OPEN", "VALID", "INVALID" can be deleted');
+		if (!isSubmissionActive(submission.status)) {
+			throw new StatusConflict('Submission is not active. Only Active Submission can be deleted');
 		}
 
 		const updatedRecord = await update(submission.id, {
@@ -194,6 +194,10 @@ const service = (dependencies: BaseDependencies) => {
 		const submission = await getSubmissionById(submissionId);
 		if (!submission) {
 			throw new BadRequest(`Submission '${submissionId}' not found`);
+		}
+
+		if (!isSubmissionActive(submission.status)) {
+			throw new StatusConflict('Submission is not active. Only Active Submission can be modified');
 		}
 
 		if (
