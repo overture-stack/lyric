@@ -5,7 +5,6 @@ import {
 	type DataRecord,
 	Dictionary as SchemasDictionary,
 	DictionaryValidationError,
-	DictionaryValidationRecordErrorDetails,
 	parse,
 	Schema,
 	TestResult,
@@ -15,6 +14,7 @@ import {
 	type Submission,
 	SubmissionData,
 	type SubmissionDeleteData,
+	type SubmissionErrors,
 	type SubmissionInsertData,
 	type SubmissionUpdateData,
 	type SubmittedData,
@@ -41,17 +41,20 @@ import {
 	SubmittedDataReference,
 } from './types.js';
 
-// export default utils;
 // Only "open", "valid", and "invalid" statuses are considered Active Submission
-const statusesAllowedToClose = [SUBMISSION_STATUS.OPEN, SUBMISSION_STATUS.VALID, SUBMISSION_STATUS.INVALID] as const;
-type StatusesAllowedToClose = typeof statusesAllowedToClose extends Array<infer T> ? T : never;
+export const openSubmissionStatus = [
+	SUBMISSION_STATUS.OPEN,
+	SUBMISSION_STATUS.VALID,
+	SUBMISSION_STATUS.INVALID,
+] as const;
+export type OpenSubmissionStatus = typeof openSubmissionStatus;
 
-/** Determines if a Submission can be closed based on it's current status
+/** Determines if a Submission status is considered active based on its status
  * @param {SubmissionStatus} status Status of a Submission
  * @returns {boolean}
  */
-export const canTransitionToClosed = (status: SubmissionStatus): status is StatusesAllowedToClose => {
-	const openStatuses: SubmissionStatus[] = [...statusesAllowedToClose];
+export const isSubmissionActive = (status: SubmissionStatus): status is OpenSubmissionStatus[number] => {
+	const openStatuses: SubmissionStatus[] = [...openSubmissionStatus];
 	return openStatuses.includes(status);
 };
 
@@ -77,6 +80,24 @@ export const extractSchemaDataFromMergedDataRecords = (
 	return _.mapValues(mergeDataRecordsByEntityName, (mappingArray) => mappingArray.map((o) => o.dataRecord));
 };
 
+/**
+ * Checks whether a record exists within a collection of submitted data records marked for update.
+ * The lookup is performed by matching the given 'entityName' and 'systemId'.
+ *
+ * @Returns true if found, false otherwise
+ */
+export const findEditSubmittedData = (
+	entityName: string,
+	systemId: string,
+	dataByEntityName: Record<string, DataRecordReference[]>,
+) => {
+	return (
+		dataByEntityName[entityName]?.some(
+			(data) =>
+				data.reference.type === MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA && data.reference.systemId === systemId,
+		) ?? false
+	);
+};
 /**
  * Finds and returns a list of invalid records based on a provided schema name.
  *
@@ -216,53 +237,55 @@ export const filterRelationsForPrimaryIdUpdate = (
  * @param {object} input
  * @param {TestResult<DictionaryValidationError[]>} input.resultValidation
  * @param {Record<string, DataRecordReference[]>} input.dataValidated
- * @returns {Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>>}
+ * @returns {SubmissionErrors}
  */
 export const groupSchemaErrorsByEntity = (input: {
 	resultValidation: TestResult<DictionaryValidationError[]>;
 	dataValidated: Record<string, DataRecordReference[]>;
-}): Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> => {
+}): SubmissionErrors => {
 	const { resultValidation, dataValidated } = input;
 
-	const submissionSchemaErrors: Record<string, Record<string, DictionaryValidationRecordErrorDetails[]>> = {};
 	if (resultValidation.valid) {
 		return {};
 	}
+
+	const submissionSchemaErrors: SubmissionErrors = {};
 	resultValidation.details.forEach((dictionaryValidationError) => {
 		const entityName = dictionaryValidationError.schemaName;
-		if (dictionaryValidationError.reason === 'INVALID_RECORDS') {
-			const validationErrors = dictionaryValidationError.invalidRecords;
-
-			const hasErrorByIndex = groupErrorsByIndex(validationErrors);
-
-			if (!_.isEmpty(hasErrorByIndex)) {
-				Object.entries(hasErrorByIndex).map(([indexBasedOnCrossSchemas, schemaValidationErrors]) => {
-					const mapping = dataValidated[entityName][Number(indexBasedOnCrossSchemas)];
-					if (determineIfIsSubmission(mapping.reference)) {
-						const submissionIndex = mapping.reference.index;
-						const actionType =
-							mapping.reference.type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA ? 'inserts' : 'updates';
-
-						const mutableSchemaValidationErrors = schemaValidationErrors.map((errors) => {
-							return {
-								...errors,
-								index: submissionIndex,
-							};
-						});
-
-						if (!submissionSchemaErrors[actionType]) {
-							submissionSchemaErrors[actionType] = {};
-						}
-
-						if (!submissionSchemaErrors[actionType][entityName]) {
-							submissionSchemaErrors[actionType][entityName] = [];
-						}
-
-						submissionSchemaErrors[actionType][entityName].push(...mutableSchemaValidationErrors);
-					}
-				});
-			}
+		if (dictionaryValidationError.reason !== 'INVALID_RECORDS') {
+			return;
 		}
+
+		const groupedErrorsByIndex = groupErrorsByIndex(dictionaryValidationError.invalidRecords);
+
+		if (!groupedErrorsByIndex || Object.keys(groupedErrorsByIndex).length === 0) {
+			return;
+		}
+
+		Object.entries(groupedErrorsByIndex).forEach(([indexBasedOnCrossSchemas, schemaValidationErrors]) => {
+			const mapping = dataValidated[entityName][Number(indexBasedOnCrossSchemas)];
+			if (!determineIfIsSubmission(mapping.reference)) {
+				return;
+			}
+
+			const submissionIndex = mapping.reference.index;
+			const actionType = mapping.reference.type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA ? 'inserts' : 'updates';
+
+			const mutableSchemaValidationErrors = schemaValidationErrors.map((errors) => ({
+				...errors,
+				index: submissionIndex,
+			}));
+
+			if (!submissionSchemaErrors[actionType]) {
+				submissionSchemaErrors[actionType] = {};
+			}
+
+			if (!submissionSchemaErrors[actionType][entityName]) {
+				submissionSchemaErrors[actionType][entityName] = [];
+			}
+
+			submissionSchemaErrors[actionType][entityName].push(...mutableSchemaValidationErrors);
+		});
 	});
 	return submissionSchemaErrors;
 };
