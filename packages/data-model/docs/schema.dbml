@@ -1,6 +1,12 @@
 enum audit_action {
   UPDATE
   DELETE
+  MIGRATION
+}
+
+enum migration_status {
+  "IN-PROGRESS"
+  COMPLETED
 }
 
 enum submission_status {
@@ -17,6 +23,7 @@ table audit_submitted_data {
   dictionary_category_id integer [not null]
   data_diff jsonb
   entity_name varchar [not null]
+  errors jsonb
   last_valid_schema_id integer
   new_data_is_valid boolean [not null]
   old_data_is_valid boolean [not null]
@@ -24,6 +31,17 @@ table audit_submitted_data {
   original_schema_id integer [not null]
   submission_id integer [not null]
   system_id varchar [not null]
+  created_at timestamp
+  created_by varchar
+}
+
+table category_migration {
+  id serial [pk, not null, increment]
+  dictionary_category_id integer [not null]
+  from_dictionary_id integer [not null]
+  to_dictionary_id integer [not null]
+  submission_id integer [not null]
+  status migration_status [not null]
   created_at timestamp
   created_by varchar
 }
@@ -89,6 +107,14 @@ ref: audit_submitted_data.last_valid_schema_id - dictionaries.id
 ref: audit_submitted_data.original_schema_id - dictionaries.id
 
 ref: audit_submitted_data.submission_id - submissions.id
+
+ref: category_migration.dictionary_category_id - dictionary_categories.id
+
+ref: category_migration.from_dictionary_id - dictionaries.id
+
+ref: category_migration.to_dictionary_id - dictionaries.id
+
+ref: category_migration.submission_id - submissions.id
 
 ref: dictionary_categories.active_dictionary_id - dictionaries.id
 
