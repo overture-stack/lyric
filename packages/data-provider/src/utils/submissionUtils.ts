@@ -3,10 +3,10 @@ import plur from 'plur';
 
 import {
 	type DataRecord,
-	Dictionary as SchemasDictionary,
 	DictionaryValidationError,
 	parse,
 	Schema,
+	Dictionary as SchemasDictionary,
 	TestResult,
 	validate,
 } from '@overture-stack/lectern-client';
@@ -34,9 +34,9 @@ import {
 	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
+	type SubmissionRepositoryRecord,
 	type SubmissionResponse,
 	type SubmissionStatus,
-	type SubmissionSummaryRepository,
 	type SubmissionSummaryResponse,
 	SubmittedDataReference,
 } from './types.js';
@@ -525,10 +525,10 @@ export const mergeUpdatesBySystemId = (
 
 /**
  * Utility to parse a raw Submission to a Response type
- * @param {SubmissionSummaryRepository} submission
+ * @param {SubmissionRepositoryRecord} submission
  * @returns {SubmissionResponse}
  */
-export const parseSubmissionResponse = (submission: SubmissionSummaryRepository): SubmissionResponse => {
+export const parseSubmissionResponse = (submission: SubmissionRepositoryRecord): SubmissionResponse => {
 	return {
 		id: submission.id,
 		data: submission.data,
@@ -545,11 +545,12 @@ export const parseSubmissionResponse = (submission: SubmissionSummaryRepository)
 };
 
 /**
- * Utility to parse a raw Submission to a Summary of the Submission
- * @param {SubmissionSummaryRepository} submission
+ * Utility to convert the raw SubmissionRepositoryRecord read from the repository into
+ * a SubmissionSummaryResponse which does not contain the data records being inserted/updated/deleted
+ * @param {SubmissionRepositoryRecord} submission
  * @returns {SubmissionSummaryResponse}
  */
-export const parseSubmissionSummaryResponse = (submission: SubmissionSummaryRepository): SubmissionSummaryResponse => {
+export const createSubmissionSummaryResponse = (submission: SubmissionRepositoryRecord): SubmissionSummaryResponse => {
 	const dataInsertsSummary =
 		submission.data?.inserts &&
 		Object.entries(submission.data?.inserts).reduce<Record<string, DataInsertsSubmissionSummary>>(

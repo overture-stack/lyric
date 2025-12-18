@@ -8,7 +8,7 @@ import { NewSubmission, Submission, submissions } from '@overture-stack/lyric-da
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import { openSubmissionStatus } from '../utils/submissionUtils.js';
-import { BooleanTrueObject, type PaginationOptions, SubmissionSummaryRepository } from '../utils/types.js';
+import { BooleanTrueObject, type PaginationOptions, SubmissionRepositoryRecord } from '../utils/types.js';
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
@@ -163,7 +163,7 @@ const repository = (dependencies: BaseDependencies) => {
 				username?: string;
 				organization?: string;
 			},
-		): Promise<SubmissionSummaryRepository[] | undefined> => {
+		): Promise<SubmissionRepositoryRecord[] | undefined> => {
 			const { page, pageSize } = paginationOptions;
 			try {
 				return await db.query.submissions.findMany({
@@ -237,7 +237,7 @@ const repository = (dependencies: BaseDependencies) => {
 			categoryId: number;
 			username: string;
 			organization: string;
-		}): Promise<SubmissionSummaryRepository | undefined> => {
+		}): Promise<SubmissionRepositoryRecord | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(
@@ -260,7 +260,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {number} submissionId Submission ID
 		 * @returns A Submission
 		 */
-		getSubmissionWithRelationsById: async (submissionId: number): Promise<SubmissionSummaryRepository | undefined> => {
+		getSubmissionWithRelationsById: async (submissionId: number): Promise<SubmissionRepositoryRecord | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(eq(submissions.id, submissionId)),

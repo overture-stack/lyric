@@ -253,7 +253,7 @@ export type SubmissionSummaryResponse = Omit<SubmissionResponse, 'data'> & {
 /**
  * Retrieve Submission object from repository
  */
-export type SubmissionSummaryRepository = {
+export type SubmissionRepositoryRecord = {
 	id: number;
 	data: SubmissionData;
 	dictionary: Pick<Dictionary, 'name' | 'version'>;
