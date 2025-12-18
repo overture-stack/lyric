@@ -4,7 +4,7 @@
 	"description": "Lyric Monorepo",
 	"scripts": {
 		"\n=================  Build  ===============": "",
-		"build:all": "pnpm -r build:all",
+		"build:all": "pnpm -r build",
 		"\n============  Dev environment  ==========": "",
 		"lint": "eslint .",
 		"lint:fix": "eslint --fix .",

@@ -210,6 +210,9 @@ export type DataUpdatesSubmissionSummary = {
 export type DataDeletesSubmissionSummary = {
 	recordsCount: number;
 };
+export type DataErrorsSubmissionSummary = {
+	recordsCount: number;
+};
 
 export type DictionaryActiveSubmission = {
 	name: string;
@@ -239,21 +242,26 @@ export type SubmissionResponse = {
 };
 
 /**
- * Response type of Get Submission by Organization Endpoint
- * override 'data' object to contain a summary of records
+ * Shortened version of the Submission record that omits the data changes and error details in favour of the count
+ * of records changed and errors for each entity type.
  */
-export type SubmissionSummaryResponse = Omit<SubmissionResponse, 'data'> & {
+export type SubmissionSummary = Omit<SubmissionResponse, 'data' | 'errors'> & {
 	data: {
 		inserts?: Record<string, DataInsertsSubmissionSummary>;
 		updates?: Record<string, DataUpdatesSubmissionSummary>;
 		deletes?: Record<string, DataDeletesSubmissionSummary>;
+	};
+	errors?: {
+		inserts?: Record<string, DataErrorsSubmissionSummary>;
+		updates?: Record<string, DataErrorsSubmissionSummary>;
+		deletes?: Record<string, DataErrorsSubmissionSummary>;
 	};
 };
 
 /**
  * Retrieve Submission object from repository
  */
-export type SubmissionSummaryRepository = {
+export type SubmissionRepositoryRecord = {
 	id: number;
 	data: SubmissionData;
 	dictionary: Pick<Dictionary, 'name' | 'version'>;

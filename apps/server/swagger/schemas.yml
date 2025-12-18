@@ -243,21 +243,24 @@ components:
             inserts:
               type: object
               additionalProperties:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ValidationError'
+                type: object
+                properties:
+                  recordsCount:
+                    type: number
             updates:
               type: object
               additionalProperties:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ValidationError'
+                type: object
+                properties:
+                  recordsCount:
+                    type: number
             deletes:
               type: object
               additionalProperties:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ValidationError'
+                type: object
+                properties:
+                  recordsCount:
+                    type: number
         organization:
           type: string
           description: Organization the Submission belongs to

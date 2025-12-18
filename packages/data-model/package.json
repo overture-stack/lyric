@@ -11,7 +11,7 @@
 		"build:migration": "drizzle-kit generate:pg --config=drizzle.config.ts",
 		"build:migration:copy": "copyfiles migrations/** migrations/**/**  dist/",
 		"build:dbml": "tsx scripts/dbmlGenerator.ts",
-		"build:all": "pnpm build:compile && pnpm build:migration && pnpm build:migration:copy && pnpm build:dbml",
+		"build": "pnpm build:compile && pnpm build:migration && pnpm build:migration:copy && pnpm build:dbml",
 		"\n==============  Dev environment  ==============": "",
 		"db:migrate:dev": "tsx scripts/migrate.ts",
 		"\n====  Production environtment (compiled)  =====": "",

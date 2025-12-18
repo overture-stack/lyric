@@ -24,20 +24,18 @@ import type { SchemaChildNode } from './dictionarySchemaRelations.js';
 import { deepCompare } from './formatUtils.js';
 import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
-	type DataDeletesSubmissionSummary,
 	type DataInsertsSubmissionSummary,
 	type DataRecordReference,
-	type DataUpdatesSubmissionSummary,
 	type EditSubmittedDataReference,
 	MERGE_REFERENCE_TYPE,
 	type NewSubmittedDataReference,
 	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
+	type SubmissionRepositoryRecord,
 	type SubmissionResponse,
 	type SubmissionStatus,
-	type SubmissionSummaryRepository,
-	type SubmissionSummaryResponse,
+	type SubmissionSummary,
 	SubmittedDataReference,
 } from './types.js';
 
@@ -525,10 +523,10 @@ export const mergeUpdatesBySystemId = (
 
 /**
  * Utility to parse a raw Submission to a Response type
- * @param {SubmissionSummaryRepository} submission
+ * @param {SubmissionRepositoryRecord} submission
  * @returns {SubmissionResponse}
  */
-export const parseSubmissionResponse = (submission: SubmissionSummaryRepository): SubmissionResponse => {
+export const parseSubmissionResponse = (submission: SubmissionRepositoryRecord): SubmissionResponse => {
 	return {
 		id: submission.id,
 		data: submission.data,
@@ -545,11 +543,30 @@ export const parseSubmissionResponse = (submission: SubmissionSummaryRepository)
 };
 
 /**
- * Utility to parse a raw Submission to a Summary of the Submission
- * @param {SubmissionSummaryRepository} submission
- * @returns {SubmissionSummaryResponse}
+ * Small utility to iterate over an object and replace record arrays with an object containing
+ * the recordsCount. This is used to build the SubmissionSummary object.
+ * @param entities
+ * @returns
  */
-export const parseSubmissionSummaryResponse = (submission: SubmissionSummaryRepository): SubmissionSummaryResponse => {
+function getRecordsCountsForEntities(
+	entities: Record<string, Array<object>> | undefined,
+): Record<string, { recordsCount: number }> | undefined {
+	return (
+		entities &&
+		Object.entries(entities).reduce<Record<string, { recordsCount: number }>>((acc, [entityName, entityData]) => {
+			acc[entityName] = { recordsCount: entityData.length };
+			return acc;
+		}, {})
+	);
+}
+
+/**
+ * Utility to convert the raw SubmissionRepositoryRecord read from the repository into
+ * a SubmissionSummaryResponse which does not contain the data records being inserted/updated/deleted
+ * @param {SubmissionRepositoryRecord} submission
+ * @returns {SubmissionSummary}
+ */
+export const createSubmissionSummaryResponse = (submission: SubmissionRepositoryRecord): SubmissionSummary => {
 	const dataInsertsSummary =
 		submission.data?.inserts &&
 		Object.entries(submission.data?.inserts).reduce<Record<string, DataInsertsSubmissionSummary>>(
@@ -560,32 +577,24 @@ export const parseSubmissionSummaryResponse = (submission: SubmissionSummaryRepo
 			{},
 		);
 
-	const dataUpdatesSummary =
-		submission.data.updates &&
-		Object.entries(submission.data?.updates).reduce<Record<string, DataUpdatesSubmissionSummary>>(
-			(acc, [entityName, entityData]) => {
-				acc[entityName] = { recordsCount: entityData.length };
-				return acc;
-			},
-			{},
-		);
+	const dataUpdatesSummary = getRecordsCountsForEntities(submission.data.updates);
 
-	const dataDeletesSummary =
-		submission.data.deletes &&
-		Object.entries(submission.data?.deletes).reduce<Record<string, DataDeletesSubmissionSummary>>(
-			(acc, [entityName, entityData]) => {
-				acc[entityName] = { recordsCount: entityData.length };
-				return acc;
-			},
-			{},
-		);
+	const dataDeletesSummary = getRecordsCountsForEntities(submission.data.deletes);
+
+	const errorsSummary = submission.errors
+		? {
+				deletes: getRecordsCountsForEntities(submission.errors.deletes),
+				inserts: getRecordsCountsForEntities(submission.errors.inserts),
+				updates: getRecordsCountsForEntities(submission.errors.updates),
+			}
+		: undefined;
 
 	return {
 		id: submission.id,
 		data: { inserts: dataInsertsSummary, updates: dataUpdatesSummary, deletes: dataDeletesSummary },
 		dictionary: submission.dictionary,
 		dictionaryCategory: submission.dictionaryCategory,
-		errors: submission.errors,
+		errors: errorsSummary,
 		organization: _.toString(submission.organization),
 		status: submission.status,
 		createdAt: _.toString(submission.createdAt?.toISOString()),
