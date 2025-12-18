@@ -243,7 +243,7 @@ const controller = ({
 			try {
 				const submissionId = Number(req.params.submissionId);
 
-				logger.info(LOG_MODULE, `Request submission details submissionId '${submissionId}'`);
+				logger.info(LOG_MODULE, `Request submission details for submissionId '${submissionId}'`);
 
 				const submission = await service.getSubmissionById(submissionId);
 
