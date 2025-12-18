@@ -9,7 +9,7 @@
 		"\n==================  Build  ==================": "",
 		"build:compile": "rimraf dist && tsc",
 		"build:copy": "copyfiles swagger/**/*.yml dist/",
-		"build:all": "pnpm build:compile && pnpm build:copy",
+		"build": "pnpm build:compile && pnpm build:copy",
 		"\n=============  Dev environment  =============": "",
 		"start:dev": "nodemon",
 		"\n========  Prod environment (compiled) =======": "",
