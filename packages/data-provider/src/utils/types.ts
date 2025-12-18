@@ -211,6 +211,10 @@ export type DataDeletesSubmissionSummary = {
 	recordsCount: number;
 };
 
+export type DataErrorsSubmissionSummary = {
+	recordsCount: number;
+};
+
 export type DictionaryActiveSubmission = {
 	name: string;
 	version: string;
@@ -238,22 +242,49 @@ export type SubmissionResponse = {
 	updatedBy: string;
 };
 
-/**
- * Response type of Get Submission by Organization Endpoint
- * override 'data' object to contain a summary of records
- */
-export type SubmissionSummaryResponse = Omit<SubmissionResponse, 'data'> & {
-	data: {
-		inserts?: Record<string, DataInsertsSubmissionSummary>;
-		updates?: Record<string, DataUpdatesSubmissionSummary>;
-		deletes?: Record<string, DataDeletesSubmissionSummary>;
-	};
+export type SubmissionDataSummary = {
+	inserts?: Record<string, DataInsertsSubmissionSummary>;
+	updates?: Record<string, DataUpdatesSubmissionSummary>;
+	deletes?: Record<string, DataDeletesSubmissionSummary>;
+};
+
+export type SubmissionErrorsSummary = {
+	inserts?: Record<string, DataErrorsSubmissionSummary>;
+	updates?: Record<string, DataErrorsSubmissionSummary>;
+	deletes?: Record<string, DataErrorsSubmissionSummary>;
 };
 
 /**
- * Retrieve Submission object from repository
+ * Shortened version of the Submission record that omits the data changes and error details
+ * in favour of the count of records changed and errors for each entity type.
  */
-export type SubmissionSummaryRepository = {
+export type SubmissionSummary = Omit<SubmissionResponse, 'data' | 'errors'> & {
+	data: SubmissionDataSummary;
+} & {
+	errors: SubmissionErrorsSummary;
+};
+
+/**
+ * Retrieve Submission object with data summary from repository
+ */
+export type SubmissionSummaryRepositoryRecord = {
+	id: number;
+	data: SubmissionDataSummary;
+	dictionary: Pick<Dictionary, 'name' | 'version'>;
+	dictionaryCategory: Pick<Category, 'id' | 'name'>;
+	errors: SubmissionErrorsSummary;
+	organization: string | null;
+	status: SubmissionStatus | null;
+	createdAt: Date | null;
+	createdBy: string | null;
+	updatedAt: Date | null;
+	updatedBy: string | null;
+};
+
+/**
+ * Retrieve Submission object with data summary from repository
+ */
+export type SubmissionRepositoryRecord = {
 	id: number;
 	data: SubmissionData;
 	dictionary: Pick<Dictionary, 'name' | 'version'>;
