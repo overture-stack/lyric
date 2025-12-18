@@ -1,14 +1,22 @@
 import type { ExtractTablesWithRelations, SQL } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
-import { and, count, eq, inArray, or } from 'drizzle-orm/sql';
+import { and, count, eq, inArray, or, sql } from 'drizzle-orm/sql';
+import * as _ from 'lodash-es';
 
 import { NewSubmission, Submission, submissions } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import { openSubmissionStatus } from '../utils/submissionUtils.js';
-import { BooleanTrueObject, type PaginationOptions, SubmissionSummaryRepository } from '../utils/types.js';
+import type {
+	BooleanTrueObject,
+	PaginationOptions,
+	SubmissionDataSummary,
+	SubmissionErrorsSummary,
+	SubmissionRepositoryRecord,
+	SubmissionSummaryRepositoryRecord,
+} from '../utils/types.js';
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
@@ -26,6 +34,8 @@ const repository = (dependencies: BaseDependencies) => {
 		updatedBy: true,
 	};
 
+	const getSubmissionColumnsSummary = _.omit(getSubmissionColumns, ['data', 'errors']);
+
 	const getSubmissionRelations: { [key: string]: { columns: BooleanTrueObject } } = {
 		dictionary: {
 			columns: {
@@ -40,6 +50,116 @@ const repository = (dependencies: BaseDependencies) => {
 			},
 		},
 	};
+
+	/**
+	 * A query to generate a summarized JSON object of the 'data' column
+	 * Returns a JSON object of type SubmissionDataSummary
+	 */
+	const dataSummaryQuery = sql<SubmissionDataSummary>`
+jsonb_build_object(
+  'inserts',
+    (
+      SELECT jsonb_object_agg(
+        i.key,
+        jsonb_build_object(
+          'batchName', i.value->>'batchName',
+          'recordsCount',
+            CASE
+              WHEN jsonb_typeof(i.value->'records') = 'array'
+              THEN jsonb_array_length(i.value->'records')
+              ELSE 0
+            END
+        )
+      )
+      FROM jsonb_each(${submissions.data}->'inserts') AS i(key, value)
+    ),
+
+  'updates',
+    (
+      SELECT jsonb_object_agg(
+        u.key,
+        jsonb_build_object(
+          'recordsCount',
+            CASE
+              WHEN jsonb_typeof(u.value) = 'array'
+              THEN jsonb_array_length(u.value)
+              ELSE 0
+            END
+        )
+      )
+      FROM jsonb_each(${submissions.data}->'updates') AS u(key, value)
+    ),
+
+  'deletes',
+    (
+      SELECT jsonb_object_agg(
+        d.key,
+        jsonb_build_object(
+          'recordsCount',
+            CASE
+              WHEN jsonb_typeof(d.value) = 'array'
+              THEN jsonb_array_length(d.value)
+              ELSE 0
+            END
+        )
+      )
+      FROM jsonb_each(${submissions.data}->'deletes') AS d(key, value)
+    )
+)`.as('data');
+
+	/**
+	 * A query to generate a summarized JSON object of the 'errors' column
+	 * Returns a json object of type SubmissionErrorsSummary
+	 */
+	const errorsSummaryQuery = sql<SubmissionErrorsSummary>`jsonb_build_object(
+  'inserts',
+    (
+      SELECT jsonb_object_agg(
+        i.key,
+        jsonb_build_object(
+          'recordsCount',
+            CASE
+              WHEN jsonb_typeof(i.value) = 'array'
+              THEN jsonb_array_length(i.value)
+              ELSE 0
+            END
+        )
+      )
+      FROM jsonb_each(${submissions.errors}->'inserts') AS i(key, value)
+    ),
+
+  'updates',
+    (
+      SELECT jsonb_object_agg(
+        u.key,
+        jsonb_build_object(
+          'recordsCount',
+            CASE
+              WHEN jsonb_typeof(u.value) = 'array'
+              THEN jsonb_array_length(u.value)
+              ELSE 0
+            END
+        )
+      )
+      FROM jsonb_each(${submissions.errors}->'updates') AS u(key, value)
+    ),
+
+  'deletes',
+    (
+      SELECT jsonb_object_agg(
+        d.key,
+        jsonb_build_object(
+          'recordsCount',
+            CASE
+              WHEN jsonb_typeof(d.value) = 'array'
+              THEN jsonb_array_length(d.value)
+              ELSE 0
+            END
+        )
+      )
+      FROM jsonb_each(${submissions.errors}->'deletes') AS d(key, value)
+    )
+)`.as('errors');
 
 	/**
 	 * SQL condition used to filter submissions that are in an active state.
@@ -155,7 +275,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {string} filterOptions.organization - Filter by Organization
 		 * @returns One or many Active Submissions
 		 */
-		getSubmissionsWithRelationsByCategory: async (
+		getSubmissionsSummaryWithRelationsByCategory: async (
 			categoryId: number,
 			paginationOptions: PaginationOptions,
 			filterOptions: {
@@ -163,7 +283,7 @@ const repository = (dependencies: BaseDependencies) => {
 				username?: string;
 				organization?: string;
 			},
-		): Promise<SubmissionSummaryRepository[] | undefined> => {
+		): Promise<SubmissionSummaryRepositoryRecord[] | undefined> => {
 			const { page, pageSize } = paginationOptions;
 			try {
 				return await db.query.submissions.findMany({
@@ -173,7 +293,8 @@ const repository = (dependencies: BaseDependencies) => {
 						filterOptions.onlyActive ? activeStatusesCondition : undefined,
 						filterOptions.organization ? eq(submissions.organization, filterOptions.organization) : undefined,
 					),
-					columns: getSubmissionColumns,
+					columns: getSubmissionColumnsSummary,
+					extras: { data: dataSummaryQuery, errors: errorsSummaryQuery },
 					with: getSubmissionRelations,
 					orderBy: (submissions, { desc }) => desc(submissions.createdAt),
 					limit: pageSize,
@@ -237,7 +358,7 @@ const repository = (dependencies: BaseDependencies) => {
 			categoryId: number;
 			username: string;
 			organization: string;
-		}): Promise<SubmissionSummaryRepository | undefined> => {
+		}): Promise<SubmissionSummaryRepositoryRecord | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(
@@ -246,7 +367,8 @@ const repository = (dependencies: BaseDependencies) => {
 						eq(submissions.organization, organization),
 						or(eq(submissions.status, 'OPEN'), eq(submissions.status, 'VALID'), eq(submissions.status, 'INVALID')),
 					),
-					columns: getSubmissionColumns,
+					columns: getSubmissionColumnsSummary,
+					extras: { data: dataSummaryQuery, errors: errorsSummaryQuery },
 					with: getSubmissionRelations,
 				});
 			} catch (error) {
@@ -260,7 +382,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param {number} submissionId Submission ID
 		 * @returns A Submission
 		 */
-		getSubmissionWithRelationsById: async (submissionId: number): Promise<SubmissionSummaryRepository | undefined> => {
+		getSubmissionWithRelationsById: async (submissionId: number): Promise<SubmissionRepositoryRecord | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(eq(submissions.id, submissionId)),

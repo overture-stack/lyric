@@ -24,20 +24,18 @@ import type { SchemaChildNode } from './dictionarySchemaRelations.js';
 import { deepCompare } from './formatUtils.js';
 import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
-	type DataDeletesSubmissionSummary,
-	type DataInsertsSubmissionSummary,
 	type DataRecordReference,
-	type DataUpdatesSubmissionSummary,
 	type EditSubmittedDataReference,
 	MERGE_REFERENCE_TYPE,
 	type NewSubmittedDataReference,
 	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
+	type SubmissionRepositoryRecord,
 	type SubmissionResponse,
 	type SubmissionStatus,
-	type SubmissionSummaryRepository,
-	type SubmissionSummaryResponse,
+	type SubmissionSummary,
+	type SubmissionSummaryRepositoryRecord,
 	SubmittedDataReference,
 } from './types.js';
 
@@ -525,10 +523,10 @@ export const mergeUpdatesBySystemId = (
 
 /**
  * Utility to parse a raw Submission to a Response type
- * @param {SubmissionSummaryRepository} submission
+ * @param {SubmissionRepositoryRecord} submission
  * @returns {SubmissionResponse}
  */
-export const parseSubmissionResponse = (submission: SubmissionSummaryRepository): SubmissionResponse => {
+export const parseSubmissionResponse = (submission: SubmissionRepositoryRecord): SubmissionResponse => {
 	return {
 		id: submission.id,
 		data: submission.data,
@@ -545,44 +543,15 @@ export const parseSubmissionResponse = (submission: SubmissionSummaryRepository)
 };
 
 /**
- * Utility to parse a raw Submission to a Summary of the Submission
- * @param {SubmissionSummaryRepository} submission
- * @returns {SubmissionSummaryResponse}
+ * Utility to convert the raw SubmissionSummaryRepositoryRecord read from the repository into
+ * a SubmissionSummaryResponse which does not contain the data records being inserted/updated/deleted
+ * @param {SubmissionSummaryRepositoryRecord} submission
+ * @returns {SubmissionSummary}
  */
-export const parseSubmissionSummaryResponse = (submission: SubmissionSummaryRepository): SubmissionSummaryResponse => {
-	const dataInsertsSummary =
-		submission.data?.inserts &&
-		Object.entries(submission.data?.inserts).reduce<Record<string, DataInsertsSubmissionSummary>>(
-			(acc, [entityName, entityData]) => {
-				acc[entityName] = { ..._.omit(entityData, 'records'), recordsCount: entityData.records.length };
-				return acc;
-			},
-			{},
-		);
-
-	const dataUpdatesSummary =
-		submission.data.updates &&
-		Object.entries(submission.data?.updates).reduce<Record<string, DataUpdatesSubmissionSummary>>(
-			(acc, [entityName, entityData]) => {
-				acc[entityName] = { recordsCount: entityData.length };
-				return acc;
-			},
-			{},
-		);
-
-	const dataDeletesSummary =
-		submission.data.deletes &&
-		Object.entries(submission.data?.deletes).reduce<Record<string, DataDeletesSubmissionSummary>>(
-			(acc, [entityName, entityData]) => {
-				acc[entityName] = { recordsCount: entityData.length };
-				return acc;
-			},
-			{},
-		);
-
+export const createSubmissionSummaryResponse = (submission: SubmissionSummaryRepositoryRecord): SubmissionSummary => {
 	return {
 		id: submission.id,
-		data: { inserts: dataInsertsSummary, updates: dataUpdatesSummary, deletes: dataDeletesSummary },
+		data: submission.data,
 		dictionary: submission.dictionary,
 		dictionaryCategory: submission.dictionaryCategory,
 		errors: submission.errors,

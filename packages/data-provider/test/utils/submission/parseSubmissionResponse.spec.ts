@@ -5,12 +5,12 @@ import type { DataRecord } from '@overture-stack/lectern-client';
 
 import { createBatchResponse } from '../../../src/utils/submissionResponseParser.js';
 import { parseSubmissionResponse } from '../../../src/utils/submissionUtils.js';
-import { SUBMISSION_STATUS, type SubmissionSummaryRepository } from '../../../src/utils/types.js';
+import { SUBMISSION_STATUS, type SubmissionRepositoryRecord } from '../../../src/utils/types.js';
 
 describe('Submission Utils - Parse a Submisison object to a response format', () => {
 	const todaysDate = new Date();
 	it('return a Submission response with no data', () => {
-		const SubmissionSummaryRepository: SubmissionSummaryRepository = {
+		const submissionRepositoryRecord: SubmissionRepositoryRecord = {
 			id: 2,
 			data: {},
 			dictionary: { name: 'books', version: '1' },
@@ -23,7 +23,7 @@ describe('Submission Utils - Parse a Submisison object to a response format', ()
 			updatedAt: null,
 			updatedBy: null,
 		};
-		const response = parseSubmissionResponse(SubmissionSummaryRepository);
+		const response = parseSubmissionResponse(submissionRepositoryRecord);
 		expect(response).to.eql({
 			id: 2,
 			data: {},
@@ -39,7 +39,7 @@ describe('Submission Utils - Parse a Submisison object to a response format', ()
 		});
 	});
 	it('return a Submission response format with insert, update and delete data', () => {
-		const SubmissionSummaryRepository: SubmissionSummaryRepository = {
+		const submissionRepositoryRecord: SubmissionRepositoryRecord = {
 			id: 2,
 			data: {
 				inserts: {
@@ -83,7 +83,7 @@ describe('Submission Utils - Parse a Submisison object to a response format', ()
 			updatedAt: null,
 			updatedBy: null,
 		};
-		const response = parseSubmissionResponse(SubmissionSummaryRepository);
+		const response = parseSubmissionResponse(submissionRepositoryRecord);
 		expect(response).to.eql({
 			id: 2,
 			data: {
