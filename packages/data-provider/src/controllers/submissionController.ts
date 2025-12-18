@@ -243,7 +243,7 @@ const controller = ({
 			try {
 				const submissionId = Number(req.params.submissionId);
 
-				logger.info(LOG_MODULE, `Request Active Submission submissionId '${submissionId}'`);
+				logger.info(LOG_MODULE, `Request submission details submissionId '${submissionId}'`);
 
 				const submission = await service.getSubmissionById(submissionId);
 
@@ -252,6 +252,23 @@ const controller = ({
 				}
 
 				return res.status(200).send(submission);
+			} catch (error) {
+				next(error);
+			}
+		}),
+		getSubmissionSummaryById: validateRequest(submissionByIdRequestSchema, async (req, res, next) => {
+			try {
+				const submissionId = Number(req.params.submissionId);
+
+				logger.info(LOG_MODULE, `Request submission summary for submissionId '${submissionId}'`);
+
+				const submissionSummary = await service.getSubmissionSummaryById(submissionId);
+
+				if (isEmpty(submissionSummary)) {
+					throw new NotFound('Submission not found');
+				}
+
+				return res.status(200).send(submissionSummary);
 			} catch (error) {
 				next(error);
 			}

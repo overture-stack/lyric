@@ -3,10 +3,10 @@ import plur from 'plur';
 
 import {
 	type DataRecord,
+	Dictionary as SchemasDictionary,
 	DictionaryValidationError,
 	parse,
 	Schema,
-	Dictionary as SchemasDictionary,
 	TestResult,
 	validate,
 } from '@overture-stack/lectern-client';
@@ -24,10 +24,8 @@ import type { SchemaChildNode } from './dictionarySchemaRelations.js';
 import { deepCompare } from './formatUtils.js';
 import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
-	type DataDeletesSubmissionSummary,
 	type DataInsertsSubmissionSummary,
 	type DataRecordReference,
-	type DataUpdatesSubmissionSummary,
 	type EditSubmittedDataReference,
 	MERGE_REFERENCE_TYPE,
 	type NewSubmittedDataReference,
@@ -37,7 +35,7 @@ import {
 	type SubmissionRepositoryRecord,
 	type SubmissionResponse,
 	type SubmissionStatus,
-	type SubmissionSummaryResponse,
+	type SubmissionSummary,
 	SubmittedDataReference,
 } from './types.js';
 
@@ -545,12 +543,30 @@ export const parseSubmissionResponse = (submission: SubmissionRepositoryRecord):
 };
 
 /**
+ * Small utility to iterate over an object and replace record arrays with an object containing
+ * the recordsCount. This is used to build the SubmissionSummary object.
+ * @param entities
+ * @returns
+ */
+function getRecordsCountsForEntities(
+	entities: Record<string, Array<object>> | undefined,
+): Record<string, { recordsCount: number }> | undefined {
+	return (
+		entities &&
+		Object.entries(entities).reduce<Record<string, { recordsCount: number }>>((acc, [entityName, entityData]) => {
+			acc[entityName] = { recordsCount: entityData.length };
+			return acc;
+		}, {})
+	);
+}
+
+/**
  * Utility to convert the raw SubmissionRepositoryRecord read from the repository into
  * a SubmissionSummaryResponse which does not contain the data records being inserted/updated/deleted
  * @param {SubmissionRepositoryRecord} submission
- * @returns {SubmissionSummaryResponse}
+ * @returns {SubmissionSummary}
  */
-export const createSubmissionSummaryResponse = (submission: SubmissionRepositoryRecord): SubmissionSummaryResponse => {
+export const createSubmissionSummaryResponse = (submission: SubmissionRepositoryRecord): SubmissionSummary => {
 	const dataInsertsSummary =
 		submission.data?.inserts &&
 		Object.entries(submission.data?.inserts).reduce<Record<string, DataInsertsSubmissionSummary>>(
@@ -561,32 +577,24 @@ export const createSubmissionSummaryResponse = (submission: SubmissionRepository
 			{},
 		);
 
-	const dataUpdatesSummary =
-		submission.data.updates &&
-		Object.entries(submission.data?.updates).reduce<Record<string, DataUpdatesSubmissionSummary>>(
-			(acc, [entityName, entityData]) => {
-				acc[entityName] = { recordsCount: entityData.length };
-				return acc;
-			},
-			{},
-		);
+	const dataUpdatesSummary = getRecordsCountsForEntities(submission.data.updates);
 
-	const dataDeletesSummary =
-		submission.data.deletes &&
-		Object.entries(submission.data?.deletes).reduce<Record<string, DataDeletesSubmissionSummary>>(
-			(acc, [entityName, entityData]) => {
-				acc[entityName] = { recordsCount: entityData.length };
-				return acc;
-			},
-			{},
-		);
+	const dataDeletesSummary = getRecordsCountsForEntities(submission.data.deletes);
+
+	const errorsSummary = submission.errors
+		? {
+				deletes: getRecordsCountsForEntities(submission.errors.deletes),
+				inserts: getRecordsCountsForEntities(submission.errors.inserts),
+				updates: getRecordsCountsForEntities(submission.errors.updates),
+			}
+		: undefined;
 
 	return {
 		id: submission.id,
 		data: { inserts: dataInsertsSummary, updates: dataUpdatesSummary, deletes: dataDeletesSummary },
 		dictionary: submission.dictionary,
 		dictionaryCategory: submission.dictionaryCategory,
-		errors: submission.errors,
+		errors: errorsSummary,
 		organization: _.toString(submission.organization),
 		status: submission.status,
 		createdAt: _.toString(submission.createdAt?.toISOString()),

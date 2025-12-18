@@ -11,9 +11,9 @@ import submittedRepository from '../../repository/submittedRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
 import {
+	createSubmissionSummaryResponse,
 	isSubmissionActive,
 	parseSubmissionResponse,
-	parseSubmissionSummaryResponse,
 	removeItemsFromSubmission,
 } from '../../utils/submissionUtils.js';
 import {
@@ -25,7 +25,7 @@ import {
 	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
-	SubmissionSummaryResponse,
+	SubmissionSummary,
 } from '../../utils/types.js';
 import processor from './processor.js';
 
@@ -258,7 +258,7 @@ const service = (dependencies: BaseDependencies) => {
 			organization?: string;
 		},
 	): Promise<{
-		result: SubmissionSummaryResponse[];
+		result: SubmissionSummary[];
 		metadata: { totalRecords: number; errorMessage?: string };
 	}> => {
 		const { getSubmissionsWithRelationsByCategory, getTotalSubmissionsByCategory } = submissionRepository(dependencies);
@@ -278,7 +278,7 @@ const service = (dependencies: BaseDependencies) => {
 			metadata: {
 				totalRecords,
 			},
-			result: recordsPaginated.map((response) => parseSubmissionSummaryResponse(response)),
+			result: recordsPaginated.map((response) => createSubmissionSummaryResponse(response)),
 		};
 	};
 
@@ -298,6 +298,17 @@ const service = (dependencies: BaseDependencies) => {
 		return parseSubmissionResponse(submission);
 	};
 
+	const getSubmissionSummaryById = async (submissionId: number) => {
+		const { getSubmissionWithRelationsById } = submissionRepository(dependencies);
+
+		const submission = await getSubmissionWithRelationsById(submissionId);
+		if (_.isEmpty(submission)) {
+			return;
+		}
+
+		return createSubmissionSummaryResponse(submission);
+	};
+
 	/**
 	 * Get an active Submission by Organization
 	 * @param {Object} params
@@ -314,7 +325,7 @@ const service = (dependencies: BaseDependencies) => {
 		categoryId: number;
 		username: string;
 		organization: string;
-	}): Promise<SubmissionSummaryResponse | undefined> => {
+	}): Promise<SubmissionSummary | undefined> => {
 		const { getActiveSubmissionWithRelationsByOrganization } = submissionRepository(dependencies);
 
 		const submission = await getActiveSubmissionWithRelationsByOrganization({ organization, username, categoryId });
@@ -322,7 +333,7 @@ const service = (dependencies: BaseDependencies) => {
 			return;
 		}
 
-		return parseSubmissionSummaryResponse(submission);
+		return createSubmissionSummaryResponse(submission);
 	};
 
 	/**
@@ -429,6 +440,8 @@ const service = (dependencies: BaseDependencies) => {
 		// Get Active Submission or Open a new one
 		const activeSubmission = await getOrCreateActiveSubmission({ categoryId, username, organization });
 
+		logger.info('submission data', data);
+
 		// Schema validation runs asynchronously and does not block execution.
 		// The results will be saved to the database.
 		processInsertRecordsAsync({
@@ -451,6 +464,7 @@ const service = (dependencies: BaseDependencies) => {
 		deleteActiveSubmissionEntity,
 		getSubmissionsByCategory,
 		getSubmissionById,
+		getSubmissionSummaryById,
 		getActiveSubmissionByOrganization,
 		getOrCreateActiveSubmission,
 		submit,

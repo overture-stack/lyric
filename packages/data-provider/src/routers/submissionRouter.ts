@@ -18,6 +18,14 @@ const router = ({
 	router.use(authMiddleware(authConfig));
 
 	router.get(
+		'/:submissionId/summary',
+		submissionController({
+			baseDependencies,
+			authConfig,
+		}).getSubmissionSummaryById,
+	);
+
+	router.get(
 		'/:submissionId',
 		submissionController({
 			baseDependencies,
