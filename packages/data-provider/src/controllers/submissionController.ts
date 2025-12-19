@@ -220,10 +220,6 @@ const controller = ({
 					{ onlyActive, username, organization },
 				);
 
-				if (isEmpty(submissionsResult.result)) {
-					throw new NotFound('Submissions not found');
-				}
-
 				const response = {
 					pagination: {
 						currentPage: page,
