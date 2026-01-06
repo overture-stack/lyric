@@ -11,7 +11,6 @@ import {
 	type DataDiff,
 	type Dictionary,
 	NewSubmittedData,
-	Submission,
 	SubmissionData,
 	type SubmissionDeleteData,
 	type SubmissionErrors,
@@ -114,8 +113,18 @@ export type CreateSubmissionResult = {
  */
 export type CommitSubmissionResult = {
 	status: string;
-	dictionary: object;
+	dictionary: DictionarySummary;
 	processedEntities: string[];
+};
+
+export type DictionarySummary = Pick<Dictionary, 'name' | 'version'>;
+
+export type CategorySummary = Pick<Category, 'id' | 'name'>;
+
+export type DeleteSubmissionResult = {
+	status: string;
+	description: string;
+	submissionId: number;
 };
 
 /**
@@ -174,7 +183,7 @@ export interface CommitSubmissionParams {
 		updates?: Record<string, SubmissionUpdateData>;
 	};
 	dictionary: SchemasDictionary & { id: number };
-	submission: Submission;
+	submissionId: number;
 	username: string;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }
@@ -215,24 +224,14 @@ export type DataErrorsSubmissionSummary = {
 	recordsCount: number;
 };
 
-export type DictionaryActiveSubmission = {
-	name: string;
-	version: string;
-};
-
-export type CategoryActiveSubmission = {
-	id: number;
-	name: string;
-};
-
 /**
  * Response type for Get Submission by Submission ID endpoint
  */
-export type SubmissionResponse = {
+export type SubmissionDetailsResponse = {
 	id: number;
 	data: SubmissionData;
-	dictionary: DictionaryActiveSubmission;
-	dictionaryCategory: CategoryActiveSubmission;
+	dictionary: DictionarySummary;
+	dictionaryCategory: CategorySummary;
 	errors: SubmissionErrors | null;
 	organization: string;
 	status: SubmissionStatus | null;
@@ -258,7 +257,7 @@ export type SubmissionErrorsSummary = {
  * Shortened version of the Submission record that omits the data changes and error details
  * in favour of the count of records changed and errors for each entity type.
  */
-export type SubmissionSummary = Omit<SubmissionResponse, 'data' | 'errors'> & {
+export type SubmissionSummary = Omit<SubmissionDetailsResponse, 'data' | 'errors'> & {
 	data: SubmissionDataSummary;
 } & {
 	errors: SubmissionErrorsSummary;
@@ -267,14 +266,14 @@ export type SubmissionSummary = Omit<SubmissionResponse, 'data' | 'errors'> & {
 /**
  * Retrieve Submission object with data summary from repository
  */
-export type SubmissionSummaryRepositoryRecord = {
+export type SubmissionDataSummaryRepositoryRecord = {
 	id: number;
 	data: SubmissionDataSummary;
-	dictionary: Pick<Dictionary, 'name' | 'version'>;
-	dictionaryCategory: Pick<Category, 'id' | 'name'>;
+	dictionary: DictionarySummary;
+	dictionaryCategory: CategorySummary;
 	errors: SubmissionErrorsSummary;
-	organization: string | null;
-	status: SubmissionStatus | null;
+	organization: string;
+	status: SubmissionStatus;
 	createdAt: Date | null;
 	createdBy: string | null;
 	updatedAt: Date | null;
@@ -282,16 +281,31 @@ export type SubmissionSummaryRepositoryRecord = {
 };
 
 /**
- * Retrieve Submission object with data summary from repository
+ * Retrieve Submission object without data column from repository
  */
 export type SubmissionRepositoryRecord = {
 	id: number;
+	dictionary: DictionarySummary;
+	dictionaryCategory: CategorySummary;
+	organization: string;
+	status: SubmissionStatus;
+	createdAt: Date | null;
+	createdBy: string | null;
+	updatedAt: Date | null;
+	updatedBy: string | null;
+};
+
+/**
+ * Retrieve Submission object with data details from repository
+ */
+export type SubmissionDataDetailsRepositoryRecord = {
+	id: number;
 	data: SubmissionData;
-	dictionary: Pick<Dictionary, 'name' | 'version'>;
-	dictionaryCategory: Pick<Category, 'id' | 'name'>;
+	dictionary: DictionarySummary;
+	dictionaryCategory: CategorySummary;
 	errors: SubmissionErrors | null;
-	organization: string | null;
-	status: SubmissionStatus | null;
+	organization: string;
+	status: SubmissionStatus;
 	createdAt: Date | null;
 	createdBy: string | null;
 	updatedAt: Date | null;
@@ -300,7 +314,7 @@ export type SubmissionRepositoryRecord = {
 
 export type CategoryDetailsResponse = {
 	id: number;
-	dictionary?: Pick<Dictionary, 'name' | 'version'>;
+	dictionary?: DictionarySummary;
 	name: string;
 	organizations: string[];
 	createdAt: string;

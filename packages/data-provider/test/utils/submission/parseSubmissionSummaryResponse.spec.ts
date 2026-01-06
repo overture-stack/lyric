@@ -2,12 +2,12 @@ import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
 import { createSubmissionSummaryResponse } from '../../../src/utils/submissionUtils.js';
-import { SUBMISSION_STATUS, type SubmissionSummaryRepositoryRecord } from '../../../src/utils/types.js';
+import { SUBMISSION_STATUS, type SubmissionDataSummaryRepositoryRecord } from '../../../src/utils/types.js';
 
 describe('Submission Utils - Parse a Submission object to a Summary of the Active Submission', () => {
 	const todaysDate = new Date();
 	it('should return a Summary without any data ', () => {
-		const submissionSummaryRepositoryRecord: SubmissionSummaryRepositoryRecord = {
+		const submissionDataSummaryRepositoryRecord: SubmissionDataSummaryRepositoryRecord = {
 			id: 4,
 			data: {
 				inserts: undefined,
@@ -24,7 +24,7 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 			updatedAt: null,
 			updatedBy: null,
 		};
-		const response = createSubmissionSummaryResponse(submissionSummaryRepositoryRecord);
+		const response = createSubmissionSummaryResponse(submissionDataSummaryRepositoryRecord);
 		expect(response).to.eql({
 			id: 4,
 			data: {
@@ -44,7 +44,7 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 		});
 	});
 	it('should return a Summary with insert, update and delete data ', () => {
-		const submissionSummaryRepositoryRecord: SubmissionSummaryRepositoryRecord = {
+		const submissionDataSummaryRepositoryRecord: SubmissionDataSummaryRepositoryRecord = {
 			id: 3,
 			data: {
 				inserts: {
@@ -74,7 +74,7 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 			updatedAt: null,
 			updatedBy: null,
 		};
-		const response = createSubmissionSummaryResponse(submissionSummaryRepositoryRecord);
+		const response = createSubmissionSummaryResponse(submissionDataSummaryRepositoryRecord);
 		expect(response).to.eql({
 			id: 3,
 			data: {

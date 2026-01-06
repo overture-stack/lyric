@@ -78,13 +78,13 @@ const controller = ({
 
 				const username = user?.username || '';
 
-				const activeSubmissionDelete = await service.deleteActiveSubmissionById(submissionId, username);
+				const deleteSubmissionResult = await service.deleteActiveSubmissionById(submissionId, username);
 
-				if (isEmpty(activeSubmissionDelete)) {
+				if (isEmpty(deleteSubmissionResult)) {
 					throw new NotFound('Active Submission not found');
 				}
 
-				return res.status(200).send(activeSubmissionDelete);
+				return res.status(200).send(deleteSubmissionResult);
 			} catch (error) {
 				next(error);
 			}
@@ -113,17 +113,17 @@ const controller = ({
 
 				const username = user?.username || '';
 
-				const activeSubmission = await service.deleteActiveSubmissionEntity(submissionId, username, {
+				const deleteSubmissionEntityResult = await service.deleteActiveSubmissionEntity(submissionId, username, {
 					actionType,
 					entityName,
 					index,
 				});
 
-				if (isEmpty(activeSubmission)) {
+				if (isEmpty(deleteSubmissionEntityResult)) {
 					throw new NotFound('Active Submission not found');
 				}
 
-				return res.status(200).send(activeSubmission);
+				return res.status(200).send(deleteSubmissionEntityResult);
 			} catch (error) {
 				next(error);
 			}

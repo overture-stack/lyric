@@ -28,7 +28,7 @@
         $ref: '#/components/responses/ServiceUnavailableError'
 
   delete:
-    summary: Clear an Active Submission by ID
+    summary: Close an Active Submission by ID
     tags:
       - Submission
     parameters:
@@ -38,11 +38,11 @@
         required: true
     responses:
       200:
-        description: Submission cleared successfully. Returns the current Active Submission
+        description: Submission closed successfully
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SubmissionResult'
+              $ref: '#/components/schemas/DeleteSubmissionResult'
       400:
         $ref: '#/components/responses/BadRequest'
       401:
@@ -91,7 +91,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SubmissionResult'
+              $ref: '#/components/schemas/DeleteSubmissionEntityResult'
       400:
         $ref: '#/components/responses/BadRequest'
       401:

@@ -437,6 +437,40 @@ components:
           type: string
           description: ID of the Submission
 
+    DeleteSubmissionResult:
+      required:
+        - status
+        - description
+      type: object
+      properties:
+        description:
+          type: string
+          description: Description of closing the Submission
+        status:
+          type: string
+          description: Result of closing the Submission
+          enum: ['CLOSED']
+        submissionId:
+          type: string
+          description: ID of the Submission
+
+    DeleteSubmissionEntityResult:
+      required:
+        - status
+        - description
+      type: object
+      properties:
+        description:
+          type: string
+          description: Description of deleting partially Submission data
+        status:
+          type: string
+          description: Result of deleting partially Submission data
+          enum: ['PROCESSING']
+        submissionId:
+          type: string
+          description: ID of the Submission
+
     GetSubmittedDataResult:
       type: object
       properties:
