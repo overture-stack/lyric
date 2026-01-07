@@ -56,6 +56,33 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
+/submission/{submissionId}/details:
+  get:
+    summary: Get detailed submission information
+    tags:
+      - Submission
+    parameters:
+      - name: submissionId
+        in: path
+        type: string
+        required: true
+    responses:
+      200:
+        description: Full submission payload
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissionDetailsResult'
+
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
 /submission/{submissionId}/{actionType}:
   delete:
     summary: Clear Active Submission by entity name
