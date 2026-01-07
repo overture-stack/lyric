@@ -270,9 +270,9 @@ const service = (dependencies: BaseDependencies) => {
 		result: SubmissionSummary[];
 		metadata: { totalRecords: number; errorMessage?: string };
 	}> => {
-		const { getSubmissionsDataSummaryByCategory, getTotalSubmissionsByCategory } = submissionRepository(dependencies);
+		const { getSubmissionsByCategory, getTotalSubmissionsByCategory } = submissionRepository(dependencies);
 
-		const recordsPaginated = await getSubmissionsDataSummaryByCategory(categoryId, paginationOptions, filterOptions);
+		const recordsPaginated = await getSubmissionsByCategory(categoryId, paginationOptions, filterOptions);
 		if (!recordsPaginated || recordsPaginated.length === 0) {
 			return {
 				result: [],

@@ -305,7 +305,7 @@ jsonb_build_object(
 		 * @param {string} filterOptions.organization - Filter by Organization
 		 * @returns One or many Active Submissions
 		 */
-		getSubmissionsDataSummaryByCategory: async (
+		getSubmissionsByCategory: async (
 			categoryId: number,
 			paginationOptions: PaginationOptions,
 			filterOptions: {
