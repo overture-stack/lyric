@@ -11,7 +11,6 @@ import submittedRepository from '../../repository/submittedRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
 import {
-	createSubmissionDetailsResponse,
 	createSubmissionSummaryResponse,
 	isSubmissionActive,
 	removeItemsFromSubmission,
@@ -298,14 +297,14 @@ const service = (dependencies: BaseDependencies) => {
 	 * @returns One Submission
 	 */
 	const getSubmissionById = async (submissionId: number) => {
-		const { getSubmissionDetailsById } = submissionRepository(dependencies);
+		const { getSubmissionById } = submissionRepository(dependencies);
 
-		const submission = await getSubmissionDetailsById(submissionId);
+		const submission = await getSubmissionById(submissionId);
 		if (_.isEmpty(submission)) {
 			return;
 		}
 
-		return createSubmissionDetailsResponse(submission);
+		return createSubmissionSummaryResponse(submission);
 	};
 
 	/**
@@ -325,9 +324,9 @@ const service = (dependencies: BaseDependencies) => {
 		username: string;
 		organization: string;
 	}): Promise<SubmissionSummary | undefined> => {
-		const { getActiveSubmissionDataSummaryByOrganization } = submissionRepository(dependencies);
+		const { getActiveSubmission } = submissionRepository(dependencies);
 
-		const submission = await getActiveSubmissionDataSummaryByOrganization({
+		const submission = await getActiveSubmission({
 			organization,
 			username,
 			categoryId,

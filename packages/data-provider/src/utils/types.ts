@@ -281,21 +281,6 @@ export type SubmissionDataSummaryRepositoryRecord = {
 };
 
 /**
- * Retrieve Submission object without data column from repository
- */
-export type SubmissionRepositoryRecord = {
-	id: number;
-	dictionary: DictionarySummary;
-	dictionaryCategory: CategorySummary;
-	organization: string;
-	status: SubmissionStatus;
-	createdAt: Date | null;
-	createdBy: string | null;
-	updatedAt: Date | null;
-	updatedBy: string | null;
-};
-
-/**
  * Retrieve Submission object with data details from repository
  */
 export type SubmissionDataDetailsRepositoryRecord = {

@@ -1,7 +1,7 @@
 import type { ExtractTablesWithRelations, SQL } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
-import { and, count, eq, inArray, or, sql } from 'drizzle-orm/sql';
+import { and, count, eq, inArray, sql } from 'drizzle-orm/sql';
 
 import { type NewSubmission, type Submission, submissions } from '@overture-stack/lyric-data-model/models';
 
@@ -15,7 +15,6 @@ import type {
 	SubmissionDataSummary,
 	SubmissionDataSummaryRepositoryRecord,
 	SubmissionErrorsSummary,
-	SubmissionRepositoryRecord,
 } from '../utils/types.js';
 
 const repository = (dependencies: BaseDependencies) => {
@@ -210,7 +209,7 @@ jsonb_build_object(
 			categoryId: number;
 			username: string;
 			organization: string;
-		}): Promise<SubmissionRepositoryRecord | undefined> => {
+		}): Promise<SubmissionDataSummaryRepositoryRecord | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(
@@ -221,6 +220,7 @@ jsonb_build_object(
 					),
 					columns: submissionColumns,
 					with: submissionDictionaryRelationColumns,
+					extras: { data: dataSummaryQuery, errors: errorsSummaryQuery },
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed getting active Submission`, error);
@@ -233,12 +233,13 @@ jsonb_build_object(
 		 * @param {number} submissionId Submission ID
 		 * @returns The Submission found
 		 */
-		getSubmissionById: async (submissionId: number): Promise<SubmissionRepositoryRecord | undefined> => {
+		getSubmissionById: async (submissionId: number): Promise<SubmissionDataSummaryRepositoryRecord | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(eq(submissions.id, submissionId)),
 					columns: submissionColumns,
 					with: submissionDictionaryRelationColumns,
+					extras: { data: dataSummaryQuery, errors: errorsSummaryQuery },
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed getting Submission with id '${submissionId}'`, error);
@@ -367,41 +368,6 @@ jsonb_build_object(
 				return resultCount[0].total;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed counting Submission with categoryId '${categoryId}'`, error);
-				throw new ServiceUnavailable();
-			}
-		},
-
-		/**
-		 * Get Active Submission by Organization
-		 * @param {Object} filterParams
-		 * @param {number} filterParams.categoryId Category ID
-		 * @param {string} filterParams.username User Name
-		 * @param {string} filterParams.organization Organization name
-		 * @returns One Active Submission
-		 */
-		getActiveSubmissionDataSummaryByOrganization: async ({
-			categoryId,
-			username,
-			organization,
-		}: {
-			categoryId: number;
-			username: string;
-			organization: string;
-		}): Promise<SubmissionDataSummaryRepositoryRecord | undefined> => {
-			try {
-				return await db.query.submissions.findFirst({
-					where: and(
-						eq(submissions.dictionaryCategoryId, categoryId),
-						eq(submissions.createdBy, username),
-						eq(submissions.organization, organization),
-						activeStatusesCondition,
-					),
-					columns: submissionColumns,
-					extras: { data: dataSummaryQuery, errors: errorsSummaryQuery },
-					with: submissionDictionaryRelationColumns,
-				});
-			} catch (error) {
-				logger.error(LOG_MODULE, `Failed querying Active Submission with relations`, error);
 				throw new ServiceUnavailable();
 			}
 		},

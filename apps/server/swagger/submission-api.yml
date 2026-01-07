@@ -2,7 +2,7 @@
 
 /submission/{submissionId}:
   get:
-    summary: Get submission by ID
+    summary: Get submission information by ID
     tags:
       - Submission
     parameters:
@@ -12,7 +12,7 @@
         required: true
     responses:
       200:
-        description: Submission details
+        description: Submission information
         content:
           application/json:
             schema:
@@ -119,11 +119,11 @@
       - $ref: '#/components/parameters/query/Username'
     responses:
       200:
-        description: Submissions details
+        description: List of Submissions
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SubmissionsSummaryResult'
+              $ref: '#/components/schemas/ListSubmissionsResult'
 
       401:
         $ref: '#/components/responses/UnauthorizedError'

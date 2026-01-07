@@ -173,7 +173,6 @@ const submittedData = (dependencies: BaseDependencies) => {
 		);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
-		const { getSubmissionDetailsById } = submissionRepository(dependencies);
 		const { processEditRecordsAsync } = processor(dependencies);
 
 		if (records.length === 0) {
@@ -210,15 +209,6 @@ const submittedData = (dependencies: BaseDependencies) => {
 		// Get Active Submission or Open a new one
 		const activeSubmissionId = (await getOrCreateActiveSubmission({ categoryId, username, organization })).id;
 
-		const activeSubmission = await getSubmissionDetailsById(activeSubmissionId);
-
-		if (!activeSubmission) {
-			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: 'Active Submission not found',
-			};
-		}
-
 		// Running Schema validation in the background do not need to wait
 		// Result of validations will be stored in database
 		processEditRecordsAsync(records, {
@@ -230,7 +220,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		return {
 			status: CREATE_SUBMISSION_STATUS.PROCESSING,
 			description: 'Submission records are being processed',
-			submissionId: activeSubmission.id,
+			submissionId: activeSubmissionId,
 		};
 	};
 
