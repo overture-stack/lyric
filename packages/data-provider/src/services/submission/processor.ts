@@ -321,10 +321,6 @@ const processor = (dependencies: BaseDependencies) => {
 							}
 						}
 					} else {
-						logger.info(
-							LOG_MODULE,
-							`Creating new submittedData in entity '${entityName}' with system ID '${data.systemId}'`,
-						);
 						data.isValid = newIsValid;
 						if (newIsValid) {
 							data.lastValidSchemaId = dictionary.id;
