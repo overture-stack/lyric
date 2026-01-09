@@ -195,32 +195,15 @@ components:
           description: ID of the Submission
         data:
           type: object
-          properties:
-            inserts:
-              type: object
-              additionalProperties:
-                type: object
-                properties:
-                  batchName:
-                    type: string
-                    description: Original filename  of the submission
-                  recordsCount:
-                    type: number
-                    description: Number Of Records
-            updates:
-              type: object
-              additionalProperties:
-                type: object
-                properties:
-                  recordsCount:
-                    type: number
-            deletes:
-              type: object
-              additionalProperties:
-                type: object
-                properties:
-                  recordsCount:
-                    type: number
+          additionalProperties:
+            type: object
+            properties:
+              inserts:
+                type: number
+              updates:
+                type: number
+              deletes:
+                type: number
         dictionary:
           type: object
           description: Dictionary used to validate the submission
@@ -239,28 +222,15 @@ components:
               type: string
         errors:
           type: object
-          properties:
-            inserts:
-              type: object
-              additionalProperties:
-                type: object
-                properties:
-                  recordsCount:
-                    type: number
-            updates:
-              type: object
-              additionalProperties:
-                type: object
-                properties:
-                  recordsCount:
-                    type: number
-            deletes:
-              type: object
-              additionalProperties:
-                type: object
-                properties:
-                  recordsCount:
-                    type: number
+          additionalProperties:
+            type: object
+            properties:
+              inserts:
+                type: number
+              updates:
+                type: number
+              deletes:
+                type: number
         organization:
           type: string
           description: Organization the Submission belongs to
