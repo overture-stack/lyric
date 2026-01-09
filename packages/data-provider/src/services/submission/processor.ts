@@ -227,7 +227,9 @@ const processor = (dependencies: BaseDependencies) => {
 		// Step 1: Exclude items that are marked for deletion
 		const systemIdsToDelete = new Set<string>(dataToValidate?.deletes?.map((item) => item.systemId) || []);
 		logger.info(LOG_MODULE, `Found '${systemIdsToDelete.size}' Records to delete on Submission '${submission.id}'`);
-		const submittedData = dataToValidate.submittedData?.filter((item) => !systemIdsToDelete.has(item.systemId));
+		const submittedData = systemIdsToDelete.size
+			? dataToValidate.submittedData?.filter((item) => !systemIdsToDelete.has(item.systemId))
+			: dataToValidate.submittedData;
 
 		// Step 2: Modify items marked for update
 		const systemIdsToUpdate = new Set<string>(dataToValidate.updates ? Object.keys(dataToValidate.updates) : []);

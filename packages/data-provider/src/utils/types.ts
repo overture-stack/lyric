@@ -130,6 +130,7 @@ export type RegisterDictionaryResult = {
 	dictionary: object;
 	name: string;
 	version: string;
+	migrationId?: number;
 };
 
 export type { Schema, SchemasDictionary };
