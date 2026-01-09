@@ -207,23 +207,6 @@ export type PaginationOptions = {
 	pageSize: number;
 };
 
-export type DataInsertsSubmissionSummary = {
-	batchName: string;
-	recordsCount: number;
-};
-
-export type DataUpdatesSubmissionSummary = {
-	recordsCount: number;
-};
-
-export type DataDeletesSubmissionSummary = {
-	recordsCount: number;
-};
-
-export type DataErrorsSubmissionSummary = {
-	recordsCount: number;
-};
-
 /**
  * Response type for Get Submission by Submission ID endpoint
  */
@@ -241,17 +224,15 @@ export type SubmissionDetailsResponse = {
 	updatedBy: string;
 };
 
-export type SubmissionDataSummary = {
-	inserts?: Record<string, DataInsertsSubmissionSummary>;
-	updates?: Record<string, DataUpdatesSubmissionSummary>;
-	deletes?: Record<string, DataDeletesSubmissionSummary>;
+export type EntityRecordsCount = {
+	inserts?: number;
+	updates?: number;
+	deletes?: number;
 };
 
-export type SubmissionErrorsSummary = {
-	inserts?: Record<string, DataErrorsSubmissionSummary>;
-	updates?: Record<string, DataErrorsSubmissionSummary>;
-	deletes?: Record<string, DataErrorsSubmissionSummary>;
-};
+export type SubmissionDataSummary = Record<string, EntityRecordsCount>;
+
+export type SubmissionErrorsSummary = Record<string, EntityRecordsCount>;
 
 /**
  * Shortened version of the Submission record that omits the data changes and error details

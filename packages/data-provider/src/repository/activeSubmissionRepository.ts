@@ -58,110 +58,79 @@ const repository = (dependencies: BaseDependencies) => {
 	 * A query to generate a summarized JSON object of the 'data' column
 	 * Returns a JSON object of type SubmissionDataSummary
 	 */
-	const dataSummaryQuery = sql<SubmissionDataSummary>`
-jsonb_build_object(
-  'inserts',
-    (
-      SELECT jsonb_object_agg(
-        i.key,
-        jsonb_build_object(
-          'batchName', i.value->>'batchName',
-          'recordsCount',
-            CASE
-              WHEN jsonb_typeof(i.value->'records') = 'array'
-              THEN jsonb_array_length(i.value->'records')
-              ELSE 0
-            END
-        )
-      )
-      FROM jsonb_each(${submissions.data}->'inserts') AS i(key, value)
-    ),
-
-  'updates',
-    (
-      SELECT jsonb_object_agg(
-        u.key,
-        jsonb_build_object(
-          'recordsCount',
-            CASE
-              WHEN jsonb_typeof(u.value) = 'array'
-              THEN jsonb_array_length(u.value)
-              ELSE 0
-            END
-        )
-      )
-      FROM jsonb_each(${submissions.data}->'updates') AS u(key, value)
-    ),
-
-  'deletes',
-    (
-      SELECT jsonb_object_agg(
-        d.key,
-        jsonb_build_object(
-          'recordsCount',
-            CASE
-              WHEN jsonb_typeof(d.value) = 'array'
-              THEN jsonb_array_length(d.value)
-              ELSE 0
-            END
-        )
-      )
-      FROM jsonb_each(${submissions.data}->'deletes') AS d(key, value)
-    )
+	const dataSummaryQuery = sql<SubmissionDataSummary>`(
+	WITH sections AS (
+		SELECT 'inserts' AS section, jsonb_each(${submissions.data}->'inserts') AS kv
+		UNION ALL
+		SELECT 'updates' AS section, jsonb_each(${submissions.data}->'updates')
+		UNION ALL
+		SELECT 'deletes' AS section, jsonb_each(${submissions.data}->'deletes')
+	),
+	expanded AS (
+		SELECT
+		section,
+		(kv).key AS entity,
+		CASE
+			WHEN jsonb_typeof((kv).value->'records') = 'array'
+			THEN jsonb_array_length((kv).value->'records')
+			ELSE 0
+		END AS cnt
+		FROM sections
+	),
+	per_entity AS (
+		SELECT
+		entity,
+		COALESCE(MAX(CASE WHEN section='inserts' THEN cnt END), 0) AS inserts_count,
+		COALESCE(MAX(CASE WHEN section='updates' THEN cnt END), 0) AS updates_count,
+		COALESCE(MAX(CASE WHEN section='deletes' THEN cnt END), 0) AS deletes_count
+		FROM expanded
+		GROUP BY entity
+	)
+	SELECT jsonb_object_agg(
+			entity,
+			jsonb_build_object(
+				'inserts', inserts_count,
+				'updates', updates_count,
+				'deletes', deletes_count
+			)
+	)
+	FROM per_entity
 )`.as('data');
 
 	/**
 	 * A query to generate a summarized JSON object of the 'errors' column
 	 * Returns a json object of type SubmissionErrorsSummary
 	 */
-	const errorsSummaryQuery = sql<SubmissionErrorsSummary>`jsonb_build_object(
-  'inserts',
-    (
-      SELECT jsonb_object_agg(
-        i.key,
+	const errorsSummaryQuery = sql<SubmissionErrorsSummary>`(
+	SELECT jsonb_object_agg(
+        entity,
         jsonb_build_object(
-          'recordsCount',
-            CASE
-              WHEN jsonb_typeof(i.value) = 'array'
-              THEN jsonb_array_length(i.value)
-              ELSE 0
-            END
+            'inserts', COALESCE(inserts_count, 0),
+            'updates', COALESCE(updates_count, 0),
+            'deletes', COALESCE(deletes_count, 0)
         )
-      )
-      FROM jsonb_each(${submissions.errors}->'inserts') AS i(key, value)
-    ),
-
-  'updates',
-    (
-      SELECT jsonb_object_agg(
-        u.key,
-        jsonb_build_object(
-          'recordsCount',
-            CASE
-              WHEN jsonb_typeof(u.value) = 'array'
-              THEN jsonb_array_length(u.value)
-              ELSE 0
-            END
-        )
-      )
-      FROM jsonb_each(${submissions.errors}->'updates') AS u(key, value)
-    ),
-
-  'deletes',
-    (
-      SELECT jsonb_object_agg(
-        d.key,
-        jsonb_build_object(
-          'recordsCount',
-            CASE
-              WHEN jsonb_typeof(d.value) = 'array'
-              THEN jsonb_array_length(d.value)
-              ELSE 0
-            END
-        )
-      )
-      FROM jsonb_each(${submissions.errors}->'deletes') AS d(key, value)
     )
+	FROM (
+    	SELECT entity,
+        SUM(CASE WHEN section = 'inserts' THEN cnt END) AS inserts_count,
+        SUM(CASE WHEN section = 'updates' THEN cnt END) AS updates_count,
+        SUM(CASE WHEN section = 'deletes' THEN cnt END) AS deletes_count
+    	FROM (
+			SELECT section,
+					key AS entity,
+					CASE
+					WHEN jsonb_typeof(value) = 'array'
+					THEN jsonb_array_length(value)
+					ELSE 0
+					END AS cnt
+			FROM (
+				SELECT section, key, value
+				FROM (VALUES ('inserts'), ('updates'), ('deletes')) AS s(section)
+				CROSS JOIN LATERAL jsonb_each(errors->section)
+			) x
+		) grouped
+    	GROUP BY entity
+  	) final
 )`.as('errors');
 
 	/**

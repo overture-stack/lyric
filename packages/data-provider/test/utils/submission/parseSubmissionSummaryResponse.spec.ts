@@ -9,11 +9,7 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 	it('should return a Summary without any data ', () => {
 		const submissionDataSummaryRepositoryRecord: SubmissionDataSummaryRepositoryRecord = {
 			id: 4,
-			data: {
-				inserts: undefined,
-				updates: undefined,
-				deletes: undefined,
-			},
+			data: {},
 			dictionary: { name: 'books', version: '1' },
 			dictionaryCategory: { name: 'favorite books', id: 1 },
 			errors: {},
@@ -27,11 +23,7 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 		const response = createSubmissionSummaryResponse(submissionDataSummaryRepositoryRecord);
 		expect(response).to.eql({
 			id: 4,
-			data: {
-				inserts: undefined,
-				updates: undefined,
-				deletes: undefined,
-			},
+			data: {},
 			dictionary: { name: 'books', version: '1' },
 			dictionaryCategory: { name: 'favorite books', id: 1 },
 			errors: {},
@@ -47,21 +39,10 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 		const submissionDataSummaryRepositoryRecord: SubmissionDataSummaryRepositoryRecord = {
 			id: 3,
 			data: {
-				inserts: {
-					books: {
-						batchName: 'books.tsv',
-						recordsCount: 1,
-					},
-				},
-				updates: {
-					books: {
-						recordsCount: 1,
-					},
-				},
-				deletes: {
-					books: {
-						recordsCount: 1,
-					},
+				books: {
+					inserts: 1,
+					updates: 1,
+					deletes: 1,
 				},
 			},
 			dictionary: { name: 'books', version: '1' },
@@ -78,21 +59,10 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 		expect(response).to.eql({
 			id: 3,
 			data: {
-				inserts: {
-					books: {
-						batchName: 'books.tsv',
-						recordsCount: 1,
-					},
-				},
-				updates: {
-					books: {
-						recordsCount: 1,
-					},
-				},
-				deletes: {
-					books: {
-						recordsCount: 1,
-					},
+				books: {
+					inserts: 1,
+					updates: 1,
+					deletes: 1,
 				},
 			},
 			dictionary: { name: 'books', version: '1' },
