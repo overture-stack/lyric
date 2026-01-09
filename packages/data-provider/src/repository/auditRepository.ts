@@ -16,6 +16,7 @@ const repository = (dependencies: BaseDependencies) => {
 		entityName: true,
 		action: true,
 		dataDiff: true,
+		errors: true,
 		newDataIsValid: true,
 		oldDataIsValid: true,
 		organization: true,
