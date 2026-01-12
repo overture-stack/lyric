@@ -62,7 +62,26 @@ components:
             $ref: '#/components/responses/Error'
 
   schemas:
-    SubmissionResult:
+    ListSubmissionsResult:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            currentPage:
+              type: number
+            pageSize:
+              type: number
+            totalPages:
+              type: number
+            totalRecords:
+              type: number
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubmissionResult'
+
+    SubmissionDetailsResult:
       type: object
       properties:
         id:
@@ -154,7 +173,7 @@ components:
         status:
           type: string
           description: Status of the Submission
-          enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITED']
+          enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITTED']
         createdAt:
           type: string
           description: Date and time of creation
@@ -168,26 +187,7 @@ components:
           type: string
           description: User name who last updated the submission
 
-    SubmissionsSummaryResult:
-      type: object
-      properties:
-        pagination:
-          type: object
-          properties:
-            currentPage:
-              type: number
-            pageSize:
-              type: number
-            totalPages:
-              type: number
-            totalRecords:
-              type: number
-        records:
-          type: array
-          items:
-            $ref: '#/components/schemas/SubmissionSummary'
-
-    SubmissionSummary:
+    SubmissionResult:
       type: object
       properties:
         id:
@@ -267,7 +267,7 @@ components:
         status:
           type: string
           description: Status of the Submission
-          enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITED']
+          enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITTED']
         createdAt:
           type: string
           description: Date and time of creation
@@ -280,9 +280,6 @@ components:
         updatedBy:
           type: string
           description: Name of user who last updated the submission
-
-    ActiveSubmissionSummaryResult:
-      $ref: '#/components/schemas/SubmissionSummary'
 
     BatchError:
       type: object
@@ -433,6 +430,40 @@ components:
           type: string
           description: Result of uploading Submission files
           enum: ['PROCESSING', 'INVALID_SUBMISSION']
+        submissionId:
+          type: string
+          description: ID of the Submission
+
+    DeleteSubmissionResult:
+      required:
+        - status
+        - description
+      type: object
+      properties:
+        description:
+          type: string
+          description: Description of closing the Submission
+        status:
+          type: string
+          description: Result of closing the Submission
+          enum: ['CLOSED']
+        submissionId:
+          type: string
+          description: ID of the Submission
+
+    DeleteSubmissionEntityResult:
+      required:
+        - status
+        - description
+      type: object
+      properties:
+        description:
+          type: string
+          description: Description of deleting partially Submission data
+        status:
+          type: string
+          description: Result of deleting Submission data
+          enum: ['PROCESSING']
         submissionId:
           type: string
           description: ID of the Submission

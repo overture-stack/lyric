@@ -78,13 +78,13 @@ const controller = ({
 
 				const username = user?.username || '';
 
-				const activeSubmissionDelete = await service.deleteActiveSubmissionById(submissionId, username);
+				const deleteSubmissionResult = await service.deleteActiveSubmissionById(submissionId, username);
 
-				if (isEmpty(activeSubmissionDelete)) {
+				if (isEmpty(deleteSubmissionResult)) {
 					throw new NotFound('Active Submission not found');
 				}
 
-				return res.status(200).send(activeSubmissionDelete);
+				return res.status(200).send(deleteSubmissionResult);
 			} catch (error) {
 				next(error);
 			}
@@ -113,17 +113,17 @@ const controller = ({
 
 				const username = user?.username || '';
 
-				const activeSubmission = await service.deleteActiveSubmissionEntity(submissionId, username, {
+				const deleteSubmissionEntityResult = await service.deleteActiveSubmissionEntity(submissionId, username, {
 					actionType,
 					entityName,
 					index,
 				});
 
-				if (isEmpty(activeSubmission)) {
+				if (isEmpty(deleteSubmissionEntityResult)) {
 					throw new NotFound('Active Submission not found');
 				}
 
-				return res.status(200).send(activeSubmission);
+				return res.status(200).send(deleteSubmissionEntityResult);
 			} catch (error) {
 				next(error);
 			}
@@ -242,6 +242,23 @@ const controller = ({
 				logger.info(LOG_MODULE, `Request Active Submission submissionId '${submissionId}'`);
 
 				const submission = await service.getSubmissionById(submissionId);
+
+				if (isEmpty(submission)) {
+					throw new NotFound('Submission not found');
+				}
+
+				return res.status(200).send(submission);
+			} catch (error) {
+				next(error);
+			}
+		}),
+		getSubmissionDetailsById: validateRequest(submissionByIdRequestSchema, async (req, res, next) => {
+			try {
+				const submissionId = Number(req.params.submissionId);
+
+				logger.info(LOG_MODULE, `Request Submission Details by ID '${submissionId}'`);
+
+				const submission = await service.getSubmissionDetailsById(submissionId);
 
 				if (isEmpty(submission)) {
 					throw new NotFound('Submission not found');
