@@ -11,7 +11,6 @@ import {
 	validate,
 } from '@overture-stack/lectern-client';
 import {
-	type Submission,
 	SubmissionData,
 	type SubmissionDeleteData,
 	type SubmissionErrors,
@@ -24,20 +23,18 @@ import type { SchemaChildNode } from './dictionarySchemaRelations.js';
 import { deepCompare } from './formatUtils.js';
 import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
-	type DataDeletesSubmissionSummary,
-	type DataInsertsSubmissionSummary,
 	type DataRecordReference,
-	type DataUpdatesSubmissionSummary,
 	type EditSubmittedDataReference,
 	MERGE_REFERENCE_TYPE,
 	type NewSubmittedDataReference,
 	SUBMISSION_ACTION_TYPE,
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
-	type SubmissionResponse,
+	type SubmissionDataDetailsRepositoryRecord,
+	type SubmissionDataSummaryRepositoryRecord,
+	type SubmissionDetailsResponse,
 	type SubmissionStatus,
-	type SubmissionSummaryRepository,
-	type SubmissionSummaryResponse,
+	type SubmissionSummary,
 	SubmittedDataReference,
 } from './types.js';
 
@@ -357,21 +354,20 @@ export const mapGroupedUpdateSubmissionData = ({
  * Combines **Active Submission** and the **Submitted Data** recevied as arguments.
  * Then, the Schema Data is extracted and mapped with its internal reference ID.
  * The returned Object is a collection of the raw Schema Data with it's reference ID grouped by entity name.
- * @param {Submission} originalSubmission The Active Submission to be merged
+ * @param {number} submissionId ID of the Active Submission
  * @param {Object} submissionData
  * @param {Record<string, SubmissionInsertData>} submissionData.insertData Collection of Data records of the Active Submission
  * @param {Record<string, SubmissionUpdateData[]>} submissionData.updateData Collection of Data records of the Active Submission
  * @param {Record<string, SubmissionDeleteData[]>} submissionData.deleteData Collection of Data records of the Active Submission
- * @param {number} submissionData.id ID of the Active Submission
  * @param {SubmittedData[]} submittedData An array of Submitted Data
  * @returns {Record<string, DataRecordReference[]>}
  */
 export const mergeAndReferenceEntityData = ({
-	originalSubmission,
+	submissionId,
 	submissionData,
 	submittedData,
 }: {
-	originalSubmission: Submission;
+	submissionId: number;
 	submissionData: SubmissionData;
 	submittedData: SubmittedData[];
 }): Record<string, DataRecordReference[]> => {
@@ -388,11 +384,11 @@ export const mergeAndReferenceEntityData = ({
 	const submittedDataWithRef = mapAndMergeSubmittedDataToRecordReferences({
 		submittedData: submittedDataFiltered,
 		editSubmittedData: submissionData.updates,
-		submissionId: originalSubmission.id,
+		submissionId,
 	});
 
 	const insertDataWithRef = submissionData.inserts
-		? mapInsertDataToRecordReferences(originalSubmission.id, submissionData.inserts)
+		? mapInsertDataToRecordReferences(submissionId, submissionData.inserts)
 		: {};
 
 	// This object will merge existing data + new data for validation (Submitted data + active Submission)
@@ -524,18 +520,20 @@ export const mergeUpdatesBySystemId = (
 };
 
 /**
- * Utility to parse a raw Submission to a Response type
- * @param {SubmissionSummaryRepository} submission
- * @returns {SubmissionResponse}
+ * Utility to convert a raw Submission record to a Response type
+ * @param {SubmissionDataDetailsRepositoryRecord} submission
+ * @returns {SubmissionDetailsResponse}
  */
-export const parseSubmissionResponse = (submission: SubmissionSummaryRepository): SubmissionResponse => {
+export const createSubmissionDetailsResponse = (
+	submission: SubmissionDataDetailsRepositoryRecord,
+): SubmissionDetailsResponse => {
 	return {
 		id: submission.id,
 		data: submission.data,
 		dictionary: submission.dictionary,
 		dictionaryCategory: submission.dictionaryCategory,
 		errors: submission.errors,
-		organization: _.toString(submission.organization),
+		organization: submission.organization,
 		status: submission.status,
 		createdAt: _.toString(submission.createdAt?.toISOString()),
 		createdBy: _.toString(submission.createdBy),
@@ -545,48 +543,21 @@ export const parseSubmissionResponse = (submission: SubmissionSummaryRepository)
 };
 
 /**
- * Utility to parse a raw Submission to a Summary of the Submission
- * @param {SubmissionSummaryRepository} submission
- * @returns {SubmissionSummaryResponse}
+ * Utility to convert the raw SubmissionDataSummaryRepositoryRecord read from the repository into
+ * a SubmissionSummaryResponse which does not contain the data records being inserted/updated/deleted
+ * @param {SubmissionDataSummaryRepositoryRecord} submission
+ * @returns {SubmissionSummary}
  */
-export const parseSubmissionSummaryResponse = (submission: SubmissionSummaryRepository): SubmissionSummaryResponse => {
-	const dataInsertsSummary =
-		submission.data?.inserts &&
-		Object.entries(submission.data?.inserts).reduce<Record<string, DataInsertsSubmissionSummary>>(
-			(acc, [entityName, entityData]) => {
-				acc[entityName] = { ..._.omit(entityData, 'records'), recordsCount: entityData.records.length };
-				return acc;
-			},
-			{},
-		);
-
-	const dataUpdatesSummary =
-		submission.data.updates &&
-		Object.entries(submission.data?.updates).reduce<Record<string, DataUpdatesSubmissionSummary>>(
-			(acc, [entityName, entityData]) => {
-				acc[entityName] = { recordsCount: entityData.length };
-				return acc;
-			},
-			{},
-		);
-
-	const dataDeletesSummary =
-		submission.data.deletes &&
-		Object.entries(submission.data?.deletes).reduce<Record<string, DataDeletesSubmissionSummary>>(
-			(acc, [entityName, entityData]) => {
-				acc[entityName] = { recordsCount: entityData.length };
-				return acc;
-			},
-			{},
-		);
-
+export const createSubmissionSummaryResponse = (
+	submission: SubmissionDataSummaryRepositoryRecord,
+): SubmissionSummary => {
 	return {
 		id: submission.id,
-		data: { inserts: dataInsertsSummary, updates: dataUpdatesSummary, deletes: dataDeletesSummary },
+		data: submission.data,
 		dictionary: submission.dictionary,
 		dictionaryCategory: submission.dictionaryCategory,
 		errors: submission.errors,
-		organization: _.toString(submission.organization),
+		organization: submission.organization,
 		status: submission.status,
 		createdAt: _.toString(submission.createdAt?.toISOString()),
 		createdBy: _.toString(submission.createdBy),

@@ -4,6 +4,7 @@ import type { Dictionary as SchemasDictionary } from '@overture-stack/lectern-cl
 import { SQON } from '@overture-stack/sqon-builder';
 
 import { BaseDependencies } from '../../config/config.js';
+import submissionRepository from '../../repository/activeSubmissionRepository.js';
 import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
@@ -51,6 +52,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 	}> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepo;
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
+		const { getSubmissionDetailsById } = submissionRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
 		const { performDataValidation } = processor(dependencies);
 
@@ -102,11 +104,20 @@ const submittedData = (dependencies: BaseDependencies) => {
 		const recordsToDeleteMap = transformmSubmittedDataToSubmissionDeleteData(submittedDataToDelete);
 
 		// Get Active Submission or Open a new one
-		const activeSubmission = await getOrCreateActiveSubmission({
+		const activeSubmissionId = await getOrCreateActiveSubmission({
 			categoryId: foundRecordToDelete.dictionaryCategoryId,
 			username,
 			organization: foundRecordToDelete.organization,
 		});
+		const activeSubmission = await getSubmissionDetailsById(activeSubmissionId);
+
+		if (!activeSubmission) {
+			return {
+				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				description: 'Active Submission not found',
+				inProcessEntities: [],
+			};
+		}
 
 		// Merge current Active Submission delete entities with unique records to delete based on systemId
 		const mergedSubmissionDeletes = mergeDeleteRecords(activeSubmission.data.deletes || {}, recordsToDeleteMap);
@@ -118,7 +129,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		// Validate and update Active Submission
 		performDataValidation({
-			originalSubmission: activeSubmission,
+			submissionId: activeSubmission.id,
 			submissionData: {
 				inserts: activeSubmission.data.inserts,
 				updates: filteredUpdates,
@@ -194,12 +205,12 @@ const submittedData = (dependencies: BaseDependencies) => {
 		}
 
 		// Get Active Submission or Open a new one
-		const activeSubmission = await getOrCreateActiveSubmission({ categoryId, username, organization });
+		const activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
 
 		// Running Schema validation in the background do not need to wait
 		// Result of validations will be stored in database
 		processEditRecordsAsync(records, {
-			submission: activeSubmission,
+			submissionId: activeSubmissionId,
 			schema: entitySchema,
 			username,
 		});
@@ -207,7 +218,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		return {
 			status: CREATE_SUBMISSION_STATUS.PROCESSING,
 			description: 'Submission records are being processed',
-			submissionId: activeSubmission.id,
+			submissionId: activeSubmissionId,
 		};
 	};
 

@@ -1,15 +1,19 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { parseSubmissionSummaryResponse } from '../../../src/utils/submissionUtils.js';
-import { SUBMISSION_STATUS, type SubmissionSummaryRepository } from '../../../src/utils/types.js';
+import { createSubmissionSummaryResponse } from '../../../src/utils/submissionUtils.js';
+import { SUBMISSION_STATUS, type SubmissionDataSummaryRepositoryRecord } from '../../../src/utils/types.js';
 
 describe('Submission Utils - Parse a Submission object to a Summary of the Active Submission', () => {
 	const todaysDate = new Date();
 	it('should return a Summary without any data ', () => {
-		const SubmissionSummaryRepository: SubmissionSummaryRepository = {
+		const submissionDataSummaryRepositoryRecord: SubmissionDataSummaryRepositoryRecord = {
 			id: 4,
-			data: {},
+			data: {
+				inserts: undefined,
+				updates: undefined,
+				deletes: undefined,
+			},
 			dictionary: { name: 'books', version: '1' },
 			dictionaryCategory: { name: 'favorite books', id: 1 },
 			errors: {},
@@ -20,7 +24,7 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 			updatedAt: null,
 			updatedBy: null,
 		};
-		const response = parseSubmissionSummaryResponse(SubmissionSummaryRepository);
+		const response = createSubmissionSummaryResponse(submissionDataSummaryRepositoryRecord);
 		expect(response).to.eql({
 			id: 4,
 			data: {
@@ -40,38 +44,24 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 		});
 	});
 	it('should return a Summary with insert, update and delete data ', () => {
-		const SubmissionSummaryRepository: SubmissionSummaryRepository = {
+		const submissionDataSummaryRepositoryRecord: SubmissionDataSummaryRepositoryRecord = {
 			id: 3,
 			data: {
 				inserts: {
 					books: {
 						batchName: 'books.tsv',
-						records: [
-							{
-								title: 'abc',
-							},
-						],
+						recordsCount: 1,
 					},
 				},
 				updates: {
-					books: [
-						{
-							systemId: 'QWE987',
-							new: { title: 'The Little Prince' },
-							old: { title: 'the little prince' },
-						},
-					],
+					books: {
+						recordsCount: 1,
+					},
 				},
 				deletes: {
-					books: [
-						{
-							systemId: 'ZXC678',
-							entityName: 'books',
-							organization: 'oicr',
-							isValid: true,
-							data: { title: 'batman' },
-						},
-					],
+					books: {
+						recordsCount: 1,
+					},
 				},
 			},
 			dictionary: { name: 'books', version: '1' },
@@ -84,7 +74,7 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 			updatedAt: null,
 			updatedBy: null,
 		};
-		const response = parseSubmissionSummaryResponse(SubmissionSummaryRepository);
+		const response = createSubmissionSummaryResponse(submissionDataSummaryRepositoryRecord);
 		expect(response).to.eql({
 			id: 3,
 			data: {
