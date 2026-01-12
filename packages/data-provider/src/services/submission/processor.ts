@@ -207,7 +207,7 @@ const processor = (dependencies: BaseDependencies) => {
 	 * This function validates whole data together against a dictionary
 	 * @param params
 	 * @param params.dataToValidate Data to be validated, This object contains:
-	 * - `inserts`: An array of new records to be commited. Optional
+	 * - `inserts`: An array of new records to be committed. Optional
 	 * - `submittedData`: An array of existing Submitted Data. Optional
 	 * - `deletes`: An array of `systemId`s representing items that should be deleted. Optional
 	 * - `updates`: An array of records to be updated. Optional
@@ -359,9 +359,9 @@ const processor = (dependencies: BaseDependencies) => {
 				});
 			});
 
-			logger.info(LOG_MODULE, `Active submission '${submission.id} updated to status '${SUBMISSION_STATUS.COMMITED}'`);
+			logger.info(LOG_MODULE, `Active submission '${submission.id} updated to status '${SUBMISSION_STATUS.COMMITTED}'`);
 			submissionRepo.update(submission.id, {
-				status: SUBMISSION_STATUS.COMMITED,
+				status: SUBMISSION_STATUS.COMMITTED,
 				updatedAt: new Date(),
 			});
 		});

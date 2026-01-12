@@ -252,6 +252,23 @@ const controller = ({
 				next(error);
 			}
 		}),
+		getSubmissionDetailsById: validateRequest(submissionByIdRequestSchema, async (req, res, next) => {
+			try {
+				const submissionId = Number(req.params.submissionId);
+
+				logger.info(LOG_MODULE, `Request Submission Details by ID '${submissionId}'`);
+
+				const submission = await service.getSubmissionDetailsById(submissionId);
+
+				if (isEmpty(submission)) {
+					throw new NotFound('Submission not found');
+				}
+
+				return res.status(200).send(submission);
+			} catch (error) {
+				next(error);
+			}
+		}),
 		getActiveByOrganization: validateRequest(submissionActiveByOrganizationRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
