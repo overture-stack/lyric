@@ -356,7 +356,7 @@ components:
           description: Description of deleting partially Submission data
         status:
           type: string
-          description: Result of deleting partially Submission data
+          description: Result of deleting Submission data
           enum: ['PROCESSING']
         submissionId:
           type: string

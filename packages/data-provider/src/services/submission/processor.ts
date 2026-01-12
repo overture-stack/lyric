@@ -384,13 +384,13 @@ const processor = (dependencies: BaseDependencies) => {
 	 * @param {Submission} input.originalSubmission Active Submission
 	 * @param {SubmissionData} input.submissionData New Submission data
 	 * @param {string} input.username User who performs the action
-	 * @returns {Promise<{ id: number }>} An Active Submission updated
+	 * @returns {Promise<number>} ID of the Submission updated
 	 */
 	const performDataValidation = async (input: {
 		submissionId: number;
 		submissionData: SubmissionData;
 		username: string;
-	}): Promise<{ id: number }> => {
+	}): Promise<number> => {
 		const { submissionId, submissionData, username } = input;
 
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
@@ -679,7 +679,7 @@ const processor = (dependencies: BaseDependencies) => {
 	 * @param {number} input.idActiveSubmission ID of the Active Submission
 	 * @param {SubmissionErrors} input.schemaErrors Array of schemaErrors
 	 * @param {string} input.username User updating the active submission
-	 * @returns {Promise<{ id: number }>} An Active Submission updated
+	 * @returns {Promise<number>} An Active Submission updated
 	 */
 	const updateActiveSubmission = async (input: {
 		dictionaryId: number;
@@ -687,13 +687,13 @@ const processor = (dependencies: BaseDependencies) => {
 		idActiveSubmission: number;
 		schemaErrors: SubmissionErrors;
 		username: string;
-	}): Promise<{ id: number }> => {
+	}): Promise<number> => {
 		const { dictionaryId, submissionData, idActiveSubmission, schemaErrors, username } = input;
 		const { update } = submissionRepository(dependencies);
 		const newStatusSubmission =
 			Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
 		// Update with new data
-		const updatedActiveSubmission = await update(idActiveSubmission, {
+		const updatedActiveSubmissionId = await update(idActiveSubmission, {
 			data: submissionData,
 			status: newStatusSubmission,
 			dictionaryId: dictionaryId,
@@ -703,9 +703,9 @@ const processor = (dependencies: BaseDependencies) => {
 
 		logger.info(
 			LOG_MODULE,
-			`Updated Active submission '${updatedActiveSubmission.id}' with status '${newStatusSubmission}'`,
+			`Updated Active submission '${updatedActiveSubmissionId}' with status '${newStatusSubmission}'`,
 		);
-		return updatedActiveSubmission;
+		return updatedActiveSubmissionId;
 	};
 
 	/**

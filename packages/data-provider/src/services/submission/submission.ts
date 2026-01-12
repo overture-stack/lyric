@@ -161,7 +161,7 @@ const service = (dependencies: BaseDependencies) => {
 			throw new StatusConflict('Submission is not active. Only Active Submission can be deleted');
 		}
 
-		const updatedRecord = await update(submission.id, {
+		const updatedRecordId = await update(submission.id, {
 			status: SUBMISSION_STATUS.CLOSED,
 			updatedBy: username,
 		});
@@ -171,7 +171,7 @@ const service = (dependencies: BaseDependencies) => {
 		return {
 			status: SUBMISSION_STATUS.CLOSED,
 			description: 'Submission closed successfully',
-			submissionId: updatedRecord.id,
+			submissionId: updatedRecordId,
 		};
 	};
 
@@ -344,22 +344,20 @@ const service = (dependencies: BaseDependencies) => {
 	 * @param {string} params.username Owner of the Submission
 	 * @param {number} params.categoryId Category ID of the Submission
 	 * @param {string} params.organization Organization name
-	 * @returns { id: number } ID of the Active Submission
+	 * @returns number ID of the Active Submission
 	 */
 	const getOrCreateActiveSubmission = async (params: {
 		username: string;
 		categoryId: number;
 		organization: string;
-	}): Promise<{ id: number }> => {
+	}): Promise<number> => {
 		const { categoryId, username, organization } = params;
 		const submissionRepo = submissionRepository(dependencies);
 		const categoryRepo = categoryRepository(dependencies);
 
 		const activeSubmission = await submissionRepo.getActiveSubmission({ categoryId, username, organization });
 		if (activeSubmission) {
-			return {
-				id: activeSubmission.id,
-			};
+			return activeSubmission.id;
 		}
 
 		const currentDictionary = await categoryRepo.getActiveDictionaryByCategory(categoryId);
@@ -442,13 +440,13 @@ const service = (dependencies: BaseDependencies) => {
 		}
 
 		// Get Active Submission or Open a new one
-		const activeSubmission = await getOrCreateActiveSubmission({ categoryId, username, organization });
+		const activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
 
 		// Schema validation runs asynchronously and does not block execution.
 		// The results will be saved to the database.
 		processInsertRecordsAsync({
 			records: data,
-			submissionId: activeSubmission.id,
+			submissionId: activeSubmissionId,
 			schemasDictionary,
 			username,
 		});
@@ -456,7 +454,7 @@ const service = (dependencies: BaseDependencies) => {
 		return {
 			status: CREATE_SUBMISSION_STATUS.PROCESSING,
 			description: 'Submission records are being processed',
-			submissionId: activeSubmission.id,
+			submissionId: activeSubmissionId,
 		};
 	};
 

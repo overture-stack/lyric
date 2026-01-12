@@ -30,16 +30,16 @@ const repository = (dependencies: BaseDependencies) => {
 		createdBy: true,
 		updatedAt: true,
 		updatedBy: true,
-	};
+	} as const satisfies BooleanTrueObject;
 
 	// Submission columns for full detail queries including `data` and `errors` columns
 	const submissionColumnsWithData: BooleanTrueObject = {
 		...submissionColumns,
 		data: true,
 		errors: true,
-	};
+	} as const satisfies BooleanTrueObject;
 
-	const submissionDictionaryRelationColumns: { [key: string]: { columns: BooleanTrueObject } } = {
+	const submissionDictionaryRelationColumns = {
 		dictionary: {
 			columns: {
 				name: true,
@@ -52,7 +52,7 @@ const repository = (dependencies: BaseDependencies) => {
 				name: true,
 			},
 		},
-	};
+	} as const satisfies Record<string, { columns: BooleanTrueObject }>;
 
 	/**
 	 * A query to generate a summarized JSON object of the 'data' column
@@ -182,11 +182,11 @@ jsonb_build_object(
 		 * @param data An Active Submission object to be saved
 		 * @returns The ID of the created Active Submission
 		 */
-		save: async (data: NewSubmission): Promise<{ id: number }> => {
+		save: async (data: NewSubmission): Promise<number> => {
 			try {
 				const [savedActiveSubmission] = await db.insert(submissions).values(data).returning({ id: submissions.id });
 				logger.info(LOG_MODULE, `New Active Submission saved successfully`);
-				return savedActiveSubmission;
+				return savedActiveSubmission.id;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed saving Active Submission`, error);
 				throw new ServiceUnavailable();
@@ -279,14 +279,14 @@ jsonb_build_object(
 			submissionId: number,
 			newData: Partial<Submission>,
 			tx?: PgTransaction<PostgresJsQueryResultHKT, Submission, ExtractTablesWithRelations<Submission>>,
-		): Promise<{ id: number }> => {
+		): Promise<number> => {
 			try {
-				const resultUpdate = await (tx || db)
+				const [resultUpdate] = await (tx || db)
 					.update(submissions)
 					.set({ ...newData, updatedAt: new Date() })
 					.where(eq(submissions.id, submissionId))
 					.returning({ id: submissions.id });
-				return resultUpdate[0];
+				return resultUpdate.id;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed updating Active Submission`, error);
 				throw new ServiceUnavailable();

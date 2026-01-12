@@ -104,13 +104,11 @@ const submittedData = (dependencies: BaseDependencies) => {
 		const recordsToDeleteMap = transformmSubmittedDataToSubmissionDeleteData(submittedDataToDelete);
 
 		// Get Active Submission or Open a new one
-		const activeSubmissionId = (
-			await getOrCreateActiveSubmission({
-				categoryId: foundRecordToDelete.dictionaryCategoryId,
-				username,
-				organization: foundRecordToDelete.organization,
-			})
-		).id;
+		const activeSubmissionId = await getOrCreateActiveSubmission({
+			categoryId: foundRecordToDelete.dictionaryCategoryId,
+			username,
+			organization: foundRecordToDelete.organization,
+		});
 		const activeSubmission = await getSubmissionDetailsById(activeSubmissionId);
 
 		if (!activeSubmission) {
@@ -207,7 +205,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		}
 
 		// Get Active Submission or Open a new one
-		const activeSubmissionId = (await getOrCreateActiveSubmission({ categoryId, username, organization })).id;
+		const activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
 
 		// Running Schema validation in the background do not need to wait
 		// Result of validations will be stored in database
