@@ -34,7 +34,7 @@ export const SUBMISSION_STATUS = {
 export type SubmissionStatus = ObjectValues<typeof SUBMISSION_STATUS>;
 
 export const MIGRATION_STATUS = z.enum(['IN-PROGRESS', 'COMPLETED', 'FAILED']);
-export type migration_status = z.infer<typeof MIGRATION_STATUS>;
+export type MigrationStatus = z.infer<typeof MIGRATION_STATUS>;
 
 /**
  * Enum matching Audit Action in database

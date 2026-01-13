@@ -5,7 +5,7 @@ import { dictionaries } from './dictionaries.js';
 import { dictionaryCategories } from './dictionary_categories.js';
 import { submissions } from './submissions.js';
 
-export const migration_status = pgEnum('migration_status', ['IN-PROGRESS', 'COMPLETED', 'FAILED']);
+export const migrationStatusEnum = pgEnum('migration_status', ['IN-PROGRESS', 'COMPLETED', 'FAILED']);
 
 export const dictionaryMigration = pgTable('dictionary_migration', {
 	id: serial('id').primaryKey(),
@@ -21,7 +21,7 @@ export const dictionaryMigration = pgTable('dictionary_migration', {
 	submissionId: integer('submission_id')
 		.references(() => submissions.id)
 		.notNull(),
-	status: migration_status('status').notNull(),
+	status: migrationStatusEnum('status').notNull(),
 	retries: integer('retries').notNull().default(0),
 	createdAt: timestamp('created_at'),
 	createdBy: varchar('created_by'),
