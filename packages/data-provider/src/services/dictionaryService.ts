@@ -8,6 +8,7 @@ import lecternClient from '../external/lecternClient.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import dictionaryRepository from '../repository/dictionaryRepository.js';
 import { BadRequest } from '../utils/errors.js';
+import migrationService from './migrationService.js';
 
 const dictionaryService = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'DICTIONARY_SERVICE';
@@ -111,6 +112,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		);
 
 		const categoryRepo = categoryRepository(dependencies);
+		const { initiateMigration } = migrationService(dependencies);
 
 		const dictionary = await fetchDictionaryByVersion(dictionaryName, dictionaryVersion);
 
@@ -142,14 +144,19 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 				updatedBy: username,
 			});
 
-			// TODO: Handle Dictionary Migration process async here
+			const migrationId = await initiateMigration({
+				categoryId: updatedCategory.id,
+				fromDictionaryId: foundCategory.activeDictionaryId,
+				toDictionaryId: savedDictionary.id,
+				userName: username || '',
+			});
 
 			logger.info(
 				LOG_MODULE,
 				`Category '${updatedCategory.name}' updated successfully with Dictionary '${savedDictionary.name}' version '${savedDictionary.version}'`,
 			);
 
-			return { dictionary: savedDictionary, category: updatedCategory };
+			return { dictionary: savedDictionary, category: updatedCategory, migrationId };
 		} else {
 			// Create a new Category
 			const newCategory: NewCategory = {
