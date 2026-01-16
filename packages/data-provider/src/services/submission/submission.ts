@@ -10,6 +10,13 @@ import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
+import { paginateItems } from '../../utils/formatUtils.js';
+import {
+	getActionData,
+	getActionErrors,
+	getErrorsInRange,
+	normalizeRecords,
+} from '../../utils/submissionResponseParser.js';
 import {
 	createSubmissionDetailsResponse,
 	createSubmissionSummaryResponse,
@@ -325,6 +332,80 @@ const service = (dependencies: BaseDependencies) => {
 	};
 
 	/**
+	 * Get Submission Records paginated
+	 * @param {number} submissionId A Submission ID
+	 * @param {Object} paginationOptions - Pagination properties
+	 * @param {number} paginationOptions.page - Page number
+	 * @param {number} paginationOptions.pageSize - Items per page
+	 * @param {Object} filterOptions
+	 * @param {string} filterOptions.entityName - Filter by Entity name
+	 * @param {string} filterOptions.actionType - Filter by Action type
+	 * @returns One Submission
+	 */
+	const getSubmissionRecordsPaginated = async (
+		submissionId: number,
+		paginationOptions: PaginationOptions,
+		filterOptions: { entityName: string; actionType: SubmissionActionType },
+	): Promise<{
+		result: { data: object[]; errors?: object[] };
+		metadata: { totalRecords: number; errorMessage?: string };
+	}> => {
+		const { getSubmissionDetailsById } = submissionRepository(dependencies);
+
+		const { page, pageSize } = paginationOptions;
+		const { entityName, actionType } = filterOptions;
+
+		const submission = await getSubmissionDetailsById(submissionId);
+		if (_.isEmpty(submission)) {
+			return {
+				metadata: {
+					totalRecords: 0,
+					errorMessage: `Submission not found`,
+				},
+				result: {
+					data: [],
+					errors: [],
+				},
+			};
+		}
+
+		// Format Submission Data
+		const actionData = getActionData(submission.data, actionType);
+
+		const dataByEntityName = actionData[entityName];
+		if (!dataByEntityName) {
+			return {
+				metadata: {
+					totalRecords: 0,
+					errorMessage: `Entity name not found`,
+				},
+				result: {
+					data: [],
+					errors: [],
+				},
+			};
+		}
+
+		const recordsArray = normalizeRecords(dataByEntityName);
+		const dataPaginated = paginateItems(recordsArray || [], page, pageSize);
+
+		// Format Submission Errors
+		const errorsByActionType = getActionErrors(submission.errors || {}, actionType);
+		const errorsByEntityName = errorsByActionType[entityName];
+
+		const startIndex = (page - 1) * pageSize;
+		const endIndex = startIndex + pageSize - 1;
+		const errorsByIndex = getErrorsInRange(errorsByEntityName || [], startIndex, endIndex);
+
+		return {
+			metadata: {
+				totalRecords: recordsArray.length,
+			},
+			result: { data: dataPaginated, errors: errorsByIndex },
+		};
+	};
+
+	/**
 	 * Get an active Submission by Organization
 	 * @param {Object} params
 	 * @param {number} params.categoryId
@@ -482,6 +563,7 @@ const service = (dependencies: BaseDependencies) => {
 		getSubmissionsByCategory,
 		getSubmissionById,
 		getSubmissionDetailsById,
+		getSubmissionRecordsPaginated,
 		getActiveSubmissionByOrganization,
 		getOrCreateActiveSubmission,
 		submit,

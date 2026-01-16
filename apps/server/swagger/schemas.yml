@@ -187,6 +187,51 @@ components:
           type: string
           description: User name who last updated the submission
 
+    SubmissionRecordsResult:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            currentPage:
+              type: number
+            pageSize:
+              type: number
+            totalPages:
+              type: number
+            totalRecords:
+              type: number
+        data:
+          type: array
+          description: Array of submission records (inserts, updates, or deletes)
+          items:
+            oneOf:
+              - type: object
+                description: Insert record
+              - type: object
+                description: Update record
+                properties:
+                  systemId:
+                    type: string
+                  old:
+                    type: object
+                    description: Old Content
+                  new:
+                    type: object
+                    description: New content
+              - type: object
+                description: Delete record
+                properties:
+                  systemId:
+                    type: string
+                  data:
+                    type: object
+                    description: Content to be deleted
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+
     SubmissionResult:
       type: object
       properties:

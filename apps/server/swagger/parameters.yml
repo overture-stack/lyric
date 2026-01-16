@@ -1,6 +1,14 @@
 components:
   parameters:
     path:
+      ActionType:
+        name: actionType
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [inserts, updates, deletes]
+        description: Parameter to specify the type of record of the Submission. Must be one of `inserts`, `updates`, or `deletes` (case insensitive)
       CategoryId:
         name: categoryId
         in: path
@@ -22,6 +30,13 @@ components:
         schema:
           type: string
         description: Organization name
+      SubmissionId:
+        name: submissionId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The ID of the Submission
     query:
       EntityName:
         description: The name of the Entity

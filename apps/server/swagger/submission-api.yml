@@ -83,6 +83,34 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
+/submission/{submissionId}/{actionType}/{entityName}:
+  get:
+    summary: Get Records of a Submission
+    tags:
+      - Submission
+    parameters:
+      - $ref: '#/components/parameters/path/SubmissionId'
+      - $ref: '#/components/parameters/path/ActionType'
+      - $ref: '#/components/parameters/path/EntityName'
+      - $ref: '#/components/parameters/query/Page'
+      - $ref: '#/components/parameters/query/PageSize'
+    responses:
+      200:
+        description: Records of a Submission paginated
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissionRecordsResult'
+
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
 /submission/{submissionId}/{actionType}:
   delete:
     summary: Clear Active Submission by entity name

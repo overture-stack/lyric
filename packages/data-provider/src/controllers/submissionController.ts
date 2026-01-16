@@ -15,6 +15,7 @@ import {
 	submissionCommitRequestSchema,
 	submissionDeleteEntityNameRequestSchema,
 	submissionDeleteRequestSchema,
+	submissionRecordsRequestSchema,
 	submissionsByCategoryRequestSchema,
 	uploadSubmissionRequestSchema,
 } from '../utils/schemas.js';
@@ -269,6 +270,44 @@ const controller = ({
 				next(error);
 			}
 		}),
+		getSubmissionRecords: validateRequest(submissionRecordsRequestSchema, async (req, res, next) => {
+			try {
+				const submissionId = Number(req.params.submissionId);
+				const entityName = req.params.entityName;
+				const actionType = SUBMISSION_ACTION_TYPE.parse(req.params.actionType.toUpperCase());
+
+				// query params
+				const page = parseInt(String(req.query.page)) || defaultPage;
+				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+
+				logger.info(LOG_MODULE, `Request Submission records by ID '${submissionId}'`);
+
+				const submissionRecordsResult = await service.getSubmissionRecordsPaginated(
+					submissionId,
+					{ page, pageSize },
+					{ entityName, actionType },
+				);
+
+				if (submissionRecordsResult.metadata.errorMessage) {
+					throw new NotFound(submissionRecordsResult.metadata.errorMessage);
+				}
+
+				const response = {
+					pagination: {
+						currentPage: page,
+						pageSize: pageSize,
+						totalPages: Math.ceil(submissionRecordsResult.metadata.totalRecords / pageSize),
+						totalRecords: submissionRecordsResult.metadata.totalRecords,
+					},
+					...submissionRecordsResult.result,
+				};
+
+				return res.status(200).send(response);
+			} catch (error) {
+				next(error);
+			}
+		}),
+
 		getActiveByOrganization: validateRequest(submissionActiveByOrganizationRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);

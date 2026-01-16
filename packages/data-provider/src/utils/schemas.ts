@@ -250,6 +250,26 @@ export const submissionsByCategoryRequestSchema: RequestValidation<
 export const submissionByIdRequestSchema: RequestValidation<object, ParsedQs, submissionIdPathParam> = {
 	pathParams: submissionIdPathParamSchema,
 };
+export interface submissionRecordsPathParam extends ParamsDictionary {
+	submissionId: string;
+	actionType: string;
+	entityName: string;
+}
+
+const submissionRecordsPathParamSchema = z.object({
+	submissionId: submissionIdSchema,
+	actionType: submissionActionTypeSchema,
+	entityName: entityNameSchema,
+});
+
+export const submissionRecordsRequestSchema: RequestValidation<
+	object,
+	paginationQueryParams,
+	submissionRecordsPathParam
+> = {
+	query: paginationQuerySchema,
+	pathParams: submissionRecordsPathParamSchema,
+};
 
 export const submissionActiveByOrganizationRequestSchema: RequestValidation<
 	object,
