@@ -86,7 +86,7 @@ const flattenData = (
 				continue;
 			}
 
-			for (const [index, record] of value) {
+			for (const [index, record] of value.entries()) {
 				list.push({ type: action, entity, value: record, index });
 			}
 		}
