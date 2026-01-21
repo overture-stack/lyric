@@ -32,8 +32,10 @@ import {
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
 	type SubmissionDataDetailsRepositoryRecord,
+	type SubmissionDataSummary,
 	type SubmissionDataSummaryRepositoryRecord,
 	type SubmissionDetailsResponse,
+	type SubmissionErrorsSummary,
 	type SubmissionStatus,
 	type SubmissionSummary,
 	SubmittedDataReference,
@@ -544,45 +546,35 @@ export const createSubmissionDetailsResponse = (
 };
 
 /**
- * Utility to convert the raw SubmissionDataSummaryRepositoryRecord read from the repository into
- * a SubmissionSummaryResponse which does not contain the data records being inserted/updated/deleted
+ * Utility to sum the recordsCount from a SubmissionDataSummary or SubmissionErrorsSummary
+ */
+const sumRecordsCount = (buckets: SubmissionDataSummary | SubmissionErrorsSummary): number => {
+	return Object.values(buckets)
+		.flatMap((bucket) => (bucket ? Object.values(bucket) : []))
+		.reduce((total, { recordsCount }) => total + recordsCount, 0);
+};
+
+/**
+ * Utility to convert the raw SubmissionDataSummaryRepositoryRecord into a SubmissionSummaryResponse.
+ * It includes a `total` value representing the sum of changes of each `data` and `errors`
  * @param {SubmissionDataSummaryRepositoryRecord} submission
  * @returns {SubmissionSummary}
  */
 export const createSubmissionSummaryResponse = (
 	submission: SubmissionDataSummaryRepositoryRecord,
 ): SubmissionSummary => {
-	const totalDataRecords = Object.values(submission.data).reduce((acc, bucket) => {
-		if (!bucket) {
-			return acc;
-		}
-
-		// bucket is a record of entityName → summary
-		for (const summary of Object.values(bucket)) {
-			acc += summary.recordsCount;
-		}
-
-		return acc;
-	}, 0);
-
-	const totalErrorRecords = Object.values(submission.errors).reduce((acc, bucket) => {
-		if (!bucket) {
-			return acc;
-		}
-
-		// bucket is a record of entityName → summary
-		for (const summary of Object.values(bucket)) {
-			acc += summary.recordsCount;
-		}
-
-		return acc;
-	}, 0);
 	return {
 		id: submission.id,
-		data: { ...submission.data, total: totalDataRecords },
+		data: {
+			...submission.data,
+			total: sumRecordsCount(submission.data),
+		},
 		dictionary: submission.dictionary,
 		dictionaryCategory: submission.dictionaryCategory,
-		errors: { ...submission.errors, total: totalErrorRecords },
+		errors: {
+			...submission.errors,
+			total: sumRecordsCount(submission.errors),
+		},
 		organization: submission.organization,
 		status: submission.status,
 		createdAt: _.toString(submission.createdAt?.toISOString()),
