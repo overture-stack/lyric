@@ -6,6 +6,7 @@ import submissionService from '../services/submission/submission.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
 import { hasUserWriteAccess } from '../utils/authUtils.js';
 import { BadRequest, Forbidden, NotFound } from '../utils/errors.js';
+import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
 	dataDeleteBySystemIdRequestSchema,
@@ -15,10 +16,11 @@ import {
 	submissionCommitRequestSchema,
 	submissionDeleteEntityNameRequestSchema,
 	submissionDeleteRequestSchema,
-	submissionRecordsRequestSchema,
+	submissionDetailsRequestSchema,
 	submissionsByCategoryRequestSchema,
 	uploadSubmissionRequestSchema,
 } from '../utils/schemas.js';
+import { parseSubmissionActionTypes } from '../utils/submissionUtils.js';
 import { SUBMISSION_ACTION_TYPE } from '../utils/types.js';
 
 const controller = ({
@@ -253,13 +255,30 @@ const controller = ({
 				next(error);
 			}
 		}),
-		getSubmissionDetailsById: validateRequest(submissionByIdRequestSchema, async (req, res, next) => {
+		getSubmissionDetailsById: validateRequest(submissionDetailsRequestSchema, async (req, res, next) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
+				const entityNames = asArray(req.query.entityNames || []);
+				if (entityNames.length === 0) {
+					throw new BadRequest('At least one entityName must be provided');
+				}
+
+				const actionTypes = parseSubmissionActionTypes(req.query.actionTypes);
+				if (actionTypes.length === 0) {
+					throw new BadRequest('At least one valid actionType must be provided');
+				}
+
+				// query params
+				const page = parseInt(String(req.query.page)) || defaultPage;
+				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
 
 				logger.info(LOG_MODULE, `Request Submission Details by ID '${submissionId}'`);
 
-				const submission = await service.getSubmissionDetailsById(submissionId);
+				const submission = await service.getSubmissionDetailsById({
+					submissionId,
+					paginationOptions: { page, pageSize },
+					filterOptions: { entityNames, actionTypes },
+				});
 
 				if (isEmpty(submission)) {
 					throw new NotFound('Submission not found');
@@ -270,44 +289,6 @@ const controller = ({
 				next(error);
 			}
 		}),
-		getSubmissionRecords: validateRequest(submissionRecordsRequestSchema, async (req, res, next) => {
-			try {
-				const submissionId = Number(req.params.submissionId);
-				const entityName = req.params.entityName;
-				const actionType = SUBMISSION_ACTION_TYPE.parse(req.params.actionType.toUpperCase());
-
-				// query params
-				const page = parseInt(String(req.query.page)) || defaultPage;
-				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
-
-				logger.info(LOG_MODULE, `Request Submission records by ID '${submissionId}'`);
-
-				const submissionRecordsResult = await service.getSubmissionRecordsPaginated(
-					submissionId,
-					{ page, pageSize },
-					{ entityName, actionType },
-				);
-
-				if (submissionRecordsResult.metadata.errorMessage) {
-					throw new NotFound(submissionRecordsResult.metadata.errorMessage);
-				}
-
-				const response = {
-					pagination: {
-						currentPage: page,
-						pageSize: pageSize,
-						totalPages: Math.ceil(submissionRecordsResult.metadata.totalRecords / pageSize),
-						totalRecords: submissionRecordsResult.metadata.totalRecords,
-					},
-					...submissionRecordsResult.result,
-				};
-
-				return res.status(200).send(response);
-			} catch (error) {
-				next(error);
-			}
-		}),
-
 		getActiveByOrganization: validateRequest(submissionActiveByOrganizationRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);

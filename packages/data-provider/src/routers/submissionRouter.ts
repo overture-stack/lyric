@@ -33,14 +33,6 @@ const router = ({
 		}).getSubmissionDetailsById,
 	);
 
-	router.get(
-		'/:submissionId/:actionType/:entityName',
-		submissionController({
-			baseDependencies,
-			authConfig,
-		}).getSubmissionRecords,
-	);
-
 	router.delete(
 		'/:submissionId',
 		submissionController({

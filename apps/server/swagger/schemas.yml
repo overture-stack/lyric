@@ -84,153 +84,28 @@ components:
     SubmissionDetailsResult:
       type: object
       properties:
-        id:
-          type: number
-          description: ID of the Submission
         data:
-          type: object
-          properties:
-            inserts:
-              type: object
-              additionalProperties:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                description: Type of action
+                enum: ['INSERTS', 'UPDATES', 'DELETES']
+              entity:
+                type: string
+                description: Name of the entity
+              value:
                 type: object
-                properties:
-                  records:
-                    type: array
-                    items:
-                      type: object
-                      description: Content of the file in JSON format
-                  batchName:
-                    type: string
-                    description: Original filename  of the submission
-            updates:
-              type: object
-              additionalProperties:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    systemId:
-                      type: string
-                    old:
-                      type: object
-                      description: Old Content
-                    new:
-                      type: object
-                      description: New content
-            deletes:
-              type: object
-              additionalProperties:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    systemId:
-                      type: string
-                    data:
-                      type: object
-                      description: Content to be deleted
-        dictionary:
-          type: object
-          description: Dictionary used to validate the submission
-          properties:
-            name:
-              type: string
-            version:
-              type: string
-        dictionaryCategory:
-          type: object
-          description: Category this dictionary belongs in
-          properties:
-            id:
-              type: number
-            name:
-              type: string
-        errors:
-          type: object
-          properties:
-            inserts:
-              type: object
-              additionalProperties:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ValidationError'
-            updates:
-              type: object
-              additionalProperties:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ValidationError'
-            deletes:
-              type: object
-              additionalProperties:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ValidationError'
-        organization:
-          type: string
-          description: Organization the Submission belongs to
-        status:
-          type: string
-          description: Status of the Submission
-          enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITTED']
-        createdAt:
-          type: string
-          description: Date and time of creation
-        createdBy:
-          type: string
-          description: User name who created the submission
-        udpatedAt:
-          type: string
-          description: Date and time of latest update
-        updatedBy:
-          type: string
-          description: User name who last updated the submission
-
-    SubmissionRecordsResult:
-      type: object
-      properties:
-        pagination:
-          type: object
-          properties:
-            currentPage:
-              type: number
-            pageSize:
-              type: number
-            totalPages:
-              type: number
-            totalRecords:
-              type: number
-        data:
-          type: array
-          description: Array of submission records (inserts, updates, or deletes)
-          items:
-            oneOf:
-              - type: object
-                description: Insert record
-              - type: object
-                description: Update record
-                properties:
-                  systemId:
-                    type: string
-                  old:
-                    type: object
-                    description: Old Content
-                  new:
-                    type: object
-                    description: New content
-              - type: object
-                description: Delete record
-                properties:
-                  systemId:
-                    type: string
-                  data:
-                    type: object
-                    description: Content to be deleted
+                description: Content of the record in JSON format
+              index:
+                type: number
+                description: Index of the record in the submission
         errors:
           type: array
           items:
-            $ref: '#/components/schemas/ValidationError'
+            $ref: '#/components/schemas/SubmissionRecordErrorDetails'
 
     SubmissionResult:
       type: object

@@ -19,8 +19,9 @@ import {
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
 
+import { isSubmissionActionTypeValid } from './auditUtils.js';
 import type { SchemaChildNode } from './dictionarySchemaRelations.js';
-import { deepCompare } from './formatUtils.js';
+import { asArray, deepCompare } from './formatUtils.js';
 import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
 	type DataRecordReference,
@@ -738,4 +739,11 @@ export const validateSchemas = (
 export const parseToSchema = (schema: Schema) => (record: Record<string, string>) => {
 	const parsedRecord = parse.parseRecordValues(record, schema);
 	return parsedRecord.data.record;
+};
+
+export const parseSubmissionActionTypes = (values: unknown): SubmissionActionType[] => {
+	return asArray(values || [])
+		.filter(isSubmissionActionTypeValid)
+		.map((value) => value.toString().toUpperCase())
+		.map((value) => SUBMISSION_ACTION_TYPE.parse(value));
 };

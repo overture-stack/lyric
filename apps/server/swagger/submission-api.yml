@@ -58,14 +58,33 @@
 
 /submission/{submissionId}/details:
   get:
-    summary: Get detailed submission information
+    summary: Fetch Submission Data records
     tags:
       - Submission
     parameters:
-      - name: submissionId
-        in: path
-        type: string
+      - $ref: '#/components/parameters/path/SubmissionId'
+      - name: actionTypes
+        in: query
+        schema:
+          type: array
+          items:
+            type: string
+            enum: [inserts, updates, deletes]
         required: true
+        default: [inserts, updates, deletes]
+        uniqueItems: true
+        description: Parameter to specify the type of record to remove from the Submission. Accepts one or more of `inserts`, `updates`, or `deletes` (case insensitive)
+      - name: entityNames
+        in: query
+        schema:
+          type: array
+          items:
+            type: string
+        uniqueItems: true
+        required: true
+        description: Entity names to filter by. Multiple values allowed. All must exist in the submission. Valid names are listed in the Submission Summary endpoint
+      - $ref: '#/components/parameters/query/Page'
+      - $ref: '#/components/parameters/query/PageSize'
     responses:
       200:
         description: Full submission payload
@@ -73,35 +92,8 @@
           application/json:
             schema:
               $ref: '#/components/schemas/SubmissionDetailsResult'
-
-      401:
-        $ref: '#/components/responses/UnauthorizedError'
-      404:
-        $ref: '#/components/responses/NotFound'
-      500:
-        $ref: '#/components/responses/ServerError'
-      503:
-        $ref: '#/components/responses/ServiceUnavailableError'
-
-/submission/{submissionId}/{actionType}/{entityName}:
-  get:
-    summary: Get Records of a Submission
-    tags:
-      - Submission
-    parameters:
-      - $ref: '#/components/parameters/path/SubmissionId'
-      - $ref: '#/components/parameters/path/ActionType'
-      - $ref: '#/components/parameters/path/EntityName'
-      - $ref: '#/components/parameters/query/Page'
-      - $ref: '#/components/parameters/query/PageSize'
-    responses:
-      200:
-        description: Records of a Submission paginated
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SubmissionRecordsResult'
-
+      400:
+        $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
       404:

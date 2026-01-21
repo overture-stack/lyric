@@ -250,25 +250,23 @@ export const submissionsByCategoryRequestSchema: RequestValidation<
 export const submissionByIdRequestSchema: RequestValidation<object, ParsedQs, submissionIdPathParam> = {
 	pathParams: submissionIdPathParamSchema,
 };
-export interface submissionRecordsPathParam extends ParamsDictionary {
-	submissionId: string;
-	actionType: string;
-	entityName: string;
+export interface submissionsDetailsQueryParams extends paginationQueryParams {
+	entityNames?: string | string[];
+	actionTypes?: string | string[];
 }
 
-const submissionRecordsPathParamSchema = z.object({
-	submissionId: submissionIdSchema,
-	actionType: submissionActionTypeSchema,
-	entityName: entityNameSchema,
-});
-
-export const submissionRecordsRequestSchema: RequestValidation<
+export const submissionDetailsRequestSchema: RequestValidation<
 	object,
-	paginationQueryParams,
-	submissionRecordsPathParam
+	submissionsDetailsQueryParams,
+	submissionIdPathParam
 > = {
-	query: paginationQuerySchema,
-	pathParams: submissionRecordsPathParamSchema,
+	query: z
+		.object({
+			entityNames: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
+			actionTypes: z.union([submissionActionTypeSchema, submissionActionTypeSchema.array()]).optional(),
+		})
+		.merge(paginationQuerySchema),
+	pathParams: submissionIdPathParamSchema,
 };
 
 export const submissionActiveByOrganizationRequestSchema: RequestValidation<

@@ -8,10 +8,91 @@ import type {
 	SubmissionUpdateData,
 } from '@overture-stack/lyric-data-model/models';
 
-import { type SubmissionActionType } from './types.js';
+import { type PaginationOptions, type SubmissionActionType } from './types.js';
 
 export const createBatchResponse = (schemaName: string, records: DataRecord[]): SubmissionInsertData => {
 	return { batchName: schemaName, records };
+};
+
+export type FlattenedSubmissionData =
+	| { type: 'INSERTS'; entity: string; value: DataRecord; index: number }
+	| { type: 'UPDATES'; entity: string; value: SubmissionUpdateData; index: number }
+	| { type: 'DELETES'; entity: string; value: SubmissionDeleteData; index: number };
+
+/**
+ * Filters and paginates submission `data` and `errors` based on specified action types and entity names.
+ * Returns the paginated data along with the corresponding filtered errors.
+ */
+export const filterAndPaginateSubmissionData = ({
+	data,
+	errors,
+	filterOptions,
+	paginationOptions,
+}: {
+	data: SubmissionData;
+	errors: SubmissionErrors;
+	filterOptions: {
+		actionTypes: SubmissionActionType[];
+		entityNames: string[];
+	};
+	paginationOptions: PaginationOptions;
+}): { data: FlattenedSubmissionData[]; errors: SubmissionRecordErrorDetails[] } => {
+	const { page, pageSize } = paginationOptions;
+	const { actionTypes, entityNames } = filterOptions;
+
+	const flattenedRecords = flattenData(data, actionTypes, entityNames);
+
+	const startIndex = (page - 1) * pageSize;
+	const paginatedRecords = flattenedRecords.slice(startIndex, startIndex + pageSize);
+
+	// Extract indexes that belongs to paginated records
+	const paginatedRecordIndexes = paginatedRecords.map((record) => record.index);
+	const relevantErrors = getFilteredErrors({
+		errors: errors || {},
+		actionTypes,
+		entityNames,
+		indices: paginatedRecordIndexes,
+	});
+
+	return { data: paginatedRecords, errors: relevantErrors };
+};
+
+/**
+ * Flattens submission data into a list of records based on specified action types and entity names.
+ */
+const flattenData = (
+	data: SubmissionData,
+	actionTypes: SubmissionActionType[],
+	entityNames: string[],
+): FlattenedSubmissionData[] => {
+	const list: FlattenedSubmissionData[] = [];
+
+	for (const action of actionTypes) {
+		const bucket = getActionData(data, action);
+
+		if (!bucket) {
+			continue;
+		}
+
+		for (const [entity, value] of Object.entries(bucket)) {
+			if (!entityNames.includes(entity) || !value) {
+				continue;
+			}
+
+			if (action === 'INSERTS') {
+				for (const [index, record] of value.records.entries()) {
+					list.push({ type: 'INSERTS', entity, value: record, index });
+				}
+				continue;
+			}
+
+			for (const [index, record] of value) {
+				list.push({ type: action, entity, value: record, index });
+			}
+		}
+	}
+
+	return list;
 };
 
 /**
@@ -47,23 +128,36 @@ export const getActionErrors = (errors: SubmissionErrors, actionType: Submission
 };
 
 /**
- * Normalize an entity's value to an array of records.
- * Handles insert/update/delete shapes for both data and errors.
+ * Filters submission errors based on specified action types, entity names, and record indices.
  */
-export const normalizeRecords = (
-	value: SubmissionInsertData | SubmissionUpdateData[] | SubmissionDeleteData[],
-): (DataRecord | SubmissionDeleteData | SubmissionUpdateData)[] => {
-	return 'records' in value ? value.records : value;
-};
+export const getFilteredErrors = ({
+	errors,
+	actionTypes,
+	entityNames,
+	indices,
+}: {
+	errors: SubmissionErrors;
+	actionTypes: SubmissionActionType[];
+	entityNames: string[];
+	indices: number[];
+}): SubmissionRecordErrorDetails[] => {
+	const allErrors: SubmissionRecordErrorDetails[] = [];
 
-/**
- * Returns all submission errors whose `index` is between
- * the specified inclusive range
- * @param errors - The full list of submission record errors.
- * @param start - The starting index (inclusive).
- * @param end - The ending index (inclusive).
- * @returns An array containing only the errors whose `index` is between `start` and `end`.
- */
-export const getErrorsInRange = (errors: SubmissionRecordErrorDetails[], start: number, end: number) => {
-	return errors.filter(({ index }) => index >= start && index <= end);
+	for (const actionType of actionTypes) {
+		const bucket = getActionErrors(errors, actionType);
+
+		if (bucket) {
+			for (const [entityName, records] of Object.entries(bucket)) {
+				if (!entityNames.includes(entityName)) {
+					continue;
+				}
+
+				for (const record of records) {
+					allErrors.push(record);
+				}
+			}
+		}
+	}
+
+	return allErrors.filter((err) => indices.includes(err.index));
 };
