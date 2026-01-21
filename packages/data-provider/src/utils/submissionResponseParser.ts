@@ -75,7 +75,7 @@ const flattenData = (
 		}
 
 		for (const [entity, value] of Object.entries(bucket)) {
-			if (!entityNames.includes(entity) || !value) {
+			if ((entityNames.length > 0 && !entityNames.includes(entity)) || !value) {
 				continue;
 			}
 
@@ -148,7 +148,7 @@ export const getFilteredErrors = ({
 
 		if (bucket) {
 			for (const [entityName, records] of Object.entries(bucket)) {
-				if (!entityNames.includes(entityName)) {
+				if (entityNames.length > 0 && !entityNames.includes(entityName)) {
 					continue;
 				}
 

@@ -259,14 +259,8 @@ const controller = ({
 			try {
 				const submissionId = Number(req.params.submissionId);
 				const entityNames = asArray(req.query.entityNames || []);
-				if (entityNames.length === 0) {
-					throw new BadRequest('At least one entityName must be provided');
-				}
 
-				const actionTypes = parseSubmissionActionTypes(req.query.actionTypes);
-				if (actionTypes.length === 0) {
-					throw new BadRequest('At least one valid actionType must be provided');
-				}
+				const actionTypes = parseSubmissionActionTypes(req.query.actionTypes || SUBMISSION_ACTION_TYPE.options);
 
 				// query params
 				const page = parseInt(String(req.query.page)) || defaultPage;

@@ -70,10 +70,8 @@
           items:
             type: string
             enum: [inserts, updates, deletes]
-        required: true
-        default: [inserts, updates, deletes]
         uniqueItems: true
-        description: Parameter to specify the type of record to remove from the Submission. Accepts one or more of `inserts`, `updates`, or `deletes` (case insensitive)
+        description: Filters the Submission Data records by action type. Valid values are `inserts`, `updates`, and `deletes` (case insensitive). If not provided, all action types are returned.
       - name: entityNames
         in: query
         schema:
@@ -81,8 +79,7 @@
           items:
             type: string
         uniqueItems: true
-        required: true
-        description: Entity names to filter by. Multiple values allowed. All must exist in the submission. Valid names are listed in the Submission Summary endpoint
+        description: Filters the Submission Data records by entity name. Must match names listed in the Submission Summary endpoint. If not provided, all entity names are returned.
       - $ref: '#/components/parameters/query/Page'
       - $ref: '#/components/parameters/query/PageSize'
     responses:

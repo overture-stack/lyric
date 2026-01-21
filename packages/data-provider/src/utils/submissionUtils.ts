@@ -743,7 +743,7 @@ export const parseToSchema = (schema: Schema) => (record: Record<string, string>
 
 export const parseSubmissionActionTypes = (values: unknown): SubmissionActionType[] => {
 	return asArray(values || [])
-		.filter(isSubmissionActionTypeValid)
 		.map((value) => value.toString().toUpperCase())
+		.filter(isSubmissionActionTypeValid)
 		.map((value) => SUBMISSION_ACTION_TYPE.parse(value));
 };
