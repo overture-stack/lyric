@@ -552,12 +552,37 @@ export const createSubmissionDetailsResponse = (
 export const createSubmissionSummaryResponse = (
 	submission: SubmissionDataSummaryRepositoryRecord,
 ): SubmissionSummary => {
+	const totalDataRecords = Object.values(submission.data).reduce((acc, bucket) => {
+		if (!bucket) {
+			return acc;
+		}
+
+		// bucket is a record of entityName → summary
+		for (const summary of Object.values(bucket)) {
+			acc += summary.recordsCount;
+		}
+
+		return acc;
+	}, 0);
+
+	const totalErrorRecords = Object.values(submission.errors).reduce((acc, bucket) => {
+		if (!bucket) {
+			return acc;
+		}
+
+		// bucket is a record of entityName → summary
+		for (const summary of Object.values(bucket)) {
+			acc += summary.recordsCount;
+		}
+
+		return acc;
+	}, 0);
 	return {
 		id: submission.id,
-		data: submission.data,
+		data: { ...submission.data, total: totalDataRecords },
 		dictionary: submission.dictionary,
 		dictionaryCategory: submission.dictionaryCategory,
-		errors: submission.errors,
+		errors: { ...submission.errors, total: totalErrorRecords },
 		organization: submission.organization,
 		status: submission.status,
 		createdAt: _.toString(submission.createdAt?.toISOString()),

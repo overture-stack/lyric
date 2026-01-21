@@ -141,6 +141,9 @@ components:
                 properties:
                   recordsCount:
                     type: number
+            total:
+              type: number
+              description: Total number of records in the submission
         dictionary:
           type: object
           description: Dictionary used to validate the submission
@@ -181,6 +184,9 @@ components:
                 properties:
                   recordsCount:
                     type: number
+            total:
+              type: number
+              description: Total number of error records in the submission
         organization:
           type: string
           description: Organization the Submission belongs to
