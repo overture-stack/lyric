@@ -250,6 +250,24 @@ export const submissionsByCategoryRequestSchema: RequestValidation<
 export const submissionByIdRequestSchema: RequestValidation<object, ParsedQs, submissionIdPathParam> = {
 	pathParams: submissionIdPathParamSchema,
 };
+export interface submissionsDetailsQueryParams extends paginationQueryParams {
+	entityNames?: string | string[];
+	actionTypes?: string | string[];
+}
+
+export const submissionDetailsRequestSchema: RequestValidation<
+	object,
+	submissionsDetailsQueryParams,
+	submissionIdPathParam
+> = {
+	query: z
+		.object({
+			entityNames: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
+			actionTypes: z.union([submissionActionTypeSchema, submissionActionTypeSchema.array()]).optional(),
+		})
+		.merge(paginationQuerySchema),
+	pathParams: submissionIdPathParamSchema,
+};
 
 export const submissionActiveByOrganizationRequestSchema: RequestValidation<
 	object,
