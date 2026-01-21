@@ -258,9 +258,9 @@ export type SubmissionErrorsSummary = {
  * in favour of the count of records changed and errors for each entity type.
  */
 export type SubmissionSummary = Omit<SubmissionDetailsResponse, 'data' | 'errors'> & {
-	data: SubmissionDataSummary;
+	data: SubmissionDataSummary & { total: number };
 } & {
-	errors: SubmissionErrorsSummary;
+	errors: SubmissionErrorsSummary & { total: number };
 };
 
 /**
