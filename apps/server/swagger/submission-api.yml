@@ -58,7 +58,7 @@
 
 /submission/{submissionId}/details:
   get:
-    summary: Fetch Submission Data records
+    summary: Fetch Submission Data records. Sorted in their original file order and grouped by `inserts`, `updates`, and `deletes`.
     tags:
       - Submission
     parameters:
