@@ -129,11 +129,3 @@ export const convertRecordToString = (record: Record<string, unknown>): Record<s
 
 	return convertedRecord;
 };
-
-/**
- * Returns a portion of the provided array based on the given page and page size
- */
-export const paginateItems = <T>(items: Array<T>, page: number, pageSize: number): Array<T> => {
-	const startIndex = (page - 1) * pageSize;
-	return items.slice(startIndex, startIndex + pageSize);
-};

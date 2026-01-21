@@ -8,6 +8,13 @@ components:
         schema:
           type: string
         description: ID of the category to which the data belongs
+      EntityName:
+        description: The name of the Entity
+        name: entityName
+        in: path
+        schema:
+          type: string
+        required: true
       Organization:
         name: organization
         in: path
