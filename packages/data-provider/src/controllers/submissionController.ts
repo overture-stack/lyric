@@ -6,6 +6,7 @@ import submissionService from '../services/submission/submission.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
 import { hasUserWriteAccess } from '../utils/authUtils.js';
 import { BadRequest, Forbidden, NotFound } from '../utils/errors.js';
+import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
 	dataDeleteBySystemIdRequestSchema,
@@ -15,9 +16,11 @@ import {
 	submissionCommitRequestSchema,
 	submissionDeleteEntityNameRequestSchema,
 	submissionDeleteRequestSchema,
+	submissionDetailsRequestSchema,
 	submissionsByCategoryRequestSchema,
 	uploadSubmissionRequestSchema,
 } from '../utils/schemas.js';
+import { parseSubmissionActionTypes } from '../utils/submissionUtils.js';
 import { SUBMISSION_ACTION_TYPE } from '../utils/types.js';
 
 const controller = ({
@@ -252,13 +255,24 @@ const controller = ({
 				next(error);
 			}
 		}),
-		getSubmissionDetailsById: validateRequest(submissionByIdRequestSchema, async (req, res, next) => {
+		getSubmissionDetailsById: validateRequest(submissionDetailsRequestSchema, async (req, res, next) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
+				const entityNames = asArray(req.query.entityNames || []);
+
+				const actionTypes = parseSubmissionActionTypes(req.query.actionTypes || SUBMISSION_ACTION_TYPE.options);
+
+				// query params
+				const page = parseInt(String(req.query.page)) || defaultPage;
+				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
 
 				logger.info(LOG_MODULE, `Request Submission Details by ID '${submissionId}'`);
 
-				const submission = await service.getSubmissionDetailsById(submissionId);
+				const submission = await service.getSubmissionDetailsById({
+					submissionId,
+					paginationOptions: { page, pageSize },
+					filterOptions: { entityNames, actionTypes },
+				});
 
 				if (isEmpty(submission)) {
 					throw new NotFound('Submission not found');

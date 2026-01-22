@@ -1,7 +1,11 @@
 import * as _ from 'lodash-es';
 
 import { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
-import { type NewSubmission, type SubmissionUpdateData } from '@overture-stack/lyric-data-model/models';
+import {
+	type NewSubmission,
+	type SubmissionRecordErrorDetails,
+	type SubmissionUpdateData,
+} from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../../config/config.js';
 import systemIdGenerator from '../../external/systemIdGenerator.js';
@@ -10,8 +14,8 @@ import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
+import { filterAndPaginateSubmissionData, type FlattenedSubmissionData } from '../../utils/submissionResponseParser.js';
 import {
-	createSubmissionDetailsResponse,
 	createSubmissionSummaryResponse,
 	isSubmissionActive,
 	removeItemsFromSubmission,
@@ -309,19 +313,52 @@ const service = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Get Submission Details by Submission ID
+	 * Get Submission Records paginated
 	 * @param {number} submissionId A Submission ID
+	 * @param {Object} paginationOptions - Pagination properties
+	 * @param {number} paginationOptions.page - Page number
+	 * @param {number} paginationOptions.pageSize - Items per page
+	 * @param {Object} filterOptions
+	 * @param {string} filterOptions.entityName - Filter by Entity name
+	 * @param {string} filterOptions.actionType - Filter by Action type
 	 * @returns One Submission
 	 */
-	const getSubmissionDetailsById = async (submissionId: number) => {
+	const getSubmissionDetailsById = async ({
+		submissionId,
+		paginationOptions,
+		filterOptions,
+	}: {
+		submissionId: number;
+		paginationOptions: PaginationOptions;
+		filterOptions: { entityNames: string[]; actionTypes: SubmissionActionType[] };
+	}): Promise<{ data: FlattenedSubmissionData[]; errors?: SubmissionRecordErrorDetails[] }> => {
 		const { getSubmissionDetailsById } = submissionRepository(dependencies);
 
 		const submission = await getSubmissionDetailsById(submissionId);
-		if (_.isEmpty(submission)) {
-			return;
+		if (!submission) {
+			throw new BadRequest(`Submission '${submissionId}' not found`);
 		}
 
-		return createSubmissionDetailsResponse(submission);
+		const submissionEntityNames = [
+			...Object.keys(submission.data.inserts ?? {}),
+			...Object.keys(submission.data.updates ?? {}),
+			...Object.keys(submission.data.deletes ?? {}),
+		];
+
+		const missingEntityNames = filterOptions.entityNames.filter((name) => !submissionEntityNames.includes(name));
+
+		if (filterOptions.entityNames.length > 0 && missingEntityNames.length > 0) {
+			throw new BadRequest(
+				`Invalid entity name(s) '${missingEntityNames.join(', ')}' for Submission '${submissionId}'`,
+			);
+		}
+
+		return filterAndPaginateSubmissionData({
+			data: submission.data,
+			errors: submission.errors || {},
+			filterOptions,
+			paginationOptions,
+		});
 	};
 
 	/**
