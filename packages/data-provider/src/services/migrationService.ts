@@ -1,6 +1,7 @@
 import type { DictionaryMigration, NewDictionaryMigration, Submission } from '@overture-stack/lyric-data-model/models';
 
 import type { BaseDependencies } from '../config/config.js';
+import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import migrationRepository from '../repository/dictionaryMigrationRepository.js';
 import submittedDataRepository from '../repository/submittedRepository.js';
@@ -84,6 +85,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 		userName: string;
 	}): Promise<number> => {
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
+		const { getSubmissionById } = submissionRepository(dependencies);
 		try {
 			const existingMigrationResult = await migrationRepo.getMigrationsByCategoryId(
 				categoryId,
@@ -92,11 +94,18 @@ const migrationService = (dependencies: BaseDependencies) => {
 			);
 
 			let migrationId: number;
+			let submission: Submission;
 
 			// Migration already exists, update retries count
 			if (existingMigrationResult.length > 0) {
 				const migration = existingMigrationResult[0];
 				const updatedRetriesCount = migration.retries + 1;
+
+				const submissionResponse = await getSubmissionById(migration.id);
+				if (!submissionResponse) {
+					throw new Error(`Submission with id '${migration.id}' not found`);
+				}
+				submission = submissionResponse;
 
 				migrationId = await migrationRepo.update(migration.id, {
 					retries: updatedRetriesCount,
@@ -115,6 +124,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 					organization: '',
 					username: userName,
 				});
+				submission = newSubmission;
 
 				const newMigration: NewDictionaryMigration = {
 					categoryId,
@@ -128,16 +138,17 @@ const migrationService = (dependencies: BaseDependencies) => {
 				migrationId = await migrationRepo.save(newMigration);
 
 				logger.info(LOG_MODULE, `Creating migration record for categoryId '${categoryId}'`);
-
-				// Start migration asynchronously
-				performMigrationValidation({ categoryId, submission: newSubmission, userName })
-					.then(() => {
-						finalizeMigration({ migrationId, status: 'COMPLETED', userName });
-					})
-					.catch(async () => {
-						finalizeMigration({ migrationId, status: 'FAILED', userName });
-					});
 			}
+
+			// Start migration asynchronously
+			performMigrationValidation({ categoryId, submission, userName })
+				.then(() => {
+					finalizeMigration({ migrationId, status: 'COMPLETED', userName });
+				})
+				.catch(async (error) => {
+					logger.error(LOG_MODULE, `Error during migration validation for categoryId '${categoryId}'`, error);
+					finalizeMigration({ migrationId, status: 'FAILED', userName });
+				});
 
 			logger.info(LOG_MODULE, `Migration initiated for categoryId '${categoryId}'`);
 			return migrationId;
@@ -168,9 +179,13 @@ const migrationService = (dependencies: BaseDependencies) => {
 		}
 
 		const organizations = await getAllOrganizationsByCategoryId(categoryId);
+		logger.info(LOG_MODULE, `Starting migration validation for following organizations '${organizations}'`);
 		for (const organization of organizations) {
 			const submittedDataToValidate = await getSubmittedDataByCategoryIdAndOrganization(categoryId, organization);
-
+			logger.info(
+				LOG_MODULE,
+				`Performing migration validation for organization '${organization}' with ${submittedDataToValidate.length} submitted records`,
+			);
 			await performCommitSubmissionAsync({
 				dataToValidate: {
 					inserts: [],
@@ -181,6 +196,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 				submission,
 				dictionary,
 				username: userName,
+				isMigration: true,
 				onFinishCommit,
 			});
 		}

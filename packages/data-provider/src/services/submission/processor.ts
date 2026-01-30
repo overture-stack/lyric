@@ -43,7 +43,6 @@ import {
 	groupByEntityName,
 	groupErrorsByIndex,
 	groupSchemaDataByEntityName,
-	hasErrorsByIndex,
 	mergeSubmittedDataAndDeduplicateById,
 	updateSubmittedDataArray,
 } from '../../utils/submittedDataUtils.js';
@@ -261,47 +260,49 @@ const processor = (dependencies: BaseDependencies) => {
 		};
 
 		await dependencies.db.transaction(async (tx) => {
-			Object.entries(schemasDataToValidate.submittedDataByEntityName).forEach(([entityName, dataArray], index) => {
-				dataArray.forEach((data) => {
-					const invalidRecordErrors = findInvalidRecordErrorsBySchemaName(resultValidation, entityName);
-					const hasErrorByIndex = groupErrorsByIndex(invalidRecordErrors);
+			Object.entries(schemasDataToValidate.submittedDataByEntityName).forEach(([entityName, dataArray]) => {
+				const invalidRecordErrors = findInvalidRecordErrorsBySchemaName(resultValidation, entityName);
+				const hasErrorByIndex = groupErrorsByIndex(invalidRecordErrors);
+				const invalidRecordIndexes = invalidRecordErrors.map((error) => error.recordIndex);
+				logger.info(LOG_MODULE, `Found '${invalidRecordIndexes.length}' invalid records in entity '${entityName}'`);
+				dataArray.forEach((data, index) => {
 					const oldIsValid = data.isValid;
-					const newIsValid = !hasErrorsByIndex(hasErrorByIndex, index);
+					const errorsForRecord = hasErrorByIndex[index] ?? [];
+					const newIsValid = errorsForRecord.length === 0;
 					if (data.id) {
 						const inputUpdate: Partial<SubmittedData> = {};
 						const submisionUpdateData = dataToValidate.updates && dataToValidate.updates[data.systemId];
 						if (submisionUpdateData) {
-							logger.info(LOG_MODULE, `Updating submittedData system ID '${data.systemId}' in entity '${entityName}'`);
 							inputUpdate.data = data.data;
 						}
 
 						if (oldIsValid !== newIsValid) {
 							inputUpdate.isValid = newIsValid;
 							if (newIsValid) {
-								logger.info(
-									LOG_MODULE,
-									`Updating submittedData system ID '${data.systemId}' as Valid in entity '${entityName}'`,
-								);
 								inputUpdate.lastValidSchemaId = dictionary.id;
 							}
-							logger.info(
-								LOG_MODULE,
-								`Updating submittedData system ID '${data.systemId}' as invalid in entity '${entityName}'`,
-							);
 						}
 
-						if (Object.values(inputUpdate)) {
+						if (Object.values(inputUpdate).length > 0) {
 							inputUpdate.updatedBy = username;
 							if (newIsValid) {
 								inputUpdate.lastValidSchemaId = dictionary.id;
 							}
+							logger.debug(
+								LOG_MODULE,
+								`Updating submittedData in entity '${entityName}' with system ID '${data.systemId}'`,
+							);
 							dataSubmittedRepo.update(
 								{
 									submittedDataId: data.id,
-									newData: inputUpdate,
-									dataDiff: { old: submisionUpdateData?.old ?? {}, new: submisionUpdateData?.new ?? {} },
-									oldIsValid: oldIsValid,
-									submissionId: submission.id,
+									data: inputUpdate,
+									audit: {
+										dataDiff: { old: submisionUpdateData?.old ?? {}, new: submisionUpdateData?.new ?? {} },
+										errors: errorsForRecord,
+										isMigration: params.isMigration || false,
+										submissionId: submission.id,
+										oldIsValid: oldIsValid,
+									},
 								},
 								tx,
 							);
@@ -318,7 +319,7 @@ const processor = (dependencies: BaseDependencies) => {
 							}
 						}
 					} else {
-						logger.info(
+						logger.debug(
 							LOG_MODULE,
 							`Creating new submittedData in entity '${entityName}' with system ID '${data.systemId}'`,
 						);

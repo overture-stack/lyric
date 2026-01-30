@@ -42,7 +42,6 @@ const controller = (dependencies: BaseDependencies) => {
 				const result: RegisterDictionaryResult = {
 					categoryId: category.id,
 					categoryName: category.name,
-					dictionary: dictionary.dictionary,
 					name: dictionary.name,
 					version: dictionary.version,
 					migrationId: migrationId,
