@@ -44,7 +44,7 @@ const controller = (dependencies: BaseDependencies) => {
 					categoryName: category.name,
 					name: dictionary.name,
 					version: dictionary.version,
-					migrationId: migrationId,
+					migrationId,
 				};
 				return res.send(result);
 			} catch (error) {

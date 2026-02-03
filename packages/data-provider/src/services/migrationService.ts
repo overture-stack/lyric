@@ -131,8 +131,9 @@ const migrationService = (dependencies: BaseDependencies) => {
 					fromDictionaryId,
 					toDictionaryId,
 					submissionId: newSubmission.id,
-					createdBy: userName,
 					status: 'IN-PROGRESS',
+					createdBy: userName,
+					createdAt: new Date(),
 				};
 
 				migrationId = await migrationRepo.save(newMigration);

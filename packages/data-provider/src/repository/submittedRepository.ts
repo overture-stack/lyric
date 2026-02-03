@@ -393,19 +393,19 @@ const repository = (dependencies: BaseDependencies) => {
 			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
 		): Promise<SubmittedData> => {
 			try {
-				const [updated] = await (tx || db)
+				const [recordUpdated] = await (tx || db)
 					.update(submittedData)
 					.set({ ...data, updatedAt: new Date() })
 					.where(eq(submittedData.id, submittedDataId))
 					.returning();
 
-				if (features?.audit?.enabled && updated) {
+				if (features?.audit?.enabled && recordUpdated) {
 					await auditUpdateSubmittedData(
-						{ recordUpdated: updated, submissionId, dataDiff, oldIsValid, isMigration, errors },
+						{ recordUpdated, submissionId, dataDiff, oldIsValid, isMigration, errors },
 						tx,
 					);
 				}
-				return updated;
+				return recordUpdated;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed updating SubmittedData`, error);
 				throw new ServiceUnavailable();

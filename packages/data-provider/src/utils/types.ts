@@ -169,6 +169,12 @@ export interface ValidateFilesParams {
 	username: string;
 }
 
+export type ResultCommit = {
+	inserts: SubmittedDataResponse[];
+	updates: SubmittedDataResponse[];
+	deletes: SubmittedDataResponse[];
+};
+
 export interface CommitSubmissionParams {
 	dataToValidate: {
 		inserts: NewSubmittedData[];
