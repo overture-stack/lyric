@@ -10,7 +10,6 @@ import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
-import migrationSvc from '../migrationService.js';
 import {
 	isSubmissionActive,
 	parseSubmissionResponse,
@@ -28,6 +27,7 @@ import {
 	type SubmissionActionType,
 	SubmissionSummaryResponse,
 } from '../../utils/types.js';
+import migrationSvc from '../migrationService.js';
 import processor from './processor.js';
 
 const service = (dependencies: BaseDependencies) => {
