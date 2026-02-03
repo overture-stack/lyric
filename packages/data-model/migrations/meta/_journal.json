@@ -71,6 +71,13 @@
       "when": 1730128901514,
       "tag": "0009_add_default_centric_entity",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1767901182564,
+      "tag": "0010_dictionary_migration",
+      "breakpoints": true
     }
   ]
 }

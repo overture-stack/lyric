@@ -7,6 +7,7 @@ enum audit_action {
 enum migration_status {
   "IN-PROGRESS"
   COMPLETED
+  FAILED
 }
 
 enum submission_status {
@@ -35,17 +36,6 @@ table audit_submitted_data {
   created_by varchar
 }
 
-table category_migration {
-  id serial [pk, not null, increment]
-  dictionary_category_id integer [not null]
-  from_dictionary_id integer [not null]
-  to_dictionary_id integer [not null]
-  submission_id integer [not null]
-  status migration_status [not null]
-  created_at timestamp
-  created_by varchar
-}
-
 table dictionaries {
   id serial [pk, not null, increment]
   dictionary jsonb [not null]
@@ -61,6 +51,20 @@ table dictionary_categories {
   default_centric_entity varchar
   name varchar [not null, unique]
   created_at timestamp [default: `now()`]
+  created_by varchar
+  updated_at timestamp
+  updated_by varchar
+}
+
+table dictionary_migration {
+  id serial [pk, not null, increment]
+  category_id integer [not null]
+  from_dictionary_id integer [not null]
+  to_dictionary_id integer [not null]
+  submission_id integer [not null]
+  status migration_status [not null]
+  retries integer [not null, default: 0]
+  created_at timestamp
   created_by varchar
   updated_at timestamp
   updated_by varchar
@@ -108,15 +112,15 @@ ref: audit_submitted_data.original_schema_id - dictionaries.id
 
 ref: audit_submitted_data.submission_id - submissions.id
 
-ref: category_migration.dictionary_category_id - dictionary_categories.id
-
-ref: category_migration.from_dictionary_id - dictionaries.id
-
-ref: category_migration.to_dictionary_id - dictionaries.id
-
-ref: category_migration.submission_id - submissions.id
-
 ref: dictionary_categories.active_dictionary_id - dictionaries.id
+
+ref: dictionary_migration.category_id - dictionary_categories.id
+
+ref: dictionary_migration.from_dictionary_id - dictionaries.id
+
+ref: dictionary_migration.to_dictionary_id - dictionaries.id
+
+ref: dictionary_migration.submission_id - submissions.id
 
 ref: submissions.dictionary_id - dictionaries.id
 

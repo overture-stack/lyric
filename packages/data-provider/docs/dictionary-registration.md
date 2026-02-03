@@ -70,7 +70,7 @@ sequenceDiagram
 
         rect rgb(230, 242, 255)
             note over LyricAPI: [Migration] Initiate migration
-            LyricAPI->>LyricDB: Create a migration in `category_migration` table<br />(categoryId, fromDictionaryId, toDictionaryId, submissionId, status=INPROGRESS, createdAt, createdBy)
+            LyricAPI->>LyricDB: Create a migration in `category_migration` table<br />(categoryId, fromDictionaryId, toDictionaryId, submissionId, status=IN-PROGRESS, createdAt, createdBy)
             LyricAPI->>LyricDB: Create a new submission (no data, status=COMMITTED)
         end
     end
@@ -84,11 +84,15 @@ sequenceDiagram
             LyricAPI->>LyricAPI: Validate record against new schema
 
             loop each record failed validation
-                LyricAPI->>LyricDB: Update record in `submitted_data` table, with isValid = FALSE
+                LyricAPI->>LyricDB: Update record in `submitted_data` table, with isValid = FALSE, lastValidSchema
                 note over LyricDB: triggers audit table
                 LyricAPI->>LyricDB: Insert record in `audit_submitted_data` table with migration error
             end
-            LyricAPI->>LyricDB: Change Submission (`submissions` table) Status to COMMITED
+
+            alt if Migration fails
+                LyricAPI->>LyricDB: Change Migration (`category_migration` table) Status to FAILED
+            end
+
             LyricAPI->>LyricDB: Change Migration (`category_migration` table) Status to COMPLETED
         end
     end
