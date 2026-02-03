@@ -29,7 +29,7 @@ const controller = (dependencies: BaseDependencies) => {
 					`Register Dictionary Request categoryName '${categoryName}' name '${dictionaryName}' version '${dictionaryVersion}'`,
 				);
 
-				const { dictionary, category } = await dictionaryService.register({
+				const { dictionary, category, migrationId } = await dictionaryService.register({
 					categoryName,
 					dictionaryName,
 					dictionaryVersion,
@@ -42,9 +42,9 @@ const controller = (dependencies: BaseDependencies) => {
 				const result: RegisterDictionaryResult = {
 					categoryId: category.id,
 					categoryName: category.name,
-					dictionary: dictionary.dictionary,
 					name: dictionary.name,
 					version: dictionary.version,
+					migrationId,
 				};
 				return res.send(result);
 			} catch (error) {

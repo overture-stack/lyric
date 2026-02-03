@@ -42,16 +42,15 @@ import {
 	groupByEntityName,
 	groupErrorsByIndex,
 	groupSchemaDataByEntityName,
-	hasErrorsByIndex,
 	mergeSubmittedDataAndDeduplicateById,
 	updateSubmittedDataArray,
 } from '../../utils/submittedDataUtils.js';
 import {
-	CommitSubmissionParams,
+	type CommitSubmissionParams,
 	type EntityData,
+	type ResultCommit,
 	type SchemasDictionary,
 	SUBMISSION_STATUS,
-	type SubmittedDataResponse,
 } from '../../utils/types.js';
 import searchDataRelations from '../submittedData/searchDataRelations.js';
 
@@ -232,7 +231,9 @@ const processor = (dependencies: BaseDependencies) => {
 		// Step 1: Exclude items that are marked for deletion
 		const systemIdsToDelete = new Set<string>(dataToValidate?.deletes?.map((item) => item.systemId) || []);
 		logger.info(LOG_MODULE, `Found '${systemIdsToDelete.size}' Records to delete on Submission '${submission.id}'`);
-		const submittedData = dataToValidate.submittedData?.filter((item) => !systemIdsToDelete.has(item.systemId));
+		const submittedData = systemIdsToDelete.size
+			? dataToValidate.submittedData?.filter((item) => !systemIdsToDelete.has(item.systemId))
+			: dataToValidate.submittedData;
 
 		// Step 2: Modify items marked for update
 		const systemIdsToUpdate = new Set<string>(dataToValidate.updates ? Object.keys(dataToValidate.updates) : []);
@@ -253,86 +254,91 @@ const processor = (dependencies: BaseDependencies) => {
 
 		const resultValidation = validateSchemas(dictionary, schemasDataToValidate.schemaDataByEntityName);
 
-		const resultCommit: {
-			inserts: SubmittedDataResponse[];
-			updates: SubmittedDataResponse[];
-			deletes: SubmittedDataResponse[];
-		} = {
+		const resultCommit: ResultCommit = {
 			inserts: [],
 			updates: [],
 			deletes: [],
 		};
 
 		await dependencies.db.transaction(async (tx) => {
-			Object.entries(schemasDataToValidate.submittedDataByEntityName).forEach(([entityName, dataArray], index) => {
-				dataArray.forEach((data) => {
-					const invalidRecordErrors = findInvalidRecordErrorsBySchemaName(resultValidation, entityName);
-					const hasErrorByIndex = groupErrorsByIndex(invalidRecordErrors);
-					const oldIsValid = data.isValid;
-					const newIsValid = !hasErrorsByIndex(hasErrorByIndex, index);
-					if (data.id) {
-						const inputUpdate: Partial<SubmittedData> = {};
-						const submisionUpdateData = dataToValidate.updates && dataToValidate.updates[data.systemId];
-						if (submisionUpdateData) {
-							logger.info(LOG_MODULE, `Updating submittedData system ID '${data.systemId}' in entity '${entityName}'`);
-							inputUpdate.data = data.data;
+			Object.entries(schemasDataToValidate.submittedDataByEntityName).forEach(([entityName, records]) => {
+				const invalidRecordErrors = findInvalidRecordErrorsBySchemaName(resultValidation, entityName);
+				const errorsByIndex = groupErrorsByIndex(invalidRecordErrors);
+				logger.info(LOG_MODULE, `Found '${invalidRecordErrors.length}' invalid records in entity '${entityName}'`);
+				records.forEach((record, index) => {
+					const errors = errorsByIndex[index] ?? [];
+					const newIsValid = errors.length === 0;
+
+					if (record.id) {
+						const oldIsValid = record.isValid;
+						const update: Partial<SubmittedData> = {};
+
+						const submissionUpdate = dataToValidate.updates?.[record.systemId];
+						if (submissionUpdate) {
+							update.data = record.data;
 						}
 
 						if (oldIsValid !== newIsValid) {
-							inputUpdate.isValid = newIsValid;
+							update.isValid = newIsValid;
 							if (newIsValid) {
-								logger.info(
-									LOG_MODULE,
-									`Updating submittedData system ID '${data.systemId}' as Valid in entity '${entityName}'`,
-								);
-								inputUpdate.lastValidSchemaId = dictionary.id;
+								update.lastValidSchemaId = dictionary.id;
 							}
-							logger.info(
-								LOG_MODULE,
-								`Updating submittedData system ID '${data.systemId}' as invalid in entity '${entityName}'`,
-							);
 						}
 
-						if (Object.values(inputUpdate)) {
-							inputUpdate.updatedBy = username;
-							if (newIsValid) {
-								inputUpdate.lastValidSchemaId = dictionary.id;
-							}
-							dataSubmittedRepo.update(
-								{
-									submittedDataId: data.id,
-									newData: inputUpdate,
-									dataDiff: { old: submisionUpdateData?.old ?? {}, new: submisionUpdateData?.new ?? {} },
-									oldIsValid: oldIsValid,
+						if (Object.keys(update).length === 0) {
+							return;
+						}
+
+						update.updatedBy = username;
+						if (newIsValid) {
+							update.lastValidSchemaId = dictionary.id;
+						}
+						logger.debug(
+							LOG_MODULE,
+							`Updating submittedData in entity '${entityName}' with system ID '${record.systemId}'`,
+						);
+						dataSubmittedRepo.update(
+							{
+								submittedDataId: record.id,
+								data: update,
+								audit: {
+									dataDiff: { old: submissionUpdate?.old ?? {}, new: submissionUpdate?.new ?? {} },
+									errors: errors,
+									isMigration: params.isMigration || false,
+									oldIsValid,
 									submissionId: submission.id,
 								},
-								tx,
-							);
+							},
+							tx,
+						);
 
-							// Check if either 'data' or 'isValid' keys has been updated
-							if ('data' in inputUpdate || 'isValid' in inputUpdate) {
-								resultCommit.updates.push({
-									isValid: newIsValid,
-									entityName,
-									organization: data.organization,
-									data: data.data,
-									systemId: data.systemId,
-								});
-							}
+						// Check if either 'data' or 'isValid' keys has been updated
+						if ('data' in update || 'isValid' in update) {
+							resultCommit.updates.push({
+								data: record.data,
+								entityName,
+								isValid: newIsValid,
+								organization: record.organization,
+								systemId: record.systemId,
+							});
 						}
 					} else {
-						data.isValid = newIsValid;
+						logger.debug(
+							LOG_MODULE,
+							`Creating new submittedData in entity '${entityName}' with system ID '${record.systemId}'`,
+						);
+						record.isValid = newIsValid;
 						if (newIsValid) {
-							data.lastValidSchemaId = dictionary.id;
+							record.lastValidSchemaId = dictionary.id;
 						}
-						dataSubmittedRepo.save(data, tx);
+						dataSubmittedRepo.save(record, tx);
 
 						resultCommit.inserts.push({
-							isValid: newIsValid,
+							data: record.data,
 							entityName,
-							organization: data.organization,
-							data: data.data,
-							systemId: data.systemId,
+							isValid: newIsValid,
+							organization: record.organization,
+							systemId: record.systemId,
 						});
 					}
 				});
@@ -340,22 +346,24 @@ const processor = (dependencies: BaseDependencies) => {
 
 			// iterate if there are any record to be deleted
 			dataToValidate?.deletes?.forEach((item) => {
+				const { data, entityName, isValid, organization, systemId } = item;
+
 				dataSubmittedRepo.deleteBySystemId(
 					{
+						diff: computeDataDiff(data, null),
 						submissionId: submission.id,
-						systemId: item.systemId,
-						diff: computeDataDiff(item.data, null),
+						systemId,
 						username,
 					},
 					tx,
 				);
 
 				resultCommit.deletes.push({
-					isValid: item.isValid,
-					entityName: item.entityName,
-					organization: item.organization,
-					data: item.data,
-					systemId: item.systemId,
+					data,
+					entityName,
+					isValid,
+					organization,
+					systemId,
 				});
 			});
 

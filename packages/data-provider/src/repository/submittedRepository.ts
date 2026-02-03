@@ -2,8 +2,8 @@ import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
 import { and, count, eq, or, SQL, sql } from 'drizzle-orm/sql';
-import * as _ from 'lodash-es';
 
+import type { DictionaryValidationRecordErrorDetails } from '@overture-stack/lectern-client';
 import {
 	auditSubmittedData,
 	type DataDiff,
@@ -55,18 +55,23 @@ const repository = (dependencies: BaseDependencies) => {
 			oldIsValid,
 			recordUpdated,
 			submissionId,
+			isMigration,
+			errors,
 		}: {
 			dataDiff: DataDiff;
 			oldIsValid: boolean;
 			recordUpdated: SubmittedData;
 			submissionId: number;
+			isMigration: boolean;
+			errors?: DictionaryValidationRecordErrorDetails[];
 		},
 		tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
 	) => {
 		const newAudit: NewAuditSubmittedData = {
-			action: AUDIT_ACTION.Values.UPDATE,
+			action: isMigration ? AUDIT_ACTION.Values.MIGRATION : AUDIT_ACTION.Values.UPDATE,
 			dictionaryCategoryId: recordUpdated.dictionaryCategoryId,
 			entityName: recordUpdated.entityName,
+			errors,
 			lastValidSchemaId: recordUpdated.lastValidSchemaId,
 			newDataIsValid: recordUpdated.isValid,
 			dataDiff: dataDiff,
@@ -364,36 +369,43 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @param newData Set fields to update
 		 * @param oldIsValid Previous isValid value
 		 * @param submissionId Submission ID
+		 * @param isMigration Whether the update is part of a migration
+		 * @param errors Audit errors, if any
 		 * @param tx The transaction to use for the operation, optional
 		 * @returns An updated record
 		 */
 		update: async (
 			{
 				submittedDataId,
-				dataDiff,
-				newData,
-				oldIsValid,
-				submissionId,
+				data,
+				audit: { dataDiff, errors, isMigration, oldIsValid, submissionId },
 			}: {
 				submittedDataId: number;
-				dataDiff: DataDiff;
-				newData: Partial<SubmittedData>;
-				oldIsValid: boolean;
-				submissionId: number;
+				data: Partial<SubmittedData>;
+				audit: {
+					dataDiff: DataDiff;
+					errors?: DictionaryValidationRecordErrorDetails[];
+					isMigration: boolean;
+					oldIsValid: boolean;
+					submissionId: number;
+				};
 			},
 			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
 		): Promise<SubmittedData> => {
 			try {
-				const updated = await (tx || db)
+				const [recordUpdated] = await (tx || db)
 					.update(submittedData)
-					.set({ ...newData, updatedAt: new Date() })
+					.set({ ...data, updatedAt: new Date() })
 					.where(eq(submittedData.id, submittedDataId))
 					.returning();
 
-				if (features?.audit?.enabled && !_.isEmpty(dataDiff.new) && !_.isEmpty(dataDiff.old)) {
-					await auditUpdateSubmittedData({ recordUpdated: updated[0], submissionId, dataDiff, oldIsValid }, tx);
+				if (features?.audit?.enabled && recordUpdated) {
+					await auditUpdateSubmittedData(
+						{ recordUpdated, submissionId, dataDiff, oldIsValid, isMigration, errors },
+						tx,
+					);
 				}
-				return updated[0];
+				return recordUpdated;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed updating SubmittedData`, error);
 				throw new ServiceUnavailable();
