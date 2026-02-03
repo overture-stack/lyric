@@ -25,6 +25,14 @@ const router = ({
 		}).getSubmissionById,
 	);
 
+	router.get(
+		'/:submissionId/details',
+		submissionController({
+			baseDependencies,
+			authConfig,
+		}).getSubmissionDetailsById,
+	);
+
 	router.delete(
 		'/:submissionId',
 		submissionController({
