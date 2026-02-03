@@ -59,7 +59,7 @@ sequenceDiagram
 
         note right of Lyric: Update `Submission`
 
-         Lyric->>DB: Update Submission `status` to COMMITED
+         Lyric->>DB: Update Submission `status` to COMMITTED
     end
 
 ```

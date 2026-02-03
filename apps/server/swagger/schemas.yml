@@ -62,113 +62,7 @@ components:
             $ref: '#/components/responses/Error'
 
   schemas:
-    SubmissionResult:
-      type: object
-      properties:
-        id:
-          type: number
-          description: ID of the Submission
-        data:
-          type: object
-          properties:
-            inserts:
-              type: object
-              additionalProperties:
-                type: object
-                properties:
-                  records:
-                    type: array
-                    items:
-                      type: object
-                      description: Content of the file in JSON format
-                  batchName:
-                    type: string
-                    description: Original filename  of the submission
-            updates:
-              type: object
-              additionalProperties:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    systemId:
-                      type: string
-                    old:
-                      type: object
-                      description: Old Content
-                    new:
-                      type: object
-                      description: New content
-            deletes:
-              type: object
-              additionalProperties:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    systemId:
-                      type: string
-                    data:
-                      type: object
-                      description: Content to be deleted
-        dictionary:
-          type: object
-          description: Dictionary used to validate the submission
-          properties:
-            name:
-              type: string
-            version:
-              type: string
-        dictionaryCategory:
-          type: object
-          description: Category this dictionary belongs in
-          properties:
-            id:
-              type: number
-            name:
-              type: string
-        errors:
-          type: object
-          properties:
-            inserts:
-              type: object
-              additionalProperties:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ValidationError'
-            updates:
-              type: object
-              additionalProperties:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ValidationError'
-            deletes:
-              type: object
-              additionalProperties:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ValidationError'
-        organization:
-          type: string
-          description: Organization the Submission belongs to
-        status:
-          type: string
-          description: Status of the Submission
-          enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITED']
-        createdAt:
-          type: string
-          description: Date and time of creation
-        createdBy:
-          type: string
-          description: User name who created the submission
-        udpatedAt:
-          type: string
-          description: Date and time of latest update
-        updatedBy:
-          type: string
-          description: User name who last updated the submission
-
-    SubmissionsSummaryResult:
+    ListSubmissionsResult:
       type: object
       properties:
         pagination:
@@ -185,9 +79,35 @@ components:
         records:
           type: array
           items:
-            $ref: '#/components/schemas/SubmissionSummary'
+            $ref: '#/components/schemas/SubmissionResult'
 
-    SubmissionSummary:
+    SubmissionDetailsResult:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                description: Type of action
+                enum: ['INSERTS', 'UPDATES', 'DELETES']
+              entity:
+                type: string
+                description: Name of the entity
+              value:
+                type: object
+                description: Content of the record in JSON format
+              index:
+                type: number
+                description: Index of the record in the submission
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+
+    SubmissionResult:
       type: object
       properties:
         id:
@@ -221,6 +141,9 @@ components:
                 properties:
                   recordsCount:
                     type: number
+            total:
+              type: number
+              description: Total number of records in the submission
         dictionary:
           type: object
           description: Dictionary used to validate the submission
@@ -243,28 +166,34 @@ components:
             inserts:
               type: object
               additionalProperties:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ValidationError'
+                type: object
+                properties:
+                  recordsCount:
+                    type: number
             updates:
               type: object
               additionalProperties:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ValidationError'
+                type: object
+                properties:
+                  recordsCount:
+                    type: number
             deletes:
               type: object
               additionalProperties:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ValidationError'
+                type: object
+                properties:
+                  recordsCount:
+                    type: number
+            total:
+              type: number
+              description: Total number of error records in the submission
         organization:
           type: string
           description: Organization the Submission belongs to
         status:
           type: string
           description: Status of the Submission
-          enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITED']
+          enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITTED']
         createdAt:
           type: string
           description: Date and time of creation
@@ -277,9 +206,6 @@ components:
         updatedBy:
           type: string
           description: Name of user who last updated the submission
-
-    ActiveSubmissionSummaryResult:
-      $ref: '#/components/schemas/SubmissionSummary'
 
     BatchError:
       type: object
@@ -430,6 +356,40 @@ components:
           type: string
           description: Result of uploading Submission files
           enum: ['PROCESSING', 'INVALID_SUBMISSION']
+        submissionId:
+          type: string
+          description: ID of the Submission
+
+    DeleteSubmissionResult:
+      required:
+        - status
+        - description
+      type: object
+      properties:
+        description:
+          type: string
+          description: Description of closing the Submission
+        status:
+          type: string
+          description: Result of closing the Submission
+          enum: ['CLOSED']
+        submissionId:
+          type: string
+          description: ID of the Submission
+
+    DeleteSubmissionEntityResult:
+      required:
+        - status
+        - description
+      type: object
+      properties:
+        description:
+          type: string
+          description: Description of deleting partially Submission data
+        status:
+          type: string
+          description: Result of deleting Submission data
+          enum: ['PROCESSING']
         submissionId:
           type: string
           description: ID of the Submission

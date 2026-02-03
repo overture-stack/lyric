@@ -1,7 +1,6 @@
-import type { DictionaryMigration, NewDictionaryMigration, Submission } from '@overture-stack/lyric-data-model/models';
+import type { DictionaryMigration, NewDictionaryMigration } from '@overture-stack/lyric-data-model/models';
 
 import type { BaseDependencies } from '../config/config.js';
-import submissionRepository from '../repository/activeSubmissionRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import migrationRepository from '../repository/dictionaryMigrationRepository.js';
 import submittedDataRepository from '../repository/submittedRepository.js';
@@ -85,7 +84,6 @@ const migrationService = (dependencies: BaseDependencies) => {
 		userName: string;
 	}): Promise<number> => {
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
-		const { getSubmissionById } = submissionRepository(dependencies);
 		try {
 			const existingMigrationResult = await migrationRepo.getMigrationsByCategoryId(
 				categoryId,
@@ -94,18 +92,14 @@ const migrationService = (dependencies: BaseDependencies) => {
 			);
 
 			let migrationId: number;
-			let submission: Submission;
+			let submissionId: number;
 
 			// Migration already exists, update retries count
 			if (existingMigrationResult.length > 0) {
 				const migration = existingMigrationResult[0];
 				const updatedRetriesCount = migration.retries + 1;
 
-				const submissionResponse = await getSubmissionById(migration.id);
-				if (!submissionResponse) {
-					throw new Error(`Submission with id '${migration.id}' not found`);
-				}
-				submission = submissionResponse;
+				submissionId = migration.submissionId;
 
 				migrationId = await migrationRepo.update(migration.id, {
 					retries: updatedRetriesCount,
@@ -119,18 +113,17 @@ const migrationService = (dependencies: BaseDependencies) => {
 				);
 			} else {
 				// Create new migration record
-				const newSubmission = await getOrCreateActiveSubmission({
+				submissionId = await getOrCreateActiveSubmission({
 					categoryId,
 					organization: '',
 					username: userName,
 				});
-				submission = newSubmission;
 
 				const newMigration: NewDictionaryMigration = {
 					categoryId,
 					fromDictionaryId,
 					toDictionaryId,
-					submissionId: newSubmission.id,
+					submissionId,
 					status: 'IN-PROGRESS',
 					createdBy: userName,
 					createdAt: new Date(),
@@ -142,7 +135,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 			}
 
 			// Start migration asynchronously
-			performMigrationValidation({ categoryId, submission, userName })
+			performMigrationValidation({ categoryId, submissionId, userName })
 				.then(() => {
 					finalizeMigration({ migrationId, status: 'COMPLETED', userName });
 				})
@@ -162,11 +155,11 @@ const migrationService = (dependencies: BaseDependencies) => {
 	/** Execute submitted data validation for the migration */
 	const performMigrationValidation = async ({
 		categoryId,
-		submission,
+		submissionId,
 		userName,
 	}: {
 		categoryId: number;
-		submission: Submission;
+		submissionId: number;
 		userName: string;
 	}): Promise<void> => {
 		const { getAllOrganizationsByCategoryId, getSubmittedDataByCategoryIdAndOrganization } =
@@ -194,14 +187,14 @@ const migrationService = (dependencies: BaseDependencies) => {
 					deletes: [],
 					updates: {},
 				},
-				submission,
+				submissionId,
 				dictionary,
 				username: userName,
 				isMigration: true,
 				onFinishCommit,
 			});
 		}
-		logger.info(LOG_MODULE, `Migration validation completed for submissionId '${submission.id}'`);
+		logger.info(LOG_MODULE, `Migration validation completed for submissionId '${submissionId}'`);
 	};
 
 	return {

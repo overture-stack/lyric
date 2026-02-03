@@ -1,14 +1,13 @@
 import * as _ from 'lodash-es';
 
-import { type DataRecord, type Schema } from '@overture-stack/lectern-client';
-import {
-	Submission,
+import type { DataRecord, Schema } from '@overture-stack/lectern-client';
+import type {
 	SubmissionData,
-	type SubmissionDeleteData,
-	type SubmissionErrors,
-	type SubmissionInsertData,
-	type SubmissionRecordErrorDetails,
-	type SubmissionUpdateData,
+	SubmissionDeleteData,
+	SubmissionErrors,
+	SubmissionInsertData,
+	SubmissionRecordErrorDetails,
+	SubmissionUpdateData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
 
@@ -207,7 +206,7 @@ const processor = (dependencies: BaseDependencies) => {
 	 * This function validates whole data together against a dictionary
 	 * @param params
 	 * @param params.dataToValidate Data to be validated, This object contains:
-	 * - `inserts`: An array of new records to be commited. Optional
+	 * - `inserts`: An array of new records to be committed. Optional
 	 * - `submittedData`: An array of existing Submitted Data. Optional
 	 * - `deletes`: An array of `systemId`s representing items that should be deleted. Optional
 	 * - `updates`: An array of records to be updated. Optional
@@ -220,7 +219,13 @@ const processor = (dependencies: BaseDependencies) => {
 		const submissionRepo = submissionRepository(dependencies);
 		const dataSubmittedRepo = submittedRepository(dependencies);
 
-		const { dictionary, dataToValidate, submission, username } = params;
+		const { dictionary, dataToValidate, submissionId, username } = params;
+
+		const submission = await submissionRepo.getSubmissionById(submissionId);
+
+		if (!submission) {
+			throw new Error(`Submission '${submissionId}' not found`);
+		}
 
 		// Merge Submitted Data with items to be inserted, updated or deleted consist on 3 steps
 		// Step 1: Exclude items that are marked for deletion
@@ -362,9 +367,9 @@ const processor = (dependencies: BaseDependencies) => {
 				});
 			});
 
-			logger.info(LOG_MODULE, `Active submission '${submission.id} updated to status '${SUBMISSION_STATUS.COMMITED}'`);
+			logger.info(LOG_MODULE, `Active submission '${submission.id} updated to status '${SUBMISSION_STATUS.COMMITTED}'`);
 			submissionRepo.update(submission.id, {
-				status: SUBMISSION_STATUS.COMMITED,
+				status: SUBMISSION_STATUS.COMMITTED,
 				updatedAt: new Date(),
 			});
 		});
@@ -373,7 +378,7 @@ const processor = (dependencies: BaseDependencies) => {
 			params.onFinishCommit({
 				submissionId: submission.id,
 				organization: submission.organization,
-				categoryId: submission.dictionaryCategoryId,
+				categoryId: submission.dictionaryCategory.id,
 				data: resultCommit,
 			});
 		}
@@ -382,37 +387,45 @@ const processor = (dependencies: BaseDependencies) => {
 	/**
 	 * Validates an Active Submission combined with all Submitted Data.
 	 * Active Submission is updated after validation is complete.
-	 * Returns the Active Submission updated
+	 * Returns the ID of the Active Submission updated
 	 * @param {Object} input
 	 * @param {Submission} input.originalSubmission Active Submission
 	 * @param {SubmissionData} input.submissionData New Submission data
 	 * @param {string} input.username User who performs the action
-	 * @returns {Promise<Submission>}
+	 * @returns {Promise<number>} ID of the Submission updated
 	 */
 	const performDataValidation = async (input: {
-		originalSubmission: Submission;
+		submissionId: number;
 		submissionData: SubmissionData;
 		username: string;
-	}): Promise<Submission> => {
-		const { originalSubmission, submissionData, username } = input;
+	}): Promise<number> => {
+		const { submissionId, submissionData, username } = input;
 
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
+		const { getSubmissionById } = submissionRepository(dependencies);
+
+		// Get Active Submission from database
+		const originalSubmission = await getSubmissionById(submissionId);
+
+		if (!originalSubmission) {
+			throw new Error(`Submission '${submissionId}' not found`);
+		}
 
 		// Get Submitted Data from database
 		const submittedData = await getSubmittedDataByCategoryIdAndOrganization(
-			originalSubmission.dictionaryCategoryId,
+			originalSubmission.dictionaryCategory.id,
 			originalSubmission.organization,
 		);
 
-		const currentDictionary = await getActiveDictionaryByCategory(originalSubmission.dictionaryCategoryId);
+		const currentDictionary = await getActiveDictionaryByCategory(originalSubmission.dictionaryCategory.id);
 		if (!currentDictionary) {
-			throw new BadRequest(`Dictionary in category '${originalSubmission.dictionaryCategoryId}' not found`);
+			throw new BadRequest(`Dictionary in category '${originalSubmission.dictionaryCategory.id}' not found`);
 		}
 
 		// Merge Submitted Data with Active Submission keepping reference of each record ID
 		const dataMergedByEntityName = mergeAndReferenceEntityData({
-			originalSubmission,
+			submissionId,
 			submissionData,
 			submittedData,
 		});
@@ -477,7 +490,7 @@ const processor = (dependencies: BaseDependencies) => {
 
 		// Update Active Submission
 		return await updateActiveSubmission({
-			idActiveSubmission: originalSubmission.id,
+			idActiveSubmission: submissionId,
 			submissionData: {
 				inserts: submissionData.inserts,
 				deletes: submissionData.deletes,
@@ -502,15 +515,16 @@ const processor = (dependencies: BaseDependencies) => {
 		records: Record<string, unknown>[],
 		{
 			schema,
-			submission,
+			submissionId,
 			username,
 		}: {
 			schema: Schema;
-			submission: Submission;
+			submissionId: number;
 			username: string;
 		},
 	): Promise<void> => {
-		const { getDictionaryById } = dictionaryRepository(dependencies);
+		const { getDictionary } = dictionaryRepository(dependencies);
+		const { getSubmissionDetailsById } = submissionRepository(dependencies);
 
 		try {
 			// Parse file data
@@ -518,9 +532,17 @@ const processor = (dependencies: BaseDependencies) => {
 
 			const filesDataProcessed = await compareUpdatedData(recordsParsed, schema.name);
 
-			const currentDictionary = await getDictionaryById(submission.dictionaryId);
+			const submission = await getSubmissionDetailsById(submissionId);
+
+			if (!submission) {
+				throw new Error(`Submission '${submissionId}' not found`);
+			}
+
+			const currentDictionary = await getDictionary(submission.dictionary.name, submission.dictionary.version);
 			if (!currentDictionary) {
-				throw new BadRequest(`Dictionary in category '${submission.dictionaryCategoryId}' not found`);
+				throw new BadRequest(
+					`Dictionary with name '${submission.dictionary.name}' and version '${submission.dictionary.version}' not found`,
+				);
 			}
 
 			// get dictionary relations
@@ -581,7 +603,7 @@ const processor = (dependencies: BaseDependencies) => {
 
 			// Perform Schema Data validation Async.
 			performDataValidation({
-				originalSubmission: submission,
+				submissionId: submission.id,
 				submissionData: {
 					inserts: mergedInserts,
 					deletes: filteredDeletes,
@@ -665,7 +687,7 @@ const processor = (dependencies: BaseDependencies) => {
 	 * @param {number} input.idActiveSubmission ID of the Active Submission
 	 * @param {SubmissionErrors} input.schemaErrors Array of schemaErrors
 	 * @param {string} input.username User updating the active submission
-	 * @returns {Promise<Submission>} An Active Submission updated
+	 * @returns {Promise<number>} An Active Submission updated
 	 */
 	const updateActiveSubmission = async (input: {
 		dictionaryId: number;
@@ -673,13 +695,13 @@ const processor = (dependencies: BaseDependencies) => {
 		idActiveSubmission: number;
 		schemaErrors: SubmissionErrors;
 		username: string;
-	}): Promise<Submission> => {
+	}): Promise<number> => {
 		const { dictionaryId, submissionData, idActiveSubmission, schemaErrors, username } = input;
 		const { update } = submissionRepository(dependencies);
 		const newStatusSubmission =
 			Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
 		// Update with new data
-		const updatedActiveSubmission = await update(idActiveSubmission, {
+		const updatedActiveSubmissionId = await update(idActiveSubmission, {
 			data: submissionData,
 			status: newStatusSubmission,
 			dictionaryId: dictionaryId,
@@ -689,9 +711,9 @@ const processor = (dependencies: BaseDependencies) => {
 
 		logger.info(
 			LOG_MODULE,
-			`Updated Active submission '${updatedActiveSubmission.id}' with status '${newStatusSubmission}' on category '${updatedActiveSubmission.dictionaryCategoryId}'`,
+			`Updated Active submission '${updatedActiveSubmissionId}' with status '${newStatusSubmission}'`,
 		);
-		return updatedActiveSubmission;
+		return updatedActiveSubmissionId;
 	};
 
 	/**
@@ -716,11 +738,11 @@ const processor = (dependencies: BaseDependencies) => {
 		submissionId: number;
 		username: string;
 	}) => {
-		const { getSubmissionById, update } = submissionRepository(dependencies);
+		const { getSubmissionDetailsById, update } = submissionRepository(dependencies);
 
 		try {
 			// Get Active Submission from database
-			const activeSubmission = await getSubmissionById(submissionId);
+			const activeSubmission = await getSubmissionDetailsById(submissionId);
 			if (!activeSubmission) {
 				throw new Error(`Submission '${activeSubmission}' not found`);
 			}
@@ -748,7 +770,7 @@ const processor = (dependencies: BaseDependencies) => {
 
 			// Perform Schema Data validation Async.
 			await performDataValidation({
-				originalSubmission: activeSubmission,
+				submissionId: activeSubmission.id,
 				submissionData: mergedSubmissionData,
 				username,
 			});

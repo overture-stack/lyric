@@ -40,7 +40,11 @@ describe('Submission Utils - Combine Active Submission and the Submitted Data wi
 				updatedBy: null,
 			},
 		];
-		const response = mergeAndReferenceEntityData({ originalSubmission, submissionData, submittedData });
+		const response = mergeAndReferenceEntityData({
+			submissionId: originalSubmission.id,
+			submissionData,
+			submittedData,
+		});
 		expect(Object.keys(response).length).to.eq(1);
 		expect(Object.keys(response)).to.eql(['animals']);
 		expect(response['animals'].length).eq(1);
@@ -97,7 +101,11 @@ describe('Submission Utils - Combine Active Submission and the Submitted Data wi
 				updatedBy: null,
 			},
 		];
-		const response = mergeAndReferenceEntityData({ originalSubmission, submissionData, submittedData });
+		const response = mergeAndReferenceEntityData({
+			submissionId: originalSubmission.id,
+			submissionData,
+			submittedData,
+		});
 		expect(Object.keys(response).length).to.eq(1);
 		expect(Object.keys(response)).to.eql(['animals']);
 		expect(response['animals'].length).eq(3);
@@ -182,7 +190,11 @@ describe('Submission Utils - Combine Active Submission and the Submitted Data wi
 				updatedBy: null,
 			},
 		];
-		const response = mergeAndReferenceEntityData({ originalSubmission, submissionData, submittedData });
+		const response = mergeAndReferenceEntityData({
+			submissionId: originalSubmission.id,
+			submissionData,
+			submittedData,
+		});
 		expect(Object.keys(response).length).to.eq(1);
 		expect(Object.keys(response)).to.eql(['animals']);
 		expect(response['animals'].length).eq(2);
@@ -273,7 +285,11 @@ describe('Submission Utils - Combine Active Submission and the Submitted Data wi
 				updatedBy: null,
 			},
 		];
-		const response = mergeAndReferenceEntityData({ originalSubmission, submissionData, submittedData });
+		const response = mergeAndReferenceEntityData({
+			submissionId: originalSubmission.id,
+			submissionData,
+			submittedData,
+		});
 		expect(Object.keys(response).length).to.eq(0);
 		expect(response).eql({});
 	});
