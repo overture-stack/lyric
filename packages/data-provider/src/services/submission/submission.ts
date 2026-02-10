@@ -20,6 +20,7 @@ import {
 	isSubmissionActive,
 	removeItemsFromSubmission,
 } from '../../utils/submissionUtils.js';
+import { computeDataDiff } from '../../utils/submittedDataUtils.js';
 import {
 	CommitSubmissionResult,
 	CREATE_SUBMISSION_STATUS,
@@ -31,6 +32,7 @@ import {
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
 	SubmissionSummary,
+	type SubmittedDataResponse,
 } from '../../utils/types.js';
 import processor from './processor.js';
 
@@ -50,12 +52,12 @@ const service = (dependencies: BaseDependencies) => {
 		submissionId: number,
 		username: string,
 	): Promise<CommitSubmissionResult> => {
-		const { getSubmissionDetailsById } = submissionRepository(dependencies);
-		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
+		const submissionRepo = submissionRepository(dependencies);
+		const dataSubmittedRepo = submittedRepository(dependencies);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { generateIdentifier } = systemIdGenerator(dependencies);
 
-		const submission = await getSubmissionDetailsById(submissionId);
+		const submission = await submissionRepo.getSubmissionDetailsById(submissionId);
 		if (!submission) {
 			throw new BadRequest(`Submission '${submissionId}' not found`);
 		}
@@ -73,65 +75,189 @@ const service = (dependencies: BaseDependencies) => {
 			throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
 		}
 
-		const submittedDataToValidate = await getSubmittedDataByCategoryIdAndOrganization(
+		const { result: openSubmissions } = await getSubmissionsByCategory(
 			categoryId,
-			submission?.organization,
+			{ pageSize: 2, page: 1 },
+			{ onlyActive: true, organization: submission.organization },
 		);
+
+		const isSameDictionaryVersion =
+			submission.dictionary.name === currentDictionary.name &&
+			submission.dictionary.version === currentDictionary.version;
 
 		const entitiesToProcess = new Set<string>();
 
-		submittedDataToValidate?.forEach((data) => entitiesToProcess.add(data.entityName));
+		// Records must be validated when:
+		// - There's another submission open in the same category and organization.
+		// - OR, the submission to commit was created using a different dictionary version.
+		const requiresValidation = openSubmissions.length > 1 || !isSameDictionaryVersion;
 
-		const insertsToValidate = submission.data?.inserts
-			? Object.entries(submission.data.inserts).flatMap(([entityName, submissionData]) => {
-					entitiesToProcess.add(entityName);
-
-					return submissionData.records.map((record) => ({
-						data: record,
-						dictionaryCategoryId: categoryId,
-						entityName,
-						isValid: false, // By default, New Submitted Data is created as invalid until validation proves otherwise
-						organization: submission.organization,
-						originalSchemaId: currentDictionary.id,
-						systemId: generateIdentifier(entityName, record),
-						createdBy: username,
-					}));
-				})
-			: [];
-
-		const deleteDataArray = submission.data?.deletes
-			? Object.entries(submission.data.deletes).flatMap(([entityName, submissionDeleteData]) => {
-					entitiesToProcess.add(entityName);
-					return submissionDeleteData;
-				})
-			: [];
-
-		const updateDataArray =
-			submission.data?.updates &&
-			Object.entries(submission.data.updates).reduce<Record<string, SubmissionUpdateData>>(
-				(acc, [entityName, submissionUpdateData]) => {
-					entitiesToProcess.add(entityName);
-					submissionUpdateData.forEach((record) => {
-						acc[record.systemId] = record;
-					});
-					return acc;
-				},
-				{},
+		if (requiresValidation) {
+			const submittedDataToValidate = await dataSubmittedRepo.getSubmittedDataByCategoryIdAndOrganization(
+				categoryId,
+				submission?.organization,
 			);
 
-		// To Commit Active Submission we need to validate SubmittedData + Active Submission
-		performCommitSubmissionAsync({
-			dataToValidate: {
-				inserts: insertsToValidate,
-				submittedData: submittedDataToValidate,
-				deletes: deleteDataArray,
-				updates: updateDataArray,
-			},
-			submissionId: submission.id,
-			dictionary: currentDictionary,
-			username: username,
-			onFinishCommit,
-		});
+			submittedDataToValidate?.forEach((data) => entitiesToProcess.add(data.entityName));
+
+			const insertsToValidate = submission.data?.inserts
+				? Object.entries(submission.data.inserts).flatMap(([entityName, submissionData]) => {
+						entitiesToProcess.add(entityName);
+
+						return submissionData.records.map((record) => ({
+							data: record,
+							dictionaryCategoryId: categoryId,
+							entityName,
+							isValid: false, // By default, New Submitted Data is created as invalid until validation proves otherwise
+							organization: submission.organization,
+							originalSchemaId: currentDictionary.id,
+							systemId: generateIdentifier(entityName, record),
+							createdBy: username,
+						}));
+					})
+				: [];
+
+			const deleteDataArray = submission.data?.deletes
+				? Object.entries(submission.data.deletes).flatMap(([entityName, submissionDeleteData]) => {
+						entitiesToProcess.add(entityName);
+						return submissionDeleteData;
+					})
+				: [];
+
+			const updateDataArray =
+				submission.data?.updates &&
+				Object.entries(submission.data.updates).reduce<Record<string, SubmissionUpdateData>>(
+					(acc, [entityName, submissionUpdateData]) => {
+						entitiesToProcess.add(entityName);
+						submissionUpdateData.forEach((record) => {
+							acc[record.systemId] = record;
+						});
+						return acc;
+					},
+					{},
+				);
+
+			// To Commit Active Submission we need to validate SubmittedData + Active Submission
+			performCommitSubmissionAsync({
+				dataToValidate: {
+					inserts: insertsToValidate,
+					submittedData: submittedDataToValidate,
+					deletes: deleteDataArray,
+					updates: updateDataArray,
+				},
+				submissionId: submission.id,
+				dictionary: currentDictionary,
+				username: username,
+				onFinishCommit,
+			});
+		} else {
+			const resultCommit: {
+				inserts: SubmittedDataResponse[];
+				updates: SubmittedDataResponse[];
+				deletes: SubmittedDataResponse[];
+			} = {
+				inserts: [],
+				updates: [],
+				deletes: [],
+			};
+
+			await dependencies.db.transaction(async (tx) => {
+				// Process submission insert records
+				for (const [entityName, submissionData] of Object.entries(submission.data.inserts ?? {})) {
+					entitiesToProcess.add(entityName);
+
+					for (const record of submissionData.records) {
+						const systemId = generateIdentifier(entityName, record);
+
+						const newData = {
+							data: record,
+							dictionaryCategoryId: categoryId,
+							entityName,
+							isValid: true,
+							organization: submission.organization,
+							originalSchemaId: currentDictionary.id,
+							systemId,
+							createdBy: username,
+						};
+
+						await dataSubmittedRepo.save(newData, tx);
+
+						resultCommit.inserts.push({
+							isValid: true,
+							entityName,
+							organization: submission.organization,
+							data: record,
+							systemId,
+						});
+					}
+				}
+
+				// Process submission update records
+				for (const [entityName, submissionData] of Object.entries(submission.data.updates ?? {})) {
+					for (const record of submissionData) {
+						const oldRecord = await dataSubmittedRepo.getSubmittedDataBySystemId(record.systemId);
+
+						if (!oldRecord) {
+							continue;
+						}
+
+						await dataSubmittedRepo.update(
+							{
+								submittedDataId: oldRecord.id,
+								newData: record.new,
+								dataDiff: { old: record.old, new: record.new },
+								oldIsValid: oldRecord.isValid,
+								submissionId: submission.id,
+							},
+							tx,
+						);
+
+						resultCommit.updates.push({
+							isValid: true,
+							entityName,
+							organization: submission.organization,
+							data: record,
+							systemId: record.systemId,
+						});
+					}
+				}
+
+				// Process submission delete records
+				for (const [entityName, submissionData] of Object.entries(submission.data.deletes ?? {})) {
+					for (const record of submissionData) {
+						await dataSubmittedRepo.deleteBySystemId(
+							{
+								submissionId: submission.id,
+								systemId: record.systemId,
+								diff: computeDataDiff(record.data, null),
+								username,
+							},
+							tx,
+						);
+
+						resultCommit.deletes.push({
+							isValid: true,
+							entityName,
+							organization: submission.organization,
+							data: record.data,
+							systemId: record.systemId,
+						});
+					}
+				}
+
+				await submissionRepo.update(submission.id, {
+					status: SUBMISSION_STATUS.COMMITTED,
+					updatedAt: new Date(),
+				});
+			});
+
+			onFinishCommit?.({
+				submissionId: submission.id,
+				organization: submission.organization,
+				categoryId: submission.dictionaryCategory.id,
+				data: resultCommit,
+			});
+		}
 
 		return {
 			status: CREATE_SUBMISSION_STATUS.PROCESSING,
