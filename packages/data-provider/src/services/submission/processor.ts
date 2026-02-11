@@ -2,6 +2,8 @@ import * as _ from 'lodash-es';
 
 import type { DataRecord, Schema } from '@overture-stack/lectern-client';
 import type {
+	DataDiff,
+	NewSubmittedData,
 	SubmissionData,
 	SubmissionDeleteData,
 	SubmissionErrors,
@@ -263,107 +265,126 @@ const processor = (dependencies: BaseDependencies) => {
 			deletes: [],
 		};
 
-		await dependencies.db.transaction(async (tx) => {
-			Object.entries(schemasDataToValidate.submittedDataByEntityName).forEach(([entityName, dataArray], index) => {
-				dataArray.forEach((data) => {
-					const invalidRecordErrors = findInvalidRecordErrorsBySchemaName(resultValidation, entityName);
-					const hasErrorByIndex = groupErrorsByIndex(invalidRecordErrors);
-					const oldIsValid = data.isValid;
-					const newIsValid = !hasErrorsByIndex(hasErrorByIndex, index);
-					if (data.id) {
-						const inputUpdate: Partial<SubmittedData> = {};
-						const submisionUpdateData = dataToValidate.updates && dataToValidate.updates[data.systemId];
-						if (submisionUpdateData) {
-							logger.info(LOG_MODULE, `Updating submittedData system ID '${data.systemId}' in entity '${entityName}'`);
-							inputUpdate.data = data.data;
-						}
+		type UpdateSubmittedDataParams = {
+			submittedDataId: number;
+			dataDiff: DataDiff;
+			newData: Partial<SubmittedData>;
+			oldIsValid: boolean;
+			submissionId: number;
+		};
 
-						if (oldIsValid !== newIsValid) {
-							inputUpdate.isValid = newIsValid;
-							if (newIsValid) {
-								logger.info(
-									LOG_MODULE,
-									`Updating submittedData system ID '${data.systemId}' as Valid in entity '${entityName}'`,
-								);
-								inputUpdate.lastValidSchemaId = dictionary.id;
-							}
+		const insertsToSave: NewSubmittedData[] = [];
+		const updatesToSave: UpdateSubmittedDataParams[] = [];
+		const deletesToProcess: { diff: DataDiff; submissionId: number; systemId: string; username: string }[] = [];
+
+		Object.entries(schemasDataToValidate.submittedDataByEntityName).forEach(([entityName, dataArray], index) => {
+			dataArray.forEach((data) => {
+				const invalidRecordErrors = findInvalidRecordErrorsBySchemaName(resultValidation, entityName);
+				const hasErrorByIndex = groupErrorsByIndex(invalidRecordErrors);
+				const oldIsValid = data.isValid;
+				const newIsValid = !hasErrorsByIndex(hasErrorByIndex, index);
+				if (data.id) {
+					const inputUpdate: Partial<SubmittedData> = {};
+					const submisionUpdateData = dataToValidate.updates && dataToValidate.updates[data.systemId];
+					if (submisionUpdateData) {
+						logger.info(LOG_MODULE, `Updating submittedData system ID '${data.systemId}' in entity '${entityName}'`);
+						inputUpdate.data = data.data;
+					}
+
+					if (oldIsValid !== newIsValid) {
+						inputUpdate.isValid = newIsValid;
+						if (newIsValid) {
 							logger.info(
 								LOG_MODULE,
-								`Updating submittedData system ID '${data.systemId}' as invalid in entity '${entityName}'`,
+								`Updating submittedData system ID '${data.systemId}' as Valid in entity '${entityName}'`,
 							);
+							inputUpdate.lastValidSchemaId = dictionary.id;
 						}
-
-						if (Object.values(inputUpdate)) {
-							inputUpdate.updatedBy = username;
-							if (newIsValid) {
-								inputUpdate.lastValidSchemaId = dictionary.id;
-							}
-							dataSubmittedRepo.update(
-								{
-									submittedDataId: data.id,
-									newData: inputUpdate,
-									dataDiff: { old: submisionUpdateData?.old ?? {}, new: submisionUpdateData?.new ?? {} },
-									oldIsValid: oldIsValid,
-									submissionId: submission.id,
-								},
-								tx,
-							);
-
-							// Check if either 'data' or 'isValid' keys has been updated
-							if ('data' in inputUpdate || 'isValid' in inputUpdate) {
-								resultCommit.updates.push({
-									isValid: newIsValid,
-									entityName,
-									organization: data.organization,
-									data: data.data,
-									systemId: data.systemId,
-								});
-							}
-						}
-					} else {
-						data.isValid = newIsValid;
-						if (newIsValid) {
-							data.lastValidSchemaId = dictionary.id;
-						}
-						dataSubmittedRepo.save(data, tx);
-
-						resultCommit.inserts.push({
-							isValid: newIsValid,
-							entityName,
-							organization: data.organization,
-							data: data.data,
-							systemId: data.systemId,
-						});
+						logger.info(
+							LOG_MODULE,
+							`Updating submittedData system ID '${data.systemId}' as invalid in entity '${entityName}'`,
+						);
 					}
-				});
+
+					if (Object.values(inputUpdate)) {
+						inputUpdate.updatedBy = username;
+						if (newIsValid) {
+							inputUpdate.lastValidSchemaId = dictionary.id;
+						}
+						updatesToSave.push({
+							submittedDataId: data.id,
+							newData: inputUpdate,
+							dataDiff: { old: submisionUpdateData?.old ?? {}, new: submisionUpdateData?.new ?? {} },
+							oldIsValid: oldIsValid,
+							submissionId: submission.id,
+						});
+
+						// Check if either 'data' or 'isValid' keys has been updated
+						if ('data' in inputUpdate || 'isValid' in inputUpdate) {
+							resultCommit.updates.push({
+								isValid: newIsValid,
+								entityName,
+								organization: data.organization,
+								data: data.data,
+								systemId: data.systemId,
+							});
+						}
+					}
+				} else {
+					data.isValid = newIsValid;
+					if (newIsValid) {
+						data.lastValidSchemaId = dictionary.id;
+					}
+					insertsToSave.push(data);
+
+					resultCommit.inserts.push({
+						isValid: newIsValid,
+						entityName,
+						organization: data.organization,
+						data: data.data,
+						systemId: data.systemId,
+					});
+				}
+			});
+		});
+
+		// iterate if there are any record to be deleted
+		dataToValidate?.deletes?.forEach((item) => {
+			deletesToProcess.push({
+				submissionId: submission.id,
+				systemId: item.systemId,
+				diff: computeDataDiff(item.data, null),
+				username,
 			});
 
-			// iterate if there are any record to be deleted
-			dataToValidate?.deletes?.forEach((item) => {
-				dataSubmittedRepo.deleteBySystemId(
-					{
-						submissionId: submission.id,
-						systemId: item.systemId,
-						diff: computeDataDiff(item.data, null),
-						username,
-					},
-					tx,
-				);
-
-				resultCommit.deletes.push({
-					isValid: item.isValid,
-					entityName: item.entityName,
-					organization: item.organization,
-					data: item.data,
-					systemId: item.systemId,
-				});
+			resultCommit.deletes.push({
+				isValid: item.isValid,
+				entityName: item.entityName,
+				organization: item.organization,
+				data: item.data,
+				systemId: item.systemId,
 			});
+		});
 
-			logger.info(LOG_MODULE, `Active submission '${submission.id} updated to status '${SUBMISSION_STATUS.COMMITTED}'`);
-			submissionRepo.update(submission.id, {
-				status: SUBMISSION_STATUS.COMMITTED,
-				updatedAt: new Date(),
-			});
+		await dependencies.db.transaction(async (tx) => {
+			if (insertsToSave.length) {
+				await dataSubmittedRepo.save(insertsToSave, tx);
+			}
+			if (updatesToSave.length) {
+				await dataSubmittedRepo.update(updatesToSave, tx);
+			}
+			if (deletesToProcess.length) {
+				await dataSubmittedRepo.deleteBySystemId(deletesToProcess, tx);
+			}
+
+			await submissionRepo.update(
+				submission.id,
+				{
+					status: SUBMISSION_STATUS.COMMITTED,
+					updatedAt: new Date(),
+				},
+				tx,
+			);
 		});
 
 		if (params.onFinishCommit) {
