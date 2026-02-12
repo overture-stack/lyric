@@ -1,6 +1,6 @@
 {
 	"name": "@overture-stack/lyric-data-model",
-	"version": "0.3.0",
+	"version": "0.0.0-dev",
 	"description": "Data model for Lyric",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
