@@ -535,7 +535,7 @@ export const createSubmissionDetailsResponse = (
 		data: submission.data,
 		dictionary: submission.dictionary,
 		dictionaryCategory: submission.dictionaryCategory,
-		errors: submission.errors,
+		errors: submission.errors || {},
 		organization: submission.organization,
 		status: submission.status,
 		createdAt: _.toString(submission.createdAt?.toISOString()),

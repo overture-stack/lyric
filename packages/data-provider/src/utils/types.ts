@@ -232,10 +232,10 @@ export type SubmissionDetailsResponse = {
 	data: SubmissionData;
 	dictionary: DictionarySummary;
 	dictionaryCategory: CategorySummary;
-	errors: SubmissionErrors | null;
+	errors: SubmissionErrors;
 	organization: string;
-	status: SubmissionStatus | null;
-	createdAt: string | null;
+	status: SubmissionStatus;
+	createdAt: string;
 	createdBy: string;
 	updatedAt: string;
 	updatedBy: string;
