@@ -23,8 +23,8 @@ import {
 	VIEW_TYPE,
 	type ViewType,
 } from '../../utils/types.js';
-import processor from '../submission/processor.js';
-import submissionService from '../submission/submission.js';
+import submissionProcessor from '../submission/submissionProcessor.js';
+import submissionService from '../submission/submissionService.js';
 import searchDataRelations from './searchDataRelations.js';
 import viewMode from './viewMode.js';
 
@@ -54,7 +54,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getSubmissionDetailsById } = submissionRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
-		const { performDataValidation } = processor(dependencies);
+		const { performDataValidation } = submissionProcessor(dependencies);
 
 		// get SubmittedData by SystemId
 		const foundRecordToDelete = await getSubmittedDataBySystemId(systemId);
@@ -171,12 +171,12 @@ const submittedData = (dependencies: BaseDependencies) => {
 		);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
-		const { processEditRecordsAsync } = processor(dependencies);
+		const { processEditRecordsAsync } = submissionProcessor(dependencies);
 
 		if (records.length === 0) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: 'No valid records for submission',
+				description: 'No valid records provided.',
 			};
 		}
 

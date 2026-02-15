@@ -4,14 +4,14 @@ import { BaseDependencies } from '../config/config.js';
 import categorySvc from '../services/categoryService.js';
 import { BadRequest } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
-import { cagegoryDetailsRequestSchema } from '../utils/schemas.js';
+import { categoryDetailsRequestSchema } from '../utils/schemas.js';
 
 const controller = (dependencies: BaseDependencies) => {
 	const categoryService = categorySvc(dependencies);
 	const { logger } = dependencies;
 	const LOG_MODULE = 'CATEGORY_CONTROLLER';
 	return {
-		getDetails: validateRequest(cagegoryDetailsRequestSchema, async (req, res, next) => {
+		getDetails: validateRequest(categoryDetailsRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 
