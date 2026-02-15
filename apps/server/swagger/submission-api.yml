@@ -207,15 +207,52 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
-/submission/category/{categoryId}/data:
+/submission/category/{categoryId}/organization/{organizationId}:
   post:
-    summary: Add new data to a submission for the specified category. Returns an Active Submission containing the newly created records
+    summary: Upload and process submission files for the specified category and organization.
     tags:
       - Submission
     parameters:
       - $ref: '#/components/parameters/path/CategoryId'
-      - $ref: '#/components/parameters/query/EntityName'
-      - $ref: '#/components/parameters/query/Organization'
+      - $ref: '#/components/parameters/path/OrganizationId'
+    requestBody:
+      description: File(s) to be added to the submission
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              files:
+                type: array
+                items:
+                  type: string
+                  format: binary
+    responses:
+      200:
+        description: Submission accepted
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubmissionResult'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
+/submission/category/{categoryId}/organization/{organizationId}/entity/{entityName}:
+  post:
+    summary: Add new data for a single entity to a submission for the specified category and organization.
+    tags:
+      - Submission
+    parameters:
+      - $ref: '#/components/parameters/path/CategoryId'
+      - $ref: '#/components/parameters/path/OrganizationId'
+      - $ref: '#/components/parameters/path/EntityName'
     requestBody:
       description: The JSON payload containing the data to be added to the submission
       required: true
@@ -241,15 +278,15 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
   put:
-    summary: Modifies existing data for a submission. Returns an Active Submission containing the records that will be updated
+    summary: Modifies existing data for a signle entity in the active submission of the specified category and organization.
     tags:
       - Submission
     parameters:
       - $ref: '#/components/parameters/path/CategoryId'
-      - $ref: '#/components/parameters/query/EntityName'
-      - $ref: '#/components/parameters/query/Organization'
+      - $ref: '#/components/parameters/path/OrganizationId'
+      - $ref: '#/components/parameters/path/EntityName'
     requestBody:
-      description: The JSON payload containing the data to be added to the submission
+      description: The JSON payload containing the data to be updated in the submission
       required: true
       content:
         application/json:

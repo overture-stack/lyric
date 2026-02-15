@@ -1,19 +1,11 @@
 /audit/category/{categoryId}/organization/{organization}:
   get:
-    summary: Retrive change history of stored data
+    summary: Retrieve change history of stored data
     tags:
       - Audit
     parameters:
-      - name: categoryId
-        in: path
-        description: ID of the Category
-        type: string
-        required: true
-      - name: organization
-        in: path
-        description: Name of the Organization
-        type: string
-        required: true
+      - $ref: '#/components/parameters/path/CategoryId'
+      - $ref: '#/components/parameters/path/Organization'
       - name: entityName
         description: Filter events based on entity name
         in: query

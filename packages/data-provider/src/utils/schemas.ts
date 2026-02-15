@@ -127,7 +127,7 @@ const submissionIdSchema = z
 const stringNotEmpty = z.string().trim().min(1);
 
 // Common Category Path Params
-export interface categoryPathParams extends ParamsDictionary {
+export interface CategoryPathParams extends ParamsDictionary {
 	categoryId: string;
 }
 
@@ -136,16 +136,19 @@ export const categoryPathParamsSchema = z.object({
 });
 
 // Common Category and Organization Path Params
-
-export interface categoryOrganizationPathParams extends ParamsDictionary {
-	categoryId: string;
-	organization: string;
-}
-
 export const categoryOrganizationPathParamsSchema = z.object({
 	categoryId: categoryIdSchema,
 	organization: organizationSchema,
 });
+export type CategoryOrganizationPathParams = z.infer<typeof categoryOrganizationPathParamsSchema>;
+
+// Common Category, Organization, and EntityName Path Params
+export const categoryOrganizationEntityPathParamsSchema = z.object({
+	categoryId: categoryIdSchema,
+	organizationId: organizationSchema,
+	entityName: entityNameSchema,
+});
+export type CategoryOrganizationEntityPathParams = z.infer<typeof categoryOrganizationEntityPathParamsSchema>;
 
 // Common Submission Path Params
 
@@ -159,7 +162,7 @@ const submissionIdPathParamSchema = z.object({
 
 // Common Pagination Query Params
 
-export interface paginationQueryParams extends ParsedQs {
+export interface PaginationQueryParams extends ParsedQs {
 	page?: string;
 	pageSize?: string;
 }
@@ -171,7 +174,7 @@ const paginationQuerySchema = z.object({
 
 // Audit Request
 
-export interface auditQueryParams extends ParsedQs {
+export interface AuditQueryParams extends ParsedQs {
 	entityName?: string;
 	eventType?: string;
 	systemId?: string;
@@ -191,8 +194,8 @@ const auditQuerySchema = z
 
 export const auditByCatAndOrgRequestSchema: RequestValidation<
 	object,
-	paginationQueryParams & auditQueryParams,
-	categoryOrganizationPathParams
+	PaginationQueryParams & AuditQueryParams,
+	CategoryOrganizationPathParams
 > = {
 	query: auditQuerySchema,
 	pathParams: categoryOrganizationPathParamsSchema,
@@ -200,13 +203,13 @@ export const auditByCatAndOrgRequestSchema: RequestValidation<
 
 // Category Request
 
-export const cagegoryDetailsRequestSchema: RequestValidation<object, ParsedQs, categoryPathParams> = {
+export const categoryDetailsRequestSchema: RequestValidation<object, ParsedQs, CategoryPathParams> = {
 	pathParams: categoryPathParamsSchema,
 };
 
 // Dictionary Request
 
-export interface dictionaryRegisterBodyParams {
+export interface DictionaryRegisterBodyParams {
 	categoryName: string;
 	dictionaryName: string;
 	dictionaryVersion: string;
@@ -214,7 +217,7 @@ export interface dictionaryRegisterBodyParams {
 }
 
 export const dictionaryRegisterRequestSchema: RequestValidation<
-	dictionaryRegisterBodyParams,
+	DictionaryRegisterBodyParams,
 	ParsedQs,
 	ParamsDictionary
 > = {
@@ -228,7 +231,7 @@ export const dictionaryRegisterRequestSchema: RequestValidation<
 
 // Submission Requests
 
-export interface submissionsByCategoryQueryParams extends paginationQueryParams {
+export interface SubmissionsByCategoryQueryParams extends PaginationQueryParams {
 	onlyActive?: string;
 	organization?: string;
 	username?: string;
@@ -236,8 +239,8 @@ export interface submissionsByCategoryQueryParams extends paginationQueryParams 
 
 export const submissionsByCategoryRequestSchema: RequestValidation<
 	object,
-	submissionsByCategoryQueryParams,
-	categoryPathParams
+	SubmissionsByCategoryQueryParams,
+	CategoryPathParams
 > = {
 	query: z.object({
 		onlyActive: booleanSchema.default('false'),
@@ -250,14 +253,14 @@ export const submissionsByCategoryRequestSchema: RequestValidation<
 export const submissionByIdRequestSchema: RequestValidation<object, ParsedQs, submissionIdPathParam> = {
 	pathParams: submissionIdPathParamSchema,
 };
-export interface submissionsDetailsQueryParams extends paginationQueryParams {
+export interface SubmissionsDetailsQueryParams extends PaginationQueryParams {
 	entityNames?: string | string[];
 	actionTypes?: string | string[];
 }
 
 export const submissionDetailsRequestSchema: RequestValidation<
 	object,
-	submissionsDetailsQueryParams,
+	SubmissionsDetailsQueryParams,
 	submissionIdPathParam
 > = {
 	query: z
@@ -272,7 +275,7 @@ export const submissionDetailsRequestSchema: RequestValidation<
 export const submissionActiveByOrganizationRequestSchema: RequestValidation<
 	object,
 	ParsedQs,
-	categoryOrganizationPathParams
+	CategoryOrganizationPathParams
 > = {
 	pathParams: categoryOrganizationPathParamsSchema,
 };
@@ -293,20 +296,20 @@ export const submissionDeleteRequestSchema: RequestValidation<object, ParsedQs, 
 	pathParams: submissionIdPathParamSchema,
 };
 
-export interface submissionDeleteEntityNameParams extends ParamsDictionary {
+export interface SubmissionDeleteEntityNameParams extends ParamsDictionary {
 	actionType: string;
 	submissionId: string;
 }
 
-export interface submissionDeleteEntityNameQueryParams extends ParsedQs {
+export interface SubmissionDeleteEntityNameQueryParams extends ParsedQs {
 	entityName: string;
 	index?: string;
 }
 
 export const submissionDeleteEntityNameRequestSchema: RequestValidation<
 	object,
-	submissionDeleteEntityNameQueryParams,
-	submissionDeleteEntityNameParams
+	SubmissionDeleteEntityNameQueryParams,
+	SubmissionDeleteEntityNameParams
 > = {
 	query: z.object({
 		entityName: entityNameSchema,
@@ -318,10 +321,17 @@ export const submissionDeleteEntityNameRequestSchema: RequestValidation<
 	}),
 };
 
-export interface uploadSubmissionRequestQueryParams extends ParsedQs {
-	entityName: string;
-	organization: string;
-}
+export type UploadSubmissionPathParams = {
+	organizationId: string;
+	categoryId: string;
+};
+
+export const filenameEntityPair = z.object({
+	filename: z.string(),
+	entity: z.string(),
+});
+
+export type FilenameEntityPair = z.infer<typeof filenameEntityPair>;
 
 const dataRecordValueSchema = z.union([
 	z.string(),
@@ -333,61 +343,68 @@ const dataRecordValueSchema = z.union([
 	z.undefined(),
 ]);
 
+const dataRecordSchema = z.record(dataRecordValueSchema);
+
 export const uploadSubmissionRequestSchema: RequestValidation<
-	Array<DataRecord>,
-	uploadSubmissionRequestQueryParams,
-	categoryPathParams
+	unknown,
+	Record<string, never>,
+	UploadSubmissionPathParams
 > = {
-	body: z.record(dataRecordValueSchema).array(),
-	pathParams: categoryPathParamsSchema,
-	query: z.object({
-		entityName: entityNameSchema,
-		organization: organizationSchema,
+	pathParams: z.object({
+		categoryId: categoryIdSchema,
+		organizationId: organizationSchema,
 	}),
+	// body: z.array(filenameEntityPair).optional(),
+};
+
+export const uploadSingleEntitySubmissionDataRequestSchema: RequestValidation<
+	Array<DataRecord>,
+	Record<string, never>,
+	CategoryOrganizationEntityPathParams
+> = {
+	body: dataRecordSchema.array(),
+	pathParams: categoryOrganizationEntityPathParamsSchema,
 };
 
 // Submitted Data
 
-export interface dataDeleteBySystemIdPathParams extends ParamsDictionary {
+export interface DataDeleteBySystemIdPathParams extends ParamsDictionary {
 	systemId: string;
 	categoryId: string;
 }
 
-export const dataDeleteBySystemIdRequestSchema: RequestValidation<object, ParsedQs, dataDeleteBySystemIdPathParams> = {
+export const dataDeleteBySystemIdRequestSchema: RequestValidation<object, ParsedQs, DataDeleteBySystemIdPathParams> = {
 	pathParams: z.object({
 		systemId: stringNotEmpty,
 		categoryId: categoryIdSchema,
 	}),
 };
 
-export interface dataEditRequestSchemaQueryParams extends ParsedQs {
+export interface DataEditRequestSchemaQueryParams extends ParsedQs {
 	entityName: string;
 	organization: string;
 }
 
-export const dataEditRequestSchema: RequestValidation<
+// TODO: Need type validation for the edit request schema
+export const editSingleEntityRequestSchema: RequestValidation<
 	Array<Record<string, unknown>>,
-	dataEditRequestSchemaQueryParams,
-	categoryPathParams
+	Record<string, never>,
+	CategoryOrganizationEntityPathParams
 > = {
 	body: z.record(z.unknown()).array(),
-	pathParams: categoryPathParamsSchema,
-	query: z.object({
-		entityName: entityNameSchema,
-		organization: organizationSchema,
-	}),
+	pathParams: categoryOrganizationEntityPathParamsSchema,
 };
 
-export interface dataQueryParams extends paginationQueryParams {
+export interface DataQueryParams extends PaginationQueryParams {
 	entityName?: string | string[];
 	view?: string;
 }
 
-export interface getDataQueryParams extends ParsedQs {
+export interface GetDataQueryParams extends ParsedQs {
 	view?: string;
 }
 
-export const dataGetByCategoryRequestSchema: RequestValidation<object, dataQueryParams, categoryPathParams> = {
+export const dataGetByCategoryRequestSchema: RequestValidation<object, DataQueryParams, CategoryPathParams> = {
 	query: z
 		.object({
 			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
@@ -408,8 +425,8 @@ export const dataGetByCategoryRequestSchema: RequestValidation<object, dataQuery
 
 export const dataGetByOrganizationRequestSchema: RequestValidation<
 	object,
-	dataQueryParams,
-	categoryOrganizationPathParams
+	DataQueryParams,
+	CategoryOrganizationPathParams
 > = {
 	query: z
 		.object({
@@ -429,7 +446,7 @@ export const dataGetByOrganizationRequestSchema: RequestValidation<
 	pathParams: categoryOrganizationPathParamsSchema,
 };
 
-export const dataGetByQueryRequestSchema: RequestValidation<object, dataQueryParams, categoryOrganizationPathParams> = {
+export const dataGetByQueryRequestSchema: RequestValidation<object, DataQueryParams, CategoryOrganizationPathParams> = {
 	body: sqonSchema,
 	query: z
 		.object({
@@ -439,15 +456,15 @@ export const dataGetByQueryRequestSchema: RequestValidation<object, dataQueryPar
 	pathParams: categoryOrganizationPathParamsSchema,
 };
 
-export interface dataGetBySystemIdPathParams extends ParamsDictionary {
+export interface DataGetBySystemIdPathParams extends ParamsDictionary {
 	systemId: string;
 	categoryId: string;
 }
 
-export const dataGetBySystemIdRequestSchema: RequestValidation<
+export const DataGetBySystemIdRequestSchema: RequestValidation<
 	object,
-	getDataQueryParams,
-	dataGetBySystemIdPathParams
+	GetDataQueryParams,
+	DataGetBySystemIdPathParams
 > = {
 	query: z.object({
 		view: viewSchema.optional(),
@@ -471,7 +488,7 @@ export const validationPathParamsSchema = z.object({
 	entityName: entityNameSchema,
 });
 
-export interface validationPathParams extends ParamsDictionary {
+export interface ValidationPathParams extends ParamsDictionary {
 	categoryId: string;
 	entityName: string;
 }
@@ -480,12 +497,12 @@ const validationQuerySchema = z.object({
 	organization: organizationSchema,
 	value: stringNotEmpty,
 });
-export interface validationQueryParam extends ParsedQs {
+export interface ValidationQueryParam extends ParsedQs {
 	organization: string;
 	value: string;
 }
 
-export const validationRequestSchema: RequestValidation<object, validationQueryParam, validationPathParams> = {
+export const validationRequestSchema: RequestValidation<object, ValidationQueryParam, ValidationPathParams> = {
 	query: validationQuerySchema,
 	pathParams: validationPathParamsSchema,
 };

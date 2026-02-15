@@ -25,6 +25,8 @@ import {
 import {
 	CommitSubmissionResult,
 	CREATE_SUBMISSION_STATUS,
+	type SubmitDataResult,
+	type SubmitFileResult,
 	type DeleteSubmissionResult,
 	type EntityData,
 	type PaginationOptions,
@@ -32,8 +34,6 @@ import {
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
 	SubmissionSummary,
-	type SubmitDataResult,
-	type SubmitFileResult,
 } from '../../utils/types.js';
 import { default as createSubmissionProcessor } from './submissionProcessor.js';
 
@@ -445,7 +445,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 	 * @param {string} params.username User name creating the Submission
 	 * @returns The Active Submission created or Updated
 	 */
-	const submitJson = async ({
+	const submit = async ({
 		data,
 		categoryId,
 		organization,
@@ -517,7 +517,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 	 * @param {Express.Multer.File[]} params.files An array of files
 	 * @param {number} params.categoryId Category ID of the Submission
 	 * @param {string} params.organization Organization name
-	 * @param {string} params.userName User name creating the Submission
+	 * @param {string} params.username User name creating the Submission
 	 * @returns The Active Submission created or Updated
 	 */
 	const submitFiles = async ({
@@ -623,7 +623,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		getSubmissionDetailsById,
 		getActiveSubmissionByOrganization,
 		getOrCreateActiveSubmission,
-		submitJson,
+		submitJson: submit,
 		submitFiles,
 	};
 };

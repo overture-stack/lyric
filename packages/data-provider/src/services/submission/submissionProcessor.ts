@@ -1,3 +1,4 @@
+import bytes from 'bytes';
 import * as _ from 'lodash-es';
 
 import type { DataRecord, Schema } from '@overture-stack/lectern-client';
@@ -14,7 +15,7 @@ import type {
 } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../../config/config.js';
-import submissionRepository from '../../repository/activeSubmissionRepository.js';
+import createSubmissionRepository from '../../repository/activeSubmissionRepository.js';
 import categoryRepository from '../../repository/categoryRepository.js';
 import dictionaryRepository from '../../repository/dictionaryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
@@ -37,6 +38,7 @@ import {
 	mergeUpdatesBySystemId,
 	parseToSchema,
 	segregateFieldChangeRecords,
+	submissionInsertDataFromFiles,
 	validateSchemas,
 } from '../../utils/submissionUtils.js';
 import {
@@ -54,12 +56,71 @@ import {
 	type SchemasDictionary,
 	SUBMISSION_STATUS,
 	type SubmittedDataResponse,
+	type ValidateFilesParams,
 } from '../../utils/types.js';
 import searchDataRelations from '../submittedData/searchDataRelations.js';
 
-const processor = (dependencies: BaseDependencies) => {
+const submissionProcessor = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_PROCESSOR_SERVICE';
 	const { logger } = dependencies;
+
+	/**
+	 * Processes a list of data records and compares them with previously submitted data.
+	 * @param {DataRecord[]} records An array of data records to be processed
+	 * @param {string} schemaName The name of the schema associated with the records
+	 * @returns {Promise<SubmissionUpdateData[]>} An array of `SubmissionUpdateData` objects. Each object
+	 *          contains the `systemId`, `old` data, and `new` data representing the differences
+	 *          between the previously submitted data and the updated record.
+	 */
+	const compareUpdatedData = async (records: DataRecord[], schemaName: string): Promise<SubmissionUpdateData[]> => {
+		const { getSubmittedDataBySystemId } = submittedRepository(dependencies);
+		const results: SubmissionUpdateData[] = [];
+
+		const promises = records.map(async (record) => {
+			const systemId = record['systemId']?.toString();
+			if (!systemId) {
+				return;
+			}
+
+			const foundSubmittedData = await getSubmittedDataBySystemId(systemId);
+			if (foundSubmittedData?.data) {
+				if (foundSubmittedData.entityName !== schemaName) {
+					logger.error(
+						LOG_MODULE,
+						`Entity name mismatch for system ID '${systemId}': expected '${schemaName}', found '${foundSubmittedData.entityName}'`,
+					);
+					results.push({
+						systemId: systemId,
+						old: {},
+						new: {},
+					});
+					return;
+				}
+				const changeData = _.omit(record, 'systemId');
+				const diffData = computeDataDiff(foundSubmittedData.data, changeData);
+				if (!_.isEmpty(diffData.old) && !_.isEmpty(diffData.new)) {
+					results.push({
+						systemId: systemId,
+						old: diffData.old,
+						new: diffData.new,
+					});
+				}
+			} else {
+				logger.error(LOG_MODULE, `No submitted data found for system ID '${systemId}'`);
+				results.push({
+					systemId: systemId,
+					old: {},
+					new: {},
+				});
+			}
+			return;
+		});
+
+		// Wait for all records to be processed
+		await Promise.all(promises);
+
+		return results;
+	};
 
 	/**
 	 * Finds and returns the dependent updates based on the provided submission update data.
@@ -155,6 +216,7 @@ const processor = (dependencies: BaseDependencies) => {
 	 */
 	const handleIdFieldChanges = async (idFieldChangeRecord: Record<string, SubmissionUpdateData[]>) => {
 		const { getSubmittedDataBySystemId } = submittedRepository(dependencies);
+
 		return Object.entries(idFieldChangeRecord).reduce<
 			Promise<{
 				inserts: Record<string, SubmissionInsertData>;
@@ -219,7 +281,7 @@ const processor = (dependencies: BaseDependencies) => {
 	 * @returns void
 	 */
 	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<void> => {
-		const submissionRepo = submissionRepository(dependencies);
+		const submissionRepo = createSubmissionRepository(dependencies);
 		const dataSubmittedRepo = submittedRepository(dependencies);
 
 		const { dictionary, dataToValidate, submissionId, username } = params;
@@ -416,7 +478,7 @@ const processor = (dependencies: BaseDependencies) => {
 
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
-		const { getSubmissionById } = submissionRepository(dependencies);
+		const { getSubmissionById } = createSubmissionRepository(dependencies);
 
 		// Get Active Submission from database
 		const originalSubmission = await getSubmissionById(submissionId);
@@ -537,7 +599,7 @@ const processor = (dependencies: BaseDependencies) => {
 		},
 	): Promise<void> => {
 		const { getDictionary } = dictionaryRepository(dependencies);
-		const { getSubmissionDetailsById } = submissionRepository(dependencies);
+		const { getSubmissionDetailsById } = createSubmissionRepository(dependencies);
 
 		try {
 			// Parse file data
@@ -546,7 +608,6 @@ const processor = (dependencies: BaseDependencies) => {
 			const filesDataProcessed = await compareUpdatedData(recordsParsed, schema.name);
 
 			const submission = await getSubmissionDetailsById(submissionId);
-
 			if (!submission) {
 				throw new Error(`Submission '${submissionId}' not found`);
 			}
@@ -635,101 +696,6 @@ const processor = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Processes a list of data records and compares them with previously submitted data.
-	 * @param {DataRecord[]} records An array of data records to be processed
-	 * @param {string} schemaName The name of the schema associated with the records
-	 * @returns {Promise<SubmissionUpdateData[]>} An array of `SubmissionUpdateData` objects. Each object
-	 *          contains the `systemId`, `old` data, and `new` data representing the differences
-	 *          between the previously submitted data and the updated record.
-	 */
-	const compareUpdatedData = async (records: DataRecord[], schemaName: string): Promise<SubmissionUpdateData[]> => {
-		const { getSubmittedDataBySystemId } = submittedRepository(dependencies);
-		const results: SubmissionUpdateData[] = [];
-
-		const promises = records.map(async (record) => {
-			const systemId = record['systemId']?.toString();
-			if (!systemId) {
-				return;
-			}
-
-			const foundSubmittedData = await getSubmittedDataBySystemId(systemId);
-			if (foundSubmittedData?.data) {
-				if (foundSubmittedData.entityName !== schemaName) {
-					logger.error(
-						LOG_MODULE,
-						`Entity name mismatch for system ID '${systemId}': expected '${schemaName}', found '${foundSubmittedData.entityName}'`,
-					);
-					results.push({
-						systemId: systemId,
-						old: {},
-						new: {},
-					});
-					return;
-				}
-				const changeData = _.omit(record, 'systemId');
-				const diffData = computeDataDiff(foundSubmittedData.data, changeData);
-				if (!_.isEmpty(diffData.old) && !_.isEmpty(diffData.new)) {
-					results.push({
-						systemId: systemId,
-						old: diffData.old,
-						new: diffData.new,
-					});
-				}
-			} else {
-				logger.error(LOG_MODULE, `No submitted data found for system ID '${systemId}'`);
-				results.push({
-					systemId: systemId,
-					old: {},
-					new: {},
-				});
-			}
-			return;
-		});
-
-		// Wait for all records to be processed
-		await Promise.all(promises);
-
-		return results;
-	};
-
-	/**
-	 * Update Active Submission in database
-	 * @param {Object} input
-	 * @param {number} input.dictionaryId The Dictionary ID of the Submission
-	 * @param {SubmissionData} input.submissionData Data to be submitted grouped on inserts, updates and deletes
-	 * @param {number} input.idActiveSubmission ID of the Active Submission
-	 * @param {SubmissionErrors} input.schemaErrors Array of schemaErrors
-	 * @param {string} input.username User updating the active submission
-	 * @returns {Promise<number>} An Active Submission updated
-	 */
-	const updateActiveSubmission = async (input: {
-		dictionaryId: number;
-		submissionData: SubmissionData;
-		idActiveSubmission: number;
-		schemaErrors: SubmissionErrors;
-		username: string;
-	}): Promise<number> => {
-		const { dictionaryId, submissionData, idActiveSubmission, schemaErrors, username } = input;
-		const { update } = submissionRepository(dependencies);
-		const newStatusSubmission =
-			Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
-		// Update with new data
-		const updatedActiveSubmissionId = await update(idActiveSubmission, {
-			data: submissionData,
-			status: newStatusSubmission,
-			dictionaryId: dictionaryId,
-			updatedBy: username,
-			errors: schemaErrors,
-		});
-
-		logger.info(
-			LOG_MODULE,
-			`Updated Active submission '${updatedActiveSubmissionId}' with status '${newStatusSubmission}'`,
-		);
-		return updatedActiveSubmissionId;
-	};
-
-	/**
 	 * Processes and validates a batch of incoming records for an active submission.
 	 * This function updates the submission merging the new records with existing submission data.
 	 * Performs a full schema data validation against the combined dataset
@@ -751,7 +717,7 @@ const processor = (dependencies: BaseDependencies) => {
 		submissionId: number;
 		username: string;
 	}) => {
-		const { getSubmissionDetailsById, update } = submissionRepository(dependencies);
+		const { getSubmissionDetailsById, update } = createSubmissionRepository(dependencies);
 
 		try {
 			// Get Active Submission from database
@@ -794,16 +760,114 @@ const processor = (dependencies: BaseDependencies) => {
 				JSON.stringify(error),
 			);
 		}
-		logger.info(LOG_MODULE, `Finished validating files`);
+		logger.info(LOG_MODULE, `Finished processInsertRecordsAsync for submission ${submissionId}`);
+	};
+
+	/**
+	 * Update Active Submission in database
+	 * @param {Object} input
+	 * @param {number} input.dictionaryId The Dictionary ID of the Submission
+	 * @param {SubmissionData} input.submissionData Data to be submitted grouped on inserts, updates and deletes
+	 * @param {number} input.idActiveSubmission ID of the Active Submission
+	 * @param {SubmissionErrors} input.schemaErrors Array of schemaErrors
+	 * @param {string} input.username User updating the active submission
+	 * @returns {Promise<number>} An Active Submission updated
+	 */
+	const updateActiveSubmission = async (input: {
+		dictionaryId: number;
+		submissionData: SubmissionData;
+		idActiveSubmission: number;
+		schemaErrors: SubmissionErrors;
+		username: string;
+	}): Promise<number> => {
+		const { dictionaryId, submissionData, idActiveSubmission, schemaErrors, username } = input;
+		const { update } = createSubmissionRepository(dependencies);
+		const newStatusSubmission =
+			Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
+		// Update with new data
+		const updatedActiveSubmissionId = await update(idActiveSubmission, {
+			data: submissionData,
+			status: newStatusSubmission,
+			dictionaryId: dictionaryId,
+			updatedBy: username,
+			errors: schemaErrors,
+		});
+
+		logger.info(
+			LOG_MODULE,
+			`Updated Active submission '${updatedActiveSubmissionId}' with status '${newStatusSubmission}'`,
+		);
+		return updatedActiveSubmissionId;
+	};
+
+	/**
+	 * Void function to process and validate uploaded files on an Active Submission.
+	 * Performs the schema data validation combined with all Submitted Data.
+	 * @param {Record<string, Express.Multer.File>} files Uploaded files to be processed
+	 * @param {Object} params
+	 * @param {number} params.categoryId Category Identifier
+	 * @param {string} params.organization Organization name
+	 * @param {SchemasDictionary} params.schemasDictionary Dictionary to parse files with
+	 * @param {string} params.username User who performs the action
+	 * @returns {void}
+	 */
+	const addFilesToSubmissionAsync = async (files: Record<string, Express.Multer.File>, params: ValidateFilesParams) => {
+		for (const [fileName, fileInfo] of Object.entries(files)) {
+			const sizeString = bytes.format(fileInfo.size, { decimalPlaces: 2 });
+			logger.info(`Processing file '${fileName}' size '${sizeString}'`);
+		}
+
+		// TODO: This only gets a summary, we need to insert data into an active submission so we need all the insert statements.
+		const submissionRepository = createSubmissionRepository(dependencies);
+
+		const { categoryId, organization, username, schemasDictionary } = params;
+
+		try {
+			// Parse file data
+			const filesDataProcessed = await submissionInsertDataFromFiles(files, schemasDictionary);
+
+			// Get Active Submission from database
+			const activeSubmission = await submissionRepository.getActiveSubmissionDetails({
+				categoryId,
+				username,
+				organization,
+			});
+			if (!activeSubmission) {
+				throw new BadRequest(`Submission '${activeSubmission}' not found`);
+			}
+
+			// Merge Active Submission data with incoming TSV file data processed
+			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, filesDataProcessed);
+
+			// Perform Schema Data validation Async.
+			await performDataValidation({
+				username,
+				submissionId: activeSubmission.id,
+				submissionData: {
+					inserts: insertActiveSubmissionData,
+					deletes: activeSubmission.data.deletes,
+					updates: activeSubmission.data.updates,
+				},
+			});
+		} catch (error) {
+			logger.error(
+				`There was an error processing files: ${Object.entries(files).map(([entityName]) => entityName)}`,
+				JSON.stringify(error),
+			);
+		}
+		logger.info(
+			`Finished addFilesToSubmissionAsync for active submission in category "${params.categoryId}" for organization "${params.organization}" submitted by user "${params.username}"`,
+		);
 	};
 
 	return {
-		processEditRecordsAsync,
 		performCommitSubmissionAsync,
 		performDataValidation,
-		updateActiveSubmission,
+		processEditRecordsAsync,
 		processInsertRecordsAsync,
+		updateActiveSubmission,
+		addFilesToSubmissionAsync,
 	};
 };
 
-export default processor;
+export default submissionProcessor;

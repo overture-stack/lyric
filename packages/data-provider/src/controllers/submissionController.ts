@@ -1,16 +1,18 @@
+import type { Response } from 'express';
 import { isEmpty } from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
 import { type AuthConfig, shouldBypassAuth } from '../middleware/auth.js';
-import submissionService from '../services/submission/submission.js';
+import submissionService from '../services/submission/submissionService.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
 import { hasUserWriteAccess } from '../utils/authUtils.js';
 import { BadRequest, Forbidden, NotFound } from '../utils/errors.js';
+import { extractFileExtension, SUPPORTED_FILE_EXTENSIONS } from '../utils/fileUtils.js';
 import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
 	dataDeleteBySystemIdRequestSchema,
-	dataEditRequestSchema,
+	editSingleEntityRequestSchema,
 	submissionActiveByOrganizationRequestSchema,
 	submissionByIdRequestSchema,
 	submissionCommitRequestSchema,
@@ -18,10 +20,17 @@ import {
 	submissionDeleteRequestSchema,
 	submissionDetailsRequestSchema,
 	submissionsByCategoryRequestSchema,
+	uploadSingleEntitySubmissionDataRequestSchema,
 	uploadSubmissionRequestSchema,
 } from '../utils/schemas.js';
 import { parseSubmissionActionTypes } from '../utils/submissionUtils.js';
-import { SUBMISSION_ACTION_TYPE } from '../utils/types.js';
+import {
+	BATCH_ERROR_TYPE,
+	BatchError,
+	type PaginatedResponse,
+	SUBMISSION_ACTION_TYPE,
+	type SubmissionSummary,
+} from '../utils/types.js';
 
 const controller = ({
 	baseDependencies,
@@ -164,11 +173,11 @@ const controller = ({
 			}
 		}),
 
-		editSubmittedData: validateRequest(dataEditRequestSchema, async (req, res, next) => {
+		editSubmittedData: validateRequest(editSingleEntityRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				const entityName = req.query.entityName;
-				const organization = req.query.organization;
+				const entityName = req.params.entityName;
+				const organization = req.params.organizationId;
 				const payload = req.body;
 				const user = req.user;
 
@@ -200,44 +209,47 @@ const controller = ({
 				next(error);
 			}
 		}),
-		getSubmissionsByCategory: validateRequest(submissionsByCategoryRequestSchema, async (req, res, next) => {
-			try {
-				const categoryId = Number(req.params.categoryId);
-				const onlyActive = req.query.onlyActive?.toLowerCase() === 'true';
-				const organization = req.query.organization;
-				const page = parseInt(String(req.query.page)) || defaultPage;
-				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
-				const username = req.query.username;
+		getSubmissionsByCategory: validateRequest(
+			submissionsByCategoryRequestSchema,
+			async (req, res: Response<PaginatedResponse<SubmissionSummary>>, next) => {
+				try {
+					const categoryId = Number(req.params.categoryId);
+					const onlyActive = req.query.onlyActive?.toLowerCase() === 'true';
+					const organization = req.query.organization;
+					const page = parseInt(String(req.query.page)) || defaultPage;
+					const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+					const username = req.query.username;
 
-				logger.info(
-					LOG_MODULE,
-					`Request Submission categoryId '${categoryId}'`,
-					`pagination params: page '${page}' pageSize '${pageSize}'`,
-					`onlyActive '${onlyActive}'`,
-					`organization '${organization}'`,
-				);
+					logger.info(
+						LOG_MODULE,
+						`Request Submission categoryId '${categoryId}'`,
+						`pagination params: page '${page}' pageSize '${pageSize}'`,
+						`onlyActive '${onlyActive}'`,
+						`organization '${organization}'`,
+					);
 
-				const submissionsResult = await service.getSubmissionsByCategory(
-					categoryId,
-					{ page, pageSize },
-					{ onlyActive, username, organization },
-				);
+					const submissionsResult = await service.getSubmissionsByCategory(
+						categoryId,
+						{ page, pageSize },
+						{ onlyActive, username, organization },
+					);
 
-				const response = {
-					pagination: {
-						currentPage: page,
-						pageSize: pageSize,
-						totalPages: Math.ceil(submissionsResult.metadata.totalRecords / pageSize),
-						totalRecords: submissionsResult.metadata.totalRecords,
-					},
-					records: submissionsResult.result,
-				};
+					const response: PaginatedResponse<SubmissionSummary> = {
+						pagination: {
+							currentPage: page,
+							pageSize: pageSize,
+							totalPages: Math.ceil(submissionsResult.metadata.totalRecords / pageSize),
+							totalRecords: submissionsResult.metadata.totalRecords,
+						},
+						records: submissionsResult.result,
+					};
 
-				return res.status(200).send(response);
-			} catch (error) {
-				next(error);
-			}
-		}),
+					return res.status(200).send(response);
+				} catch (error) {
+					next(error);
+				}
+			},
+		),
 		getSubmissionById: validateRequest(submissionByIdRequestSchema, async (req, res, next) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
@@ -311,11 +323,11 @@ const controller = ({
 				next(error);
 			}
 		}),
-		submit: validateRequest(uploadSubmissionRequestSchema, async (req, res, next) => {
+		submitSingleEntityData: validateRequest(uploadSingleEntitySubmissionDataRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				const entityName = req.query.entityName;
-				const organization = req.query.organization;
+				const entityName = req.params.entityName;
+				const organization = req.params.organizationId;
 				const payload = req.body;
 				const user = req.user;
 
@@ -326,7 +338,9 @@ const controller = ({
 					` entityName '${entityName}'`,
 				);
 
-				if (!payload || payload.length == 0) {
+				// TODO: parse body payload
+
+				if (!payload || !Array.isArray(payload) || payload.length == 0) {
 					throw new BadRequest(
 						'The "payload" parameter is missing or empty. Please include the records in the request for processing.',
 					);
@@ -338,7 +352,7 @@ const controller = ({
 
 				const username = user?.username || '';
 
-				const resultSubmission = await service.submit({
+				const resultSubmission = await service.submitJson({
 					data: { [entityName]: payload },
 					categoryId,
 					organization,
@@ -347,6 +361,71 @@ const controller = ({
 
 				// This response provides the details of data Submission
 				return res.status(200).send(resultSubmission);
+			} catch (error) {
+				next(error);
+			}
+		}),
+
+		submitFiles: validateRequest(uploadSubmissionRequestSchema, async (req, res, next) => {
+			try {
+				const categoryId = Number(req.params.categoryId);
+				const files = Array.isArray(req.files) ? req.files : [];
+				const organization = req.params.organizationId;
+
+				// Get username from auth
+				const username = req.user?.username || '';
+
+				logger.info(
+					LOG_MODULE,
+					`Upload Submission Request: categoryId '${categoryId}'`,
+					` organization '${organization}'`,
+					` files '${files?.map((f) => f.originalname)}'`,
+				);
+
+				if (!files || files.length == 0) {
+					throw new BadRequest(
+						'The "files" parameter is missing or empty. Please include files in the request for processing.',
+					);
+				}
+
+				// sort files into validFiles and fileErrors based on correct file extension
+				const { validFiles, fileErrors } = files.reduce<{
+					validFiles: Express.Multer.File[];
+					fileErrors: BatchError[];
+				}>(
+					(acc, file) => {
+						if (extractFileExtension(file.originalname)) {
+							acc.validFiles.push(file);
+						} else {
+							const batchError: BatchError = {
+								type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
+								message: `File '${file.originalname}' has invalid file extension. File extension must be '${SUPPORTED_FILE_EXTENSIONS.options}'.`,
+								batchName: file.originalname,
+							};
+							acc.fileErrors.push(batchError);
+						}
+						return acc;
+					},
+					{ validFiles: [], fileErrors: [] },
+				);
+
+				const resultSubmission = await service.submitFiles({
+					files: validFiles,
+					categoryId,
+					organization,
+					username,
+				});
+
+				if (fileErrors.length == 0 && resultSubmission.batchErrors.length == 0) {
+					logger.info(LOG_MODULE, `Submission uploaded successfully`);
+				} else {
+					logger.info(LOG_MODULE, 'Found some errors processing this request');
+				}
+
+				// This response provides the details of file Submission
+				return res
+					.status(200)
+					.send({ ...resultSubmission, batchErrors: [...fileErrors, ...resultSubmission.batchErrors] });
 			} catch (error) {
 				next(error);
 			}

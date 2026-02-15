@@ -17,7 +17,7 @@ import type {
 	SubmissionErrorsSummary,
 } from '../utils/types.js';
 
-const repository = (dependencies: BaseDependencies) => {
+const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
 	const { db, logger } = dependencies;
 
@@ -30,14 +30,14 @@ const repository = (dependencies: BaseDependencies) => {
 		createdBy: true,
 		updatedAt: true,
 		updatedBy: true,
-	} as const satisfies BooleanTrueObject;
+	};
 
 	// Submission columns for full detail queries including `data` and `errors` columns
 	const submissionColumnsWithData: BooleanTrueObject = {
 		...submissionColumns,
 		data: true,
 		errors: true,
-	} as const satisfies BooleanTrueObject;
+	};
 
 	const submissionDictionaryRelationColumns = {
 		dictionary: {
@@ -194,6 +194,36 @@ jsonb_build_object(
 		},
 
 		/**
+		 * Returns the entire active submission, including all data.
+		 */
+		getActiveSubmissionDetails: async ({
+			categoryId,
+			organization,
+			username,
+		}: {
+			categoryId: number;
+			username: string;
+			organization: string;
+		}): Promise<Pick<Submission, 'data' | 'id'> | undefined> => {
+			try {
+				const dbResponse = await db.query.submissions.findFirst({
+					where: and(
+						eq(submissions.dictionaryCategoryId, categoryId),
+						eq(submissions.createdBy, username),
+						eq(submissions.organization, organization),
+						activeStatusesCondition,
+					),
+					columns: submissionColumnsWithData,
+					with: submissionDictionaryRelationColumns,
+				});
+				return dbResponse;
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed getting active submission data`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
 		 * Finds the current Active Submission by parameters
 		 * @param {Object} params
 		 * @param {number} params.categoryId Category ID
@@ -201,7 +231,7 @@ jsonb_build_object(
 		 * @param {string} params.organization Organization name
 		 * @returns
 		 */
-		getActiveSubmission: async ({
+		getActiveSubmissionSummary: async ({
 			categoryId,
 			username,
 			organization,
@@ -223,7 +253,7 @@ jsonb_build_object(
 					extras: { data: dataSummaryQuery, errors: errorsSummaryQuery },
 				});
 			} catch (error) {
-				logger.error(LOG_MODULE, `Failed getting active Submission`, error);
+				logger.error(LOG_MODULE, `Failed getting active submission summary`, error);
 				throw new ServiceUnavailable();
 			}
 		},
@@ -374,4 +404,4 @@ jsonb_build_object(
 	};
 };
 
-export default repository;
+export default activeSubmissionRepository;

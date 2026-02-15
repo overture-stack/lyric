@@ -24,6 +24,10 @@ export type SchemaServiceConfig = {
 	url: string;
 };
 
+export type SubmissionServiceConfig = {
+	maxFileSize?: number;
+};
+
 export type LoggerConfig = {
 	level?: string;
 	file?: boolean;
@@ -55,6 +59,7 @@ export type AppConfig = {
 	logger: LoggerConfig;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 	schemaService: SchemaServiceConfig;
+	submissionService: SubmissionServiceConfig;
 	validator: ValidatorConfig;
 };
 
@@ -68,4 +73,5 @@ export interface BaseDependencies {
 	logger: Logger;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 	schemaService: SchemaServiceConfig;
+	submissionService?: SubmissionServiceConfig;
 }

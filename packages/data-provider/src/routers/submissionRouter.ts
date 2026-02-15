@@ -1,4 +1,6 @@
+import bytes from 'bytes';
 import { json, Router, urlencoded } from 'express';
+import multer from 'multer';
 
 import { BaseDependencies } from '../config/config.js';
 import submissionController from '../controllers/submissionController.js';
@@ -11,9 +13,18 @@ const router = ({
 	baseDependencies: BaseDependencies;
 	authConfig: AuthConfig;
 }): Router => {
+	const upload = multer({ dest: '/tmp', limits: { fileSize: baseDependencies.submissionService?.maxFileSize } });
+
+	// Handles null edgecase and values of 0 as no limit.
+	const bytesFileLimit = bytes.format(baseDependencies.submissionService?.maxFileSize ?? 0) || undefined;
+
 	const router = Router();
 	router.use(urlencoded({ extended: false }));
-	router.use(json());
+	router.use(
+		json({
+			limit: bytesFileLimit,
+		}),
+	);
 
 	router.use(authMiddleware(authConfig));
 
@@ -65,12 +76,28 @@ const router = ({
 		}).getActiveByOrganization,
 	);
 
+	/* ===============================================================
+	 * Submit Data
+	 *   - Submit files for multiple entities
+	 *   - Submit data for single entity (Files or request body text)
+	 * =============================================================== */
+
 	router.post(
-		'/category/:categoryId/data',
+		'/category/:categoryId/organization/:organizationId',
+		upload.array('files'),
 		submissionController({
 			baseDependencies,
 			authConfig,
-		}).submit,
+		}).submitFiles,
+	);
+
+	router.post(
+		'/category/:categoryId/organization/:organizationId/entity/:entityName',
+		upload.array('files'),
+		submissionController({
+			baseDependencies,
+			authConfig,
+		}).submitSingleEntityData,
 	);
 
 	router.delete(
@@ -82,7 +109,7 @@ const router = ({
 	);
 
 	router.put(
-		`/category/:categoryId/data`,
+		`/category/:categoryId/organization/:organizationId/entity/:entityName`,
 		submissionController({
 			baseDependencies,
 			authConfig,
