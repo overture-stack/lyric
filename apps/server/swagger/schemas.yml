@@ -200,7 +200,7 @@ components:
         createdBy:
           type: string
           description: Name of user who created the submission
-        udpatedAt:
+        updatedAt:
           type: string
           description: Date and time of latest update
         updatedBy:
@@ -258,7 +258,7 @@ components:
         createdBy:
           type: string
           description: User name who created the submission
-        udpatedAt:
+        updatedAt:
           type: string
           description: Date and time of latest update
         updatedBy:
