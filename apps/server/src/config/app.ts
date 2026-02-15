@@ -2,45 +2,16 @@ import 'dotenv/config';
 
 import { type AppConfig, type ValidatorEntry } from '@overture-stack/lyric';
 
+import { getBoolean, getJSONConfig, getOptionalIntegerConfig, getRequiredConfig } from './envUtils.js';
+
+const DEFAULT_SUBMISSION_MAX_SIZE = 10 * 1024 * 1024; // 10Mb
+
 export const getServerConfig = () => {
 	return {
 		port: process.env.PORT || 3030,
 		allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || [],
 		corsEnabled: getBoolean(process.env.CORS_ENABLED, false),
 	};
-};
-
-export const getBoolean = (env: string | undefined, defaultValue: boolean): boolean => {
-	switch ((env ?? '').toLocaleLowerCase()) {
-		case 'true':
-			return true;
-		case 'false':
-			return false;
-		default:
-			return defaultValue;
-	}
-};
-
-const getRequiredConfig = (name: string) => {
-	const value = process.env[name];
-	if (!value) {
-		throw new Error(`No Environment Variable provided for required configuration parameter '${name}'`);
-	}
-	return value;
-};
-
-const getJSONConfig = (name: string) => {
-	const value = process.env[name];
-
-	if (!value) {
-		return;
-	}
-
-	try {
-		return JSON.parse(value);
-	} catch (error) {
-		throw new Error(`Environment variable '${name}' must be a valid JSON.`);
-	}
 };
 
 const isValidValidatorEntry = (obj: unknown): obj is ValidatorEntry => {
@@ -91,6 +62,9 @@ export const appConfig: AppConfig = {
 	},
 	schemaService: {
 		url: getRequiredConfig('LECTERN_URL'),
+	},
+	submissionService: {
+		maxFileSize: getOptionalIntegerConfig('SUBMISSION_MAX_SIZE') || DEFAULT_SUBMISSION_MAX_SIZE,
 	},
 	validator: getValidatorConfig('VALIDATOR_CONFIG'),
 };
