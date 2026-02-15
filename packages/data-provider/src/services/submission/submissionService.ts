@@ -25,7 +25,7 @@ import {
 import {
 	CommitSubmissionResult,
 	CREATE_SUBMISSION_STATUS,
-	type CreateSubmissionJsonResult,
+	type SubmitDataResult,
 	type SubmitFileResult,
 	type DeleteSubmissionResult,
 	type EntityData,
@@ -192,7 +192,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 	 * @param {number} submissionId
 	 * @param {string} entityName
 	 * @param {string} username
-	 * @returns { Promise<CreateSubmissionJsonResult>}
+	 * @returns { Promise<SubmitDataResult>}
 	 */
 	const deleteActiveSubmissionEntity = async (
 		submissionId: number,
@@ -202,7 +202,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 			entityName: string;
 			index: number | null;
 		},
-	): Promise<CreateSubmissionJsonResult> => {
+	): Promise<SubmitDataResult> => {
 		const submission = await submissionRepository.getSubmissionDetailsById(submissionId);
 		if (!submission) {
 			throw new BadRequest(`Submission '${submissionId}' not found`);
@@ -455,7 +455,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		categoryId: number;
 		organization: string;
 		username: string;
-	}): Promise<CreateSubmissionJsonResult> => {
+	}): Promise<SubmitDataResult> => {
 		const entityNames = Object.keys(data);
 		logger.info(
 			LOG_MODULE,
