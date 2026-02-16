@@ -25,8 +25,6 @@ import {
 import {
 	CommitSubmissionResult,
 	CREATE_SUBMISSION_STATUS,
-	type SubmitDataResult,
-	type SubmitFileResult,
 	type DeleteSubmissionResult,
 	type EntityData,
 	type PaginationOptions,
@@ -34,6 +32,8 @@ import {
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
 	SubmissionSummary,
+	type SubmitDataResult,
+	type SubmitFileResult,
 } from '../../utils/types.js';
 import { default as createSubmissionProcessor } from './submissionProcessor.js';
 
