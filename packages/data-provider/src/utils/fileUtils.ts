@@ -15,20 +15,20 @@ import {
 import { BATCH_ERROR_TYPE, type BatchError } from './types.js';
 
 export const SUPPORTED_FILE_EXTENSIONS = z.enum(['tsv', 'csv']);
-export type SupportedFileExtensions = z.infer<typeof SUPPORTED_FILE_EXTENSIONS>;
+export type SupportedFileExtension = z.infer<typeof SUPPORTED_FILE_EXTENSIONS>;
 
 export const columnSeparatorValue = {
 	tsv: '\t',
 	csv: ',',
-} as const satisfies Record<SupportedFileExtensions, string>;
+} as const satisfies Record<SupportedFileExtension, string>;
 
 /**
  * Extracts the extension from the filename and returns it if it's supported.
  * Otherwise it returns undefined.
  * @param {string} fileName
- * @returns {SupportedFileExtensions | undefined}
+ * @returns {SupportedFileExtension | undefined}
  */
-export const extractFileExtension = (fileName: string): SupportedFileExtensions | undefined => {
+export const extractFileExtension = (fileName: string): SupportedFileExtension | undefined => {
 	// Extract the file extension
 	const fileExtension = fileName.split('.').pop()?.toLowerCase();
 
