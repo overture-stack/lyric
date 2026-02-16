@@ -352,7 +352,7 @@ const controller = ({
 
 				const username = user?.username || '';
 
-				const resultSubmission = await service.submitJson({
+				const resultSubmission = await service.submit({
 					data: { [entityName]: payload },
 					categoryId,
 					organization,
@@ -409,14 +409,14 @@ const controller = ({
 					{ validFiles: [], fileErrors: [] },
 				);
 
-				const resultSubmission = await service.submitFiles({
+				const submitFilesResult = await service.submitFiles({
 					files: validFiles,
 					categoryId,
 					organization,
 					username,
 				});
 
-				if (fileErrors.length == 0 && resultSubmission.batchErrors.length == 0) {
+				if (fileErrors.length == 0 && submitFilesResult.batchErrors.length == 0) {
 					logger.info(LOG_MODULE, `Submission uploaded successfully`);
 				} else {
 					logger.info(LOG_MODULE, 'Found some errors processing this request');
@@ -425,7 +425,7 @@ const controller = ({
 				// This response provides the details of file Submission
 				return res
 					.status(200)
-					.send({ ...resultSubmission, batchErrors: [...fileErrors, ...resultSubmission.batchErrors] });
+					.send({ ...submitFilesResult, batchErrors: [...fileErrors, ...submitFilesResult.batchErrors] });
 			} catch (error) {
 				next(error);
 			}

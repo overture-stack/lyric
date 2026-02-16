@@ -623,7 +623,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		getSubmissionDetailsById,
 		getActiveSubmissionByOrganization,
 		getOrCreateActiveSubmission,
-		submitJson: submit,
+		submit,
 		submitFiles,
 	};
 };
