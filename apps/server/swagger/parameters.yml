@@ -21,14 +21,6 @@ components:
         required: true
         schema:
           type: string
-        description: Organization name
-      OrganizationId:
-        name: organizationId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: ID of the organization
       SubmissionId:
         name: submissionId
         in: path

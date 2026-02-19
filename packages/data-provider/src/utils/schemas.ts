@@ -321,10 +321,18 @@ export const submissionDeleteEntityNameRequestSchema: RequestValidation<
 	}),
 };
 
-export type UploadSubmissionPathParams = {
-	organizationId: string;
-	categoryId: string;
-};
+const uploadSubmissionQueryParams = z.object({
+	entityName: entityNameSchema,
+	organization: organizationSchema,
+});
+
+export type UploadSubmissionQueryParams = z.infer<typeof uploadSubmissionQueryParams>;
+
+const submissionUploadFilesQueryParams = z.object({
+	organization: organizationSchema,
+});
+
+export type SubmissionUploadFilesQueryParams = z.infer<typeof submissionUploadFilesQueryParams>;
 
 export const filenameEntityPair = z.object({
 	filename: z.string(),
@@ -347,23 +355,22 @@ const dataRecordSchema = z.record(dataRecordValueSchema);
 
 export const uploadSubmissionRequestSchema: RequestValidation<
 	unknown,
-	Record<string, never>,
-	UploadSubmissionPathParams
+	SubmissionUploadFilesQueryParams,
+	CategoryPathParams
 > = {
-	pathParams: z.object({
-		categoryId: categoryIdSchema,
-		organizationId: organizationSchema,
-	}),
+	pathParams: categoryPathParamsSchema,
+	query: submissionUploadFilesQueryParams,
 	// body: z.array(filenameEntityPair).optional(),
 };
 
 export const uploadSingleEntitySubmissionDataRequestSchema: RequestValidation<
 	Array<DataRecord>,
-	Record<string, never>,
-	CategoryOrganizationEntityPathParams
+	UploadSubmissionQueryParams,
+	CategoryPathParams
 > = {
 	body: dataRecordSchema.array(),
-	pathParams: categoryOrganizationEntityPathParamsSchema,
+	query: uploadSubmissionQueryParams,
+	pathParams: categoryPathParamsSchema,
 };
 
 // Submitted Data
@@ -388,11 +395,12 @@ export interface DataEditRequestSchemaQueryParams extends ParsedQs {
 // TODO: Need type validation for the edit request schema
 export const editSingleEntityRequestSchema: RequestValidation<
 	Array<Record<string, unknown>>,
-	Record<string, never>,
-	CategoryOrganizationEntityPathParams
+	UploadSubmissionQueryParams,
+	CategoryPathParams
 > = {
 	body: z.record(z.unknown()).array(),
-	pathParams: categoryOrganizationEntityPathParamsSchema,
+	query: uploadSubmissionQueryParams,
+	pathParams: categoryPathParamsSchema,
 };
 
 export interface DataQueryParams extends PaginationQueryParams {

@@ -176,8 +176,8 @@ const controller = ({
 		editSubmittedData: validateRequest(editSingleEntityRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				const entityName = req.params.entityName;
-				const organization = req.params.organizationId;
+				const entityName = req.query.entityName;
+				const organization = req.query.organization;
 				const payload = req.body;
 				const user = req.user;
 
@@ -323,13 +323,15 @@ const controller = ({
 				next(error);
 			}
 		}),
-		submitSingleEntityData: validateRequest(uploadSingleEntitySubmissionDataRequestSchema, async (req, res, next) => {
+		submit: validateRequest(uploadSingleEntitySubmissionDataRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				const entityName = req.params.entityName;
-				const organization = req.params.organizationId;
+				const entityName = req.query.entityName;
+				const organization = req.query.organization;
 				const payload = req.body;
 				const user = req.user;
+
+				// TODO: Validate file-entity map in body: no duplicate filenames, and that entities exist in schemaNames
 
 				logger.info(
 					LOG_MODULE,
@@ -370,7 +372,7 @@ const controller = ({
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const files = Array.isArray(req.files) ? req.files : [];
-				const organization = req.params.organizationId;
+				const organization = req.query.organization;
 
 				// Get username from auth
 				const username = req.user?.username || '';
