@@ -3,8 +3,8 @@ import { isEmpty } from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
 import { type AuthConfig, shouldBypassAuth } from '../middleware/auth.js';
-import submissionService from '../services/submission/submissionService.js';
-import submittedDataService from '../services/submittedData/submmittedData.js';
+import createSubmissionService from '../services/submission/submissionService.js';
+import createSubmittedDataService from '../services/submittedData/submmittedData.js';
 import { hasUserWriteAccess } from '../utils/authUtils.js';
 import { BadRequest, Forbidden, NotFound } from '../utils/errors.js';
 import { extractFileExtension, SUPPORTED_FILE_EXTENSIONS } from '../utils/fileUtils.js';
@@ -39,8 +39,8 @@ const controller = ({
 	baseDependencies: BaseDependencies;
 	authConfig: AuthConfig;
 }) => {
-	const service = submissionService(baseDependencies);
-	const dataService = submittedDataService(baseDependencies);
+	const submissionService = createSubmissionService(baseDependencies);
+	const dataService = createSubmittedDataService(baseDependencies);
 	const { logger } = baseDependencies;
 	const defaultPage = 1;
 	const defaultPageSize = 20;
@@ -54,7 +54,7 @@ const controller = ({
 
 				logger.info(LOG_MODULE, `Request Commit Active Submission '${submissionId}' on category '${categoryId}'`);
 
-				const submission = await service.getSubmissionById(submissionId);
+				const submission = await submissionService.getSubmissionById(submissionId);
 				if (!submission) {
 					throw new BadRequest(`Submission '${submissionId}' not found`);
 				}
@@ -65,7 +65,7 @@ const controller = ({
 
 				const username = user?.username || '';
 
-				const commitSubmission = await service.commitSubmission(categoryId, submissionId, username);
+				const commitSubmission = await submissionService.commitSubmission(categoryId, submissionId, username);
 
 				return res.status(200).send(commitSubmission);
 			} catch (error) {
@@ -79,7 +79,7 @@ const controller = ({
 
 				logger.info(LOG_MODULE, `Request Delete Active Submission '${submissionId}'`);
 
-				const submission = await service.getSubmissionById(submissionId);
+				const submission = await submissionService.getSubmissionById(submissionId);
 				if (!submission) {
 					throw new BadRequest(`Submission '${submissionId}' not found`);
 				}
@@ -90,7 +90,7 @@ const controller = ({
 
 				const username = user?.username || '';
 
-				const deleteSubmissionResult = await service.deleteActiveSubmissionById(submissionId, username);
+				const deleteSubmissionResult = await submissionService.deleteActiveSubmissionById(submissionId, username);
 
 				if (isEmpty(deleteSubmissionResult)) {
 					throw new NotFound('Active Submission not found');
@@ -114,7 +114,7 @@ const controller = ({
 					`Request Delete '${entityName ? entityName : 'all'}' records on '{${actionType}}' Active Submission '${submissionId}'`,
 				);
 
-				const submission = await service.getSubmissionById(submissionId);
+				const submission = await submissionService.getSubmissionById(submissionId);
 				if (!submission) {
 					throw new BadRequest(`Submission '${submissionId}' not found`);
 				}
@@ -125,11 +125,15 @@ const controller = ({
 
 				const username = user?.username || '';
 
-				const deleteSubmissionEntityResult = await service.deleteActiveSubmissionEntity(submissionId, username, {
-					actionType,
-					entityName,
-					index,
-				});
+				const deleteSubmissionEntityResult = await submissionService.deleteActiveSubmissionEntity(
+					submissionId,
+					username,
+					{
+						actionType,
+						entityName,
+						index,
+					},
+				);
 
 				if (isEmpty(deleteSubmissionEntityResult)) {
 					throw new NotFound('Active Submission not found');
@@ -228,7 +232,7 @@ const controller = ({
 						`organization '${organization}'`,
 					);
 
-					const submissionsResult = await service.getSubmissionsByCategory(
+					const submissionsResult = await submissionService.getSubmissionsByCategory(
 						categoryId,
 						{ page, pageSize },
 						{ onlyActive, username, organization },
@@ -256,7 +260,7 @@ const controller = ({
 
 				logger.info(LOG_MODULE, `Request Active Submission submissionId '${submissionId}'`);
 
-				const submission = await service.getSubmissionById(submissionId);
+				const submission = await submissionService.getSubmissionById(submissionId);
 
 				if (isEmpty(submission)) {
 					throw new NotFound('Submission not found');
@@ -280,7 +284,7 @@ const controller = ({
 
 				logger.info(LOG_MODULE, `Request Submission Details by ID '${submissionId}'`);
 
-				const submission = await service.getSubmissionDetailsById({
+				const submission = await submissionService.getSubmissionDetailsById({
 					submissionId,
 					paginationOptions: { page, pageSize },
 					filterOptions: { entityNames, actionTypes },
@@ -308,7 +312,7 @@ const controller = ({
 				// Get username from auth
 				const username = req.user?.username || '';
 
-				const activeSubmission = await service.getActiveSubmissionByOrganization({
+				const activeSubmission = await submissionService.getActiveSubmissionByOrganization({
 					categoryId,
 					username,
 					organization,
@@ -354,7 +358,7 @@ const controller = ({
 
 				const username = user?.username || '';
 
-				const resultSubmission = await service.submit({
+				const resultSubmission = await submissionService.submit({
 					data: { [entityName]: payload },
 					categoryId,
 					organization,
@@ -411,7 +415,7 @@ const controller = ({
 					{ validFiles: [], fileErrors: [] },
 				);
 
-				const submitFilesResult = await service.submitFiles({
+				const submitFilesResult = await submissionService.submitFiles({
 					files: validFiles,
 					categoryId,
 					organization,
