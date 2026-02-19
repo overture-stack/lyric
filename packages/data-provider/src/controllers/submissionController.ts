@@ -419,7 +419,7 @@ const controller = ({
 				});
 
 				if (fileErrors.length == 0 && submitFilesResult.batchErrors.length == 0) {
-					logger.info(LOG_MODULE, `Submission uploaded successfully`);
+					logger.info(LOG_MODULE, 'Submission uploaded successfully');
 				} else {
 					logger.info(LOG_MODULE, 'Found some errors processing this request');
 				}
