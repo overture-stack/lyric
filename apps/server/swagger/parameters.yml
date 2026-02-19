@@ -6,7 +6,7 @@ components:
         in: path
         required: true
         schema:
-          type: string
+          type: integer
         description: ID of the category to which the data belongs
       EntityName:
         description: The name of the Entity
@@ -21,7 +21,6 @@ components:
         required: true
         schema:
           type: string
-        description: Organization name
       SubmissionId:
         name: submissionId
         in: path

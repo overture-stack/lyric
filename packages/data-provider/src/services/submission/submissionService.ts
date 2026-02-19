@@ -9,13 +9,15 @@ import {
 
 import { BaseDependencies } from '../../config/config.js';
 import systemIdGenerator from '../../external/systemIdGenerator.js';
-import submissionRepository from '../../repository/activeSubmissionRepository.js';
-import categoryRepository from '../../repository/categoryRepository.js';
-import submittedRepository from '../../repository/submittedRepository.js';
+import createSubmissionRepository from '../../repository/activeSubmissionRepository.js';
+import createCategoryRepository from '../../repository/categoryRepository.js';
+import createSubmittedDataRepository from '../../repository/submittedRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
 import { filterAndPaginateSubmissionData, type FlattenedSubmissionData } from '../../utils/submissionResponseParser.js';
 import {
+	checkEntityFieldNames,
+	checkFileNames,
 	createSubmissionSummaryResponse,
 	isSubmissionActive,
 	removeItemsFromSubmission,
@@ -23,7 +25,6 @@ import {
 import {
 	CommitSubmissionResult,
 	CREATE_SUBMISSION_STATUS,
-	type CreateSubmissionResult,
 	type DeleteSubmissionResult,
 	type EntityData,
 	type PaginationOptions,
@@ -31,13 +32,21 @@ import {
 	SUBMISSION_STATUS,
 	type SubmissionActionType,
 	SubmissionSummary,
+	type SubmitDataResult,
+	type SubmitFileResult,
 } from '../../utils/types.js';
-import processor from './processor.js';
+import { default as createSubmissionProcessor } from './submissionProcessor.js';
 
-const service = (dependencies: BaseDependencies) => {
+const submissionService = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_SERVICE';
 	const { logger, onFinishCommit } = dependencies;
-	const { performCommitSubmissionAsync, performDataValidation } = processor(dependencies);
+
+	const categoryRepository = createCategoryRepository(dependencies);
+	const submissionProcessor = createSubmissionProcessor(dependencies);
+	const submissionRepository = createSubmissionRepository(dependencies);
+	const submittedDataRepository = createSubmittedDataRepository(dependencies);
+
+	const { generateIdentifier } = systemIdGenerator(dependencies);
 
 	/**
 	 * Runs Schema validation asynchronously and moves the Active Submission to Submitted Data
@@ -50,12 +59,10 @@ const service = (dependencies: BaseDependencies) => {
 		submissionId: number,
 		username: string,
 	): Promise<CommitSubmissionResult> => {
-		const { getSubmissionDetailsById } = submissionRepository(dependencies);
-		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
-		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { generateIdentifier } = systemIdGenerator(dependencies);
+		const { getSubmittedDataByCategoryIdAndOrganization } = submittedDataRepository;
+		const { getActiveDictionaryByCategory } = categoryRepository;
 
-		const submission = await getSubmissionDetailsById(submissionId);
+		const submission = await submissionRepository.getSubmissionDetailsById(submissionId);
 		if (!submission) {
 			throw new BadRequest(`Submission '${submissionId}' not found`);
 		}
@@ -120,7 +127,7 @@ const service = (dependencies: BaseDependencies) => {
 			);
 
 		// To Commit Active Submission we need to validate SubmittedData + Active Submission
-		performCommitSubmissionAsync({
+		submissionProcessor.performCommitSubmissionAsync({
 			dataToValidate: {
 				inserts: insertsToValidate,
 				submittedData: submittedDataToValidate,
@@ -155,9 +162,7 @@ const service = (dependencies: BaseDependencies) => {
 		submissionId: number,
 		username: string,
 	): Promise<DeleteSubmissionResult> => {
-		const { getSubmissionById, update } = submissionRepository(dependencies);
-
-		const submission = await getSubmissionById(submissionId);
+		const submission = await submissionRepository.getSubmissionById(submissionId);
 		if (!submission) {
 			throw new BadRequest(`Submission '${submissionId}' not found`);
 		}
@@ -166,7 +171,7 @@ const service = (dependencies: BaseDependencies) => {
 			throw new StatusConflict('Submission is not active. Only Active Submission can be deleted');
 		}
 
-		const updatedRecordId = await update(submission.id, {
+		const updatedRecordId = await submissionRepository.update(submission.id, {
 			status: SUBMISSION_STATUS.CLOSED,
 			updatedBy: username,
 		});
@@ -187,7 +192,7 @@ const service = (dependencies: BaseDependencies) => {
 	 * @param {number} submissionId
 	 * @param {string} entityName
 	 * @param {string} username
-	 * @returns { Promise<CreateSubmissionResult>}
+	 * @returns { Promise<SubmitDataResult>}
 	 */
 	const deleteActiveSubmissionEntity = async (
 		submissionId: number,
@@ -197,10 +202,8 @@ const service = (dependencies: BaseDependencies) => {
 			entityName: string;
 			index: number | null;
 		},
-	): Promise<CreateSubmissionResult> => {
-		const { getSubmissionDetailsById } = submissionRepository(dependencies);
-
-		const submission = await getSubmissionDetailsById(submissionId);
+	): Promise<SubmitDataResult> => {
+		const submission = await submissionRepository.getSubmissionDetailsById(submissionId);
 		if (!submission) {
 			throw new BadRequest(`Submission '${submissionId}' not found`);
 		}
@@ -236,7 +239,7 @@ const service = (dependencies: BaseDependencies) => {
 		});
 
 		// Validate and update Active Submission after removing the entity
-		performDataValidation({
+		submissionProcessor.performDataValidation({
 			submissionId: submission.id,
 			submissionData: updatedActiveSubmissionData,
 			username,
@@ -275,9 +278,11 @@ const service = (dependencies: BaseDependencies) => {
 		result: SubmissionSummary[];
 		metadata: { totalRecords: number; errorMessage?: string };
 	}> => {
-		const { getSubmissionsByCategory, getTotalSubmissionsByCategory } = submissionRepository(dependencies);
-
-		const recordsPaginated = await getSubmissionsByCategory(categoryId, paginationOptions, filterOptions);
+		const recordsPaginated = await submissionRepository.getSubmissionsByCategory(
+			categoryId,
+			paginationOptions,
+			filterOptions,
+		);
 		if (!recordsPaginated || recordsPaginated.length === 0) {
 			return {
 				result: [],
@@ -287,7 +292,7 @@ const service = (dependencies: BaseDependencies) => {
 			};
 		}
 
-		const totalRecords = await getTotalSubmissionsByCategory(categoryId, filterOptions);
+		const totalRecords = await submissionRepository.getTotalSubmissionsByCategory(categoryId, filterOptions);
 		return {
 			metadata: {
 				totalRecords,
@@ -302,9 +307,7 @@ const service = (dependencies: BaseDependencies) => {
 	 * @returns One Submission
 	 */
 	const getSubmissionById = async (submissionId: number) => {
-		const { getSubmissionById } = submissionRepository(dependencies);
-
-		const submission = await getSubmissionById(submissionId);
+		const submission = await submissionRepository.getSubmissionById(submissionId);
 		if (_.isEmpty(submission)) {
 			return;
 		}
@@ -332,9 +335,7 @@ const service = (dependencies: BaseDependencies) => {
 		paginationOptions: PaginationOptions;
 		filterOptions: { entityNames: string[]; actionTypes: SubmissionActionType[] };
 	}): Promise<{ data: FlattenedSubmissionData[]; errors?: SubmissionRecordErrorDetails[] }> => {
-		const { getSubmissionDetailsById } = submissionRepository(dependencies);
-
-		const submission = await getSubmissionDetailsById(submissionId);
+		const submission = await submissionRepository.getSubmissionDetailsById(submissionId);
 		if (!submission) {
 			throw new BadRequest(`Submission '${submissionId}' not found`);
 		}
@@ -378,9 +379,7 @@ const service = (dependencies: BaseDependencies) => {
 		username: string;
 		organization: string;
 	}): Promise<SubmissionSummary | undefined> => {
-		const { getActiveSubmission } = submissionRepository(dependencies);
-
-		const submission = await getActiveSubmission({
+		const submission = await submissionRepository.getActiveSubmissionSummary({
 			organization,
 			username,
 			categoryId,
@@ -406,15 +405,18 @@ const service = (dependencies: BaseDependencies) => {
 		organization: string;
 	}): Promise<number> => {
 		const { categoryId, username, organization } = params;
-		const submissionRepo = submissionRepository(dependencies);
-		const categoryRepo = categoryRepository(dependencies);
+		const { getActiveDictionaryByCategory } = categoryRepository;
 
-		const activeSubmission = await submissionRepo.getActiveSubmission({ categoryId, username, organization });
+		const activeSubmission = await submissionRepository.getActiveSubmissionSummary({
+			categoryId,
+			username,
+			organization,
+		});
 		if (activeSubmission) {
 			return activeSubmission.id;
 		}
 
-		const currentDictionary = await categoryRepo.getActiveDictionaryByCategory(categoryId);
+		const currentDictionary = await getActiveDictionaryByCategory(categoryId);
 
 		if (!currentDictionary) {
 			throw new InternalServerError(`Dictionary in category '${categoryId}' not found`);
@@ -430,7 +432,7 @@ const service = (dependencies: BaseDependencies) => {
 			status: SUBMISSION_STATUS.OPEN,
 		};
 
-		return submissionRepo.save(newSubmissionInput);
+		return submissionRepository.save(newSubmissionInput);
 	};
 
 	/**
@@ -453,15 +455,12 @@ const service = (dependencies: BaseDependencies) => {
 		categoryId: number;
 		organization: string;
 		username: string;
-	}): Promise<CreateSubmissionResult> => {
+	}): Promise<SubmitDataResult> => {
 		const entityNames = Object.keys(data);
 		logger.info(
 			LOG_MODULE,
 			`Processing '${entityNames.length}' entities on category id '${categoryId}' organization '${organization}'`,
 		);
-		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { processInsertRecordsAsync } = processor(dependencies);
-
 		if (entityNames.length === 0) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
@@ -469,7 +468,7 @@ const service = (dependencies: BaseDependencies) => {
 			};
 		}
 
-		const currentDictionary = await getActiveDictionaryByCategory(categoryId);
+		const currentDictionary = await categoryRepository.getActiveDictionaryByCategory(categoryId);
 
 		if (_.isEmpty(currentDictionary)) {
 			return {
@@ -498,7 +497,7 @@ const service = (dependencies: BaseDependencies) => {
 
 		// Schema validation runs asynchronously and does not block execution.
 		// The results will be saved to the database.
-		processInsertRecordsAsync({
+		submissionProcessor.processInsertRecordsAsync({
 			records: data,
 			submissionId: activeSubmissionId,
 			schemasDictionary,
@@ -512,6 +511,109 @@ const service = (dependencies: BaseDependencies) => {
 		};
 	};
 
+	/**
+	 * Validates and Creates the Entities Schemas of the Active Submission and stores it in the database
+	 * @param {object} params
+	 * @param {Express.Multer.File[]} params.files An array of files
+	 * @param {number} params.categoryId Category ID of the Submission
+	 * @param {string} params.organization Organization name
+	 * @param {string} params.username User name creating the Submission
+	 * @returns The Active Submission created or Updated
+	 */
+	const submitFiles = async ({
+		files,
+		categoryId,
+		organization,
+		username,
+	}: {
+		files: Express.Multer.File[];
+		categoryId: number;
+		organization: string;
+		username: string;
+	}): Promise<SubmitFileResult> => {
+		logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
+
+		if (files.length === 0) {
+			return {
+				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				description: 'No valid files for submission',
+				batchErrors: [],
+				inProcessEntities: [],
+			};
+		}
+
+		const currentDictionary = await categoryRepository.getActiveDictionaryByCategory(categoryId);
+
+		if (_.isEmpty(currentDictionary)) {
+			throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+		}
+
+		const schemasDictionary: SchemasDictionary = {
+			name: currentDictionary.name,
+			version: currentDictionary.version,
+			schemas: currentDictionary.schemas,
+		};
+
+		// step 1 Validation. Validate entity type (filename matches dictionary entities, remove duplicates)
+		// TODO: Use filename map to identify files, concatenate records if multiple files map to same entity
+		const schemaNames: string[] = schemasDictionary.schemas.map((item) => item.name);
+		const { validFileEntity, batchErrors: fileNamesErrors } = await checkFileNames(files, schemaNames);
+
+		if (_.isEmpty(validFileEntity)) {
+			logger.info(LOG_MODULE, `No valid files for submission`);
+		}
+
+		// step 2 Validation. Validate fieldNames (missing required fields based on schema)
+		const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
+
+		const batchErrors = [...fileNamesErrors, ...fieldNameErrors];
+		const entitiesToProcess = Object.keys(checkedEntities);
+
+		if (_.isEmpty(checkedEntities)) {
+			logger.info(LOG_MODULE, 'Found errors on Submission files.', JSON.stringify(batchErrors));
+			return {
+				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				description: 'No valid entities in submission',
+				batchErrors,
+				inProcessEntities: entitiesToProcess,
+			};
+		}
+
+		// Get Active Submission or Open a new one
+		const activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
+
+		// TODO: Add files to submission, then run validation separately. Currently these processes are both
+		//       done by the function that adds the files to the submission.
+
+		// Start background process of adding files to submission
+		// Running Schema validation in the background do not need to wait
+		// Result of validations will be stored in database
+		submissionProcessor.addFilesToSubmissionAsync(checkedEntities, {
+			schemasDictionary,
+			categoryId,
+			organization,
+			username,
+		});
+
+		if (batchErrors.length === 0) {
+			return {
+				status: CREATE_SUBMISSION_STATUS.PROCESSING,
+				description: 'Submission files are being processed',
+				submissionId: activeSubmissionId,
+				batchErrors,
+				inProcessEntities: entitiesToProcess,
+			};
+		}
+
+		return {
+			status: CREATE_SUBMISSION_STATUS.PARTIAL_SUBMISSION,
+			description: 'Some Submission files are being processed while others were unable to process',
+			submissionId: activeSubmissionId,
+			batchErrors,
+			inProcessEntities: entitiesToProcess,
+		};
+	};
+
 	return {
 		commitSubmission,
 		deleteActiveSubmissionById,
@@ -522,7 +624,8 @@ const service = (dependencies: BaseDependencies) => {
 		getActiveSubmissionByOrganization,
 		getOrCreateActiveSubmission,
 		submit,
+		submitFiles,
 	};
 };
 
-export default service;
+export default submissionService;

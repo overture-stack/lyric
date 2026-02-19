@@ -1,15 +1,15 @@
 import { NextFunction, Request, Response } from 'express';
 import type { ParamsDictionary, RequestHandler } from 'express-serve-static-core';
 import type { ParsedQs } from 'qs';
-import { ZodError, ZodSchema } from 'zod';
+import { ZodError, ZodSchema, type ZodType } from 'zod';
 
 import type { UserSession } from '../middleware/auth.js';
 import { BadRequest, InternalServerError } from './errors.js';
 
 export declare type RequestValidation<TBody, TQuery, TParams> = {
-	body?: ZodSchema<TBody>;
-	query?: ZodSchema<TQuery>;
-	pathParams?: ZodSchema<TParams>;
+	body?: ZodType<TBody>;
+	query?: ZodType<TQuery>;
+	pathParams?: ZodType<TParams>;
 };
 
 type RequestWithUser<

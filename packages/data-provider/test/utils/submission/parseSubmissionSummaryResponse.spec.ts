@@ -9,14 +9,10 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 	it('should return a Summary without any data ', () => {
 		const submissionDataSummaryRepositoryRecord: SubmissionDataSummaryRepositoryRecord = {
 			id: 4,
-			data: {
-				inserts: undefined,
-				updates: undefined,
-				deletes: undefined,
-			},
+			data: {},
 			dictionary: { name: 'books', version: '1' },
 			dictionaryCategory: { name: 'favorite books', id: 1 },
-			errors: {},
+			errors: null,
 			organization: 'oicr',
 			status: SUBMISSION_STATUS.VALID,
 			createdAt: todaysDate,
@@ -28,13 +24,11 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 		expect(response).to.eql({
 			id: 4,
 			data: {
-				inserts: undefined,
-				updates: undefined,
-				deletes: undefined,
+				total: 0,
 			},
 			dictionary: { name: 'books', version: '1' },
 			dictionaryCategory: { name: 'favorite books', id: 1 },
-			errors: {},
+			errors: { total: 0 },
 			organization: 'oicr',
 			status: SUBMISSION_STATUS.VALID,
 			createdAt: todaysDate.toISOString(),
@@ -78,6 +72,7 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 		expect(response).to.eql({
 			id: 3,
 			data: {
+				total: 3,
 				inserts: {
 					books: {
 						batchName: 'books.tsv',
@@ -97,7 +92,7 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 			},
 			dictionary: { name: 'books', version: '1' },
 			dictionaryCategory: { name: 'favorite books', id: 1 },
-			errors: {},
+			errors: { total: 0 },
 			organization: 'oicr',
 			status: SUBMISSION_STATUS.VALID,
 			createdAt: todaysDate.toISOString(),

@@ -21,7 +21,7 @@ import validationRouter from '../routers/validationRouter.js';
 import auditService from '../services/auditService.js';
 import categoryService from '../services/categoryService.js';
 import dictionaryService from '../services/dictionaryService.js';
-import submissionService from '../services/submission/submission.js';
+import submissionService from '../services/submission/submissionService.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
 import validationService from '../services/validationService.js';
 import * as auditUtils from '../utils/auditUtils.js';
@@ -46,6 +46,7 @@ const provider = (configData: AppConfig) => {
 		idService: configData.idService,
 		logger: getLogger(configData.logger),
 		schemaService: configData.schemaService,
+		submissionService: configData.submissionService,
 		onFinishCommit: configData.onFinishCommit,
 	};
 

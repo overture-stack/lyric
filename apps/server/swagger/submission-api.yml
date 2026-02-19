@@ -209,7 +209,7 @@
 
 /submission/category/{categoryId}/data:
   post:
-    summary: Add new data to a submission for the specified category. Returns an Active Submission containing the newly created records
+    summary: Add new data to a submission for the specified category. Data is provided as JSON in the request body.
     tags:
       - Submission
     parameters:
@@ -241,7 +241,7 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
   put:
-    summary: Modifies existing data for a submission. Returns an Active Submission containing the records that will be updated
+    summary: Modifies existing data for a submission.  Data is provided as JSON in the request body.
     tags:
       - Submission
     parameters:
@@ -272,6 +272,44 @@
         $ref: '#/components/responses/ServerError'
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
+
+/submission/category/{categoryId}/files:
+  post:
+    summary: Add new data to a submission for the specified category. Data is uploaded in files with filenames matching the entity name for the data they contain.
+    tags:
+      - Submission
+    parameters:
+      - $ref: '#/components/parameters/path/CategoryId'
+      - $ref: '#/components/parameters/query/Organization'
+    requestBody:
+      description: File(s) to be added to the submission
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              files:
+                type: array
+                items:
+                  type: string
+                  format: binary
+    responses:
+      200:
+        description: Submission accepted
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubmissionResult'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
 
 /submission/category/{categoryId}/data/{systemId}:
   delete:
