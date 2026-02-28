@@ -14,13 +14,14 @@ import createCategoryRepository from '../../repository/categoryRepository.js';
 import createSubmittedDataRepository from '../../repository/submittedRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
+import type { FilenameEntityPair } from '../../utils/schemas.js';
 import { filterAndPaginateSubmissionData, type FlattenedSubmissionData } from '../../utils/submissionResponseParser.js';
 import {
 	checkEntityFieldNames,
-	checkFileNames,
 	createSubmissionSummaryResponse,
 	isSubmissionActive,
 	removeItemsFromSubmission,
+	resolveFileEntities,
 } from '../../utils/submissionUtils.js';
 import {
 	CommitSubmissionResult,
@@ -525,11 +526,13 @@ const submissionService = (dependencies: BaseDependencies) => {
 		categoryId,
 		organization,
 		username,
+		fileEntityMap,
 	}: {
 		files: Express.Multer.File[];
 		categoryId: number;
 		organization: string;
 		username: string;
+		fileEntityMap?: FilenameEntityPair[];
 	}): Promise<SubmitFileResult> => {
 		logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
 
@@ -555,16 +558,18 @@ const submissionService = (dependencies: BaseDependencies) => {
 		};
 
 		// step 1 Validation. Validate entity type (filename matches dictionary entities, remove duplicates)
-		// TODO: Use filename map to identify files, concatenate records if multiple files map to same entity
-		const schemaNames: string[] = schemasDictionary.schemas.map((item) => item.name);
-		const { validFileEntity, batchErrors: fileNamesErrors } = await checkFileNames(files, schemaNames);
+		const { validFileEntity, batchErrors: fileNamesErrors } = await resolveFileEntities(
+			files,
+			schemasDictionary.schemas,
+			fileEntityMap,
+		);
 
 		if (_.isEmpty(validFileEntity)) {
 			logger.info(LOG_MODULE, `No valid files for submission`);
 		}
 
 		// step 2 Validation. Validate fieldNames (missing required fields based on schema)
-		const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
+		const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(validFileEntity);
 
 		const batchErrors = [...fileNamesErrors, ...fieldNameErrors];
 		const entitiesToProcess = Object.keys(checkedEntities);
@@ -588,12 +593,14 @@ const submissionService = (dependencies: BaseDependencies) => {
 		// Start background process of adding files to submission
 		// Running Schema validation in the background do not need to wait
 		// Result of validations will be stored in database
-		submissionProcessor.addFilesToSubmissionAsync(checkedEntities, {
-			schemasDictionary,
-			categoryId,
-			organization,
-			username,
-		});
+		submissionProcessor.addFilesToSubmissionAsync(
+			Object.entries(checkedEntities).map(([_, pair]) => pair),
+			{
+				categoryId,
+				organization,
+				username,
+			},
+		);
 
 		if (batchErrors.length === 0) {
 			return {

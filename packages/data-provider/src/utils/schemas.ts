@@ -354,13 +354,13 @@ const dataRecordValueSchema = z.union([
 const dataRecordSchema = z.record(dataRecordValueSchema);
 
 export const uploadSubmissionRequestSchema: RequestValidation<
-	unknown,
+	FilenameEntityPair[] | undefined,
 	SubmissionUploadFilesQueryParams,
 	CategoryPathParams
 > = {
 	pathParams: categoryPathParamsSchema,
 	query: submissionUploadFilesQueryParams,
-	// body: z.array(filenameEntityPair).optional(),
+	body: z.array(filenameEntityPair).optional(),
 };
 
 export const uploadSingleEntitySubmissionDataRequestSchema: RequestValidation<

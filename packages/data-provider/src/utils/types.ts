@@ -18,7 +18,7 @@ import {
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
 
-type ObjectValues<T> = T[keyof T];
+export type ObjectValues<T> = T[keyof T];
 
 /**
  * Enum matching Submission status in database
@@ -114,6 +114,16 @@ export interface SubmitFileResult extends SubmitDataResult {
 }
 
 /**
+ * Pair of a file and the schema that should be used to validate its contents
+ */
+export type FileSchemaPair = { file: Express.Multer.File; schema: Schema };
+
+/**
+ * Map of entity name to the file and schema that were resolved for that entity during submission
+ */
+export type FileSchemaMap = Record<string, FileSchemaPair>;
+
+/**
  * Response type on Commit Active Submission (Commit endpoint)
  */
 export type CommitSubmissionResult = {
@@ -176,7 +186,6 @@ export type BatchError = {
 export interface ValidateFilesParams {
 	categoryId: number;
 	organization: string;
-	schemasDictionary: SchemasDictionary;
 	username: string;
 }
 

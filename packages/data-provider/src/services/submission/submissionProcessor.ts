@@ -53,6 +53,7 @@ import {
 import {
 	CommitSubmissionParams,
 	type EntityData,
+	type FileSchemaPair,
 	type SchemasDictionary,
 	SUBMISSION_STATUS,
 	type SubmittedDataResponse,
@@ -821,20 +822,23 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 	 * @param {string} params.username User who performs the action
 	 * @returns {void}
 	 */
-	const addFilesToSubmissionAsync = async (files: Record<string, Express.Multer.File>, params: ValidateFilesParams) => {
-		for (const [fileName, fileInfo] of Object.entries(files)) {
-			const sizeString = bytes.format(fileInfo.size, { decimalPlaces: 2 });
-			logger.info(`Processing file '${fileName}' size '${sizeString}'`);
-		}
+	const addFilesToSubmissionAsync = async (fileSchemaPairs: FileSchemaPair[], params: ValidateFilesParams) => {
+		const fileSummaries = fileSchemaPairs
+			.map(
+				({ file, schema }) =>
+					`'${file.originalname}' (${bytes.format(file.size, { decimalPlaces: 2 })}, entity: ${schema.name})`,
+			)
+			.join(', ');
+		logger.info(`Processing files: ${fileSummaries}`);
 
 		// TODO: This only gets a summary, we need to insert data into an active submission so we need all the insert statements.
 		const submissionRepository = createSubmissionRepository(dependencies);
 
-		const { categoryId, organization, username, schemasDictionary } = params;
+		const { categoryId, organization, username } = params;
 
 		try {
 			// Parse file data
-			const filesDataProcessed = await submissionInsertDataFromFiles(files, schemasDictionary);
+			const filesDataProcessed = await submissionInsertDataFromFiles(fileSchemaPairs);
 
 			// Get Active Submission from database
 			const activeSubmission = await submissionRepository.getActiveSubmissionDetails({
@@ -860,10 +864,7 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 				},
 			});
 		} catch (error) {
-			logger.error(
-				`There was an error processing files: ${Object.entries(files).map(([entityName]) => entityName)}`,
-				JSON.stringify(error),
-			);
+			logger.error(`There was an error processing submitted files: ${fileSummaries}`, JSON.stringify(error));
 		}
 		logger.info(
 			`Finished addFilesToSubmissionAsync for active submission in category "${params.categoryId}" for organization "${params.organization}" submitted by user "${params.username}"`,

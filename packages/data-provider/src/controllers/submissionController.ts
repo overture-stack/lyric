@@ -377,6 +377,7 @@ const controller = ({
 				const categoryId = Number(req.params.categoryId);
 				const files = Array.isArray(req.files) ? req.files : [];
 				const organization = req.query.organization;
+				const fileEntityMap = req.body;
 
 				// Get username from auth
 				const username = req.user?.username || '';
@@ -386,6 +387,7 @@ const controller = ({
 					`Upload Submission Request: categoryId '${categoryId}'`,
 					` organization '${organization}'`,
 					` files '${files?.map((f) => f.originalname)}'`,
+					` fileEntityMap ${JSON.stringify(fileEntityMap)}`,
 				);
 
 				if (!files || files.length == 0) {
@@ -420,6 +422,7 @@ const controller = ({
 					categoryId,
 					organization,
 					username,
+					fileEntityMap,
 				});
 
 				if (fileErrors.length == 0 && submitFilesResult.batchErrors.length == 0) {
