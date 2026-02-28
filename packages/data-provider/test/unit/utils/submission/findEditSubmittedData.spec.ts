@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { findEditSubmittedData } from '../../../index.js';
+import { findEditSubmittedData } from '../../../../index.js';
 import { type DataRecordReference, MERGE_REFERENCE_TYPE } from '../../../../src/utils/types.js';
 
 const recordsByEntityName: Record<string, DataRecordReference[]> = {

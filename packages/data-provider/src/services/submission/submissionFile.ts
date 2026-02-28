@@ -122,26 +122,27 @@ export function getSubmittedFileEntity(params: {
 
 	if (fileEntityMap) {
 		const mapResult = findEntityByFileEntityMap({ file, schemas, fileEntityMap });
-		if (!mapResult.success) {
-			switch (mapResult.data.case) {
-				case 'FILENAME_NOT_FOUND': {
-					// no match found, attempt to use filename instead.
-					break;
-				}
-				case 'UNKNOWN_ENTITY': {
-					// Mapped to an unknown entity, return failure
-					return failure({
-						code: 'UNKNOWN_ENTITY',
-						message: `Provided File-Entity map indicated the file "${file.originalname}" maps to an entity named "${mapResult.data.entityName}", which does not match any of the available Schema names.`,
-					});
-				}
-				case 'MULTIPLE_MATCHES': {
-					// Multiple mappings found, cannot map file to an entity, return failure
-					return failure({
-						code: 'UNKNOWN_ENTITY',
-						message: `Provided File-Entity map has multiple matches for the file ${file.originalname}: ${mapResult.data.entityNames.join(', ')}`,
-					});
-				}
+		if (mapResult.success) {
+			return success(mapResult.data);
+		}
+		switch (mapResult.data.case) {
+			case 'FILENAME_NOT_FOUND': {
+				// no match found, attempt to use filename instead.
+				break;
+			}
+			case 'UNKNOWN_ENTITY': {
+				// Mapped to an unknown entity, return failure
+				return failure({
+					code: 'UNKNOWN_ENTITY',
+					message: `Provided File-Entity map indicated the file "${file.originalname}" maps to an entity named "${mapResult.data.entityName}", which does not match any of the available Schema names.`,
+				});
+			}
+			case 'MULTIPLE_MATCHES': {
+				// Multiple mappings found, cannot map file to an entity, return failure
+				return failure({
+					code: 'UNKNOWN_ENTITY',
+					message: `Provided File-Entity map has multiple matches for the file ${file.originalname}: ${mapResult.data.entityNames.join(', ')}`,
+				});
 			}
 		}
 	}
