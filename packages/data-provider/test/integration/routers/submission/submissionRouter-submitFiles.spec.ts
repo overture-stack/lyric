@@ -148,4 +148,119 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 
 		expect(response.status).to.equal(400);
 	});
+
+	describe('with fileEntityMap', () => {
+		it('should return 200 with PROCESSING status when a file with a non-matching filename is mapped to an entity', async () => {
+			const tsvContent = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
+			const fileEntityMap = JSON.stringify([{ filename: 'sport_data.tsv', entity: 'sport' }]);
+
+			const response = await app
+				.post(`/category/${categoryId}/files?organization=testOrg`)
+				.attach('files', tsvContent, 'sport_data.tsv')
+				.field('fileEntityMap', fileEntityMap);
+
+			expect(response.status).to.equal(200);
+			expect(response.body).to.have.property('status', 'PROCESSING');
+			expect(response.body.inProcessEntities).to.include('sport');
+			expect(addFilesToSubmissionAsyncStub.calledOnce).to.be.true;
+		});
+
+		it('should use the mapped entity instead of the filename when the fileEntityMap overrides the name', async () => {
+			// File is named 'team.tsv' but the map says it contains 'sport' data
+			const tsvContent = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
+			const fileEntityMap = JSON.stringify([{ filename: 'team.tsv', entity: 'sport' }]);
+
+			const response = await app
+				.post(`/category/${categoryId}/files?organization=testOrg`)
+				.attach('files', tsvContent, 'team.tsv')
+				.field('fileEntityMap', fileEntityMap);
+
+			expect(response.status).to.equal(200);
+			expect(response.body).to.have.property('status', 'PROCESSING');
+			expect(response.body.inProcessEntities).to.include('sport');
+			expect(response.body.inProcessEntities).to.not.include('team');
+			expect(addFilesToSubmissionAsyncStub.calledOnce).to.be.true;
+		});
+
+		it('should return 200 when multiple files are mapped to the same entity', async () => {
+			const batch1 = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
+			const batch2 = createTsvContent(['sport_id', 'name'], [['2', 'Basketball']]);
+			const fileEntityMap = JSON.stringify([
+				{ filename: 'sports_batch1.tsv', entity: 'sport' },
+				{ filename: 'sports_batch2.tsv', entity: 'sport' },
+			]);
+
+			const response = await app
+				.post(`/category/${categoryId}/files?organization=testOrg`)
+				.attach('files', batch1, 'sports_batch1.tsv')
+				.attach('files', batch2, 'sports_batch2.tsv')
+				.field('fileEntityMap', fileEntityMap);
+
+			expect(response.status).to.equal(200);
+			expect(response.body).to.have.property('status', 'PROCESSING');
+			expect(response.body.inProcessEntities).to.include('sport');
+			expect(addFilesToSubmissionAsyncStub.calledOnce).to.be.true;
+		});
+
+		it('should return 200 when some files use the fileEntityMap and others match by filename', async () => {
+			const sportTsv = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
+			const teamData = createTsvContent(['team_id', 'sport_id', 'name'], [['1', '1', 'Team A']]);
+			const fileEntityMap = JSON.stringify([{ filename: 'team_data.tsv', entity: 'team' }]);
+
+			const response = await app
+				.post(`/category/${categoryId}/files?organization=testOrg`)
+				.attach('files', sportTsv, 'sport.tsv')
+				.attach('files', teamData, 'team_data.tsv')
+				.field('fileEntityMap', fileEntityMap);
+
+			expect(response.status).to.equal(200);
+			expect(response.body).to.have.property('status', 'PROCESSING');
+			expect(response.body.inProcessEntities).to.include.members(['sport', 'team']);
+			expect(addFilesToSubmissionAsyncStub.calledOnce).to.be.true;
+		});
+
+		it('should return 400 when the fileEntityMap references an entity that does not exist in the dictionary', async () => {
+			const tsvContent = createTsvContent(['field_one', 'field_two'], [['value1', 'value2']]);
+			const fileEntityMap = JSON.stringify([{ filename: 'data.tsv', entity: 'unknown_entity' }]);
+
+			const response = await app
+				.post(`/category/${categoryId}/files?organization=testOrg`)
+				.attach('files', tsvContent, 'data.tsv')
+				.field('fileEntityMap', fileEntityMap);
+
+			expect(response.status).to.equal(400);
+		});
+
+		it('should return 200 with batch errors when one file is valid and another maps to an unknown entity', async () => {
+			const sportTsv = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
+			const invalidData = createTsvContent(['field_one', 'field_two'], [['value1', 'value2']]);
+			const fileEntityMap = JSON.stringify([{ filename: 'invalid_data.tsv', entity: 'unknown_entity' }]);
+
+			const response = await app
+				.post(`/category/${categoryId}/files?organization=testOrg`)
+				.attach('files', sportTsv, 'sport.tsv')
+				.attach('files', invalidData, 'invalid_data.tsv')
+				.field('fileEntityMap', fileEntityMap);
+
+			expect(response.status).to.equal(200);
+			expect(response.body.batchErrors).to.have.length.greaterThan(0);
+			expect(response.body.inProcessEntities).to.include('sport');
+			expect(addFilesToSubmissionAsyncStub.calledOnce).to.be.true;
+		});
+
+		it('should return 400 when the same filename is mapped to multiple different entities', async () => {
+			const tsvContent = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
+			const fileEntityMap = JSON.stringify([
+				{ filename: 'data.tsv', entity: 'sport' },
+				{ filename: 'data.tsv', entity: 'team' },
+			]);
+
+			const response = await app
+				.post(`/category/${categoryId}/files?organization=testOrg`)
+				.attach('files', tsvContent, 'data.tsv')
+				.field('fileEntityMap', fileEntityMap);
+
+			expect(response.status).to.equal(400);
+		});
+	});
 });

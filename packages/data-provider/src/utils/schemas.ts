@@ -360,12 +360,26 @@ export const uploadSubmissionRequestSchema: RequestValidation<
 > = {
 	pathParams: categoryPathParamsSchema,
 	query: submissionUploadFilesQueryParams,
-	// Multer always sets req.body to an empty null-prototype object when no text fields are sent.
-	// The preprocess step coerces any non-array value to undefined so that optional() accepts it.
-	body: z.preprocess(
-		(value: unknown) => (Array.isArray(value) ? value : undefined),
-		z.array(filenameEntityPair).optional(),
-	),
+	// Multer populates req.body with string-valued form fields from multipart requests.
+	// When fileEntityMap is sent as a JSON-encoded form field, req.body is { fileEntityMap: '...' }.
+	// When no text fields are sent, req.body is an empty null-prototype object {}.
+	// The preprocess step extracts and parses the fileEntityMap field when present,
+	// and coerces all other values (empty object, non-array) to undefined.
+	body: z.preprocess((value: unknown) => {
+		if (Array.isArray(value)) {
+			return value;
+		}
+		const mapField = (value as Record<string, unknown>)?.fileEntityMap;
+		if (typeof mapField !== 'string') {
+			return undefined;
+		}
+		try {
+			const parsed: unknown = JSON.parse(mapField);
+			return Array.isArray(parsed) ? parsed : undefined;
+		} catch {
+			return undefined;
+		}
+	}, z.array(filenameEntityPair).optional()),
 };
 
 export const uploadSingleEntitySubmissionDataRequestSchema: RequestValidation<
