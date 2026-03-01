@@ -23,13 +23,6 @@ export type SubmittedFileError = {
 	message: string;
 };
 
-// export type SubmittedFile = {
-// 	file: Express.Multer.File;
-// 	filetype: SupportedFileExtension;
-// 	entity: string;
-// 	errors: SubmittedFileError[];
-// };
-
 /**
  * Attempt to identify the file type from a submitted file. If the filetype is unsupported then this will return
  * a failure with the corresponding SubmittedFileError.
