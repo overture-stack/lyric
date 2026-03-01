@@ -53,7 +53,7 @@ import {
 import {
 	CommitSubmissionParams,
 	type EntityData,
-	type FileSchemaPair,
+	type FileSchemaMap,
 	type SchemasDictionary,
 	SUBMISSION_STATUS,
 	type SubmittedDataResponse,
@@ -824,11 +824,12 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	 * @param {string} params.username User who performs the action
 	 * @returns {void}
 	 */
-	const addFilesToSubmissionAsync = async (fileSchemaPairs: FileSchemaPair[], params: ValidateFilesParams) => {
-		const fileSummaries = fileSchemaPairs
-			.map(
-				({ file, schema }) =>
-					`'${file.originalname}' (${bytes.format(file.size, { decimalPlaces: 2 })}, entity: ${schema.name})`,
+	const addFilesToSubmissionAsync = async (fileSchemaMap: FileSchemaMap, params: ValidateFilesParams) => {
+		const fileSummaries = Object.entries(fileSchemaMap)
+			.flatMap(([_, { files, schema }]) =>
+				files.map(
+					(file) => `'${file.originalname}' (${bytes.format(file.size, { decimalPlaces: 2 })}, entity: ${schema.name})`,
+				),
 			)
 			.join(', ');
 		logger.info(`Processing files: ${fileSummaries}`);
@@ -839,7 +840,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 		try {
 			// Parse file data
-			const filesDataProcessed = await submissionInsertDataFromFiles(fileSchemaPairs);
+			const filesDataProcessed = await submissionInsertDataFromFiles(fileSchemaMap);
 
 			// Get Active Submission from database
 			const activeSubmission = await submissionRepository.getActiveSubmissionDetails({

@@ -593,14 +593,11 @@ const submissionService = (dependencies: BaseDependencies) => {
 		// Start background process of adding files to submission
 		// Running Schema validation in the background do not need to wait
 		// Result of validations will be stored in database
-		submissionProcessor.addFilesToSubmissionAsync(
-			Object.entries(checkedEntities).map(([_, pair]) => pair),
-			{
-				categoryId,
-				organization,
-				username,
-			},
-		);
+		submissionProcessor.addFilesToSubmissionAsync(checkedEntities, {
+			categoryId,
+			organization,
+			username,
+		});
 
 		if (batchErrors.length === 0) {
 			return {

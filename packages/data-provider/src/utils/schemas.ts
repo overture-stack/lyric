@@ -369,13 +369,13 @@ export const uploadSubmissionRequestSchema: RequestValidation<
 		if (Array.isArray(value)) {
 			return value;
 		}
-		const mapField = (value as Record<string, unknown>)?.fileEntityMap;
-		if (typeof mapField !== 'string') {
+		if (typeof value !== 'string') {
 			return undefined;
 		}
+
 		try {
-			const parsed: unknown = JSON.parse(mapField);
-			return Array.isArray(parsed) ? parsed : undefined;
+			const parsed: unknown = JSON.parse(value);
+			return Array.isArray(parsed) ? parsed : [parsed];
 		} catch {
 			return undefined;
 		}

@@ -80,30 +80,34 @@ export const checkEntityFieldNames = async (
 	const checkedEntities: FileSchemaMap = {};
 	const fieldNameErrors: BatchError[] = [];
 
-	for (const [entityName, { file, schema }] of Object.entries(entityFileMap)) {
-		try {
-			const fileHeaders = await readHeaders(file);
-			const schemaFieldNames = getSchemaFieldNames(schema);
+	for (const [entityName, { files, schema }] of Object.entries(entityFileMap)) {
+		const checkedRecord: (typeof checkedEntities)[number] = { files: [], schema };
+		for (const file of files) {
+			try {
+				const fileHeaders = await readHeaders(file);
+				const schemaFieldNames = getSchemaFieldNames(schema);
 
-			const missingRequiredFields = schemaFieldNames.required.filter(
-				(requiredField) => !fileHeaders.includes(requiredField),
-			);
-			if (missingRequiredFields.length > 0) {
+				const missingRequiredFields = schemaFieldNames.required.filter(
+					(requiredField) => !fileHeaders.includes(requiredField),
+				);
+				if (missingRequiredFields.length > 0) {
+					fieldNameErrors.push({
+						type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
+						message: `Missing required fields '${JSON.stringify(missingRequiredFields)}'`,
+						batchName: file.originalname,
+					});
+				} else {
+					checkedRecord.files.push(file);
+				}
+			} catch (error) {
 				fieldNameErrors.push({
-					type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
-					message: `Missing required fields '${JSON.stringify(missingRequiredFields)}'`,
+					type: BATCH_ERROR_TYPE.FILE_READ_ERROR,
+					message: `Error reading file '${file.originalname}'`,
 					batchName: file.originalname,
 				});
-			} else {
-				checkedEntities[entityName] = { file, schema };
 			}
-		} catch (error) {
-			fieldNameErrors.push({
-				type: BATCH_ERROR_TYPE.FILE_READ_ERROR,
-				message: `Error reading file '${file.originalname}'`,
-				batchName: file.originalname,
-			});
 		}
+		checkedEntities[entityName] = checkedRecord;
 	}
 	return {
 		checkedEntities,
@@ -127,13 +131,15 @@ export const resolveFileEntities = async (
 	validFileEntity: FileSchemaMap;
 	batchErrors: BatchError[];
 }> => {
-	const validFileEntity: Record<string, { file: Express.Multer.File; schema: Schema }> = {};
+	const validFileEntity: FileSchemaMap = {};
 	const batchErrors: BatchError[] = [];
 
 	for (const file of files) {
 		const entityResult = getSubmittedFileEntity({ file, schemas, fileEntityMap });
 		if (entityResult.success) {
-			validFileEntity[entityResult.data.name] = { file, schema: entityResult.data };
+			const mapValue = validFileEntity[entityResult.data.name] ?? { files: [], schema: entityResult.data };
+			mapValue.files.push(file);
+			validFileEntity[entityResult.data.name] = mapValue;
 		} else {
 			batchErrors.push({
 				type: BATCH_ERROR_TYPE.INVALID_FILE_NAME,
@@ -827,20 +833,26 @@ export const segregateFieldChangeRecords = (
  * @returns {Promise<Record<string, SubmissionInsertData>>}
  */
 export const submissionInsertDataFromFiles = async (
-	fileSchemaPairs: FileSchemaPair[],
+	fileSchemaMap: FileSchemaMap,
 ): Promise<Record<string, SubmissionInsertData>> => {
-	return await fileSchemaPairs.reduce<Promise<Record<string, SubmissionInsertData>>>(
-		async (accPromise, { file, schema }) => {
-			const acc = await accPromise;
-			const parsedFileData = await readTextFile(file, schema);
-			acc[schema.name] = {
-				batchName: file.originalname,
-				records: parsedFileData.records,
+	const output: Record<string, SubmissionInsertData> = {};
+
+	for (const [entityName, { files, schema }] of Object.entries(fileSchemaMap)) {
+		for (const file of files) {
+			const outputEntityValue = output[schema.name] ?? {
+				batchName: entityName,
+				records: [],
 			};
-			return Promise.resolve(acc);
-		},
-		Promise.resolve({}),
-	);
+			const parsedFileData = await readTextFile(file, schema);
+			// TODO: This doesn't handle parsedFileData.errors, when present.
+
+			outputEntityValue.records.concat(parsedFileData.records);
+
+			output[schema.name] = outputEntityValue;
+		}
+	}
+
+	return output;
 };
 
 /**

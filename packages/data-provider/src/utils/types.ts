@@ -121,7 +121,7 @@ export type FileSchemaPair = { file: Express.Multer.File; schema: Schema };
 /**
  * Map of entity name to the file and schema that were resolved for that entity during submission
  */
-export type FileSchemaMap = Record<string, FileSchemaPair>;
+export type FileSchemaMap = Record<string, { files: Express.Multer.File[]; schema: Schema }>;
 
 /**
  * Response type on Commit Active Submission (Commit endpoint)
