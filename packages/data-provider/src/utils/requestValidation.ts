@@ -36,7 +36,7 @@ export function validateRequest<
 	return async (req, res, next) => {
 		try {
 			if (schema.body) {
-				schema.body.parse(req.body);
+				req.body = schema.body.parse(req.body);
 			}
 
 			if (schema.query) {
