@@ -157,7 +157,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 			const response = await app
 				.post(`/category/${categoryId}/files?organization=testOrg`)
 				.attach('files', tsvContent, 'sport_data.tsv')
-				.field('fileEntityMap', fileEntityMap);
+				.attach('fileEntityMap', Buffer.from(fileEntityMap), { filename: 'blob', contentType: 'application/json' });
 
 			expect(response.status).to.equal(200);
 			expect(response.body).to.have.property('status', 'PROCESSING');
@@ -173,7 +173,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 			const response = await app
 				.post(`/category/${categoryId}/files?organization=testOrg`)
 				.attach('files', tsvContent, 'team.tsv')
-				.field('fileEntityMap', fileEntityMap);
+				.attach('fileEntityMap', Buffer.from(fileEntityMap), { filename: 'blob', contentType: 'application/json' });
 
 			expect(response.status).to.equal(200);
 			expect(response.body).to.have.property('status', 'PROCESSING');
@@ -194,7 +194,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 				.post(`/category/${categoryId}/files?organization=testOrg`)
 				.attach('files', batch1, 'sports_batch1.tsv')
 				.attach('files', batch2, 'sports_batch2.tsv')
-				.field('fileEntityMap', fileEntityMap);
+				.attach('fileEntityMap', Buffer.from(fileEntityMap), { filename: 'blob', contentType: 'application/json' });
 
 			expect(response.status).to.equal(200);
 			expect(response.body).to.have.property('status', 'PROCESSING');
@@ -211,7 +211,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 				.post(`/category/${categoryId}/files?organization=testOrg`)
 				.attach('files', sportTsv, 'sport.tsv')
 				.attach('files', teamData, 'team_data.tsv')
-				.field('fileEntityMap', fileEntityMap);
+				.attach('fileEntityMap', Buffer.from(fileEntityMap), { filename: 'blob', contentType: 'application/json' });
 
 			expect(response.status).to.equal(200);
 			expect(response.body).to.have.property('status', 'PROCESSING');
@@ -226,7 +226,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 			const response = await app
 				.post(`/category/${categoryId}/files?organization=testOrg`)
 				.attach('files', tsvContent, 'data.tsv')
-				.field('fileEntityMap', fileEntityMap);
+				.attach('fileEntityMap', Buffer.from(fileEntityMap), { filename: 'blob', contentType: 'application/json' });
 
 			expect(response.status).to.equal(400);
 		});
@@ -240,7 +240,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 				.post(`/category/${categoryId}/files?organization=testOrg`)
 				.attach('files', sportTsv, 'sport.tsv')
 				.attach('files', invalidData, 'invalid_data.tsv')
-				.field('fileEntityMap', fileEntityMap);
+				.attach('fileEntityMap', Buffer.from(fileEntityMap), { filename: 'blob', contentType: 'application/json' });
 
 			expect(response.status).to.equal(200);
 			expect(response.body.batchErrors).to.have.length.greaterThan(0);
@@ -258,7 +258,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 			const response = await app
 				.post(`/category/${categoryId}/files?organization=testOrg`)
 				.attach('files', tsvContent, 'data.tsv')
-				.field('fileEntityMap', fileEntityMap);
+				.attach('fileEntityMap', Buffer.from(fileEntityMap), { filename: 'blob', contentType: 'application/json' });
 
 			expect(response.status).to.equal(400);
 		});

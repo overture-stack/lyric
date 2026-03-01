@@ -846,7 +846,7 @@ export const submissionInsertDataFromFiles = async (
 			const parsedFileData = await readTextFile(file, schema);
 			// TODO: This doesn't handle parsedFileData.errors, when present.
 
-			outputEntityValue.records.concat(parsedFileData.records);
+			outputEntityValue.records.push(...parsedFileData.records);
 
 			output[schema.name] = outputEntityValue;
 		}
