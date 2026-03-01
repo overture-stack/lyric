@@ -275,25 +275,35 @@
 
 /submission/category/{categoryId}/files:
   post:
-    summary: Add new data to a submission for the specified category. Data is uploaded in files with filenames matching the entity name for the data they contain.
+    summary: Add new data to a submission for the specified category. An optional filename-to-entity map can be provided to control which entity each file is submitted for, enabling multiple files for the same entity and files whose names do not match the entity name.
     tags:
       - Submission
     parameters:
       - $ref: '#/components/parameters/path/CategoryId'
       - $ref: '#/components/parameters/query/Organization'
     requestBody:
-      description: File(s) to be added to the submission
+      description: File(s) to be added to the submission, with an optional mapping of filenames to entity names.
       required: true
       content:
         multipart/form-data:
           schema:
             type: object
+            required:
+              - files
             properties:
               files:
                 type: array
                 items:
                   type: string
                   format: binary
+              fileEntityMap:
+                type: array
+                description: Optional mapping of uploaded filenames to entity names. When provided, each file is matched to its entity using this map. When omitted, each file's name (without extension) must match an entity name in the dictionary.
+                items:
+                  $ref: '#/components/schemas/FilenameEntityPair'
+          encoding:
+            fileEntityMap:
+              contentType: application/json
     responses:
       200:
         description: Submission accepted

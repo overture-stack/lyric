@@ -207,6 +207,21 @@ components:
           type: string
           description: Name of user who last updated the submission
 
+    FilenameEntityPair:
+      type: object
+      required:
+        - filename
+        - entity
+      properties:
+        filename:
+          type: string
+          description: The original filename of the uploaded file.
+          example: donor123_specimens.tsv
+        entity:
+          type: string
+          description: The entity name this file contains data for.
+          example: specimen
+
     BatchError:
       type: object
       properties:
