@@ -360,7 +360,12 @@ export const uploadSubmissionRequestSchema: RequestValidation<
 > = {
 	pathParams: categoryPathParamsSchema,
 	query: submissionUploadFilesQueryParams,
-	body: z.array(filenameEntityPair).optional(),
+	// Multer always sets req.body to an empty null-prototype object when no text fields are sent.
+	// The preprocess step coerces any non-array value to undefined so that optional() accepts it.
+	body: z.preprocess(
+		(value: unknown) => (Array.isArray(value) ? value : undefined),
+		z.array(filenameEntityPair).optional(),
+	),
 };
 
 export const uploadSingleEntitySubmissionDataRequestSchema: RequestValidation<

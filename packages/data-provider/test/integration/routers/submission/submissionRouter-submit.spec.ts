@@ -1,11 +1,13 @@
 import { expect } from 'chai';
 import { after, afterEach, before, beforeEach, describe, it } from 'mocha';
+import sinon from 'sinon';
 import supertest from 'supertest';
 
+import submissionProcessorFactory from '../../../../src/services/submission/submissionProcessor.js';
+import { dictionarySportsData } from '../../../unit/utils/fixtures/dictionarySchemasTestData.js';
 import { startContainers, type StartedContainers } from '../../containers.js';
 import { createLyricProvider } from '../../lyricProvider.js';
 import { createTestApp } from '../../testServer.js';
-import { dictionarySportsData } from '../../../unit/utils/fixtures/dictionarySchemasTestData.js';
 
 type LyricProvider = Awaited<ReturnType<typeof createLyricProvider>>;
 
@@ -14,14 +16,30 @@ describe('Integration - Submission Router - POST /category/:categoryId/data', ()
 	let containers: StartedContainers;
 	let lyricProvider: LyricProvider;
 	let categoryId: number;
+	let processInsertRecordsAsyncStub: sinon.SinonStub;
+	let originalCreate: typeof submissionProcessorFactory.create;
 
 	before(async () => {
 		containers = await startContainers();
+
+		// Create a single shared stub so all processor instances (the controller
+		// creates its own service independently of provider.services.submission)
+		// report calls to the same spy.
+		processInsertRecordsAsyncStub = sinon.stub().resolves();
+
+		originalCreate = submissionProcessorFactory.create;
+		submissionProcessorFactory.create = (dependencies) => {
+			const processor = originalCreate(dependencies);
+			processor.processInsertRecordsAsync = processInsertRecordsAsyncStub;
+			return processor;
+		};
+
 		lyricProvider = await createLyricProvider(containers.providerConfig);
 		app = createTestApp(lyricProvider.routers.submission);
 	});
 
 	beforeEach(async () => {
+		processInsertRecordsAsyncStub.resetHistory();
 		const dictionary = await lyricProvider.repositories.dictionary.save({
 			name: 'sports',
 			version: '1.0.0',
@@ -41,6 +59,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/data', ()
 	});
 
 	after(async () => {
+		submissionProcessorFactory.create = originalCreate;
 		await lyricProvider.disconnect();
 		await containers.stop();
 	});
@@ -53,6 +72,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/data', ()
 		expect(response.status).to.equal(200);
 		expect(response.body).to.have.property('status', 'PROCESSING');
 		expect(response.body).to.have.property('submissionId');
+		expect(processInsertRecordsAsyncStub.calledOnce).to.be.true;
 	});
 
 	it('should return 400 when the payload is an empty array', async () => {

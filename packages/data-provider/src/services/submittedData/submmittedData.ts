@@ -23,7 +23,7 @@ import {
 	VIEW_TYPE,
 	type ViewType,
 } from '../../utils/types.js';
-import submissionProcessor from '../submission/submissionProcessor.js';
+import submissionProcessorFactory from '../submission/submissionProcessor.js';
 import submissionService from '../submission/submissionService.js';
 import searchDataRelations from './searchDataRelations.js';
 import viewMode from './viewMode.js';
@@ -36,6 +36,8 @@ const PAGINATION_ERROR_MESSAGES = {
 const submittedData = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_SERVICE';
 	const submittedDataRepo = submittedRepository(dependencies);
+	const submissionProcessor = submissionProcessorFactory.create(dependencies);
+
 	const { logger } = dependencies;
 	const { convertRecordsToCompoundDocuments } = viewMode(dependencies);
 	const { searchDirectDependents } = searchDataRelations(dependencies);
@@ -51,10 +53,10 @@ const submittedData = (dependencies: BaseDependencies) => {
 		submissionId?: string;
 	}> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepo;
+		const { performDataValidation } = submissionProcessor;
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getSubmissionDetailsById } = submissionRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
-		const { performDataValidation } = submissionProcessor(dependencies);
 
 		// get SubmittedData by SystemId
 		const foundRecordToDelete = await getSubmittedDataBySystemId(systemId);
@@ -171,7 +173,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
-		const { processEditRecordsAsync } = submissionProcessor(dependencies);
+		const { processEditRecordsAsync } = submissionProcessor;
 
 		if (records.length === 0) {
 			return {

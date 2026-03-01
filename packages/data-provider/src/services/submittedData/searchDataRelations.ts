@@ -2,13 +2,13 @@ import type { DataRecord } from '@overture-stack/lectern-client';
 import type { SubmittedData } from '@overture-stack/lyric-data-model/models';
 
 import type { BaseDependencies } from '../../config/config.js';
-import submittedRepository from '../../repository/submittedRepository.js';
+import createSubmittedRepository from '../../repository/submittedRepository.js';
 import type { SchemaChildNode } from '../../utils/dictionarySchemaRelations.js';
 import { mergeSubmittedDataAndDeduplicateById } from '../../utils/submittedDataUtils.js';
 
 const searchDataRelations = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SEARCH_DATA_RELATIONS_SERVICE';
-	const submittedDataRepo = submittedRepository(dependencies);
+	const submittedDataRepository = createSubmittedRepository(dependencies);
 	const { logger } = dependencies;
 	/**
 	 * This function uses a dictionary children relations to query recursivaly
@@ -34,7 +34,7 @@ const searchDataRelations = (dependencies: BaseDependencies) => {
 		organization: string;
 		systemId: string;
 	}): Promise<SubmittedData[]> => {
-		const { getSubmittedDataFiltered } = submittedDataRepo;
+		const { getSubmittedDataFiltered } = submittedDataRepository;
 
 		// Check if entity has children relationships
 		if (Object.prototype.hasOwnProperty.call(dictionaryRelations, entityName)) {

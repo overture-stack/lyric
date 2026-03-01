@@ -16,9 +16,9 @@ import type {
 
 import { BaseDependencies } from '../../config/config.js';
 import createSubmissionRepository from '../../repository/activeSubmissionRepository.js';
-import categoryRepository from '../../repository/categoryRepository.js';
-import dictionaryRepository from '../../repository/dictionaryRepository.js';
-import submittedRepository from '../../repository/submittedRepository.js';
+import createCategoryRepository from '../../repository/categoryRepository.js';
+import createDictionaryRepository from '../../repository/dictionaryRepository.js';
+import createSubmittedDataRepository from '../../repository/submittedRepository.js';
 import { getDictionarySchemaRelations, type SchemaChildNode } from '../../utils/dictionarySchemaRelations.js';
 import { BadRequest } from '../../utils/errors.js';
 import { convertRecordToString } from '../../utils/formatUtils.js';
@@ -59,10 +59,15 @@ import {
 	type SubmittedDataResponse,
 	type ValidateFilesParams,
 } from '../../utils/types.js';
-import searchDataRelations from '../submittedData/searchDataRelations.js';
+import createSubmittedDataRelationsSearch from '../submittedData/searchDataRelations.js';
 
-const submissionProcessor = (dependencies: BaseDependencies) => {
+const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_PROCESSOR_SERVICE';
+	const categoryRepositry = createCategoryRepository(dependencies);
+	const dictionaryRepository = createDictionaryRepository(dependencies);
+	const submissionRepository = createSubmissionRepository(dependencies);
+	const submittedDataRepository = createSubmittedDataRepository(dependencies);
+	const submittedDataRelationsSearch = createSubmittedDataRelationsSearch(dependencies);
 	const { logger } = dependencies;
 
 	/**
@@ -74,8 +79,8 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 	 *          between the previously submitted data and the updated record.
 	 */
 	const compareUpdatedData = async (records: DataRecord[], schemaName: string): Promise<SubmissionUpdateData[]> => {
-		const { getSubmittedDataBySystemId } = submittedRepository(dependencies);
 		const results: SubmissionUpdateData[] = [];
+		const { getSubmittedDataBySystemId } = submittedDataRepository;
 
 		const promises = records.map(async (record) => {
 			const systemId = record['systemId']?.toString();
@@ -147,8 +152,8 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 		organization: string;
 		submissionUpdateData: Record<string, SubmissionUpdateData[]>;
 	}): Promise<{ submissionUpdateData: SubmissionUpdateData; dependents: Record<string, SubmissionUpdateData[]> }[]> => {
-		const { getSubmittedDataFiltered } = submittedRepository(dependencies);
-		const { searchDirectDependents } = searchDataRelations(dependencies);
+		const { getSubmittedDataFiltered } = submittedDataRepository;
+		const { searchDirectDependents } = submittedDataRelationsSearch;
 
 		const dependentUpdates = Object.entries(submissionUpdateData).reduce<
 			Promise<{ submissionUpdateData: SubmissionUpdateData; dependents: Record<string, SubmissionUpdateData[]> }[]>
@@ -216,7 +221,7 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 	 * @returns
 	 */
 	const handleIdFieldChanges = async (idFieldChangeRecord: Record<string, SubmissionUpdateData[]>) => {
-		const { getSubmittedDataBySystemId } = submittedRepository(dependencies);
+		const { getSubmittedDataBySystemId } = submittedDataRepository;
 
 		return Object.entries(idFieldChangeRecord).reduce<
 			Promise<{
@@ -283,12 +288,9 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 	 */
 	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<void> => {
 		try {
-			const submissionRepo = createSubmissionRepository(dependencies);
-			const dataSubmittedRepo = submittedRepository(dependencies);
-
 			const { dictionary, dataToValidate, submissionId, username } = params;
 
-			const submission = await submissionRepo.getSubmissionById(submissionId);
+			const submission = await submissionRepository.getSubmissionById(submissionId);
 
 			if (!submission) {
 				throw new Error(`Submission '${submissionId}' not found`);
@@ -432,16 +434,16 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 
 			await dependencies.db.transaction(async (tx) => {
 				if (insertsToSave.length) {
-					await dataSubmittedRepo.save(insertsToSave, tx);
+					await submittedDataRepository.save(insertsToSave, tx);
 				}
 				if (updatesToSave.length) {
-					await dataSubmittedRepo.update(updatesToSave, tx);
+					await submittedDataRepository.update(updatesToSave, tx);
 				}
 				if (deletesToProcess.length) {
-					await dataSubmittedRepo.deleteBySystemId(deletesToProcess, tx);
+					await submittedDataRepository.deleteBySystemId(deletesToProcess, tx);
 				}
 
-				await submissionRepo.update(
+				await submissionRepository.update(
 					submission.id,
 					{
 						status: SUBMISSION_STATUS.COMMITTED,
@@ -487,9 +489,9 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 	}): Promise<number> => {
 		const { submissionId, submissionData, username } = input;
 
-		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
-		const { getSubmissionById } = createSubmissionRepository(dependencies);
+		const { getActiveDictionaryByCategory } = categoryRepositry;
+		const { getSubmittedDataByCategoryIdAndOrganization } = submittedDataRepository;
+		const { getSubmissionById } = submissionRepository;
 
 		// Get Active Submission from database
 		const originalSubmission = await getSubmissionById(submissionId);
@@ -609,8 +611,8 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 			username: string;
 		},
 	): Promise<void> => {
-		const { getDictionary } = dictionaryRepository(dependencies);
-		const { getSubmissionDetailsById } = createSubmissionRepository(dependencies);
+		const { getDictionary } = dictionaryRepository;
+		const { getSubmissionDetailsById } = submissionRepository;
 
 		try {
 			// Parse file data
@@ -728,7 +730,7 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 		submissionId: number;
 		username: string;
 	}) => {
-		const { getSubmissionDetailsById, update } = createSubmissionRepository(dependencies);
+		const { getSubmissionDetailsById, update } = submissionRepository;
 
 		try {
 			// Get Active Submission from database
@@ -792,7 +794,7 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 		username: string;
 	}): Promise<number> => {
 		const { dictionaryId, submissionData, idActiveSubmission, schemaErrors, username } = input;
-		const { update } = createSubmissionRepository(dependencies);
+		const { update } = submissionRepository;
 		const newStatusSubmission =
 			Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
 		// Update with new data
@@ -832,7 +834,6 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 		logger.info(`Processing files: ${fileSummaries}`);
 
 		// TODO: This only gets a summary, we need to insert data into an active submission so we need all the insert statements.
-		const submissionRepository = createSubmissionRepository(dependencies);
 
 		const { categoryId, organization, username } = params;
 
@@ -881,4 +882,4 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 	};
 };
 
-export default submissionProcessor;
+export default { create: createSubmissionProcessor };

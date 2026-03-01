@@ -36,14 +36,14 @@ import {
 	type SubmitDataResult,
 	type SubmitFileResult,
 } from '../../utils/types.js';
-import { default as createSubmissionProcessor } from './submissionProcessor.js';
+import submissionProcessorFactory from './submissionProcessor.js';
 
 const submissionService = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_SERVICE';
 	const { logger, onFinishCommit } = dependencies;
 
 	const categoryRepository = createCategoryRepository(dependencies);
-	const submissionProcessor = createSubmissionProcessor(dependencies);
+	const submissionProcessor = submissionProcessorFactory.create(dependencies);
 	const submissionRepository = createSubmissionRepository(dependencies);
 	const submittedDataRepository = createSubmittedDataRepository(dependencies);
 
