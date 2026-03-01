@@ -27,6 +27,7 @@ import { parseSubmissionActionTypes } from '../utils/submissionUtils.js';
 import {
 	BATCH_ERROR_TYPE,
 	BatchError,
+	CREATE_SUBMISSION_STATUS,
 	type PaginatedResponse,
 	SUBMISSION_ACTION_TYPE,
 	type SubmissionSummary,
@@ -365,6 +366,10 @@ const controller = ({
 					username,
 				});
 
+				if (resultSubmission.status === CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION) {
+					throw new BadRequest(resultSubmission.description);
+				}
+
 				// This response provides the details of data Submission
 				return res.status(200).send(resultSubmission);
 			} catch (error) {
@@ -424,6 +429,10 @@ const controller = ({
 					username,
 					fileEntityMap,
 				});
+
+				if (submitFilesResult.status === CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION) {
+					throw new BadRequest(submitFilesResult.description);
+				}
 
 				if (fileErrors.length == 0 && submitFilesResult.batchErrors.length == 0) {
 					logger.info(LOG_MODULE, 'Submission uploaded successfully');

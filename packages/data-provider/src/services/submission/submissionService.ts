@@ -474,7 +474,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		if (_.isEmpty(currentDictionary)) {
 			return {
 				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: `Dictionary in category '${categoryId}' not found`,
+				description: `Category '${categoryId}' is not available: either this is an invalid ID or the category has no Dictionary registered.`,
 			};
 		}
 
