@@ -341,9 +341,9 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 			const deletesToProcess: { diff: DataDiff; submissionId: number; systemId: string; username: string }[] = [];
 
 			Object.entries(schemasDataToValidate.submittedDataByEntityName).forEach(([entityName, dataArray], index) => {
+				const invalidRecordErrors = findInvalidRecordErrorsBySchemaName(resultValidation, entityName);
+				const hasErrorByIndex = groupErrorsByIndex(invalidRecordErrors);
 				dataArray.forEach((data) => {
-					const invalidRecordErrors = findInvalidRecordErrorsBySchemaName(resultValidation, entityName);
-					const hasErrorByIndex = groupErrorsByIndex(invalidRecordErrors);
 					const oldIsValid = data.isValid;
 					const newIsValid = !hasErrorsByIndex(hasErrorByIndex, index);
 					if (data.id) {
@@ -369,7 +369,7 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 							);
 						}
 
-						if (Object.values(inputUpdate)) {
+						if (Object.keys(inputUpdate).length) {
 							inputUpdate.updatedBy = username;
 							if (newIsValid) {
 								inputUpdate.lastValidSchemaId = dictionary.id;
