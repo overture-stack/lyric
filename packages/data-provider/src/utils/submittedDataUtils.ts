@@ -187,24 +187,39 @@ export const groupSchemaDataByEntityName = (data: {
 	inserts?: NewSubmittedData[];
 	submittedData?: SubmittedData[];
 }) => {
-	const combinedData = [...(data?.inserts || []), ...(data?.submittedData || [])];
-	return combinedData.reduce<GroupedDataSubmission>(
-		(result, submittedDataObject) => {
-			const { entityName, data: recordData } = submittedDataObject;
+	const result: GroupedDataSubmission = {
+		submittedDataByEntityName: {},
+		schemaDataByEntityName: {},
+	};
 
-			result.schemaDataByEntityName[entityName] = [
-				...(result.schemaDataByEntityName[entityName] || []),
-				{ ...recordData },
-			];
+	const inserts = data?.inserts ?? [];
+	const submitted = data?.submittedData ?? [];
 
-			result.submittedDataByEntityName[entityName] = [
-				...(result.submittedDataByEntityName[entityName] || []),
-				{ ...submittedDataObject },
-			];
-			return result;
-		},
-		{ submittedDataByEntityName: {}, schemaDataByEntityName: {} },
-	);
+	for (const submittedDataObject of inserts) {
+		const { entityName, data: recordData } = submittedDataObject;
+
+		if (!result.schemaDataByEntityName[entityName]) {
+			result.schemaDataByEntityName[entityName] = [];
+			result.submittedDataByEntityName[entityName] = [];
+		}
+
+		result.schemaDataByEntityName[entityName].push({ ...recordData });
+		result.submittedDataByEntityName[entityName].push({ ...submittedDataObject });
+	}
+
+	for (const submittedDataObject of submitted) {
+		const { entityName, data: recordData } = submittedDataObject;
+
+		if (!result.schemaDataByEntityName[entityName]) {
+			result.schemaDataByEntityName[entityName] = [];
+			result.submittedDataByEntityName[entityName] = [];
+		}
+
+		result.schemaDataByEntityName[entityName].push({ ...recordData });
+		result.submittedDataByEntityName[entityName].push({ ...submittedDataObject });
+	}
+
+	return result;
 };
 
 /**
