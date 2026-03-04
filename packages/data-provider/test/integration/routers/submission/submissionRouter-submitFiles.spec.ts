@@ -5,26 +5,25 @@ import supertest from 'supertest';
 
 import submissionProcessorFactory from '../../../../src/services/submission/submissionProcessor.js';
 import { dictionarySportsData } from '../../../unit/utils/fixtures/dictionarySchemasTestData.js';
-import { startContainers, type StartedContainers } from '../../containers.js';
-import { createLyricProvider, type LyricProvider } from '../../lyricProvider.js';
-import { createTestApp } from '../../testServer.js';
+import { createLyricProvider, type LyricProvider } from '../../dependencies/lyricProvider.js';
+import { createTestApp } from '../../dependencies/testServer.js';
+import { createTsvFileContent } from '../../fixtures/createTsvContent.js';
+import { getContainers } from '../../globalSetup.js';
 
-function createTsvContent(headers: string[], rows: string[][]): Buffer {
-	const lines = [headers.join('\t'), ...rows.map((row) => row.join('\t'))];
-	return Buffer.from(lines.join('\n'));
-}
-
+/**
+ * These tests are only checking the router input validation and ensuring that the submission controller initiates
+ * the submission validation process. The actual submission is stubbed so we don't need to wait for it to execute
+ * before running the next test. There is a second file that tests submission persistence to ensure that the file
+ * content is processed, validated, and added to the database correctly.
+ */
 describe('Integration - Submission Router - POST /category/:categoryId/files', () => {
 	let app: supertest.Agent;
-	let containers: StartedContainers;
 	let lyricProvider: LyricProvider;
 	let categoryId: number;
 	let addFilesToSubmissionAsyncStub: sinon.SinonStub;
 	let originalCreate: typeof submissionProcessorFactory.create;
 
 	before(async () => {
-		containers = await startContainers();
-
 		addFilesToSubmissionAsyncStub = sinon.stub().resolves();
 
 		originalCreate = submissionProcessorFactory.create;
@@ -34,7 +33,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 			return processor;
 		};
 
-		lyricProvider = await createLyricProvider(containers.providerConfig);
+		lyricProvider = await createLyricProvider(getContainers().providerConfig);
 		app = createTestApp(lyricProvider.routers.submission);
 	});
 
@@ -55,17 +54,16 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 	});
 
 	afterEach(async () => {
-		await containers.resetDatabases();
+		await getContainers().resetDatabases();
 	});
 
 	after(async () => {
 		submissionProcessorFactory.create = originalCreate;
 		await lyricProvider.disconnect();
-		await containers.stop();
 	});
 
 	it('should return 200 with PROCESSING status when a valid TSV file is uploaded', async () => {
-		const tsvContent = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
+		const tsvContent = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
 
 		const response = await app
 			.post(`/category/${categoryId}/files?organization=testOrg`)
@@ -91,8 +89,8 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 	});
 
 	it('should return 200 with PROCESSING status and list both entities when multiple files are uploaded', async () => {
-		const sportTsv = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
-		const teamTsv = createTsvContent(['team_id', 'sport_id', 'name'], [['1', '1', 'Team A']]);
+		const sportTsv = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
+		const teamTsv = createTsvFileContent(['team_id', 'sport_id', 'name'], [['1', '1', 'Team A']]);
 
 		const response = await app
 			.post(`/category/${categoryId}/files?organization=testOrg`)
@@ -122,7 +120,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 	});
 
 	it('should return 400 when the category ID is invalid', async () => {
-		const tsvContent = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
+		const tsvContent = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
 
 		const response = await app
 			.post(`/category/99999/files?organization=testOrg`)
@@ -132,7 +130,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 	});
 
 	it('should return 400 when the organization query param is missing', async () => {
-		const tsvContent = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
+		const tsvContent = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
 
 		const response = await app.post(`/category/${categoryId}/files`).attach('files', tsvContent, 'sport.tsv');
 
@@ -140,7 +138,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 	});
 
 	it('should return 400 when the filename does not match any entity in the dictionary', async () => {
-		const tsvContent = createTsvContent(['field_one', 'field_two'], [['value1', 'value2']]);
+		const tsvContent = createTsvFileContent(['field_one', 'field_two'], [['value1', 'value2']]);
 
 		const response = await app
 			.post(`/category/${categoryId}/files?organization=testOrg`)
@@ -151,7 +149,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 
 	describe('with fileEntityMap', () => {
 		it('should return 200 with PROCESSING status when a file with a non-matching filename is mapped to an entity', async () => {
-			const tsvContent = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
+			const tsvContent = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
 			const fileEntityMap = JSON.stringify([{ filename: 'sport_data.tsv', entity: 'sport' }]);
 
 			const response = await app
@@ -167,7 +165,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 
 		it('should use the mapped entity instead of the filename when the fileEntityMap overrides the name', async () => {
 			// File is named 'team.tsv' but the map says it contains 'sport' data
-			const tsvContent = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
+			const tsvContent = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
 			const fileEntityMap = JSON.stringify([{ filename: 'team.tsv', entity: 'sport' }]);
 
 			const response = await app
@@ -183,8 +181,8 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 		});
 
 		it('should return 200 when multiple files are mapped to the same entity', async () => {
-			const batch1 = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
-			const batch2 = createTsvContent(['sport_id', 'name'], [['2', 'Basketball']]);
+			const batch1 = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
+			const batch2 = createTsvFileContent(['sport_id', 'name'], [['2', 'Basketball']]);
 			const fileEntityMap = JSON.stringify([
 				{ filename: 'sports_batch1.tsv', entity: 'sport' },
 				{ filename: 'sports_batch2.tsv', entity: 'sport' },
@@ -203,8 +201,8 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 		});
 
 		it('should return 200 when some files use the fileEntityMap and others match by filename', async () => {
-			const sportTsv = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
-			const teamData = createTsvContent(['team_id', 'sport_id', 'name'], [['1', '1', 'Team A']]);
+			const sportTsv = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
+			const teamData = createTsvFileContent(['team_id', 'sport_id', 'name'], [['1', '1', 'Team A']]);
 			const fileEntityMap = JSON.stringify([{ filename: 'team_data.tsv', entity: 'team' }]);
 
 			const response = await app
@@ -220,7 +218,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 		});
 
 		it('should return 400 when the fileEntityMap references an entity that does not exist in the dictionary', async () => {
-			const tsvContent = createTsvContent(['field_one', 'field_two'], [['value1', 'value2']]);
+			const tsvContent = createTsvFileContent(['field_one', 'field_two'], [['value1', 'value2']]);
 			const fileEntityMap = JSON.stringify([{ filename: 'data.tsv', entity: 'unknown_entity' }]);
 
 			const response = await app
@@ -232,8 +230,8 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 		});
 
 		it('should return 200 with batch errors when one file is valid and another maps to an unknown entity', async () => {
-			const sportTsv = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
-			const invalidData = createTsvContent(['field_one', 'field_two'], [['value1', 'value2']]);
+			const sportTsv = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
+			const invalidData = createTsvFileContent(['field_one', 'field_two'], [['value1', 'value2']]);
 			const fileEntityMap = JSON.stringify([{ filename: 'invalid_data.tsv', entity: 'unknown_entity' }]);
 
 			const response = await app
@@ -249,7 +247,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 		});
 
 		it('should return 400 when the same filename is mapped to multiple different entities', async () => {
-			const tsvContent = createTsvContent(['sport_id', 'name'], [['1', 'Soccer']]);
+			const tsvContent = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
 			const fileEntityMap = JSON.stringify([
 				{ filename: 'data.tsv', entity: 'sport' },
 				{ filename: 'data.tsv', entity: 'team' },

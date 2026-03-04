@@ -5,23 +5,20 @@ import supertest from 'supertest';
 
 import submissionProcessorFactory from '../../../../src/services/submission/submissionProcessor.js';
 import { dictionarySportsData } from '../../../unit/utils/fixtures/dictionarySchemasTestData.js';
-import { startContainers, type StartedContainers } from '../../containers.js';
-import { createLyricProvider } from '../../lyricProvider.js';
-import { createTestApp } from '../../testServer.js';
+import { createLyricProvider } from '../../dependencies/lyricProvider.js';
+import { createTestApp } from '../../dependencies/testServer.js';
+import { getContainers } from '../../globalSetup.js';
 
 type LyricProvider = Awaited<ReturnType<typeof createLyricProvider>>;
 
 describe('Integration - Submission Router - POST /category/:categoryId/data', () => {
 	let app: supertest.Agent;
-	let containers: StartedContainers;
 	let lyricProvider: LyricProvider;
 	let categoryId: number;
 	let processInsertRecordsAsyncStub: sinon.SinonStub;
 	let originalCreate: typeof submissionProcessorFactory.create;
 
 	before(async () => {
-		containers = await startContainers();
-
 		// Create a single shared stub so all processor instances (the controller
 		// creates its own service independently of provider.services.submission)
 		// report calls to the same spy.
@@ -34,7 +31,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/data', ()
 			return processor;
 		};
 
-		lyricProvider = await createLyricProvider(containers.providerConfig);
+		lyricProvider = await createLyricProvider(getContainers().providerConfig);
 		app = createTestApp(lyricProvider.routers.submission);
 	});
 
@@ -55,13 +52,12 @@ describe('Integration - Submission Router - POST /category/:categoryId/data', ()
 	});
 
 	afterEach(async () => {
-		await containers.resetDatabases();
+		await getContainers().resetDatabases();
 	});
 
 	after(async () => {
 		submissionProcessorFactory.create = originalCreate;
 		await lyricProvider.disconnect();
-		await containers.stop();
 	});
 
 	it('should return 200 with PROCESSING status and a submissionId when valid records are submitted', async () => {

@@ -2,9 +2,10 @@ import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import pg from 'pg';
 import { GenericContainer, Network, Wait } from 'testcontainers';
 
-import type { LyricProviderConfig } from './lyricProvider.js';
 import type { DbConfig } from '@overture-stack/lyric-data-model';
-import type { SchemaServiceConfig } from '../../src/config/config.js';
+
+import type { SchemaServiceConfig } from '../../../src/config/config.js';
+import type { LyricProviderConfig } from './lyricProvider.js';
 
 export type StartedContainers = {
 	providerConfig: Pick<LyricProviderConfig, 'db' | 'schemaService'>;
@@ -69,11 +70,15 @@ export async function startContainers(): Promise<StartedContainers> {
 
 		await mongoContainer.exec([
 			'mongosh',
-			'--username', 'root',
-			'--password', 'password123',
-			'--authenticationDatabase', 'admin',
+			'--username',
+			'root',
+			'--password',
+			'password123',
+			'--authenticationDatabase',
+			'admin',
 			'lectern',
-			'--eval', 'db.getCollectionNames().forEach(function(name) { db[name].deleteMany({}) })',
+			'--eval',
+			'db.getCollectionNames().forEach(function(name) { db[name].deleteMany({}) })',
 		]);
 	};
 
