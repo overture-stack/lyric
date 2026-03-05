@@ -28,6 +28,7 @@ export const SUBMISSION_STATUS = {
 	VALID: 'VALID',
 	INVALID: 'INVALID',
 	CLOSED: 'CLOSED',
+	COMMITTING: 'COMMITTING',
 	COMMITTED: 'COMMITTED',
 } as const;
 export type SubmissionStatus = ObjectValues<typeof SUBMISSION_STATUS>;

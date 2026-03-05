@@ -51,7 +51,9 @@ async function processCommitSubmission(message: WorkerMessage) {
 		throw new Error(`Submission '${submissionId}' not found`);
 	}
 
-	// Check if submission is in COMMITTING status
+	if (submission.status !== 'COMMITTING') {
+		throw new Error(`Submission '${submissionId}' is not in COMMITTING status`);
+	}
 
 	// Fetch dictionary
 	const currentDictionary = await categoryRepo.getActiveDictionaryByCategory(categoryId);

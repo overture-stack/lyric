@@ -74,7 +74,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 			throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
 		}
 
-		// TODO: Update the submission to COMMITTING status before starting the commit process
+		await submissionRepository.update(submissionId, { status: SUBMISSION_STATUS.COMMITTING, updatedBy: username });
 
 		// Get entities to process
 		const entitiesToProcess = new Set<string>();

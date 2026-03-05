@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { integer, jsonb, pgEnum, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
+import { index, integer, jsonb, pgEnum, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
 import {
 	type DataRecord,
@@ -10,7 +10,14 @@ import {
 import { dictionaries } from './dictionaries.js';
 import { dictionaryCategories } from './dictionary_categories.js';
 
-export const submissionStatusEnum = pgEnum('submission_status', ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITTED']);
+export const submissionStatusEnum = pgEnum('submission_status', [
+	'OPEN',
+	'VALID',
+	'INVALID',
+	'CLOSED',
+	'COMMITTING',
+	'COMMITTED',
+]);
 
 export type SubmissionInsertData = {
 	batchName: string;
@@ -58,23 +65,33 @@ export type SubmissionErrors = {
 	deletes?: Record<string, SubmissionRecordErrorDetails[]>;
 };
 
-export const submissions = pgTable('submissions', {
-	id: serial('id').primaryKey(),
-	data: jsonb('data').$type<SubmissionData>().notNull(),
-	dictionaryCategoryId: integer('dictionary_category_id')
-		.references(() => dictionaryCategories.id)
-		.notNull(),
-	dictionaryId: integer('dictionary_id')
-		.references(() => dictionaries.id)
-		.notNull(),
-	errors: jsonb('errors').$type<SubmissionErrors>(),
-	organization: varchar('organization').notNull(),
-	status: submissionStatusEnum('status').notNull(),
-	createdAt: timestamp('created_at').defaultNow(),
-	createdBy: varchar('created_by'),
-	updatedAt: timestamp('updated_at').defaultNow(),
-	updatedBy: varchar('updated_by'),
-});
+export const submissions = pgTable(
+	'submissions',
+	{
+		id: serial('id').primaryKey(),
+		data: jsonb('data').$type<SubmissionData>().notNull(),
+		dictionaryCategoryId: integer('dictionary_category_id')
+			.references(() => dictionaryCategories.id)
+			.notNull(),
+		dictionaryId: integer('dictionary_id')
+			.references(() => dictionaries.id)
+			.notNull(),
+		errors: jsonb('errors').$type<SubmissionErrors>(),
+		organization: varchar('organization').notNull(),
+		status: submissionStatusEnum('status').notNull(),
+		createdAt: timestamp('created_at').defaultNow(),
+		createdBy: varchar('created_by'),
+		updatedAt: timestamp('updated_at').defaultNow(),
+		updatedBy: varchar('updated_by'),
+	},
+	(table) => {
+		return {
+			organizationIndex: index('submission_organization_index').on(table.organization),
+			categoryIndex: index('submission_category_index').on(table.dictionaryCategoryId),
+			createdByIndex: index('submission_created_by_index').on(table.createdBy),
+		};
+	},
+);
 
 export const submissionRelations = relations(submissions, ({ one }) => ({
 	dictionary: one(dictionaries, {
