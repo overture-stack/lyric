@@ -7,7 +7,6 @@ import multer from 'multer';
 import { BaseDependencies } from '../config/config.js';
 import createSubmissionController from '../controllers/submissionController.js';
 import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
-import { errorHandler } from '../middleware/errorHandler.js';
 
 const router = ({
 	baseDependencies,
@@ -92,7 +91,6 @@ const router = ({
 
 	router.post('/category/:categoryId/commit/:submissionId', submissionController.commit);
 
-	router.use(errorHandler);
 	return router;
 };
 
