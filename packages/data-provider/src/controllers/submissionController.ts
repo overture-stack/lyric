@@ -25,9 +25,9 @@ import {
 } from '../utils/schemas.js';
 import { parseSubmissionActionTypes } from '../utils/submissionUtils.js';
 import {
+	ACTIVE_SUBMISSION_STATUS,
 	BATCH_ERROR_TYPE,
 	BatchError,
-	CREATE_SUBMISSION_STATUS,
 	type PaginatedResponse,
 	SUBMISSION_ACTION_TYPE,
 	type SubmissionSummary,
@@ -366,7 +366,7 @@ const controller = ({
 					username,
 				});
 
-				if (resultSubmission.status === CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION) {
+				if (resultSubmission.status === 'UNKNOWN_CATEGORY') {
 					throw new BadRequest(resultSubmission.description);
 				}
 
@@ -430,20 +430,19 @@ const controller = ({
 					fileEntityMap,
 				});
 
-				if (submitFilesResult.status === CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION) {
+				if (submitFilesResult.status === 'UNKNOWN_CATEGORY') {
 					throw new BadRequest(submitFilesResult.description);
 				}
 
-				if (fileErrors.length == 0 && submitFilesResult.batchErrors.length == 0) {
-					logger.info(LOG_MODULE, 'Submission uploaded successfully');
-				} else {
-					logger.info(LOG_MODULE, 'Found some errors processing this request');
-				}
+				// If any files were successfully accepted and processing has started, we return 200 (maybe with batch errors)
+				// otherwise, return 400 since nothing the user sent was successful.
+				const responseStatus = submitFilesResult.inProcessEntities.length > 0 ? 200 : 400;
+
+				return res
+					.status(responseStatus)
+					.send({ ...submitFilesResult, batchErrors: [...fileErrors, ...submitFilesResult.batchErrors] });
 
 				// This response provides the details of file Submission
-				return res
-					.status(200)
-					.send({ ...submitFilesResult, batchErrors: [...fileErrors, ...submitFilesResult.batchErrors] });
 			} catch (error) {
 				next(error);
 			}

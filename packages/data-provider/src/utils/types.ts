@@ -90,19 +90,19 @@ export type AuditFilterOptions = PaginationOptions & {
 /**
  * Enum used in the Reponse on Create new Submissions
  */
-export const CREATE_SUBMISSION_STATUS = {
+export const ACTIVE_SUBMISSION_STATUS = {
+	INVALID_SUBMISSION: 'INVALID_SUBMISSION',
 	PARTIAL_SUBMISSION: 'PARTIAL_SUBMISSION',
 	PROCESSING: 'PROCESSING',
-	INVALID_SUBMISSION: 'INVALID_SUBMISSION',
 } as const;
-export type CreateSubmissionStatus = ObjectValues<typeof CREATE_SUBMISSION_STATUS>;
+export type ActiveSubmissionStatus = ObjectValues<typeof ACTIVE_SUBMISSION_STATUS>;
 
 /**
  * Used as a Response type for submitting data
  */
 export interface SubmitDataResult {
 	submissionId?: number;
-	status: CreateSubmissionStatus;
+	status: ActiveSubmissionStatus;
 	description: string;
 }
 /**
