@@ -67,11 +67,11 @@ export type AppConfig = {
  * Base Dependencies required for utils/services
  */
 export interface BaseDependencies {
-	db: NodePgDatabase<typeof schema>;
+	db: { pool: NodePgDatabase<typeof schema>; config: DbConfig };
 	features?: FeaturesConfig;
-	idService: IdServiceConfig;
+	idService?: IdServiceConfig;
 	logger: Logger;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
-	schemaService: SchemaServiceConfig;
+	schemaService?: SchemaServiceConfig;
 	submissionService?: SubmissionServiceConfig;
 }

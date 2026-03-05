@@ -1,17 +1,15 @@
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Worker } from 'node:worker_threads';
+
 import * as _ from 'lodash-es';
 
 import { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
-import {
-	type NewSubmission,
-	type SubmissionRecordErrorDetails,
-	type SubmissionUpdateData,
-} from '@overture-stack/lyric-data-model/models';
+import { type NewSubmission, type SubmissionRecordErrorDetails } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../../config/config.js';
-import systemIdGenerator from '../../external/systemIdGenerator.js';
 import createSubmissionRepository from '../../repository/activeSubmissionRepository.js';
 import createCategoryRepository from '../../repository/categoryRepository.js';
-import createSubmittedDataRepository from '../../repository/submittedRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
 import { filterAndPaginateSubmissionData, type FlattenedSubmissionData } from '../../utils/submissionResponseParser.js';
@@ -39,17 +37,14 @@ import { default as createSubmissionProcessor } from './submissionProcessor.js';
 
 const submissionService = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_SERVICE';
-	const { logger, onFinishCommit } = dependencies;
+	const { logger } = dependencies;
 
 	const categoryRepository = createCategoryRepository(dependencies);
 	const submissionProcessor = createSubmissionProcessor(dependencies);
 	const submissionRepository = createSubmissionRepository(dependencies);
-	const submittedDataRepository = createSubmittedDataRepository(dependencies);
-
-	const { generateIdentifier } = systemIdGenerator(dependencies);
 
 	/**
-	 * Runs Schema validation asynchronously and moves the Active Submission to Submitted Data
+	 * Runs Schema validation asynchronously in a worker thread and moves the Active Submission to Submitted Data
 	 * @param {number} categoryId
 	 * @param {number} submissionId
 	 * @returns {Promise<CommitSubmissionResult>}
@@ -59,10 +54,9 @@ const submissionService = (dependencies: BaseDependencies) => {
 		submissionId: number,
 		username: string,
 	): Promise<CommitSubmissionResult> => {
-		const { getSubmittedDataByCategoryIdAndOrganization } = submittedDataRepository;
 		const { getActiveDictionaryByCategory } = categoryRepository;
 
-		const submission = await submissionRepository.getSubmissionDetailsById(submissionId);
+		const submission = await submissionRepository.getSubmissionById(submissionId);
 		if (!submission) {
 			throw new BadRequest(`Submission '${submissionId}' not found`);
 		}
@@ -80,66 +74,43 @@ const submissionService = (dependencies: BaseDependencies) => {
 			throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
 		}
 
-		const submittedDataToValidate = await getSubmittedDataByCategoryIdAndOrganization(
-			categoryId,
-			submission?.organization,
-		);
+		// TODO: Update the submission to COMMITTING status before starting the commit process
 
+		// Get entities to process
 		const entitiesToProcess = new Set<string>();
+		if (submission.data?.inserts) {
+			Object.keys(submission.data.inserts).forEach((entityName) => entitiesToProcess.add(entityName));
+		}
+		if (submission.data?.updates) {
+			Object.keys(submission.data.updates).forEach((entityName) => entitiesToProcess.add(entityName));
+		}
+		if (submission.data?.deletes) {
+			Object.keys(submission.data.deletes).forEach((entityName) => entitiesToProcess.add(entityName));
+		}
 
-		submittedDataToValidate?.forEach((data) => entitiesToProcess.add(data.entityName));
+		// Trigger worker thread to handle commit submission
+		const workerPath = join(dirname(fileURLToPath(import.meta.url)), '../../workers/commitSubmissionWorker.js');
+		const worker = new Worker(workerPath);
 
-		const insertsToValidate = submission.data?.inserts
-			? Object.entries(submission.data.inserts).flatMap(([entityName, submissionData]) => {
-					entitiesToProcess.add(entityName);
-
-					return submissionData.records.map((record) => ({
-						data: record,
-						dictionaryCategoryId: categoryId,
-						entityName,
-						isValid: false, // By default, New Submitted Data is created as invalid until validation proves otherwise
-						organization: submission.organization,
-						originalSchemaId: currentDictionary.id,
-						systemId: generateIdentifier(entityName, record),
-						createdBy: username,
-					}));
-				})
-			: [];
-
-		const deleteDataArray = submission.data?.deletes
-			? Object.entries(submission.data.deletes).flatMap(([entityName, submissionDeleteData]) => {
-					entitiesToProcess.add(entityName);
-					return submissionDeleteData;
-				})
-			: [];
-
-		const updateDataArray =
-			submission.data?.updates &&
-			Object.entries(submission.data.updates).reduce<Record<string, SubmissionUpdateData>>(
-				(acc, [entityName, submissionUpdateData]) => {
-					entitiesToProcess.add(entityName);
-					submissionUpdateData.forEach((record) => {
-						acc[record.systemId] = record;
-					});
-					return acc;
-				},
-				{},
-			);
-
-		// To Commit Active Submission we need to validate SubmittedData + Active Submission
-		submissionProcessor.performCommitSubmissionAsync({
-			dataToValidate: {
-				inserts: insertsToValidate,
-				submittedData: submittedDataToValidate,
-				deletes: deleteDataArray,
-				updates: updateDataArray,
-			},
-			submissionId: submission.id,
-			dictionary: currentDictionary,
-			username: username,
-			onFinishCommit,
+		worker.on('error', (error) => {
+			worker.terminate();
+			logger.error(LOG_MODULE, `Worker thread error for submission ${submissionId}: ${error.message}`);
 		});
 
+		worker.on('exit', (code) => {
+			if (code !== 0) {
+				logger.error(LOG_MODULE, `Worker thread exited with code ${code} for submission ${submissionId}`);
+			}
+		});
+
+		// Send minimal data to worker (only serializable primitives)
+		worker.postMessage({
+			categoryId,
+			submissionId,
+			username,
+			dbConfig: dependencies.db.config,
+			idService: dependencies.idService,
+		});
 		return {
 			status: CREATE_SUBMISSION_STATUS.PROCESSING,
 			dictionary: {

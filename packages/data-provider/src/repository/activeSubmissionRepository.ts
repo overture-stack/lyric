@@ -19,7 +19,10 @@ import type {
 
 const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
-	const { db, logger } = dependencies;
+	const {
+		db: { pool },
+		logger,
+	} = dependencies;
 
 	// Submission columns for lightweight queries to exclude `data` and `errors` columns to improve performance
 	const submissionColumns: BooleanTrueObject = {
@@ -184,7 +187,7 @@ jsonb_build_object(
 		 */
 		save: async (data: NewSubmission): Promise<number> => {
 			try {
-				const [savedActiveSubmission] = await db.insert(submissions).values(data).returning({ id: submissions.id });
+				const [savedActiveSubmission] = await pool.insert(submissions).values(data).returning({ id: submissions.id });
 				logger.info(LOG_MODULE, `New Active Submission saved successfully`);
 				return savedActiveSubmission.id;
 			} catch (error) {
@@ -206,7 +209,7 @@ jsonb_build_object(
 			organization: string;
 		}): Promise<Pick<Submission, 'data' | 'id'> | undefined> => {
 			try {
-				const dbResponse = await db.query.submissions.findFirst({
+				const dbResponse = await pool.query.submissions.findFirst({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
 						eq(submissions.createdBy, username),
@@ -241,7 +244,7 @@ jsonb_build_object(
 			organization: string;
 		}): Promise<SubmissionDataSummaryRepositoryRecord | undefined> => {
 			try {
-				return await db.query.submissions.findFirst({
+				return await pool.query.submissions.findFirst({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
 						eq(submissions.createdBy, username),
@@ -265,7 +268,7 @@ jsonb_build_object(
 		 */
 		getSubmissionById: async (submissionId: number): Promise<SubmissionDataSummaryRepositoryRecord | undefined> => {
 			try {
-				return await db.query.submissions.findFirst({
+				return await pool.query.submissions.findFirst({
 					where: and(eq(submissions.id, submissionId)),
 					columns: submissionColumns,
 					with: submissionDictionaryRelationColumns,
@@ -287,7 +290,7 @@ jsonb_build_object(
 			submissionId: number,
 		): Promise<SubmissionDataDetailsRepositoryRecord | undefined> => {
 			try {
-				return await db.query.submissions.findFirst({
+				return await pool.query.submissions.findFirst({
 					where: and(eq(submissions.id, submissionId)),
 					columns: submissionColumnsWithData,
 					with: submissionDictionaryRelationColumns,
@@ -311,7 +314,7 @@ jsonb_build_object(
 			tx?: PgTransaction<PostgresJsQueryResultHKT, Submission, ExtractTablesWithRelations<Submission>>,
 		): Promise<number> => {
 			try {
-				const [resultUpdate] = await (tx || db)
+				const [resultUpdate] = await (tx || pool)
 					.update(submissions)
 					.set({ ...newData, updatedAt: new Date() })
 					.where(eq(submissions.id, submissionId))
@@ -346,7 +349,7 @@ jsonb_build_object(
 		): Promise<SubmissionDataSummaryRepositoryRecord[] | undefined> => {
 			const { page, pageSize } = paginationOptions;
 			try {
-				return await db.query.submissions.findMany({
+				return await pool.query.submissions.findMany({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
 						filterOptions.username ? eq(submissions.createdBy, filterOptions.username) : undefined,
@@ -384,7 +387,7 @@ jsonb_build_object(
 			},
 		): Promise<number> => {
 			try {
-				const resultCount = await db
+				const resultCount = await pool
 					.select({ total: count() })
 					.from(submissions)
 					.where(

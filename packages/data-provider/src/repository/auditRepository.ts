@@ -10,7 +10,10 @@ import { AuditFilterOptions, AuditRepositoryRecord, BooleanTrueObject } from '..
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'AUDIT_REPOSITORY';
-	const { db, logger } = dependencies;
+	const {
+		db: { pool },
+		logger,
+	} = dependencies;
 
 	const paginatedColumns: BooleanTrueObject = {
 		entityName: true,
@@ -94,7 +97,7 @@ const repository = (dependencies: BaseDependencies) => {
 					systemId,
 				});
 
-				return await db.query.auditSubmittedData.findMany({
+				return await pool.query.auditSubmittedData.findMany({
 					where: and(
 						eq(auditSubmittedData.dictionaryCategoryId, categoryId),
 						eq(auditSubmittedData.organization, organization),
@@ -143,7 +146,7 @@ const repository = (dependencies: BaseDependencies) => {
 					systemId,
 				});
 
-				const resultCount = await db
+				const resultCount = await pool
 					.select({ total: count() })
 					.from(auditSubmittedData)
 					.where(

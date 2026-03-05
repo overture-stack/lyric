@@ -9,7 +9,10 @@ import { ServiceUnavailable } from '../utils/errors.js';
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'CATEGORY_REPOSITORY';
-	const { db, logger } = dependencies;
+	const {
+		db: { pool },
+		logger,
+	} = dependencies;
 	return {
 		/**
 		 * Save a new Category in Database
@@ -18,7 +21,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 */
 		save: async (data: NewCategory): Promise<Category> => {
 			try {
-				const savedCategory = await db.insert(dictionaryCategories).values(data).returning();
+				const savedCategory = await pool.insert(dictionaryCategories).values(data).returning();
 				logger.info(LOG_MODULE, `Category '${data.name}' saved successfully`);
 				return savedCategory[0];
 			} catch (error) {
@@ -29,7 +32,7 @@ const repository = (dependencies: BaseDependencies) => {
 
 		categoryIdExists: async (categoryId: number): Promise<boolean> => {
 			try {
-				const categoryFound = await db
+				const categoryFound = await pool
 					.selectDistinct()
 					.from(dictionaryCategories)
 					.where(eq(dictionaryCategories.id, categoryId));
@@ -53,7 +56,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 */
 		getAllCategoryNames: async (): Promise<ListAllCategoriesResponse[]> => {
 			try {
-				return await db.query.dictionaryCategories.findMany({
+				return await pool.query.dictionaryCategories.findMany({
 					columns: {
 						id: true,
 						name: true,
@@ -72,7 +75,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 */
 		getCategoryById: async (id: number): Promise<(Category & { activeDictionary: Dictionary | null }) | undefined> => {
 			try {
-				return await db.query.dictionaryCategories.findFirst({
+				return await pool.query.dictionaryCategories.findFirst({
 					where: eq(dictionaryCategories.id, id),
 					with: {
 						activeDictionary: true,
@@ -91,7 +94,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 */
 		getCategoryByName: async (name: string): Promise<Category | undefined> => {
 			try {
-				return await db.query.dictionaryCategories.findFirst({
+				return await pool.query.dictionaryCategories.findFirst({
 					where: eq(dictionaryCategories.name, name),
 				});
 			} catch (error) {
@@ -109,7 +112,7 @@ const repository = (dependencies: BaseDependencies) => {
 			categoryId: number,
 		): Promise<(SchemasDictionary & { id: number }) | undefined> => {
 			try {
-				const result = await db.query.dictionaryCategories.findFirst({
+				const result = await pool.query.dictionaryCategories.findFirst({
 					where: eq(dictionaryCategories.id, categoryId),
 					with: {
 						activeDictionary: {
@@ -145,7 +148,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 */
 		update: async (categoryId: number, newData: Partial<Category>): Promise<Category> => {
 			try {
-				const updated = await db
+				const updated = await pool
 					.update(dictionaryCategories)
 					.set({ ...newData, updatedAt: new Date() })
 					.where(eq(dictionaryCategories.id, categoryId))
