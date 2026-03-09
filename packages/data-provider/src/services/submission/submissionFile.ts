@@ -30,7 +30,7 @@ export type SubmittedFileError = {
  * Note: This function uses the file extension extracted from the filename to identify the file type.
  */
 export function getSubmittedFileType(file: Express.Multer.File): Result<SupportedFileExtension, SubmittedFileError> {
-	const fileExtension = file.filename.split('.').pop()?.toLowerCase();
+	const fileExtension = file.originalname.split('.').pop()?.toLowerCase();
 
 	const validationResult = SUPPORTED_FILE_EXTENSIONS.safeParse(fileExtension);
 

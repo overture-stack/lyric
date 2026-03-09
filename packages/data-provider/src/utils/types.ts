@@ -114,11 +114,6 @@ export interface SubmitFileResult extends SubmitDataResult {
 }
 
 /**
- * Pair of a file and the schema that should be used to validate its contents
- */
-export type FileSchemaPair = { file: Express.Multer.File; schema: Schema };
-
-/**
  * Map of entity name to the file and schema that were resolved for that entity during submission
  */
 export type FileSchemaMap = Record<string, { files: Express.Multer.File[]; schema: Schema }>;

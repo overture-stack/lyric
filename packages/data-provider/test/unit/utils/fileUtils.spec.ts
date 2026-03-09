@@ -2,7 +2,8 @@ import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import { describe, it } from 'mocha';
 
-import { extractFileExtension, getSeparatorCharacter, mapRecordToHeaders } from '../../../src/utils/fileUtils.js';
+import { getSeparatorCharacter, mapRecordToHeaders } from '../../../src/utils/fileUtils.js';
+import { createMulterFile } from '../../fixtures/createMulterFile.js';
 
 use(chaiAsPromised);
 
@@ -28,38 +29,17 @@ describe('File Utils', () => {
 		});
 	});
 
-	describe('Validate file Extension', () => {
-		it('should return invalid file extension', () => {
-			const response = extractFileExtension('archive.xls');
-			expect(response).to.be.undefined;
-		});
-
-		it('should return invalid file extension when there is no extension', () => {
-			const response = extractFileExtension('noextension');
-			expect(response).to.be.undefined;
-		});
-
-		it('should return tsv file extension', () => {
-			const response = extractFileExtension('archive.tsv');
-			expect(response).to.eql('tsv');
-		});
-		it('should return csv file extension', () => {
-			const response = extractFileExtension('archive.csv');
-			expect(response).to.eql('csv');
-		});
-	});
-
 	describe('Get delimiter character from file extension', () => {
 		it('should identify the delimiter character for a .csv file', () => {
-			const response = getSeparatorCharacter('myFile.csv');
+			const response = getSeparatorCharacter(createMulterFile({ originalname: 'myFile.csv' }));
 			expect(response).to.eql(',');
 		});
 		it('should identify the delimiter character for a .tsv file', () => {
-			const response = getSeparatorCharacter('myFile.tsv');
+			const response = getSeparatorCharacter(createMulterFile({ originalname: 'myFile.tsv' }));
 			expect(response).to.eql('\t');
 		});
 		it('should return undefined when file extension is invalid', () => {
-			const response = getSeparatorCharacter('myFile.xyz');
+			const response = getSeparatorCharacter(createMulterFile({ originalname: 'myFile.xyz' }));
 			expect(response).to.be.undefined;
 		});
 	});

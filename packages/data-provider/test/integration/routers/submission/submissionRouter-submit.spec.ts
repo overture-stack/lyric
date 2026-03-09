@@ -4,7 +4,7 @@ import sinon from 'sinon';
 import supertest from 'supertest';
 
 import submissionProcessorFactory from '../../../../src/services/submission/submissionProcessor.js';
-import { dictionarySportsData } from '../../../unit/utils/fixtures/dictionarySchemasTestData.js';
+import { dictionarySportsData } from '../../../fixtures/dictionarySchemasTestData.js';
 import { createLyricProvider } from '../../dependencies/lyricProvider.js';
 import { createTestApp } from '../../dependencies/testServer.js';
 import { getContainers } from '../../globalSetup.js';

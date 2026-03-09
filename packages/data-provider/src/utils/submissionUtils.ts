@@ -33,7 +33,6 @@ import {
 	type DataRecordReference,
 	type EditSubmittedDataReference,
 	type FileSchemaMap as FileSchemaMap,
-	type FileSchemaPair,
 	MERGE_REFERENCE_TYPE,
 	type NewSubmittedDataReference,
 	SUBMISSION_ACTION_TYPE,
@@ -68,7 +67,7 @@ export const isSubmissionActive = (status: SubmissionStatus): status is OpenSubm
 
 /**
  * Checks if each file contains all required fields defined by its schema
- * @param {FileSchemaPair} entityFileMap Files mapped to their resolved entity name and schema
+ * @param {FileSchemaMap} entityFileMap Files mapped to their resolved entity name and schema
  * @returns a list of valid files and a list of errors
  */
 export const checkEntityFieldNames = async (
@@ -829,7 +828,7 @@ export const segregateFieldChangeRecords = (
 
 /**
  * Construct a SubmissionInsertData object per each file returning a Record type based on entityName
- * @param {FileSchemaPair} fileSchemaPairs
+ * @param {FileSchemaMap} fileSchemaPairs
  * @returns {Promise<Record<string, SubmissionInsertData>>}
  */
 export const submissionInsertDataFromFiles = async (

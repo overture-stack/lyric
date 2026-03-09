@@ -3,10 +3,10 @@ import { after, afterEach, before, beforeEach, describe, it } from 'mocha';
 import supertest from 'supertest';
 
 import submissionProcessorFactory from '../../../../src/services/submission/submissionProcessor.js';
-import { dictionarySportsData } from '../../../unit/utils/fixtures/dictionarySchemasTestData.js';
+import { createTsvFileContent } from '../../../fixtures/createTsvContent.js';
+import { dictionarySportsData } from '../../../fixtures/dictionarySchemasTestData.js';
 import { createLyricProvider, type LyricProvider } from '../../dependencies/lyricProvider.js';
 import { createTestApp } from '../../dependencies/testServer.js';
-import { createTsvFileContent } from '../../fixtures/createTsvContent.js';
 import { getContainers } from '../../globalSetup.js';
 
 /**

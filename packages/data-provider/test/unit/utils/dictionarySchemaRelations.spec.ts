@@ -10,7 +10,7 @@ import {
 	dictionaryClinicalSchemas,
 	dictionarySportStats,
 	dictionarySportStatsNodeGraph,
-} from './fixtures/dictionarySchemasTestData.js';
+} from '../../fixtures/dictionarySchemasTestData.js';
 
 describe('Dictionary Schema Relations', () => {
 	describe('Determine child relations by schema in a dictionary', () => {

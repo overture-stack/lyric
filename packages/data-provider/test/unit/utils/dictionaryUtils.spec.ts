@@ -4,7 +4,7 @@ import { describe, it } from 'mocha';
 import type { Schema } from '@overture-stack/lectern-client';
 
 import { getSchemaByName, getSchemaFieldNames, type SchemasDictionary } from '../../../src/utils/dictionaryUtils.js';
-import { dictionarySportsData } from './fixtures/dictionarySchemasTestData.js';
+import { dictionarySportsData } from '../../fixtures/dictionarySchemasTestData.js';
 
 describe('Dictionary Utils', () => {
 	it('should return optional required fields', () => {
