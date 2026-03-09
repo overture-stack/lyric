@@ -395,6 +395,10 @@ const controller = ({
 					` fileEntityMap ${JSON.stringify(fileEntityMap)}`,
 				);
 
+				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(organization, req.user)) {
+					throw new Forbidden(`User is not authorized to submit data to '${organization}'`);
+				}
+
 				if (!files || files.length == 0) {
 					throw new BadRequest(
 						'The "files" parameter is missing or empty. Please include files in the request for processing.',
