@@ -18,11 +18,7 @@ import { AUDIT_ACTION, BooleanTrueObject, PaginationOptions, SubmittedDataRespon
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTEDDATA_REPOSITORY';
-	const {
-		db: { pool },
-		logger,
-		features,
-	} = dependencies;
+	const { db, logger, features } = dependencies;
 
 	const BATCH_SIZE = 500 as const;
 
@@ -51,7 +47,7 @@ const repository = (dependencies: BaseDependencies) => {
 			createdAt: new Date(),
 			createdBy: username,
 		};
-		return await (tx || pool).insert(auditSubmittedData).values(newAudit);
+		return await (tx || db).insert(auditSubmittedData).values(newAudit);
 	};
 
 	const auditUpdateSubmittedData = async (
@@ -83,7 +79,7 @@ const repository = (dependencies: BaseDependencies) => {
 			createdAt: new Date(),
 			createdBy: recordUpdated.updatedBy,
 		};
-		return await (tx || pool).insert(auditSubmittedData).values(newAudit);
+		return await (tx || db).insert(auditSubmittedData).values(newAudit);
 	};
 
 	// Column name on the database used to build JSONB query
@@ -150,7 +146,7 @@ const repository = (dependencies: BaseDependencies) => {
 
 				const systemIds = batch.map((p) => p.systemId);
 
-				const deletedRecords = await (tx || pool)
+				const deletedRecords = await (tx || db)
 					.delete(submittedData)
 					.where(inArray(submittedData.systemId, systemIds))
 					.returning();
@@ -196,7 +192,7 @@ const repository = (dependencies: BaseDependencies) => {
 			try {
 				for (let i = 0; i < rows.length; i += BATCH_SIZE) {
 					const batch = rows.slice(i, i + BATCH_SIZE);
-					const savedSubmittedData = await (tx || pool)
+					const savedSubmittedData = await (tx || db)
 						.insert(submittedData)
 						.values(batch)
 						.returning({ id: submittedData.id });
@@ -218,7 +214,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 */
 		getAllOrganizationsByCategoryId: async (categoryId: number): Promise<string[]> => {
 			try {
-				const resultQuery = await pool
+				const resultQuery = await db
 					.selectDistinct({ organization: submittedData.organization })
 					.from(submittedData)
 					.where(eq(submittedData.dictionaryCategoryId, categoryId))
@@ -242,7 +238,7 @@ const repository = (dependencies: BaseDependencies) => {
 			organization: string,
 		): Promise<SubmittedData[]> => {
 			try {
-				return await pool.query.submittedData.findMany({
+				return await db.query.submittedData.findMany({
 					where: and(eq(submittedData.dictionaryCategoryId, categoryId), eq(submittedData.organization, organization)),
 				});
 			} catch (error) {
@@ -271,7 +267,7 @@ const repository = (dependencies: BaseDependencies) => {
 			const filterOrganizationSql = filterByOrganizationArray(filter?.organizations);
 
 			try {
-				return await pool.query.submittedData.findMany({
+				return await db.query.submittedData.findMany({
 					where: and(eq(submittedData.dictionaryCategoryId, categoryId), filterEntityNameSql, filterOrganizationSql),
 					columns: paginatedColumns,
 					orderBy: (submittedData, { asc }) => [asc(submittedData.entityName), asc(submittedData.id)],
@@ -305,7 +301,7 @@ const repository = (dependencies: BaseDependencies) => {
 			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
 
 			try {
-				return await pool.query.submittedData.findMany({
+				return await db.query.submittedData.findMany({
 					where: and(
 						eq(submittedData.dictionaryCategoryId, categoryId),
 						eq(submittedData.organization, organization),
@@ -344,7 +340,7 @@ const repository = (dependencies: BaseDependencies) => {
 			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
 
 			try {
-				const resultCount = await pool
+				const resultCount = await db
 					.select({ total: count() })
 					.from(submittedData)
 					.where(
@@ -382,7 +378,7 @@ const repository = (dependencies: BaseDependencies) => {
 			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
 			const filterOrganizationSql = filterByOrganizationArray(filter?.organizations);
 			try {
-				const resultCount = await pool
+				const resultCount = await db
 					.select({ total: count() })
 					.from(submittedData)
 					.where(and(eq(submittedData.dictionaryCategoryId, categoryId), filterEntityNameSql, filterOrganizationSql));
@@ -426,7 +422,7 @@ const repository = (dependencies: BaseDependencies) => {
 			try {
 				const updatedRecords: SubmittedData[] = [];
 				for (const u of updates) {
-					const updated = await (tx || pool)
+					const updated = await (tx || db)
 						.update(submittedData)
 						.set({ ...u.newData, updatedAt: new Date() })
 						.where(eq(submittedData.id, u.submittedDataId))
@@ -461,7 +457,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 */
 		getSubmittedDataBySystemId: async (systemId: string): Promise<SubmittedData | undefined> => {
 			try {
-				return await pool.query.submittedData.findFirst({
+				return await db.query.submittedData.findFirst({
 					where: eq(submittedData.systemId, systemId),
 				});
 			} catch (error) {
@@ -496,7 +492,7 @@ const repository = (dependencies: BaseDependencies) => {
 			});
 
 			try {
-				return await pool.query.submittedData.findMany({
+				return await db.query.submittedData.findMany({
 					where: and(or(...sqlDataFilter), eq(submittedData.organization, organization)),
 				});
 			} catch (error) {

@@ -7,10 +7,7 @@ import { ServiceUnavailable } from '../utils/errors.js';
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'DICTIONARY_REPOSITORY';
-	const {
-		db: { pool },
-		logger,
-	} = dependencies;
+	const { db, logger } = dependencies;
 	return {
 		/**
 		 * Save a new Dictionary in Database
@@ -19,7 +16,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 */
 		save: async (data: NewDictionary): Promise<Dictionary> => {
 			try {
-				const savedDictionary = await pool.insert(dictionaries).values(data).returning();
+				const savedDictionary = await db.insert(dictionaries).values(data).returning();
 				logger.info(LOG_MODULE, `Dictionary with name '${data.name}' and version '${data.version}' saved successfully`);
 				return savedDictionary[0];
 			} catch (error) {
@@ -40,7 +37,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 */
 		getDictionary: async (dictionaryName: string, version: string): Promise<Dictionary | undefined> => {
 			try {
-				return await pool.query.dictionaries.findFirst({
+				return await db.query.dictionaries.findFirst({
 					where: and(eq(dictionaries.name, dictionaryName), eq(dictionaries.version, version)),
 				});
 			} catch (error) {
@@ -60,7 +57,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 */
 		getDictionaryById: async (dictionaryId: number): Promise<Dictionary | undefined> => {
 			try {
-				return await pool.query.dictionaries.findFirst({
+				return await db.query.dictionaries.findFirst({
 					where: eq(dictionaries.id, dictionaryId),
 				});
 			} catch (error) {

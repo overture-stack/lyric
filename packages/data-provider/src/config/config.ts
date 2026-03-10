@@ -68,7 +68,7 @@ export type AppConfig = {
  * Base Dependencies required for utils/services
  */
 export interface BaseDependencies {
-	db: { pool: NodePgDatabase<typeof schema>; config: DbConfig };
+	db: NodePgDatabase<typeof schema>;
 	features?: FeaturesConfig;
 	idService?: IdServiceConfig;
 	logger: Logger;

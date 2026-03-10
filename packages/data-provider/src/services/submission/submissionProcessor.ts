@@ -430,7 +430,7 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 				});
 			});
 
-			await dependencies.db.pool.transaction(async (tx) => {
+			await dependencies.db.transaction(async (tx) => {
 				if (insertsToSave.length) {
 					await dataSubmittedRepo.save(insertsToSave, tx);
 				}
