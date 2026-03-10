@@ -269,6 +269,8 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 				.attach('files', tsvContent, 'sport.tsv');
 
 			expect(response.status).to.equal(400);
+			expect(response.body).to.have.property('status', 'INVALID_SUBMISSION');
+			expect(response.body.batchErrors?.length).to.equal(1);
 		});
 
 		it('should return 400 when multiple files are uploaded with invalid headers', async () => {
@@ -281,6 +283,8 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 				.attach('files', teamTsv, 'team.tsv');
 
 			expect(response.status).to.equal(400);
+			expect(response.body).to.have.property('status', 'INVALID_SUBMISSION');
+			expect(response.body.batchErrors?.length).to.equal(2);
 		});
 
 		it('should return 200 when multiple files are uploaded some with valid and some with invalid headers', async () => {
@@ -293,6 +297,9 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 				.attach('files', teamTsv, 'team.tsv');
 
 			expect(response.status).to.equal(200);
+			expect(response.body).to.have.property('status', 'PARTIAL_SUBMISSION');
+			expect(response.body.batchErrors?.length).to.equal(1);
+			expect(response.body.inProcessEntities?.length).to.equal(1);
 		});
 	});
 });
