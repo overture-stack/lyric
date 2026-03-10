@@ -186,7 +186,7 @@ export async function processFiles(files: Express.Multer.File[]): Promise<FilePr
 
 	for (const file of files) {
 		try {
-			if (extractFileExtension(file.originalname)) {
+			if (getSubmittedFileType(file).success) {
 				const fileHeaders = await readHeaders(file); // Wait for the async operation
 				if (fileHeaders.includes('systemId')) {
 					result.validFiles.push(file);
