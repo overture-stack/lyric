@@ -106,7 +106,9 @@ export const checkEntityFieldNames = async (
 				});
 			}
 		}
-		checkedEntities[entityName] = checkedRecord;
+		if (checkedRecord.files.length > 0) {
+			checkedEntities[entityName] = checkedRecord;
+		}
 	}
 	return {
 		checkedEntities,

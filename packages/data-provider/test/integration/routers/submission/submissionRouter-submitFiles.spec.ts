@@ -202,13 +202,13 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 
 		it('should return 200 when some files use the fileEntityMap and others match by filename', async () => {
 			const sportTsv = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
-			const teamData = createTsvFileContent(['team_id', 'sport_id', 'name'], [['1', '1', 'Team A']]);
+			const teamTsv = createTsvFileContent(['team_id', 'sport_id', 'name'], [['1', '1', 'Team A']]);
 			const fileEntityMap = JSON.stringify([{ filename: 'team_data.tsv', entity: 'team' }]);
 
 			const response = await app
 				.post(`/category/${categoryId}/files?organization=testOrg`)
 				.attach('files', sportTsv, 'sport.tsv')
-				.attach('files', teamData, 'team_data.tsv')
+				.attach('files', teamTsv, 'team_data.tsv')
 				.attach('fileEntityMap', Buffer.from(fileEntityMap), { filename: 'blob', contentType: 'application/json' });
 
 			expect(response.status).to.equal(200);
@@ -259,6 +259,40 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 				.attach('fileEntityMap', Buffer.from(fileEntityMap), { filename: 'blob', contentType: 'application/json' });
 
 			expect(response.status).to.equal(400);
+		});
+
+		it('should return 400 when a single file is uploaded with invalid headers', async () => {
+			const tsvContent = createTsvFileContent(['sport_id', 'invalid_header'], [['1', 'Soccer']]);
+
+			const response = await app
+				.post(`/category/${categoryId}/files?organization=testOrg`)
+				.attach('files', tsvContent, 'sport.tsv');
+
+			expect(response.status).to.equal(400);
+		});
+
+		it('should return 400 when multiple files are uploaded with invalid headers', async () => {
+			const sportTsv = createTsvFileContent(['sport_id', 'invalid_header'], [['1', 'Soccer']]);
+			const teamTsv = createTsvFileContent(['team_id', 'inbalid_header', 'name'], [['1', '1', 'Team A']]);
+
+			const response = await app
+				.post(`/category/${categoryId}/files?organization=testOrg`)
+				.attach('files', sportTsv, 'sport.tsv')
+				.attach('files', teamTsv, 'team.tsv');
+
+			expect(response.status).to.equal(400);
+		});
+
+		it('should return 200 when multiple files are uploaded some with valid and some with invalid headers', async () => {
+			const sportTsv = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
+			const teamTsv = createTsvFileContent(['team_id', 'inbalid_header', 'name'], [['1', '1', 'Team A']]);
+
+			const response = await app
+				.post(`/category/${categoryId}/files?organization=testOrg`)
+				.attach('files', sportTsv, 'sport.tsv')
+				.attach('files', teamTsv, 'team.tsv');
+
+			expect(response.status).to.equal(200);
 		});
 	});
 });
