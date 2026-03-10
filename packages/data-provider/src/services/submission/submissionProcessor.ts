@@ -53,6 +53,7 @@ import {
 import {
 	CommitSubmissionParams,
 	type EntityData,
+	type ResultOnCommit,
 	type SchemasDictionary,
 	SUBMISSION_STATUS,
 	type SubmittedDataResponse,
@@ -280,7 +281,7 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 	 * @param params.username User who performs the action
 	 * @returns void
 	 */
-	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<void> => {
+	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<ResultOnCommit | undefined> => {
 		try {
 			const submissionRepo = createSubmissionRepository(dependencies);
 			const dataSubmittedRepo = submittedRepository(dependencies);
@@ -450,14 +451,12 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 				);
 			});
 
-			if (params.onFinishCommit) {
-				params.onFinishCommit({
-					submissionId: submission.id,
-					organization: submission.organization,
-					categoryId: submission.dictionaryCategory.id,
-					data: resultCommit,
-				});
-			}
+			return {
+				submissionId: submission.id,
+				organization: submission.organization,
+				categoryId: submission.dictionaryCategory.id,
+				data: resultCommit,
+			};
 		} catch (error) {
 			const message = error instanceof Error ? error.message : error;
 			logger.info(
@@ -466,6 +465,8 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 				message,
 			);
 			logger.error(error);
+
+			return undefined;
 		}
 	};
 

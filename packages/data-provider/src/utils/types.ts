@@ -191,7 +191,6 @@ export interface CommitSubmissionParams {
 	dictionary: SchemasDictionary & { id: number };
 	submissionId: number;
 	username: string;
-	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }
 
 export type EntityData = Record<string, DataRecord[]>;

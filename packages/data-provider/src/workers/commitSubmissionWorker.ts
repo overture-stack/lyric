@@ -1,43 +1,17 @@
-import { parentPort } from 'node:worker_threads';
-
-import type { DbConfig } from '@overture-stack/lyric-data-model';
 import type { SubmissionUpdateData } from '@overture-stack/lyric-data-model/models';
 
-import type { BaseDependencies } from '../config/config.js';
-import { connect } from '../config/db.js';
-import { getLogger } from '../config/logger.js';
 import systemIdGenerator from '../external/systemIdGenerator.js';
 import createSubmissionRepository from '../repository/activeSubmissionRepository.js';
 import createCategoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
 import { default as createSubmissionProcessor } from '../services/submission/submissionProcessor.js';
+import type { CommitWorkerInput } from './types.js';
+import { getWorkerDependencies } from './workerContext.js';
 
-type WorkerMessage = {
-	categoryId: number;
-	submissionId: number;
-	username: string;
-	dbConfig: DbConfig;
-	idService?: BaseDependencies['idService'];
-};
+export const processCommitSubmission = async (message: CommitWorkerInput) => {
+	const { categoryId, submissionId, username } = message;
 
-parentPort?.on('message', async (message: WorkerMessage) => {
-	try {
-		await processCommitSubmission(message);
-		parentPort?.postMessage({ success: true });
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		parentPort?.postMessage({ success: false, errorMessage });
-	}
-});
-
-async function processCommitSubmission(message: WorkerMessage) {
-	const { categoryId, submissionId, username, dbConfig, idService } = message;
-
-	const dependencies: BaseDependencies = {
-		db: connect(dbConfig),
-		logger: getLogger({ level: 'info' }),
-		idService: idService,
-	};
+	const dependencies = getWorkerDependencies();
 
 	const submissionRepo = createSubmissionRepository(dependencies);
 	const categoryRepo = createCategoryRepository(dependencies);
@@ -87,7 +61,7 @@ async function processCommitSubmission(message: WorkerMessage) {
 		: [];
 
 	const deleteDataArray = submission.data?.deletes
-		? Object.entries(submission.data.deletes).flatMap(([entityName, submissionDeleteData]) => {
+		? Object.entries(submission.data.deletes).flatMap(([_entityName, submissionDeleteData]) => {
 				return submissionDeleteData;
 			})
 		: [];
@@ -95,7 +69,7 @@ async function processCommitSubmission(message: WorkerMessage) {
 	const updateDataArray =
 		submission.data?.updates &&
 		Object.entries(submission.data.updates).reduce<Record<string, SubmissionUpdateData>>(
-			(acc, [entityName, submissionUpdateData]) => {
+			(acc, [_entityName, submissionUpdateData]) => {
 				submissionUpdateData.forEach((record) => {
 					acc[record.systemId] = record;
 				});
@@ -104,7 +78,7 @@ async function processCommitSubmission(message: WorkerMessage) {
 			{},
 		);
 
-	await submissionProcessor.performCommitSubmissionAsync({
+	return await submissionProcessor.performCommitSubmissionAsync({
 		dataToValidate: {
 			inserts: insertsToValidate,
 			submittedData: submittedDataToValidate,
@@ -114,6 +88,5 @@ async function processCommitSubmission(message: WorkerMessage) {
 		submissionId: submission.id,
 		dictionary: currentDictionary,
 		username: username,
-		onFinishCommit: dependencies.onFinishCommit,
 	});
-}
+};

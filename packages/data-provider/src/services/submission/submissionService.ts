@@ -1,7 +1,3 @@
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { Worker } from 'node:worker_threads';
-
 import * as _ from 'lodash-es';
 
 import { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
@@ -33,6 +29,7 @@ import {
 	type SubmitDataResult,
 	type SubmitFileResult,
 } from '../../utils/types.js';
+import type { CommitWorkerInput } from '../../workers/types.js';
 import { default as createSubmissionProcessor } from './submissionProcessor.js';
 
 const submissionService = (dependencies: BaseDependencies) => {
@@ -88,29 +85,26 @@ const submissionService = (dependencies: BaseDependencies) => {
 			Object.keys(submission.data.deletes).forEach((entityName) => entitiesToProcess.add(entityName));
 		}
 
-		// Trigger worker thread to handle commit submission
-		const workerPath = join(dirname(fileURLToPath(import.meta.url)), '../../workers/commitSubmissionWorker.js');
-		const worker = new Worker(workerPath);
+		// Execute commit submission in worker pool
+		if (!dependencies.workerPool) {
+			throw new InternalServerError('Worker pool not available in dependencies');
+		}
 
-		worker.on('error', (error) => {
-			worker.terminate();
-			logger.error(LOG_MODULE, `Worker thread error for submission ${submissionId}: ${error.message}`);
-		});
-
-		worker.on('exit', (code) => {
-			if (code !== 0) {
-				logger.error(LOG_MODULE, `Worker thread exited with code ${code} for submission ${submissionId}`);
-			}
-		});
-
-		// Send minimal data to worker (only serializable primitives)
-		worker.postMessage({
+		const workerPool = dependencies.workerPool;
+		const commitData: CommitWorkerInput = {
 			categoryId,
 			submissionId,
 			username,
-			dbConfig: dependencies.db.config,
-			idService: dependencies.idService,
-		});
+		};
+
+		try {
+			// Let worker thread run async
+			workerPool.commitSubmission(commitData);
+		} catch (error) {
+			logger.error(LOG_MODULE, `Worker pool execution failed for submission ${submissionId}: ${error}`);
+			throw new InternalServerError(`Commit submission failed: ${error}`);
+		}
+
 		return {
 			status: CREATE_SUBMISSION_STATUS.PROCESSING,
 			dictionary: {

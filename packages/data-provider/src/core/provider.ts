@@ -33,6 +33,7 @@ import * as schemaUtils from '../utils/schemas.js';
 import * as submissionUtils from '../utils/submissionUtils.js';
 import * as submittedDataUtils from '../utils/submittedDataUtils.js';
 import * as typeUtils from '../utils/types.js';
+import { createWorkerPool } from '../workers/workerPoolManager.js';
 
 /**
  * The main provider of submission resources
@@ -48,6 +49,7 @@ const provider = (configData: AppConfig) => {
 		schemaService: configData.schemaService,
 		submissionService: configData.submissionService,
 		onFinishCommit: configData.onFinishCommit,
+		workerPool: createWorkerPool(configData),
 	};
 
 	return {
