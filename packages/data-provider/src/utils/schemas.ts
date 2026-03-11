@@ -375,7 +375,7 @@ export const uploadSubmissionRequestSchema: RequestValidation<
 
 		try {
 			const parsed: unknown = JSON.parse(value);
-			return Array.isArray(parsed) ? parsed : [parsed];
+			return Array.isArray(parsed) ? parsed.map(JSON.parse) : [parsed];
 		} catch {
 			return undefined;
 		}
