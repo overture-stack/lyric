@@ -18,7 +18,7 @@ import {
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
 
-type ObjectValues<T> = T[keyof T];
+export type ObjectValues<T> = T[keyof T];
 
 /**
  * Enum matching Submission status in database
@@ -91,19 +91,19 @@ export type AuditFilterOptions = PaginationOptions & {
 /**
  * Enum used in the Reponse on Create new Submissions
  */
-export const CREATE_SUBMISSION_STATUS = {
+export const ACTIVE_SUBMISSION_STATUS = {
+	INVALID_SUBMISSION: 'INVALID_SUBMISSION',
 	PARTIAL_SUBMISSION: 'PARTIAL_SUBMISSION',
 	PROCESSING: 'PROCESSING',
-	INVALID_SUBMISSION: 'INVALID_SUBMISSION',
 } as const;
-export type CreateSubmissionStatus = ObjectValues<typeof CREATE_SUBMISSION_STATUS>;
+export type ActiveSubmissionStatus = ObjectValues<typeof ACTIVE_SUBMISSION_STATUS>;
 
 /**
  * Used as a Response type for submitting data
  */
 export interface SubmitDataResult {
 	submissionId?: number;
-	status: CreateSubmissionStatus;
+	status: ActiveSubmissionStatus;
 	description: string;
 }
 /**
@@ -113,6 +113,11 @@ export interface SubmitFileResult extends SubmitDataResult {
 	batchErrors: BatchError[];
 	inProcessEntities: string[];
 }
+
+/**
+ * Map of entity name to the file and schema that were resolved for that entity during submission
+ */
+export type FileSchemaMap = Record<string, { files: Express.Multer.File[]; schema: Schema }>;
 
 /**
  * Response type on Commit Active Submission (Commit endpoint)
@@ -177,7 +182,6 @@ export type BatchError = {
 export interface ValidateFilesParams {
 	categoryId: number;
 	organization: string;
-	schemasDictionary: SchemasDictionary;
 	username: string;
 }
 

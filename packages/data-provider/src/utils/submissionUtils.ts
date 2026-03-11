@@ -19,15 +19,20 @@ import {
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
 
+import { getSubmittedFileEntity } from '../services/submission/submissionFile.js';
 import { isSubmissionActionTypeValid } from './auditUtils.js';
 import type { SchemaChildNode } from './dictionarySchemaRelations.js';
+import { getSchemaFieldNames } from './dictionaryUtils.js';
+import { readHeaders, readTextFile } from './fileUtils.js';
 import { asArray, deepCompare } from './formatUtils.js';
+import type { FilenameEntityPair } from './schemas.js';
 import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
 	BATCH_ERROR_TYPE,
 	type BatchError,
 	type DataRecordReference,
 	type EditSubmittedDataReference,
+	type FileSchemaMap as FileSchemaMap,
 	MERGE_REFERENCE_TYPE,
 	type NewSubmittedDataReference,
 	SUBMISSION_ACTION_TYPE,
@@ -42,8 +47,6 @@ import {
 	type SubmissionSummary,
 	SubmittedDataReference,
 } from './types.js';
-import { readHeaders, readTextFile } from './fileUtils.js';
-import { getSchemaFieldNames } from './dictionaryUtils.js';
 
 // Only "open", "valid", and "invalid" statuses are considered Active Submission
 export const openSubmissionStatus = [
@@ -63,52 +66,48 @@ export const isSubmissionActive = (status: SubmissionStatus): status is OpenSubm
 };
 
 /**
- * Checks if file contains required fields based on schema
- * @param {SchemasDictionary} dictionary A dictionary to validate with
- * @param {Record<string, Express.Multer.File>} entityFileMap A Record to map a file with a entityName as a key
+ * Checks if each file contains all required fields defined by its schema
+ * @param {FileSchemaMap} entityFileMap Files mapped to their resolved entity name and schema
  * @returns a list of valid files and a list of errors
  */
 export const checkEntityFieldNames = async (
-	dictionary: SchemasDictionary,
-	entityFileMap: Record<string, Express.Multer.File>,
-) => {
-	const checkedEntities: Record<string, Express.Multer.File> = {};
+	entityFileMap: FileSchemaMap,
+): Promise<{
+	checkedEntities: FileSchemaMap;
+	fieldNameErrors: BatchError[];
+}> => {
+	const checkedEntities: FileSchemaMap = {};
 	const fieldNameErrors: BatchError[] = [];
 
-	for (const [entityName, file] of Object.entries(entityFileMap)) {
-		try {
-			const fileHeaders = await readHeaders(file);
-			const entitySchema = dictionary.schemas.find((schema) => schema.name === entityName);
+	for (const [entityName, { files, schema }] of Object.entries(entityFileMap)) {
+		const checkedRecord: (typeof checkedEntities)[number] = { files: [], schema };
+		for (const file of files) {
+			try {
+				const fileHeaders = await readHeaders(file);
+				const schemaFieldNames = getSchemaFieldNames(schema);
 
-			if (!entitySchema) {
+				const missingRequiredFields = schemaFieldNames.required.filter(
+					(requiredField) => !fileHeaders.includes(requiredField),
+				);
+				if (missingRequiredFields.length > 0) {
+					fieldNameErrors.push({
+						type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
+						message: `Missing required fields '${JSON.stringify(missingRequiredFields)}'`,
+						batchName: file.originalname,
+					});
+				} else {
+					checkedRecord.files.push(file);
+				}
+			} catch (error) {
 				fieldNameErrors.push({
-					type: BATCH_ERROR_TYPE.INVALID_FILE_NAME,
-					message: `No matching schema for entity ${entityName}.`,
+					type: BATCH_ERROR_TYPE.FILE_READ_ERROR,
+					message: `Error reading file '${file.originalname}'`,
 					batchName: file.originalname,
 				});
-				continue;
 			}
-
-			const schemaFieldNames = getSchemaFieldNames(entitySchema);
-
-			const missingRequiredFields = schemaFieldNames.required.filter(
-				(requiredField) => !fileHeaders.includes(requiredField),
-			);
-			if (missingRequiredFields.length > 0) {
-				fieldNameErrors.push({
-					type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
-					message: `Missing required fields '${JSON.stringify(missingRequiredFields)}'`,
-					batchName: file.originalname,
-				});
-			} else {
-				checkedEntities[entityName] = file;
-			}
-		} catch (error) {
-			fieldNameErrors.push({
-				type: BATCH_ERROR_TYPE.FILE_READ_ERROR,
-				message: `Error reading file '${file.originalname}'`,
-				batchName: file.originalname,
-			});
+		}
+		if (checkedRecord.files.length > 0) {
+			checkedEntities[entityName] = checkedRecord;
 		}
 	}
 	return {
@@ -118,35 +117,34 @@ export const checkEntityFieldNames = async (
 };
 
 /**
- * Removes invalid/duplicated files
+ * For each file, determine the schema that will be used to validate it, or create an error record
+ * describing why it cannot be mapped to a Schema.
  * @param {Express.Multer.File[]} files An array of files
- * @param {string[]} dictionarySchemaNames Schema names in the dictionary
+ * @param {Schema[]} schemas Schemas in the dictionary
+ * @param {FilenameEntityPair[]} fileEntityMap Optional mapping of filenames to entity names
  * @returns A list of valid files mapped by schema/entity names
  */
-export const checkFileNames = async (
+export const resolveFileEntities = async (
 	files: Express.Multer.File[],
-	dictionarySchemaNames: string[],
-): Promise<{ validFileEntity: Record<string, Express.Multer.File>; batchErrors: BatchError[] }> => {
-	const validFileEntity: Record<string, Express.Multer.File> = {};
+	schemas: Schema[],
+	fileEntityMap?: FilenameEntityPair[],
+): Promise<{
+	validFileEntity: FileSchemaMap;
+	batchErrors: BatchError[];
+}> => {
+	const validFileEntity: FileSchemaMap = {};
 	const batchErrors: BatchError[] = [];
 
 	for (const file of files) {
-		const matchingName = dictionarySchemaNames.filter(
-			(schemaName) => schemaName.toLowerCase() == file.originalname.split('.')[0].toLowerCase(),
-		);
-
-		if (matchingName.length > 1) {
-			batchErrors.push({
-				type: BATCH_ERROR_TYPE.MULTIPLE_TYPED_FILES,
-				message: 'Multiple schemas matches this file',
-				batchName: file.originalname,
-			});
-		} else if (matchingName.length === 1) {
-			validFileEntity[matchingName[0]] = file;
+		const entityResult = getSubmittedFileEntity({ file, schemas, fileEntityMap });
+		if (entityResult.success) {
+			const mapValue = validFileEntity[entityResult.data.name] ?? { files: [], schema: entityResult.data };
+			mapValue.files.push(file);
+			validFileEntity[entityResult.data.name] = mapValue;
 		} else {
 			batchErrors.push({
 				type: BATCH_ERROR_TYPE.INVALID_FILE_NAME,
-				message: 'Filename does not relate any schema name',
+				message: entityResult.data.message,
 				batchName: file.originalname,
 			});
 		}
@@ -832,30 +830,30 @@ export const segregateFieldChangeRecords = (
 
 /**
  * Construct a SubmissionInsertData object per each file returning a Record type based on entityName
- * @param {Record<string, Express.Multer.File>} files
- * @param {SchemasDictionary} schemasDictionary
+ * @param {FileSchemaMap} fileSchemaPairs
  * @returns {Promise<Record<string, SubmissionInsertData>>}
  */
 export const submissionInsertDataFromFiles = async (
-	files: Record<string, Express.Multer.File>,
-	schemasDictionary: SchemasDictionary,
+	fileSchemaMap: FileSchemaMap,
 ): Promise<Record<string, SubmissionInsertData>> => {
-	return await Object.entries(files).reduce<Promise<Record<string, SubmissionInsertData>>>(
-		async (accPromise, [entityName, file]) => {
-			const acc = await accPromise;
-			const schema = schemasDictionary.schemas.find((schema) => schema.name === entityName);
-			if (!schema) {
-				throw new Error(`No schema found for : '${entityName}'`);
-			}
-			const parsedFileData = await readTextFile(file, schema);
-			acc[entityName] = {
-				batchName: file.originalname,
-				records: parsedFileData.records,
+	const output: Record<string, SubmissionInsertData> = {};
+
+	for (const [entityName, { files, schema }] of Object.entries(fileSchemaMap)) {
+		for (const file of files) {
+			const outputEntityValue = output[schema.name] ?? {
+				batchName: entityName,
+				records: [],
 			};
-			return Promise.resolve(acc);
-		},
-		Promise.resolve({}),
-	);
+			const parsedFileData = await readTextFile(file, schema);
+			// TODO: This doesn't handle parsedFileData.errors, when present.
+
+			outputEntityValue.records.push(...parsedFileData.records);
+
+			output[schema.name] = outputEntityValue;
+		}
+	}
+
+	return output;
 };
 
 /**

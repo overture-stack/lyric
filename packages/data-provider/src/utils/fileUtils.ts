@@ -12,6 +12,7 @@ import {
 	type UnprocessedDataRecord,
 } from '@overture-stack/lectern-client';
 
+import { getSubmittedFileType } from '../services/submission/submissionFile.js';
 import { BATCH_ERROR_TYPE, type BatchError } from './types.js';
 
 export const SUPPORTED_FILE_EXTENSIONS = z.enum(['tsv', 'csv']);
@@ -23,33 +24,15 @@ export const columnSeparatorValue = {
 } as const satisfies Record<SupportedFileExtension, string>;
 
 /**
- * Extracts the extension from the filename and returns it if it's supported.
- * Otherwise it returns undefined.
- * @param {string} fileName
- * @returns {SupportedFileExtension | undefined}
- */
-export const extractFileExtension = (fileName: string): SupportedFileExtension | undefined => {
-	// Extract the file extension
-	const fileExtension = fileName.split('.').pop()?.toLowerCase();
-
-	try {
-		// Parse to validate the extension against the Zod enum
-		return SUPPORTED_FILE_EXTENSIONS.parse(fileExtension);
-	} catch (error) {
-		return;
-	}
-};
-
-/**
  * Determines the separator character for a given file based on its extension.
- * @param fileName The name of the file whose extension determines the separator character.
+ * @param file The name of the file whose extension determines the separator character.
  * @returns The separator character associated with the file extension, or `undefined` if
  *          the file extension is invalid or unrecognized.
  */
-export const getSeparatorCharacter = (fileName: string): string | undefined => {
-	const fileExtension = extractFileExtension(fileName);
-	if (fileExtension) {
-		return columnSeparatorValue[fileExtension];
+export const getSeparatorCharacter = (file: Express.Multer.File): string | undefined => {
+	const fileExtension = getSubmittedFileType(file);
+	if (fileExtension.success) {
+		return columnSeparatorValue[fileExtension.data];
 	}
 	return;
 };
@@ -94,7 +77,7 @@ export const readTextFile = async (
 ): Promise<{ records: DataRecord[]; errors?: ParseSchemaError[] }> => {
 	const returnRecords: DataRecord[] = [];
 	const returnErrors: ParseSchemaError[] = [];
-	const separatorCharacter = getSeparatorCharacter(file.originalname);
+	const separatorCharacter = getSeparatorCharacter(file);
 	if (!separatorCharacter) {
 		throw new Error('Invalid file Extension');
 	}
@@ -203,7 +186,7 @@ export async function processFiles(files: Express.Multer.File[]): Promise<FilePr
 
 	for (const file of files) {
 		try {
-			if (extractFileExtension(file.originalname)) {
+			if (getSubmittedFileType(file).success) {
 				const fileHeaders = await readHeaders(file); // Wait for the async operation
 				if (fileHeaders.includes('systemId')) {
 					result.validFiles.push(file);

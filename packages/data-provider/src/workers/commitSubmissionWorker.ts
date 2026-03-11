@@ -4,7 +4,7 @@ import systemIdGenerator from '../external/systemIdGenerator.js';
 import createSubmissionRepository from '../repository/activeSubmissionRepository.js';
 import createCategoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
-import { default as createSubmissionProcessor } from '../services/submission/submissionProcessor.js';
+import submissionProcessorFactory from '../services/submission/submissionProcessor.js';
 import type { CommitWorkerInput } from './types.js';
 import { getWorkerDependencies } from './workerContext.js';
 
@@ -17,7 +17,7 @@ export const processCommitSubmission = async (message: CommitWorkerInput) => {
 	const categoryRepo = createCategoryRepository(dependencies);
 	const submittedDataRepo = submittedRepository(dependencies);
 
-	const submissionProcessor = createSubmissionProcessor(dependencies);
+	const submissionProcessor = submissionProcessorFactory.create(dependencies);
 
 	// Fetch submission
 	const submission = await submissionRepo.getSubmissionDetailsById(submissionId);

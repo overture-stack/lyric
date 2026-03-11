@@ -16,9 +16,9 @@ import type {
 
 import { BaseDependencies } from '../../config/config.js';
 import createSubmissionRepository from '../../repository/activeSubmissionRepository.js';
-import categoryRepository from '../../repository/categoryRepository.js';
-import dictionaryRepository from '../../repository/dictionaryRepository.js';
-import submittedRepository from '../../repository/submittedRepository.js';
+import createCategoryRepository from '../../repository/categoryRepository.js';
+import createDictionaryRepository from '../../repository/dictionaryRepository.js';
+import createSubmittedDataRepository from '../../repository/submittedRepository.js';
 import { getDictionarySchemaRelations, type SchemaChildNode } from '../../utils/dictionarySchemaRelations.js';
 import { BadRequest, InternalServerError } from '../../utils/errors.js';
 import { convertRecordToString } from '../../utils/formatUtils.js';
@@ -53,16 +53,22 @@ import {
 import {
 	CommitSubmissionParams,
 	type EntityData,
+	type FileSchemaMap,
 	type ResultOnCommit,
 	type SchemasDictionary,
 	SUBMISSION_STATUS,
 	type SubmittedDataResponse,
 	type ValidateFilesParams,
 } from '../../utils/types.js';
-import searchDataRelations from '../submittedData/searchDataRelations.js';
+import createSubmittedDataRelationsSearch from '../submittedData/searchDataRelations.js';
 
-const submissionProcessor = (dependencies: BaseDependencies) => {
+const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_PROCESSOR_SERVICE';
+	const categoryRepositry = createCategoryRepository(dependencies);
+	const dictionaryRepository = createDictionaryRepository(dependencies);
+	const submissionRepository = createSubmissionRepository(dependencies);
+	const submittedDataRepository = createSubmittedDataRepository(dependencies);
+	const submittedDataRelationsSearch = createSubmittedDataRelationsSearch(dependencies);
 	const { logger } = dependencies;
 
 	/**
@@ -74,8 +80,8 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 	 *          between the previously submitted data and the updated record.
 	 */
 	const compareUpdatedData = async (records: DataRecord[], schemaName: string): Promise<SubmissionUpdateData[]> => {
-		const { getSubmittedDataBySystemId } = submittedRepository(dependencies);
 		const results: SubmissionUpdateData[] = [];
+		const { getSubmittedDataBySystemId } = submittedDataRepository;
 
 		const promises = records.map(async (record) => {
 			const systemId = record['systemId']?.toString();
@@ -147,8 +153,8 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 		organization: string;
 		submissionUpdateData: Record<string, SubmissionUpdateData[]>;
 	}): Promise<{ submissionUpdateData: SubmissionUpdateData; dependents: Record<string, SubmissionUpdateData[]> }[]> => {
-		const { getSubmittedDataFiltered } = submittedRepository(dependencies);
-		const { searchDirectDependents } = searchDataRelations(dependencies);
+		const { getSubmittedDataFiltered } = submittedDataRepository;
+		const { searchDirectDependents } = submittedDataRelationsSearch;
 
 		const dependentUpdates = Object.entries(submissionUpdateData).reduce<
 			Promise<{ submissionUpdateData: SubmissionUpdateData; dependents: Record<string, SubmissionUpdateData[]> }[]>
@@ -216,7 +222,7 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 	 * @returns
 	 */
 	const handleIdFieldChanges = async (idFieldChangeRecord: Record<string, SubmissionUpdateData[]>) => {
-		const { getSubmittedDataBySystemId } = submittedRepository(dependencies);
+		const { getSubmittedDataBySystemId } = submittedDataRepository;
 
 		return Object.entries(idFieldChangeRecord).reduce<
 			Promise<{
@@ -283,12 +289,9 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 	 */
 	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<ResultOnCommit | undefined> => {
 		try {
-			const submissionRepo = createSubmissionRepository(dependencies);
-			const dataSubmittedRepo = submittedRepository(dependencies);
-
 			const { dictionary, dataToValidate, submissionId, username } = params;
 
-			const submission = await submissionRepo.getSubmissionById(submissionId);
+			const submission = await submissionRepository.getSubmissionById(submissionId);
 
 			if (!submission) {
 				throw new Error(`Submission '${submissionId}' not found`);
@@ -432,16 +435,16 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 
 			await dependencies.db.transaction(async (tx) => {
 				if (insertsToSave.length) {
-					await dataSubmittedRepo.save(insertsToSave, tx);
+					await submittedDataRepository.save(insertsToSave, tx);
 				}
 				if (updatesToSave.length) {
-					await dataSubmittedRepo.update(updatesToSave, tx);
+					await submittedDataRepository.update(updatesToSave, tx);
 				}
 				if (deletesToProcess.length) {
-					await dataSubmittedRepo.deleteBySystemId(deletesToProcess, tx);
+					await submittedDataRepository.deleteBySystemId(deletesToProcess, tx);
 				}
 
-				await submissionRepo.update(
+				await submissionRepository.update(
 					submission.id,
 					{
 						status: SUBMISSION_STATUS.COMMITTED,
@@ -478,9 +481,9 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 	 * @returns {Promise<number>} ID of the Submission updated
 	 */
 	const performDataValidation = async (submissionId: number): Promise<number> => {
-		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { getSubmittedDataByCategoryIdAndOrganization } = submittedRepository(dependencies);
-		const { getSubmissionDetailsById } = createSubmissionRepository(dependencies);
+		const { getActiveDictionaryByCategory } = categoryRepositry;
+		const { getSubmittedDataByCategoryIdAndOrganization } = submittedDataRepository;
+		const { getSubmissionDetailsById } = submissionRepository;
 
 		// Get Active Submission from database
 		const originalSubmission = await getSubmissionDetailsById(submissionId);
@@ -594,8 +597,8 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 			username: string;
 		},
 	): Promise<void> => {
-		const { getDictionary } = dictionaryRepository(dependencies);
-		const { getSubmissionDetailsById, update } = createSubmissionRepository(dependencies);
+		const { getDictionary } = dictionaryRepository;
+		const { getSubmissionDetailsById, update } = submissionRepository;
 
 		try {
 			// Parse file data
@@ -722,7 +725,7 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 		submissionId: number;
 		username: string;
 	}) => {
-		const { getSubmissionDetailsById, update } = createSubmissionRepository(dependencies);
+		const { getSubmissionDetailsById, update } = submissionRepository;
 
 		try {
 			// Get Active Submission from database
@@ -773,10 +776,8 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 	 * Update Active Submission in database
 	 * @param {Object} input
 	 * @param {number} input.dictionaryId The Dictionary ID of the Submission
-	 * @param {SubmissionData} input.submissionData Data to be submitted grouped on inserts, updates and deletes
 	 * @param {number} input.idActiveSubmission ID of the Active Submission
 	 * @param {SubmissionErrors} input.schemaErrors Array of schemaErrors
-	 * @param {string} input.username User updating the active submission
 	 * @returns {Promise<number>} An Active Submission updated
 	 */
 	const updateActiveSubmission = async (input: {
@@ -785,7 +786,7 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 		schemaErrors: SubmissionErrors;
 	}): Promise<number> => {
 		const { dictionaryId, idActiveSubmission, schemaErrors } = input;
-		const { update } = createSubmissionRepository(dependencies);
+		const { update } = submissionRepository;
 		const newStatusSubmission =
 			Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
 		// Update with new data
@@ -813,20 +814,23 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 	 * @param {string} params.username User who performs the action
 	 * @returns {void}
 	 */
-	const addFilesToSubmissionAsync = async (files: Record<string, Express.Multer.File>, params: ValidateFilesParams) => {
-		for (const [fileName, fileInfo] of Object.entries(files)) {
-			const sizeString = bytes.format(fileInfo.size, { decimalPlaces: 2 });
-			logger.info(`Processing file '${fileName}' size '${sizeString}'`);
-		}
+	const addFilesToSubmissionAsync = async (fileSchemaMap: FileSchemaMap, params: ValidateFilesParams) => {
+		const fileSummaries = Object.entries(fileSchemaMap)
+			.flatMap(([_, { files, schema }]) =>
+				files.map(
+					(file) => `'${file.originalname}' (${bytes.format(file.size, { decimalPlaces: 2 })}, entity: ${schema.name})`,
+				),
+			)
+			.join(', ');
+		logger.info(`Processing files: ${fileSummaries}`);
 
 		// TODO: This only gets a summary, we need to insert data into an active submission so we need all the insert statements.
-		const submissionRepository = createSubmissionRepository(dependencies);
 
-		const { categoryId, organization, username, schemasDictionary } = params;
+		const { categoryId, organization, username } = params;
 
 		try {
 			// Parse file data
-			const filesDataProcessed = await submissionInsertDataFromFiles(files, schemasDictionary);
+			const filesDataProcessed = await submissionInsertDataFromFiles(fileSchemaMap);
 
 			// Get Active Submission from database
 			const activeSubmission = await submissionRepository.getActiveSubmissionDetails({
@@ -861,10 +865,7 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 			const workerPool = dependencies.workerPool;
 			workerPool.dataValidation({ submissionId: activeSubmission.id });
 		} catch (error) {
-			logger.error(
-				`There was an error processing files: ${Object.entries(files).map(([entityName]) => entityName)}`,
-				JSON.stringify(error),
-			);
+			logger.error(`There was an error processing submitted files: ${fileSummaries}`, JSON.stringify(error));
 		}
 		logger.info(
 			`Finished addFilesToSubmissionAsync for active submission in category "${params.categoryId}" for organization "${params.organization}" submitted by user "${params.username}"`,
@@ -881,4 +882,4 @@ const submissionProcessor = (dependencies: BaseDependencies) => {
 	};
 };
 
-export default submissionProcessor;
+export default { create: createSubmissionProcessor };

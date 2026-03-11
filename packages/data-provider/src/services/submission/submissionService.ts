@@ -8,17 +8,18 @@ import createSubmissionRepository from '../../repository/activeSubmissionReposit
 import createCategoryRepository from '../../repository/categoryRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
+import type { FilenameEntityPair } from '../../utils/schemas.js';
 import { filterAndPaginateSubmissionData, type FlattenedSubmissionData } from '../../utils/submissionResponseParser.js';
 import {
 	checkEntityFieldNames,
-	checkFileNames,
 	createSubmissionSummaryResponse,
 	isSubmissionActive,
 	removeItemsFromSubmission,
+	resolveFileEntities,
 } from '../../utils/submissionUtils.js';
 import {
+	ACTIVE_SUBMISSION_STATUS,
 	CommitSubmissionResult,
-	CREATE_SUBMISSION_STATUS,
 	type DeleteSubmissionResult,
 	type EntityData,
 	type PaginationOptions,
@@ -30,14 +31,14 @@ import {
 	type SubmitFileResult,
 } from '../../utils/types.js';
 import type { CommitWorkerInput } from '../../workers/types.js';
-import { default as createSubmissionProcessor } from './submissionProcessor.js';
+import submissionProcessorFactory from './submissionProcessor.js';
 
 const submissionService = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_SERVICE';
 	const { logger } = dependencies;
 
 	const categoryRepository = createCategoryRepository(dependencies);
-	const submissionProcessor = createSubmissionProcessor(dependencies);
+	const submissionProcessor = submissionProcessorFactory.create(dependencies);
 	const submissionRepository = createSubmissionRepository(dependencies);
 
 	/**
@@ -106,7 +107,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		}
 
 		return {
-			status: CREATE_SUBMISSION_STATUS.PROCESSING,
+			status: ACTIVE_SUBMISSION_STATUS.PROCESSING,
 			dictionary: {
 				name: currentDictionary.name,
 				version: currentDictionary.version,
@@ -219,7 +220,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		logger.info(LOG_MODULE, `Submission '${submission.id}' updated after removing entity '${filter.entityName}'`);
 
 		return {
-			status: CREATE_SUBMISSION_STATUS.PROCESSING,
+			status: ACTIVE_SUBMISSION_STATUS.PROCESSING,
 			description: 'Submission records are being processed',
 			submissionId: submission.id,
 		};
@@ -406,6 +407,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		return submissionRepository.save(newSubmissionInput);
 	};
 
+	type UnknownCategoryResult = { status: 'UNKNOWN_CATEGORY'; description: string };
 	/**
 	 * Validates and Creates the Entities Schemas of the Active Submission and stores it in the database
 	 * @param {object} params
@@ -426,7 +428,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		categoryId: number;
 		organization: string;
 		username: string;
-	}): Promise<SubmitDataResult> => {
+	}): Promise<SubmitDataResult | UnknownCategoryResult> => {
 		const entityNames = Object.keys(data);
 		logger.info(
 			LOG_MODULE,
@@ -434,7 +436,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		);
 		if (entityNames.length === 0) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: 'No valid data for submission',
 			};
 		}
@@ -443,8 +445,8 @@ const submissionService = (dependencies: BaseDependencies) => {
 
 		if (_.isEmpty(currentDictionary)) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: `Dictionary in category '${categoryId}' not found`,
+				status: 'UNKNOWN_CATEGORY',
+				description: `Category '${categoryId}' is not available: either this is an invalid ID or the category has no Dictionary registered.`,
 			};
 		}
 
@@ -458,7 +460,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		const invalidEntities = entityNames.filter((name) => !getSchemaByName(name, schemasDictionary));
 		if (invalidEntities.length) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: `Invalid entity name '${invalidEntities}' for submission`,
 			};
 		}
@@ -476,7 +478,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		});
 
 		return {
-			status: CREATE_SUBMISSION_STATUS.PROCESSING,
+			status: ACTIVE_SUBMISSION_STATUS.PROCESSING,
 			description: 'Submission records are being processed',
 			submissionId: activeSubmissionId,
 		};
@@ -496,17 +498,19 @@ const submissionService = (dependencies: BaseDependencies) => {
 		categoryId,
 		organization,
 		username,
+		fileEntityMap,
 	}: {
 		files: Express.Multer.File[];
 		categoryId: number;
 		organization: string;
 		username: string;
-	}): Promise<SubmitFileResult> => {
+		fileEntityMap?: FilenameEntityPair[];
+	}): Promise<SubmitFileResult | UnknownCategoryResult> => {
 		logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
 
 		if (files.length === 0) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: 'No valid files for submission',
 				batchErrors: [],
 				inProcessEntities: [],
@@ -516,7 +520,10 @@ const submissionService = (dependencies: BaseDependencies) => {
 		const currentDictionary = await categoryRepository.getActiveDictionaryByCategory(categoryId);
 
 		if (_.isEmpty(currentDictionary)) {
-			throw new BadRequest(`Dictionary in category '${categoryId}' not found`);
+			return {
+				status: 'UNKNOWN_CATEGORY',
+				description: `Category '${categoryId}' is not available: either this is an invalid ID or the category has no Dictionary registered.`,
+			};
 		}
 
 		const schemasDictionary: SchemasDictionary = {
@@ -526,16 +533,18 @@ const submissionService = (dependencies: BaseDependencies) => {
 		};
 
 		// step 1 Validation. Validate entity type (filename matches dictionary entities, remove duplicates)
-		// TODO: Use filename map to identify files, concatenate records if multiple files map to same entity
-		const schemaNames: string[] = schemasDictionary.schemas.map((item) => item.name);
-		const { validFileEntity, batchErrors: fileNamesErrors } = await checkFileNames(files, schemaNames);
+		const { validFileEntity, batchErrors: fileNamesErrors } = await resolveFileEntities(
+			files,
+			schemasDictionary.schemas,
+			fileEntityMap,
+		);
 
 		if (_.isEmpty(validFileEntity)) {
-			logger.info(LOG_MODULE, `No valid files for submission`);
+			logger.debug(LOG_MODULE, `No valid files for submission`);
 		}
 
 		// step 2 Validation. Validate fieldNames (missing required fields based on schema)
-		const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(schemasDictionary, validFileEntity);
+		const { checkedEntities, fieldNameErrors } = await checkEntityFieldNames(validFileEntity);
 
 		const batchErrors = [...fileNamesErrors, ...fieldNameErrors];
 		const entitiesToProcess = Object.keys(checkedEntities);
@@ -543,7 +552,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		if (_.isEmpty(checkedEntities)) {
 			logger.info(LOG_MODULE, 'Found errors on Submission files.', JSON.stringify(batchErrors));
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: 'No valid entities in submission',
 				batchErrors,
 				inProcessEntities: entitiesToProcess,
@@ -560,7 +569,6 @@ const submissionService = (dependencies: BaseDependencies) => {
 		// Running Schema validation in the background do not need to wait
 		// Result of validations will be stored in database
 		submissionProcessor.addFilesToSubmissionAsync(checkedEntities, {
-			schemasDictionary,
 			categoryId,
 			organization,
 			username,
@@ -568,7 +576,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 
 		if (batchErrors.length === 0) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.PROCESSING,
+				status: ACTIVE_SUBMISSION_STATUS.PROCESSING,
 				description: 'Submission files are being processed',
 				submissionId: activeSubmissionId,
 				batchErrors,
@@ -577,7 +585,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		}
 
 		return {
-			status: CREATE_SUBMISSION_STATUS.PARTIAL_SUBMISSION,
+			status: ACTIVE_SUBMISSION_STATUS.PARTIAL_SUBMISSION,
 			description: 'Some Submission files are being processed while others were unable to process',
 			submissionId: activeSubmissionId,
 			batchErrors,

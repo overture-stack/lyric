@@ -16,14 +16,14 @@ import {
 	transformmSubmittedDataToSubmissionDeleteData,
 } from '../../utils/submittedDataUtils.js';
 import {
-	CREATE_SUBMISSION_STATUS,
-	type CreateSubmissionStatus,
+	ACTIVE_SUBMISSION_STATUS,
+	type ActiveSubmissionStatus,
 	PaginationOptions,
 	SubmittedDataResponse,
 	VIEW_TYPE,
 	type ViewType,
 } from '../../utils/types.js';
-import submissionProcessor from '../submission/submissionProcessor.js';
+import submissionProcessorFactory from '../submission/submissionProcessor.js';
 import submissionService from '../submission/submissionService.js';
 import searchDataRelations from './searchDataRelations.js';
 import viewMode from './viewMode.js';
@@ -37,6 +37,8 @@ const PAGINATION_ERROR_MESSAGES = {
 const submittedData = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_SERVICE';
 	const submittedDataRepo = submittedRepository(dependencies);
+	const submissionProcessor = submissionProcessorFactory.create(dependencies);
+
 	const { logger } = dependencies;
 	const { convertRecordsToCompoundDocuments } = viewMode(dependencies);
 	const { searchDirectDependents } = searchDataRelations(dependencies);
@@ -48,10 +50,11 @@ const submittedData = (dependencies: BaseDependencies) => {
 	): Promise<{
 		description: string;
 		inProcessEntities: string[];
-		status: CreateSubmissionStatus;
+		status: ActiveSubmissionStatus;
 		submissionId?: string;
 	}> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepo;
+		const { performDataValidation } = submissionProcessor;
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getSubmissionDetailsById, update } = submissionRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
@@ -61,7 +64,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		if (!foundRecordToDelete) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: `No Submitted data found with systemId '${systemId}'`,
 				inProcessEntities: [],
 			};
@@ -70,7 +73,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		if (foundRecordToDelete.dictionaryCategoryId !== categoryId) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: `Invalid Category ID '${categoryId}' for system ID '${systemId}'`,
 				inProcessEntities: [],
 			};
@@ -81,7 +84,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		if (!currentDictionary) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: `Dictionary not found`,
 				inProcessEntities: [],
 			};
@@ -113,7 +116,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		if (!activeSubmission) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: 'Active Submission not found',
 				inProcessEntities: [],
 			};
@@ -147,7 +150,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		logger.info(LOG_MODULE, `Added '${entitiesToProcess.length}' records to be deleted on the Active Submission`);
 
 		return {
-			status: CREATE_SUBMISSION_STATUS.PROCESSING,
+			status: ACTIVE_SUBMISSION_STATUS.PROCESSING,
 			description: 'Submission data is being processed',
 			submissionId: activeSubmission.id.toString(),
 			inProcessEntities: entitiesToProcess,
@@ -177,11 +180,11 @@ const submittedData = (dependencies: BaseDependencies) => {
 		);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
-		const { processEditRecordsAsync } = submissionProcessor(dependencies);
+		const { processEditRecordsAsync } = submissionProcessor;
 
 		if (records.length === 0) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: 'No valid records provided.',
 			};
 		}
@@ -190,7 +193,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		if (_.isEmpty(currentDictionary)) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: `Dictionary in category '${categoryId}' not found`,
 			};
 		}
@@ -205,7 +208,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		const entitySchema = schemasDictionary.schemas.find((item) => item.name === entityName);
 		if (!entitySchema) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: `Invalid entity name ${entityName} for submission`,
 			};
 		}
@@ -222,7 +225,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		});
 
 		return {
-			status: CREATE_SUBMISSION_STATUS.PROCESSING,
+			status: ACTIVE_SUBMISSION_STATUS.PROCESSING,
 			description: 'Submission records are being processed',
 			submissionId: activeSubmissionId,
 		};
