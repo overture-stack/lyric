@@ -354,13 +354,41 @@ const dataRecordValueSchema = z.union([
 const dataRecordSchema = z.record(dataRecordValueSchema);
 
 export const uploadSubmissionRequestSchema: RequestValidation<
-	unknown,
+	FilenameEntityPair[] | undefined,
 	SubmissionUploadFilesQueryParams,
 	CategoryPathParams
 > = {
 	pathParams: categoryPathParamsSchema,
 	query: submissionUploadFilesQueryParams,
-	// body: z.array(filenameEntityPair).optional(),
+	// Multer populates req.body with string-valued form fields from multipart requests.
+	// When fileEntityMap is sent as a JSON-encoded form field, req.body is { fileEntityMap: '...' }.
+	// When no text fields are sent, req.body is an empty null-prototype object {}.
+	// The preprocess step extracts and parses the fileEntityMap field when present,
+	// and coerces all other values (empty object, non-array) to undefined.
+	body: z.preprocess((value: unknown) => {
+		if (Array.isArray(value)) {
+			return value;
+		}
+		if (typeof value !== 'string') {
+			return undefined;
+		}
+
+		try {
+			const parsed: unknown = JSON.parse(value);
+
+			// The value provided by Swagger will be an array encoded as a string, where and the content
+			// of that array may be either JSON objects, or stringified JSON objects. We will accomodate
+			// an input of either form since the formatting is ambiguous. In particular, the swagger interface
+			// will stringify each element of the array so we require the extra type check inside the map over
+			// the parsed input, but a developer may want to simply build the entire array and then stringify
+			// the entire thing. Both are reasonable.
+			return Array.isArray(parsed)
+				? parsed.map((item) => (typeof item === 'string' ? JSON.parse(item) : item))
+				: [parsed];
+		} catch {
+			return undefined;
+		}
+	}, z.array(filenameEntityPair).optional()),
 };
 
 export const uploadSingleEntitySubmissionDataRequestSchema: RequestValidation<

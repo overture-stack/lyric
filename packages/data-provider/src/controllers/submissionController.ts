@@ -3,11 +3,11 @@ import { isEmpty } from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
 import { type AuthConfig, shouldBypassAuth } from '../middleware/auth.js';
+import { getSubmittedFileType } from '../services/submission/submissionFile.js';
 import createSubmissionService from '../services/submission/submissionService.js';
 import createSubmittedDataService from '../services/submittedData/submmittedData.js';
 import { hasUserWriteAccess } from '../utils/authUtils.js';
 import { BadRequest, Forbidden, NotFound } from '../utils/errors.js';
-import { extractFileExtension, SUPPORTED_FILE_EXTENSIONS } from '../utils/fileUtils.js';
 import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
@@ -365,6 +365,10 @@ const controller = ({
 					username,
 				});
 
+				if (resultSubmission.status === 'UNKNOWN_CATEGORY') {
+					throw new BadRequest(resultSubmission.description);
+				}
+
 				// This response provides the details of data Submission
 				return res.status(200).send(resultSubmission);
 			} catch (error) {
@@ -377,7 +381,7 @@ const controller = ({
 				const categoryId = Number(req.params.categoryId);
 				const files = Array.isArray(req.files) ? req.files : [];
 				const organization = req.query.organization;
-
+				const fileEntityMap = req.body;
 				// Get username from auth
 				const username = req.user?.username || '';
 
@@ -386,7 +390,12 @@ const controller = ({
 					`Upload Submission Request: categoryId '${categoryId}'`,
 					` organization '${organization}'`,
 					` files '${files?.map((f) => f.originalname)}'`,
+					` fileEntityMap ${JSON.stringify(fileEntityMap)}`,
 				);
+
+				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(organization, req.user)) {
+					throw new Forbidden(`User is not authorized to submit data to '${organization}'`);
+				}
 
 				if (!files || files.length == 0) {
 					throw new BadRequest(
@@ -400,12 +409,13 @@ const controller = ({
 					fileErrors: BatchError[];
 				}>(
 					(acc, file) => {
-						if (extractFileExtension(file.originalname)) {
+						const fileTypeResult = getSubmittedFileType(file);
+						if (fileTypeResult.success) {
 							acc.validFiles.push(file);
 						} else {
 							const batchError: BatchError = {
 								type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
-								message: `File '${file.originalname}' has invalid file extension. File extension must be '${SUPPORTED_FILE_EXTENSIONS.options}'.`,
+								message: fileTypeResult.data.message,
 								batchName: file.originalname,
 							};
 							acc.fileErrors.push(batchError);
@@ -420,18 +430,22 @@ const controller = ({
 					categoryId,
 					organization,
 					username,
+					fileEntityMap,
 				});
 
-				if (fileErrors.length == 0 && submitFilesResult.batchErrors.length == 0) {
-					logger.info(LOG_MODULE, 'Submission uploaded successfully');
-				} else {
-					logger.info(LOG_MODULE, 'Found some errors processing this request');
+				if (submitFilesResult.status === 'UNKNOWN_CATEGORY') {
+					throw new BadRequest(submitFilesResult.description);
 				}
 
-				// This response provides the details of file Submission
+				// If any files were successfully accepted and processing has started, we return 200 (maybe with batch errors)
+				// otherwise, return 400 since nothing the user sent was successful.
+				const responseStatus = submitFilesResult.inProcessEntities.length > 0 ? 200 : 400;
+
 				return res
-					.status(200)
+					.status(responseStatus)
 					.send({ ...submitFilesResult, batchErrors: [...fileErrors, ...submitFilesResult.batchErrors] });
+
+				// This response provides the details of file Submission
 			} catch (error) {
 				next(error);
 			}

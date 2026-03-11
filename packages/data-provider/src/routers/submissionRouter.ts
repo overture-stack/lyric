@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
+
 import bytes from 'bytes';
-import { json, Router, urlencoded } from 'express';
+import { json, type RequestHandler, Router, urlencoded } from 'express';
 import multer from 'multer';
 
 import { BaseDependencies } from '../config/config.js';
@@ -13,7 +15,41 @@ const router = ({
 	baseDependencies: BaseDependencies;
 	authConfig: AuthConfig;
 }): Router => {
+	/* ======================= *
+	 * Local Router Middleware *
+	 * ======================= */
+
+	/**
+	 * Multer multipart form upload processor. Returns middleware that can capture uploaded files and make them
+	 * available at `req.files`.
+	 */
 	const upload = multer({ dest: '/tmp', limits: { fileSize: baseDependencies.submissionService?.maxFileSize } });
+	/**
+	 * File upload is done via a multi-part form. This form data includes both "files" and optionally a "fileEntityMap".
+	 * This middleware moves the content of the fileEntityMap out of the req.files property and into the req.body value
+	 * for the validation middleware to handle.
+	 * @param req
+	 * @param _res
+	 * @param next
+	 */
+	const extractFileEntityMap: RequestHandler = (req, _res, next) => {
+		if (Array.isArray(req.files)) {
+			const mapPart = Array.isArray(req.files)
+				? req.files.find((file) => file.fieldname === 'fileEntityMap')
+				: undefined;
+			if (mapPart) {
+				try {
+					const fileReadOutput = readFileSync(mapPart.path, 'utf-8');
+					req.body = fileReadOutput;
+				} catch {
+					// Could not read the fileEntityMap part - proceed without it
+				}
+				req.files = req.files.filter((file) => file.fieldname === 'files');
+			}
+		}
+
+		next();
+	};
 
 	const submissionController = createSubmissionController({
 		baseDependencies,
@@ -45,17 +81,11 @@ const router = ({
 
 	router.get('/category/:categoryId/organization/:organization', submissionController.getActiveByOrganization);
 
-	/* ===============================================================
-	 * Submit Data
-	 *   - Submit files for multiple entities
-	 *   - Submit data for single entity (Files or request body text)
-	 * =============================================================== */
-
 	router.post('/category/:categoryId/data', submissionController.submit);
 
 	router.put(`/category/:categoryId/data`, submissionController.editSubmittedData);
 
-	router.post('/category/:categoryId/files', upload.array('files'), submissionController.submitFiles);
+	router.post('/category/:categoryId/files', upload.any(), extractFileEntityMap, submissionController.submitFiles);
 
 	router.delete(`/category/:categoryId/data/:systemId`, submissionController.deleteSubmittedDataBySystemId);
 
