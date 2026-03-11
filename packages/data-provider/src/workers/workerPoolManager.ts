@@ -5,7 +5,7 @@ import * as workerpool from 'workerpool';
 
 import type { AppConfig } from '../config/config.js';
 import { getLogger } from '../config/logger.js';
-import type { CommitWorkerInput, WorkerFunctions } from './types.js';
+import type { CommitWorkerInput, DataValidationWorkerInput, WorkerFunctions } from './types.js';
 
 /**
  * Factory function to create a worker pool with the given configuration.
@@ -54,5 +54,19 @@ export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
 		}
 	};
 
-	return { commitSubmission };
+	const dataValidation = async (input: DataValidationWorkerInput) => {
+		try {
+			const resultValidation = await pool.exec('performDataValidation', [input]);
+
+			return resultValidation;
+		} catch (error) {
+			const errMessage = error instanceof Error ? error.message : error;
+			logger.error(`Worker pool execution failed for dataValidation: ${errMessage}`);
+
+			// TODO: If validation cannot run due to an unknown error,
+			// Update the submission to failed status.
+		}
+	};
+
+	return { commitSubmission, dataValidation };
 };

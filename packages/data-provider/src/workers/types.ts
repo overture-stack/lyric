@@ -6,10 +6,15 @@ export type CommitWorkerInput = {
 	username: string;
 };
 
+export type DataValidationWorkerInput = {
+	submissionId: number;
+};
+
 export type WorkerContext = {
 	dependencies: BaseDependencies;
 };
 
 export interface WorkerFunctions {
 	commitSubmission(input: CommitWorkerInput): Promise<void>;
+	dataValidation(input: DataValidationWorkerInput): Promise<number>;
 }

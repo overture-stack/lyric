@@ -27,6 +27,7 @@ import submissionProcessor from '../submission/submissionProcessor.js';
 import submissionService from '../submission/submissionService.js';
 import searchDataRelations from './searchDataRelations.js';
 import viewMode from './viewMode.js';
+import { InternalServerError } from '../../utils/errors.js';
 
 const PAGINATION_ERROR_MESSAGES = {
 	INVALID_CATEGORY_ID: 'Invalid Category ID',
@@ -52,9 +53,8 @@ const submittedData = (dependencies: BaseDependencies) => {
 	}> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepo;
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { getSubmissionDetailsById } = submissionRepository(dependencies);
+		const { getSubmissionDetailsById, update } = submissionRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
-		const { performDataValidation } = submissionProcessor(dependencies);
 
 		// get SubmittedData by SystemId
 		const foundRecordToDelete = await getSubmittedDataBySystemId(systemId);
@@ -127,16 +127,22 @@ const submittedData = (dependencies: BaseDependencies) => {
 		// filter out update records found matching systemID on delete records
 		const filteredUpdates = filterUpdatesFromDeletes(activeSubmission.data.updates ?? {}, mergedSubmissionDeletes);
 
-		// Validate and update Active Submission
-		performDataValidation({
-			submissionId: activeSubmission.id,
-			submissionData: {
+		await update(activeSubmission.id, {
+			data: {
 				inserts: activeSubmission.data.inserts,
 				updates: filteredUpdates,
 				deletes: mergedSubmissionDeletes,
 			},
-			username,
+			updatedBy: username,
+			status: 'OPEN',
 		});
+
+		// Perform Schema Data validation in a worker thread
+		if (!dependencies.workerPool) {
+			throw new InternalServerError('Worker pool not available in dependencies');
+		}
+		const workerPool = dependencies.workerPool;
+		workerPool.dataValidation({ submissionId: activeSubmission.id });
 
 		logger.info(LOG_MODULE, `Added '${entitiesToProcess.length}' records to be deleted on the Active Submission`);
 
