@@ -375,7 +375,16 @@ export const uploadSubmissionRequestSchema: RequestValidation<
 
 		try {
 			const parsed: unknown = JSON.parse(value);
-			return Array.isArray(parsed) ? parsed.map(JSON.parse) : [parsed];
+
+			// The value provided by Swagger will be an array encoded as a string, where and the content
+			// of that array may be either JSON objects, or stringified JSON objects. We will accomodate
+			// an input of either form since the formatting is ambiguous. In particular, the swagger interface
+			// will stringify each element of the array so we require the extra type check inside the map over
+			// the parsed input, but a developer may want to simply build the entire array and then stringify
+			// the entire thing. Both are reasonable.
+			return Array.isArray(parsed)
+				? parsed.map((item) => (typeof item === 'string' ? JSON.parse(item) : item))
+				: [parsed];
 		} catch {
 			return undefined;
 		}

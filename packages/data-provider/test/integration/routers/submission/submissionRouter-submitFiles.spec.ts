@@ -150,7 +150,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 	describe('with fileEntityMap', () => {
 		it('should return 200 with PROCESSING status when a file with a non-matching filename is mapped to an entity', async () => {
 			const tsvContent = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
-			const fileEntityMap = JSON.stringify([{ filename: 'sport_data.tsv', entity: 'sport' }]);
+			const fileEntityMap = JSON.stringify({ filename: 'sport_data.tsv', entity: 'sport' });
 
 			const response = await app
 				.post(`/category/${categoryId}/files?organization=testOrg`)
