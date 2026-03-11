@@ -54,6 +54,7 @@ import {
 	CommitSubmissionParams,
 	type EntityData,
 	type FileSchemaMap,
+	type ResultOnCommit,
 	type SchemasDictionary,
 	SUBMISSION_STATUS,
 	type SubmittedDataResponse,
@@ -286,7 +287,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	 * @param params.username User who performs the action
 	 * @returns void
 	 */
-	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<void> => {
+	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<ResultOnCommit | undefined> => {
 		try {
 			const { dictionary, dataToValidate, submissionId, username } = params;
 
@@ -344,9 +345,9 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			const deletesToProcess: { diff: DataDiff; submissionId: number; systemId: string; username: string }[] = [];
 
 			Object.entries(schemasDataToValidate.submittedDataByEntityName).forEach(([entityName, dataArray], index) => {
+				const invalidRecordErrors = findInvalidRecordErrorsBySchemaName(resultValidation, entityName);
+				const hasErrorByIndex = groupErrorsByIndex(invalidRecordErrors);
 				dataArray.forEach((data) => {
-					const invalidRecordErrors = findInvalidRecordErrorsBySchemaName(resultValidation, entityName);
-					const hasErrorByIndex = groupErrorsByIndex(invalidRecordErrors);
 					const oldIsValid = data.isValid;
 					const newIsValid = !hasErrorsByIndex(hasErrorByIndex, index);
 					if (data.id) {
@@ -372,7 +373,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 							);
 						}
 
-						if (Object.values(inputUpdate)) {
+						if (Object.keys(inputUpdate).length) {
 							inputUpdate.updatedBy = username;
 							if (newIsValid) {
 								inputUpdate.lastValidSchemaId = dictionary.id;
@@ -453,14 +454,12 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				);
 			});
 
-			if (params.onFinishCommit) {
-				params.onFinishCommit({
-					submissionId: submission.id,
-					organization: submission.organization,
-					categoryId: submission.dictionaryCategory.id,
-					data: resultCommit,
-				});
-			}
+			return {
+				submissionId: submission.id,
+				organization: submission.organization,
+				categoryId: submission.dictionaryCategory.id,
+				data: resultCommit,
+			};
 		} catch (error) {
 			const message = error instanceof Error ? error.message : error;
 			logger.info(
@@ -469,6 +468,8 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				message,
 			);
 			logger.error(error);
+
+			return undefined;
 		}
 	};
 

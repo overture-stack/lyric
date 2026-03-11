@@ -28,6 +28,7 @@ export const SUBMISSION_STATUS = {
 	VALID: 'VALID',
 	INVALID: 'INVALID',
 	CLOSED: 'CLOSED',
+	COMMITTING: 'COMMITTING',
 	COMMITTED: 'COMMITTED',
 } as const;
 export type SubmissionStatus = ObjectValues<typeof SUBMISSION_STATUS>;
@@ -194,7 +195,6 @@ export interface CommitSubmissionParams {
 	dictionary: SchemasDictionary & { id: number };
 	submissionId: number;
 	username: string;
-	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }
 
 export type EntityData = Record<string, DataRecord[]>;

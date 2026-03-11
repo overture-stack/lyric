@@ -5,6 +5,7 @@ import * as schema from '@overture-stack/lyric-data-model/models';
 
 import type { AuthConfig } from '../middleware/auth.js';
 import type { ResultOnCommit } from '../utils/types.js';
+import type { WorkerFunctions } from '../workers/types.js';
 import { Logger } from './logger.js';
 
 export type AuditConfig = {
@@ -69,9 +70,10 @@ export type AppConfig = {
 export interface BaseDependencies {
 	db: NodePgDatabase<typeof schema>;
 	features?: FeaturesConfig;
-	idService: IdServiceConfig;
+	idService?: IdServiceConfig;
 	logger: Logger;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
-	schemaService: SchemaServiceConfig;
+	schemaService?: SchemaServiceConfig;
 	submissionService?: SubmissionServiceConfig;
+	workerPool?: WorkerFunctions;
 }
