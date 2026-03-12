@@ -204,12 +204,19 @@ const submissionService = (dependencies: BaseDependencies) => {
 			...filter,
 		});
 
-		// Validate and update Active Submission after removing the entity
-		submissionProcessor.performDataValidation({
-			submissionId: submission.id,
-			submissionData: updatedActiveSubmissionData,
-			username,
+		// Updating the Submission with the new data and 'OPEN' status before validating
+		await submissionRepository.update(submission.id, {
+			data: updatedActiveSubmissionData,
+			updatedBy: username,
+			status: 'OPEN',
 		});
+
+		// Perform Schema Data validation in a worker thread
+		if (!dependencies.workerPool) {
+			throw new InternalServerError('Worker pool not available in dependencies');
+		}
+		const workerPool = dependencies.workerPool;
+		workerPool.dataValidation({ submissionId: submission.id });
 
 		logger.info(LOG_MODULE, `Submission '${submission.id}' updated after removing entity '${filter.entityName}'`);
 

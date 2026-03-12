@@ -9,6 +9,7 @@ import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelations.js';
+import { InternalServerError } from '../../utils/errors.js';
 import { filterUpdatesFromDeletes, mergeDeleteRecords } from '../../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
@@ -53,9 +54,8 @@ const submittedData = (dependencies: BaseDependencies) => {
 		submissionId?: string;
 	}> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepo;
-		const { performDataValidation } = submissionProcessor;
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { getSubmissionDetailsById } = submissionRepository(dependencies);
+		const { getSubmissionDetailsById, update } = submissionRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
 
 		// get SubmittedData by SystemId
@@ -129,16 +129,23 @@ const submittedData = (dependencies: BaseDependencies) => {
 		// filter out update records found matching systemID on delete records
 		const filteredUpdates = filterUpdatesFromDeletes(activeSubmission.data.updates ?? {}, mergedSubmissionDeletes);
 
-		// Validate and update Active Submission
-		performDataValidation({
-			submissionId: activeSubmission.id,
-			submissionData: {
+		// Updating the Submission with the new data and 'OPEN' status before validating
+		await update(activeSubmission.id, {
+			data: {
 				inserts: activeSubmission.data.inserts,
 				updates: filteredUpdates,
 				deletes: mergedSubmissionDeletes,
 			},
-			username,
+			updatedBy: username,
+			status: 'OPEN',
 		});
+
+		// Perform Schema Data validation in a worker thread
+		if (!dependencies.workerPool) {
+			throw new InternalServerError('Worker pool not available in dependencies');
+		}
+		const workerPool = dependencies.workerPool;
+		workerPool.dataValidation({ submissionId: activeSubmission.id });
 
 		logger.info(LOG_MODULE, `Added '${entitiesToProcess.length}' records to be deleted on the Active Submission`);
 

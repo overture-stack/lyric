@@ -2,7 +2,8 @@ import * as workerpool from 'workerpool';
 
 import type { AppConfig, ResultOnCommit } from '../../index.js';
 import { processCommitSubmission } from './commitSubmissionWorker.js';
-import type { CommitWorkerInput } from './types.js';
+import { processDataValidation } from './dataValidationWorker.js';
+import type { CommitWorkerInput, DataValidationWorkerInput } from './types.js';
 import { initializeWorkerContext } from './workerContext.js';
 
 // Initialize worker context when the worker starts
@@ -25,8 +26,16 @@ export const commitSubmission = async (input: CommitWorkerInput): Promise<Result
 	return result;
 };
 
+export const performDataValidation = async (input: DataValidationWorkerInput): Promise<number> => {
+	if (!isInitialized) {
+		throw new Error('Worker not initialized. Call initializeWorker first.');
+	}
+	return await processDataValidation(input);
+};
+
 // Export functions for workerpool
 workerpool.worker({
 	initializeWorker,
 	commitSubmission,
+	performDataValidation,
 });
