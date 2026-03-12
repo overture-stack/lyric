@@ -7,6 +7,8 @@ import type { AppConfig } from '../config/config.js';
 import { getLogger } from '../config/logger.js';
 import type { CommitWorkerInput, DataValidationWorkerInput, WorkerFunctions } from './types.js';
 
+const LOG_MODULE = 'WORKER_POOL_MANAGER';
+
 /**
  * Factory function to create a worker pool with the given configuration.
  * @param configData The application configuration
@@ -19,7 +21,7 @@ export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
 	const workerPath = join(dirname(fileURLToPath(import.meta.url)), 'workerpool.js');
 	const pool = workerpool.pool(workerPath);
 
-	logger.info('Initializing worker pool...');
+	logger.info(LOG_MODULE, 'Initializing worker pool...');
 
 	// Cannot send non serializable objects/functions to worker, so we need to create a config object without those properties
 	const workerConfig: AppConfig = {
@@ -34,11 +36,11 @@ export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
 	pool
 		.exec('initializeWorker', [workerConfig])
 		.then(() => {
-			logger.info('Worker pool initialized successfully');
+			logger.info(LOG_MODULE, 'Worker pool initialized successfully');
 		})
 		.catch((error) => {
 			const errMessage = error instanceof Error ? error.message : error;
-			logger.error(`Worker pool initialization failed during execution: ${errMessage}`);
+			logger.error(LOG_MODULE, `Worker pool initialization failed during execution: ${errMessage}`);
 		});
 
 	const commitSubmission = async (input: CommitWorkerInput) => {
@@ -50,7 +52,7 @@ export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
 			}
 		} catch (error) {
 			const errMessage = error instanceof Error ? error.message : error;
-			logger.error(`Worker pool execution failed for commitSubmission: ${errMessage}`);
+			logger.error(LOG_MODULE, `Worker pool execution failed for commitSubmission: ${errMessage}`);
 		}
 	};
 
@@ -61,10 +63,10 @@ export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
 			return resultValidation;
 		} catch (error) {
 			const errMessage = error instanceof Error ? error.message : error;
-			logger.error(`Worker pool execution failed for dataValidation: ${errMessage}`);
+			logger.error(LOG_MODULE, `Worker pool execution failed for dataValidation: ${errMessage}`);
 
-			// TODO: If validation cannot run due to an unknown error,
-			// Update the submission to failed status.
+			// TODO: If worker thread fails unexpectedly
+			// Should we update the submission to failed status?
 		}
 	};
 

@@ -5,7 +5,6 @@ import type { DataRecord, Schema } from '@overture-stack/lectern-client';
 import type {
 	DataDiff,
 	NewSubmittedData,
-	SubmissionData,
 	SubmissionDeleteData,
 	SubmissionErrors,
 	SubmissionInsertData,
@@ -486,27 +485,27 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		const { getSubmissionDetailsById } = submissionRepository;
 
 		// Get Active Submission from database
-		const originalSubmission = await getSubmissionDetailsById(submissionId);
+		const activeSubmission = await getSubmissionDetailsById(submissionId);
 
-		if (!originalSubmission) {
+		if (!activeSubmission) {
 			throw new Error(`Submission '${submissionId}' not found`);
 		}
 
 		// Get Submitted Data from database
 		const submittedData = await getSubmittedDataByCategoryIdAndOrganization(
-			originalSubmission.dictionaryCategory.id,
-			originalSubmission.organization,
+			activeSubmission.dictionaryCategory.id,
+			activeSubmission.organization,
 		);
 
-		const currentDictionary = await getActiveDictionaryByCategory(originalSubmission.dictionaryCategory.id);
+		const currentDictionary = await getActiveDictionaryByCategory(activeSubmission.dictionaryCategory.id);
 		if (!currentDictionary) {
-			throw new BadRequest(`Dictionary in category '${originalSubmission.dictionaryCategory.id}' not found`);
+			throw new BadRequest(`Dictionary in category '${activeSubmission.dictionaryCategory.id}' not found`);
 		}
 
 		// Merge Submitted Data with Active Submission keepping reference of each record ID
 		const dataMergedByEntityName = mergeAndReferenceEntityData({
 			submissionId,
-			submissionData: originalSubmission.data,
+			submissionData: activeSubmission.data,
 			submittedData,
 		});
 
@@ -524,7 +523,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 		// Check for records to be updated that its systemId was not found in the Submitted Data collection.
 		// Any error found will cause the submission to be marked as 'invalid'
-		Object.entries(originalSubmission.data.updates ?? {}).forEach(([entityName, recordsToUpdate]) => {
+		Object.entries(activeSubmission.data.updates ?? {}).forEach(([entityName, recordsToUpdate]) => {
 			recordsToUpdate.forEach((submissionEditData, index) => {
 				const found = findEditSubmittedData(entityName, submissionEditData.systemId, dataMergedByEntityName);
 
@@ -674,15 +673,13 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// filter out delete records found on update records
 			const filteredDeletes = filterDeletesFromUpdates(mergedDeletes, updatedActiveSubmissionData);
 
-			// Result merged submission Data
-			const mergedSubmissionData: SubmissionData = {
-				inserts: mergedInserts,
-				deletes: filteredDeletes,
-				updates: updatedActiveSubmissionData,
-			};
-
+			// Updating the Submission with the new data and 'OPEN' status before validating
 			await update(submission.id, {
-				data: mergedSubmissionData,
+				data: {
+					inserts: mergedInserts,
+					deletes: filteredDeletes,
+					updates: updatedActiveSubmissionData,
+				},
 				updatedBy: username,
 				status: 'OPEN',
 			});
@@ -743,15 +740,13 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// Merge Active Submission insert records with incoming TSV file data processed
 			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, insertRecords);
 
-			// Result merged submission Data
-			const mergedSubmissionData: SubmissionData = {
-				inserts: insertActiveSubmissionData,
-				deletes: activeSubmission.data.deletes,
-				updates: activeSubmission.data.updates,
-			};
-
+			// Updating the Submission with the new data and 'OPEN' status before validating
 			await update(activeSubmission.id, {
-				data: mergedSubmissionData,
+				data: {
+					inserts: insertActiveSubmissionData,
+					deletes: activeSubmission.data.deletes,
+					updates: activeSubmission.data.updates,
+				},
 				updatedBy: username,
 				status: 'OPEN',
 			});
@@ -806,11 +801,10 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	/**
 	 * Void function to process and validate uploaded files on an Active Submission.
 	 * Performs the schema data validation combined with all Submitted Data.
-	 * @param {Record<string, Express.Multer.File>} files Uploaded files to be processed
+	 * @param {Record<string, { files: Express.Multer.File[], schema: Schema }>} fileSchemaMap Mapping the files with a schema
 	 * @param {Object} params
 	 * @param {number} params.categoryId Category Identifier
 	 * @param {string} params.organization Organization name
-	 * @param {SchemasDictionary} params.schemasDictionary Dictionary to parse files with
 	 * @param {string} params.username User who performs the action
 	 * @returns {void}
 	 */
@@ -845,15 +839,13 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// Merge Active Submission data with incoming TSV file data processed
 			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, filesDataProcessed);
 
-			// Result merged submission Data
-			const mergedSubmissionData: SubmissionData = {
-				inserts: insertActiveSubmissionData,
-				deletes: activeSubmission.data.deletes,
-				updates: activeSubmission.data.updates,
-			};
-
+			// Updating the Submission with the new data and 'OPEN' status before validating
 			await submissionRepository.update(activeSubmission.id, {
-				data: mergedSubmissionData,
+				data: {
+					inserts: insertActiveSubmissionData,
+					deletes: activeSubmission.data.deletes,
+					updates: activeSubmission.data.updates,
+				},
 				updatedBy: username,
 				status: 'OPEN',
 			});

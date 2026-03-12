@@ -204,6 +204,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 			...filter,
 		});
 
+		// Updating the Submission with the new data and 'OPEN' status before validating
 		await submissionRepository.update(submission.id, {
 			data: updatedActiveSubmissionData,
 			updatedBy: username,

@@ -9,6 +9,7 @@ import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelations.js';
+import { InternalServerError } from '../../utils/errors.js';
 import { filterUpdatesFromDeletes, mergeDeleteRecords } from '../../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
@@ -27,7 +28,6 @@ import submissionProcessorFactory from '../submission/submissionProcessor.js';
 import submissionService from '../submission/submissionService.js';
 import searchDataRelations from './searchDataRelations.js';
 import viewMode from './viewMode.js';
-import { InternalServerError } from '../../utils/errors.js';
 
 const PAGINATION_ERROR_MESSAGES = {
 	INVALID_CATEGORY_ID: 'Invalid Category ID',
@@ -54,7 +54,6 @@ const submittedData = (dependencies: BaseDependencies) => {
 		submissionId?: string;
 	}> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepo;
-		const { performDataValidation } = submissionProcessor;
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getSubmissionDetailsById, update } = submissionRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
@@ -130,6 +129,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		// filter out update records found matching systemID on delete records
 		const filteredUpdates = filterUpdatesFromDeletes(activeSubmission.data.updates ?? {}, mergedSubmissionDeletes);
 
+		// Updating the Submission with the new data and 'OPEN' status before validating
 		await update(activeSubmission.id, {
 			data: {
 				inserts: activeSubmission.data.inserts,
