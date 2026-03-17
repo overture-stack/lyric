@@ -75,5 +75,5 @@ export interface BaseDependencies {
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 	schemaService?: SchemaServiceConfig;
 	submissionService?: SubmissionServiceConfig;
-	workerPool?: WorkerFunctions;
+	workerPool: WorkerFunctions;
 }

@@ -3,7 +3,7 @@ import { connect } from '../config/db.js';
 import { getLogger } from '../config/logger.js';
 import type { WorkerContext } from './types.js';
 
-let workerContext: WorkerContext | null = null;
+let workerContext: WorkerContext | undefined;
 
 /**
  * Initialize the worker context with AppConfig.
@@ -24,6 +24,11 @@ export const initializeWorkerContext = async (configData: AppConfig): Promise<vo
 		schemaService: configData.schemaService,
 		submissionService: configData.submissionService,
 		onFinishCommit: configData.onFinishCommit,
+		workerPool: {
+			commitSubmission: async () => {
+				throw new Error('Worker pool functions cannot be called from within the worker');
+			},
+		},
 	};
 
 	workerContext = {

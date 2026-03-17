@@ -275,7 +275,12 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * This function validates whole data together against a dictionary
+	 * This function validates whole data together against a dictionary,
+	 * then persists the data on the database and finally updates the Submission status to 'committed'.
+	 * If any step fails, the operation is aborted and the error is thrown.
+	 *
+	 * The response includes the data that was committed, which can be used by the caller to perform additional post commit actions,
+	 * such as an 'onFinishCommit' callback.
 	 * @param params
 	 * @param params.dataToValidate Data to be validated, This object contains:
 	 * - `inserts`: An array of new records to be committed. Optional
@@ -283,11 +288,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	 * - `deletes`: An array of `systemId`s representing items that should be deleted. Optional
 	 * - `updates`: An array of records to be updated. Optional
 	 * @param params.dictionary A `Dictionary` object for Data Validation
-	 * @param params.submission A `Submission` object representing the Active Submission
+	 * @param params.submissionId The ID of the Active Submission
 	 * @param params.username User who performs the action
-	 * @returns void
+	 * @returns The data that was committed, the submissionId, category and organization.
 	 */
-	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<ResultOnCommit | undefined> => {
+	const performCommitSubmissionAsync = async (params: CommitSubmissionParams): Promise<ResultOnCommit> => {
 		try {
 			const { dictionary, dataToValidate, submissionId, username } = params;
 
@@ -468,8 +473,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				message,
 			);
 			logger.error(error);
-
-			return undefined;
+			throw new Error(`${message}`, { cause: error });
 		}
 	};
 

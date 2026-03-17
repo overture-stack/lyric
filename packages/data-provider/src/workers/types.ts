@@ -1,7 +1,6 @@
 import type { BaseDependencies } from '../config/config.js';
 
 export type CommitWorkerInput = {
-	categoryId: number;
 	submissionId: number;
 	username: string;
 };
