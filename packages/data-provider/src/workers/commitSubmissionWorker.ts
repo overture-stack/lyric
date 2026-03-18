@@ -6,6 +6,7 @@ import createCategoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
 import submissionProcessorFactory from '../services/submission/submissionProcessor.js';
 import type { ResultOnCommit } from '../utils/types.js';
+import { SUBMISSION_STATUS } from '../utils/types.js';
 import type { CommitWorkerInput } from './types.js';
 import { getWorkerDependencies } from './workerContext.js';
 
@@ -87,15 +88,21 @@ export const processCommitSubmission = async (message: CommitWorkerInput): Promi
 			{},
 		);
 
-	return await submissionProcessor.performCommitSubmissionAsync({
-		dataToValidate: {
-			inserts: insertsToValidate,
-			submittedData: submittedDataToValidate,
-			deletes: deleteDataArray,
-			updates: updateDataArray,
-		},
-		submissionId: submission.id,
-		dictionary: currentDictionary,
-		username: username,
-	});
+	try {
+		return await submissionProcessor.performCommitSubmissionAsync({
+			dataToValidate: {
+				inserts: insertsToValidate,
+				submittedData: submittedDataToValidate,
+				deletes: deleteDataArray,
+				updates: updateDataArray,
+			},
+			submissionId: submission.id,
+			dictionary: currentDictionary,
+			username: username,
+		});
+	} catch (error) {
+		// Reset the submission status back to VALID so it can be retried
+		await submissionRepo.update(submissionId, { status: SUBMISSION_STATUS.VALID, updatedBy: username });
+		throw error;
+	}
 };

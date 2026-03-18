@@ -103,6 +103,17 @@ const provider = (configData: AppConfig) => {
 			submittedData: submittedDataUtils,
 			type: typeUtils,
 		},
+		/**
+		 * Shuts down the worker pool. Call this on application termination to cleanly
+		 * terminate any running worker threads.
+		 *
+		 * @example
+		 * process.on('SIGTERM', async () => {
+		 *   await lyric.shutdown();
+		 *   process.exit(0);
+		 * });
+		 */
+		shutdown: () => baseDeps.workerPool.terminate(),
 	};
 };
 

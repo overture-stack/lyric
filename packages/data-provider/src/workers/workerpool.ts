@@ -2,31 +2,31 @@ import * as workerpool from 'workerpool';
 
 import type { AppConfig, ResultOnCommit } from '../../index.js';
 import { processCommitSubmission } from './commitSubmissionWorker.js';
-import type { CommitWorkerInput } from './types.js';
+import type { CommitWorkerInput, WorkerProxy } from './types.js';
 import { initializeWorkerContext } from './workerContext.js';
 
-// Initialize worker context when the worker starts
-let isInitialized = false;
+// Store initialization promise once it has been initiated.
+let initializeWorkerPromise: Promise<void> | undefined;
 
-export const initializeWorker = async (appConfig: AppConfig): Promise<void> => {
-	if (!isInitialized) {
-		await initializeWorkerContext(appConfig);
-		isInitialized = true;
-	}
+// Export only registered functions on the worker via a proxy
+const workerProxy: WorkerProxy = {
+	initializeWorker: async (appConfig: AppConfig): Promise<void> => {
+		if (!initializeWorkerPromise) {
+			initializeWorkerPromise = initializeWorkerContext(appConfig);
+		}
+		return await initializeWorkerPromise;
+	},
+	commitSubmission: async (input: CommitWorkerInput): Promise<ResultOnCommit> => {
+		if (!initializeWorkerPromise) {
+			throw new Error('Worker not initialized. Make sure initializeWorker is called first.');
+		}
+		// This avoids processing commit submissions before the worker is fully initialized
+		await initializeWorkerPromise;
+		const result = await processCommitSubmission(input);
+		// TODO: Consider sending result back to main thread in chuncks
+		// workerpool.workerEmit({ type: 'chunk', chunk: { type: 'commitResult', result } });
+		return result;
+	},
 };
 
-export const commitSubmission = async (input: CommitWorkerInput): Promise<ResultOnCommit | undefined> => {
-	if (!isInitialized) {
-		throw new Error('Worker not initialized. Call initializeWorker first.');
-	}
-	const result = await processCommitSubmission(input);
-	// TODO: Consider sending result back to main thread in chuncks
-	// workerpool.workerEmit({ type: 'chunk', chunk: { type: 'commitResult', result } });
-	return result;
-};
-
-// Export functions for workerpool
-workerpool.worker({
-	initializeWorker,
-	commitSubmission,
-});
+workerpool.worker(workerProxy);

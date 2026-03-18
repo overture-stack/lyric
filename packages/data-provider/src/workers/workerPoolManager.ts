@@ -5,7 +5,9 @@ import * as workerpool from 'workerpool';
 
 import type { AppConfig } from '../config/config.js';
 import { getLogger } from '../config/logger.js';
-import type { CommitWorkerInput, WorkerFunctions } from './types.js';
+import type { CommitWorkerInput, WorkerFunctions, WorkerProxy } from './types.js';
+
+const LOG_MODULE = 'WORKER_POOL_MANAGER';
 
 /**
  * Factory function to create a worker pool with the given configuration.
@@ -19,8 +21,6 @@ export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
 	const workerPath = join(dirname(fileURLToPath(import.meta.url)), 'workerpool.js');
 	const pool = workerpool.pool(workerPath);
 
-	logger.info('Initializing worker pool...');
-
 	// Cannot send non serializable objects/functions to worker, so we need to create a config object without those properties
 	const workerConfig: AppConfig = {
 		...configData,
@@ -31,28 +31,49 @@ export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
 		onFinishCommit: undefined,
 	};
 
-	pool
-		.exec('initializeWorker', [workerConfig])
-		.then(() => {
-			logger.info('Worker pool initialized successfully');
+	// Create a typed proxy, then initialize the worker through it.
+	// Storing the resulting promise allows commitSubmission to await readiness,
+	// preventing a race where commits run before the worker context is ready.
+	const readyProxy = pool
+		.proxy<WorkerProxy>()
+		.then(async (proxy) => {
+			await proxy.initializeWorker(workerConfig);
+			logger.info(LOG_MODULE, 'Worker pool initialized successfully');
+			return proxy;
 		})
 		.catch((error) => {
-			const errMessage = error instanceof Error ? error.message : error;
-			logger.error(`Worker pool initialization failed during execution: ${errMessage}`);
+			const errMessage = error instanceof Error ? error.message : String(error);
+			logger.error(LOG_MODULE, `Worker pool initialization failed: ${errMessage}`);
+
+			// this is needed to ensure the error is thrown and propagated immediately during startup,
+			// application should not start if worker initialization fails.
+			queueMicrotask(() => {
+				if (error instanceof Error) {
+					throw error;
+				}
+				throw new Error(errMessage);
+			});
+
+			throw error;
 		});
 
-	const commitSubmission = async (input: CommitWorkerInput) => {
-		try {
-			const resultCommit = await pool.exec('commitSubmission', [input]);
+	return {
+		commitSubmission: async (input: CommitWorkerInput): Promise<void> => {
+			const proxy = await readyProxy; // wait for worker to initialize before using
+			try {
+				const resultCommit = await proxy.commitSubmission(input);
 
-			if (configData.onFinishCommit && resultCommit) {
-				configData.onFinishCommit(resultCommit);
+				if (configData.onFinishCommit && resultCommit) {
+					configData.onFinishCommit(resultCommit);
+				}
+			} catch (error) {
+				const errMessage = error instanceof Error ? error.message : String(error);
+				logger.error(LOG_MODULE, `Worker pool execution failed for commitSubmission: ${errMessage}`);
 			}
-		} catch (error) {
-			const errMessage = error instanceof Error ? error.message : error;
-			logger.error(`Worker pool execution failed for commitSubmission: ${errMessage}`);
-		}
+		},
+		terminate: async (): Promise<void> => {
+			await pool.terminate();
+			logger.info(LOG_MODULE, 'Worker pool terminated');
+		},
 	};
-
-	return { commitSubmission };
 };
