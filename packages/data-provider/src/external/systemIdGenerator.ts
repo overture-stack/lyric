@@ -11,10 +11,10 @@ const systemIdGenerator = (dependencies: BaseDependencies) => {
 	const { idService, logger } = dependencies;
 
 	// custom alphabet
-	const alphabet = idService ? uniqueCharacters(idService.customAlphabet) : 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+	const alphabet = uniqueCharacters(idService.customAlphabet) || 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 	// custom size
-	const size = idService ? idService.customSize : 21;
+	const size = idService.customSize || 21;
 
 	const nanoid = customAlphabet(alphabet, size);
 
@@ -25,7 +25,7 @@ const systemIdGenerator = (dependencies: BaseDependencies) => {
 		 */
 
 		generateIdentifier: (entityName: string, _dataRecord: DataRecord): string => {
-			if (idService && idService.useLocal) {
+			if (idService.useLocal) {
 				const id = nanoid();
 				logger.debug(LOG_MODULE, `System ID '${id}' generated for entity '${entityName}'`);
 				return id;

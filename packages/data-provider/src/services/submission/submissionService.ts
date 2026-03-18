@@ -88,10 +88,13 @@ const submissionService = (dependencies: BaseDependencies) => {
 		};
 
 		// Let worker thread run async
-		dependencies.workerPool.commitSubmission(commitData).catch((error) => {
-			logger.error(LOG_MODULE, `Worker pool execution failed for submission ${submissionId}: ${error}`);
-			throw new InternalServerError(`Commit submission failed: ${error}`);
-		});
+		dependencies.workerPool
+			.commitSubmission(commitData)
+			.then(() => logger.info(LOG_MODULE, `Worker pool execution succeeded for submission ${submissionId}`))
+			.catch((error) => {
+				logger.error(LOG_MODULE, `Worker pool execution failed for submission ${submissionId}: ${error}`);
+				throw new InternalServerError(`Commit submission failed: ${error}`);
+			});
 
 		return {
 			status: ACTIVE_SUBMISSION_STATUS.PROCESSING,

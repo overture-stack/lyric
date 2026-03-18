@@ -11,7 +11,7 @@ export type WorkerContext = {
 };
 
 /**
- * Defines the functions that are exposed through the Lyric provider.
+ * Defines the functions that are exposed once the Lyric provider is initialized.
  * This works as a wrapper around the WorkerProxy functions
  */
 export type WorkerFunctions = {
@@ -31,7 +31,7 @@ export type WorkerFunctions = {
 };
 
 /**
- * Defines the functions that the worker thread exposes to the main thread through the worker pool proxy.
+ * Defines the functions that the worker thread registers dynamically, they are primarily used by the Worker Pool Manager only.
  * These functions must be serializable and cannot include functions (e.g., database connections, logger instances, etc.)
  * since they will be executed in a separate thread.
  */
