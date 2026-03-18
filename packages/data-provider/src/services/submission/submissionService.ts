@@ -75,36 +75,26 @@ const submissionService = (dependencies: BaseDependencies) => {
 		await submissionRepository.update(submissionId, { status: SUBMISSION_STATUS.COMMITTING, updatedBy: username });
 
 		// Get entities to process
-		const entitiesToProcess = new Set<string>();
-		if (submission.data?.inserts) {
-			Object.keys(submission.data.inserts).forEach((entityName) => entitiesToProcess.add(entityName));
-		}
-		if (submission.data?.updates) {
-			Object.keys(submission.data.updates).forEach((entityName) => entitiesToProcess.add(entityName));
-		}
-		if (submission.data?.deletes) {
-			Object.keys(submission.data.deletes).forEach((entityName) => entitiesToProcess.add(entityName));
-		}
+		const entitiesToProcess = new Set([
+			...Object.keys(submission.data?.inserts ?? {}),
+			...Object.keys(submission.data?.updates ?? {}),
+			...Object.keys(submission.data?.deletes ?? {}),
+		]);
 
 		// Execute commit submission in worker pool
-		if (!dependencies.workerPool) {
-			throw new InternalServerError('Worker pool not available in dependencies');
-		}
-
-		const workerPool = dependencies.workerPool;
 		const commitData: CommitWorkerInput = {
-			categoryId,
 			submissionId,
 			username,
 		};
 
-		try {
-			// Let worker thread run async
-			workerPool.commitSubmission(commitData);
-		} catch (error) {
-			logger.error(LOG_MODULE, `Worker pool execution failed for submission ${submissionId}: ${error}`);
-			throw new InternalServerError(`Commit submission failed: ${error}`);
-		}
+		// Let worker thread run async
+		dependencies.workerPool
+			.commitSubmission(commitData)
+			.then(() => logger.info(LOG_MODULE, `Worker pool execution succeeded for submission ${submissionId}`))
+			.catch((error) => {
+				logger.error(LOG_MODULE, `Worker pool execution failed for submission ${submissionId}: ${error}`);
+				throw new InternalServerError(`Commit submission failed: ${error}`);
+			});
 
 		return {
 			status: ACTIVE_SUBMISSION_STATUS.PROCESSING,

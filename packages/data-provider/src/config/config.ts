@@ -70,10 +70,10 @@ export type AppConfig = {
 export interface BaseDependencies {
 	db: NodePgDatabase<typeof schema>;
 	features?: FeaturesConfig;
-	idService?: IdServiceConfig;
+	idService: IdServiceConfig;
 	logger: Logger;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
-	schemaService?: SchemaServiceConfig;
-	submissionService?: SubmissionServiceConfig;
-	workerPool?: WorkerFunctions;
+	schemaService: SchemaServiceConfig;
+	submissionService: SubmissionServiceConfig;
+	workerPool: WorkerFunctions;
 }

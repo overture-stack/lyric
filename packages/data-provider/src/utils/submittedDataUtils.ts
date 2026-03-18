@@ -198,25 +198,33 @@ export const groupSchemaDataByEntityName = (data: {
 	for (const submittedDataObject of inserts) {
 		const { entityName, data: recordData } = submittedDataObject;
 
-		if (!result.schemaDataByEntityName[entityName]) {
-			result.schemaDataByEntityName[entityName] = [];
-			result.submittedDataByEntityName[entityName] = [];
+		let schemaArr = result.schemaDataByEntityName[entityName];
+		let submittedArr = result.submittedDataByEntityName[entityName];
+		if (!schemaArr) {
+			schemaArr = [];
+			submittedArr = [];
+			result.schemaDataByEntityName[entityName] = schemaArr;
+			result.submittedDataByEntityName[entityName] = submittedArr;
 		}
 
-		result.schemaDataByEntityName[entityName].push({ ...recordData });
-		result.submittedDataByEntityName[entityName].push({ ...submittedDataObject });
+		schemaArr.push(recordData);
+		submittedArr.push(submittedDataObject);
 	}
 
 	for (const submittedDataObject of submitted) {
 		const { entityName, data: recordData } = submittedDataObject;
 
-		if (!result.schemaDataByEntityName[entityName]) {
-			result.schemaDataByEntityName[entityName] = [];
-			result.submittedDataByEntityName[entityName] = [];
+		let schemaArr = result.schemaDataByEntityName[entityName];
+		let submittedArr = result.submittedDataByEntityName[entityName];
+		if (!schemaArr) {
+			schemaArr = [];
+			submittedArr = [];
+			result.schemaDataByEntityName[entityName] = schemaArr;
+			result.submittedDataByEntityName[entityName] = submittedArr;
 		}
 
-		result.schemaDataByEntityName[entityName].push({ ...recordData });
-		result.submittedDataByEntityName[entityName].push({ ...submittedDataObject });
+		schemaArr.push(recordData);
+		submittedArr.push(submittedDataObject);
 	}
 
 	return result;

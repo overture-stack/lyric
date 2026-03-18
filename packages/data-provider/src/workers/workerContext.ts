@@ -3,16 +3,22 @@ import { connect } from '../config/db.js';
 import { getLogger } from '../config/logger.js';
 import type { WorkerContext } from './types.js';
 
-let workerContext: WorkerContext | null = null;
+let workerContext: WorkerContext | undefined;
+
+/**
+ * Returns whether the worker context has been initialized.
+ */
+export const isInitialized = (): boolean => workerContext !== undefined;
 
 /**
  * Initialize the worker context with AppConfig.
- * This should be called once when the worker is first started.
+ * This is idempotent: if the context is already initialized it returns without making changes.
+ * The context is a global singleton and cannot be modified after initialization.
  * @param configData - The application configuration
  */
 export const initializeWorkerContext = async (configData: AppConfig): Promise<void> => {
-	if (workerContext) {
-		throw new Error('Worker context is already initialized');
+	if (isInitialized()) {
+		return;
 	}
 
 	// The Worker needs it's own database connection
@@ -24,6 +30,17 @@ export const initializeWorkerContext = async (configData: AppConfig): Promise<vo
 		schemaService: configData.schemaService,
 		submissionService: configData.submissionService,
 		onFinishCommit: configData.onFinishCommit,
+		workerPool: {
+			commitSubmission: async () => {
+				throw new Error('Worker pool functions cannot be called from within the worker');
+			},
+			dataValidation: async () => {
+				throw new Error('Worker pool functions cannot be called from within the worker');
+			},
+			terminate: async () => {
+				throw new Error('Worker pool functions cannot be called from within the worker');
+			},
+		},
 	};
 
 	workerContext = {

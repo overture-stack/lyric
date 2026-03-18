@@ -5,11 +5,19 @@ import createSubmissionRepository from '../repository/activeSubmissionRepository
 import createCategoryRepository from '../repository/categoryRepository.js';
 import submittedRepository from '../repository/submittedRepository.js';
 import submissionProcessorFactory from '../services/submission/submissionProcessor.js';
+import type { ResultOnCommit } from '../utils/types.js';
+import { SUBMISSION_STATUS } from '../utils/types.js';
 import type { CommitWorkerInput } from './types.js';
 import { getWorkerDependencies } from './workerContext.js';
 
-export const processCommitSubmission = async (message: CommitWorkerInput) => {
-	const { categoryId, submissionId, username } = message;
+/**
+ * This function is executed in a worker thread to start processing the commit submission logic.
+ * It fetches the data by the submissionId, prepares the data to be validated and passes it to the submission processor.
+ * @param message - The input message containing submissionId and username
+ * @returns The result of the commit submission process
+ */
+export const processCommitSubmission = async (message: CommitWorkerInput): Promise<ResultOnCommit> => {
+	const { submissionId, username } = message;
 
 	const dependencies = getWorkerDependencies();
 
@@ -28,6 +36,8 @@ export const processCommitSubmission = async (message: CommitWorkerInput) => {
 	if (submission.status !== 'COMMITTING') {
 		throw new Error(`Submission '${submissionId}' is not in COMMITTING status`);
 	}
+
+	const categoryId = submission.dictionaryCategory.id;
 
 	// Fetch dictionary
 	const currentDictionary = await categoryRepo.getActiveDictionaryByCategory(categoryId);
@@ -78,15 +88,21 @@ export const processCommitSubmission = async (message: CommitWorkerInput) => {
 			{},
 		);
 
-	return await submissionProcessor.performCommitSubmissionAsync({
-		dataToValidate: {
-			inserts: insertsToValidate,
-			submittedData: submittedDataToValidate,
-			deletes: deleteDataArray,
-			updates: updateDataArray,
-		},
-		submissionId: submission.id,
-		dictionary: currentDictionary,
-		username: username,
-	});
+	try {
+		return await submissionProcessor.performCommitSubmissionAsync({
+			dataToValidate: {
+				inserts: insertsToValidate,
+				submittedData: submittedDataToValidate,
+				deletes: deleteDataArray,
+				updates: updateDataArray,
+			},
+			submissionId: submission.id,
+			dictionary: currentDictionary,
+			username: username,
+		});
+	} catch (error) {
+		// Reset the submission status back to VALID so it can be retried
+		await submissionRepo.update(submissionId, { status: SUBMISSION_STATUS.VALID, updatedBy: username });
+		throw error;
+	}
 };
