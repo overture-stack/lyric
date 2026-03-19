@@ -18,8 +18,9 @@ export type WorkerFunctions = {
 	/**
 	 * Uses a worker thread from the pool to execute the commit submission process.
 	 * Then, the onFinishCommit callback is executed in the main thread since functions cannot be passed to workers
+	 * This does not return any result nor throws any error.
 	 * @param input The input data for the commit submission
-	 * @returns A void promise that resolves when the onFinishCommit callback is executed in the main thread after processing the commit submission in the worker thread
+	 * @returns A void promise that resolves when the worker has finished with or without errors.
 	 */
 	commitSubmission(input: CommitWorkerInput): Promise<void>;
 
