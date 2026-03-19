@@ -73,7 +73,6 @@ export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
 		},
 		terminate: async (): Promise<void> => {
 			await pool.terminate();
-			logger.info(LOG_MODULE, 'Worker pool terminated');
 		},
 	};
 };

@@ -1,5 +1,5 @@
 import { AppConfig, BaseDependencies } from '../config/config.js';
-import { connect } from '../config/db.js';
+import { connect, getConnectionPool } from '../config/db.js';
 import { getLogger } from '../config/logger.js';
 import auditController from '../controllers/auditController.js';
 import categoryController from '../controllers/categoryController.js';
@@ -113,7 +113,10 @@ const provider = (configData: AppConfig) => {
 		 *   process.exit(0);
 		 * });
 		 */
-		shutdown: () => baseDeps.workerPool.terminate(),
+		shutdown: async () => {
+			await getConnectionPool(baseDeps.db)?.end();
+			await baseDeps.workerPool.terminate();
+		},
 	};
 };
 
