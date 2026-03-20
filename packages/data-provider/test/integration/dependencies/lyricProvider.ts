@@ -1,6 +1,5 @@
 import { type DbConfig, migrate } from '@overture-stack/lyric-data-model';
 
-import { getConnectionPool } from '../../../src/config/db.js';
 import type {
 	AppConfig,
 	FeaturesConfig,
@@ -10,6 +9,7 @@ import type {
 	SubmissionServiceConfig,
 	ValidatorConfig,
 } from '../../../src/config/config.js';
+import { getConnectionPool } from '../../../src/config/db.js';
 import provider from '../../../src/core/provider.js';
 
 export type LyricProviderConfig = {
