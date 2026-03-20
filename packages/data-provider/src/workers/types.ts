@@ -35,10 +35,11 @@ export type WorkerFunctions = {
 	terminate(): Promise<void>;
 	/**
 	 * Uses a worker thread from the pool to execute the data validation process.
+	 * This does not return any result nor throws any error.
 	 * @param input The input data for the data validation
-	 * @returns A promise that resolves the submission ID
+	 * @returns A void promise that resolves when the data validation process is complete
 	 */
-	dataValidation(input: DataValidationWorkerInput): Promise<number>;
+	dataValidation(input: DataValidationWorkerInput): Promise<void>;
 };
 
 /**

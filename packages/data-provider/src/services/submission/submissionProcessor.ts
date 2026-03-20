@@ -689,11 +689,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			});
 
 			// Perform Schema Data validation in a worker thread
-			if (!dependencies.workerPool) {
-				throw new InternalServerError('Worker pool not available in dependencies');
-			}
-			const workerPool = dependencies.workerPool;
-			workerPool.dataValidation({ submissionId: submission.id });
+			dependencies.workerPool.dataValidation({ submissionId: submission.id });
 		} catch (error) {
 			logger.error(
 				LOG_MODULE,
@@ -756,11 +752,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			});
 
 			// Perform Schema Data validation in a worker thread
-			if (!dependencies.workerPool) {
-				throw new InternalServerError('Worker pool not available in dependencies');
-			}
-			const workerPool = dependencies.workerPool;
-			workerPool.dataValidation({ submissionId: activeSubmission.id });
+			dependencies.workerPool.dataValidation({ submissionId: activeSubmission.id });
 		} catch (error) {
 			logger.error(
 				LOG_MODULE,
@@ -773,11 +765,12 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 	/**
 	 * Update Active Submission in database
+	 * Updates the status of the Submission to 'VALID' if there is no errors, otherwise updates it to 'INVALID'
 	 * @param {Object} input
 	 * @param {number} input.dictionaryId The Dictionary ID of the Submission
-	 * @param {number} input.idActiveSubmission ID of the Active Submission
-	 * @param {SubmissionErrors} input.schemaErrors Array of schemaErrors
-	 * @returns {Promise<number>} An Active Submission updated
+	 * @param {number} input.idActiveSubmission ID of the Submission
+	 * @param {SubmissionErrors} input.schemaErrors Array of errors on the submission
+	 * @returns {Promise<number>} The ID of the updated Submission
 	 */
 	const updateActiveSubmission = async (input: {
 		dictionaryId: number;
@@ -855,11 +848,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			});
 
 			// Perform Schema Data validation in a worker thread
-			if (!dependencies.workerPool) {
-				throw new InternalServerError('Worker pool not available in dependencies');
-			}
-			const workerPool = dependencies.workerPool;
-			workerPool.dataValidation({ submissionId: activeSubmission.id });
+			dependencies.workerPool.dataValidation({ submissionId: activeSubmission.id });
 		} catch (error) {
 			logger.error(`There was an error processing submitted files: ${fileSummaries}`, JSON.stringify(error));
 		}

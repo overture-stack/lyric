@@ -73,11 +73,10 @@ export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
 				// This ensures the main thread is not affected by worker errors and can continue processing other tasks.
 			}
 		},
-		dataValidation: async (input: DataValidationWorkerInput) => {
+		dataValidation: async (input: DataValidationWorkerInput): Promise<void> => {
+			const proxy = await readyProxy; // wait for worker to initialize before using
 			try {
-				const resultValidation = await pool.exec('performDataValidation', [input]);
-
-				return resultValidation;
+				await proxy.dataValidation(input);
 			} catch (error) {
 				const errMessage = error instanceof Error ? error.message : String(error);
 				logger.error(LOG_MODULE, `Worker pool execution failed for dataValidation: ${errMessage}`);

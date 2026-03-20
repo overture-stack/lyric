@@ -196,11 +196,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		});
 
 		// Perform Schema Data validation in a worker thread
-		if (!dependencies.workerPool) {
-			throw new InternalServerError('Worker pool not available in dependencies');
-		}
-		const workerPool = dependencies.workerPool;
-		workerPool.dataValidation({ submissionId: submission.id });
+		dependencies.workerPool.dataValidation({ submissionId: submission.id });
 
 		logger.info(LOG_MODULE, `Submission '${submission.id}' updated after removing entity '${filter.entityName}'`);
 
