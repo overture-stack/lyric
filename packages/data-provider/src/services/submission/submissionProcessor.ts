@@ -472,7 +472,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				message,
 			);
 			logger.error(error);
-			throw new Error(`${message}`, { cause: error });
+			throw error;
 		}
 	};
 

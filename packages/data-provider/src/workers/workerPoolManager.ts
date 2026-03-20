@@ -69,6 +69,8 @@ export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
 			} catch (error) {
 				const errMessage = error instanceof Error ? error.message : String(error);
 				logger.error(LOG_MODULE, `Worker pool execution failed for commitSubmission: ${errMessage}`);
+				// Do not re-throw error since commitSubmission in the worker is designed to not throw errors, but log them instead.
+				// This ensures the main thread is not affected by worker errors and can continue processing other tasks.
 			}
 		},
 		dataValidation: async (input: DataValidationWorkerInput) => {
@@ -79,11 +81,12 @@ export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
 			} catch (error) {
 				const errMessage = error instanceof Error ? error.message : String(error);
 				logger.error(LOG_MODULE, `Worker pool execution failed for dataValidation: ${errMessage}`);
+				// Do not re-throw error since dataValidation in the worker is designed to not throw errors, but log them instead.
+				// This ensures the main thread is not affected by worker errors and can continue processing other tasks.
 			}
 		},
 		terminate: async (): Promise<void> => {
 			await pool.terminate();
-			logger.info(LOG_MODULE, 'Worker pool terminated');
 		},
 	};
 };
