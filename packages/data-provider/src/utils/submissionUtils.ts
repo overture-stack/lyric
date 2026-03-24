@@ -48,6 +48,9 @@ import {
 	SubmittedDataReference,
 } from './types.js';
 
+export const inProcessSubmissionStatus = [SUBMISSION_STATUS.VALIDATING, SUBMISSION_STATUS.COMMITTING] as const;
+export type InProcessSubmissionStatus = typeof inProcessSubmissionStatus;
+
 // Only "open", "valid", and "invalid" statuses are considered Active Submission
 export const openSubmissionStatus = [
 	SUBMISSION_STATUS.OPEN,

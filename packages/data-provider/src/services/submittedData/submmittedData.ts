@@ -9,7 +9,7 @@ import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelations.js';
-import { InternalServerError } from '../../utils/errors.js';
+import { InternalServerError, StatusConflict } from '../../utils/errors.js';
 import { filterUpdatesFromDeletes, mergeDeleteRecords } from '../../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
@@ -106,11 +106,24 @@ const submittedData = (dependencies: BaseDependencies) => {
 		const recordsToDeleteMap = transformmSubmittedDataToSubmissionDeleteData(submittedDataToDelete);
 
 		// Get Active Submission or Open a new one
-		const activeSubmissionId = await getOrCreateActiveSubmission({
-			categoryId: foundRecordToDelete.dictionaryCategoryId,
-			username,
-			organization: foundRecordToDelete.organization,
-		});
+		let activeSubmissionId: number;
+		try {
+			activeSubmissionId = await getOrCreateActiveSubmission({
+				categoryId: foundRecordToDelete.dictionaryCategoryId,
+				username,
+				organization: foundRecordToDelete.organization,
+			});
+		} catch (error) {
+			if (error instanceof StatusConflict || error instanceof InternalServerError) {
+				return {
+					status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+					description: error.message,
+					inProcessEntities: [],
+				};
+			}
+			throw error;
+		}
+
 		const activeSubmission = await getSubmissionDetailsById(activeSubmissionId);
 
 		if (!activeSubmission) {
@@ -129,7 +142,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		// filter out update records found matching systemID on delete records
 		const filteredUpdates = filterUpdatesFromDeletes(activeSubmission.data.updates ?? {}, mergedSubmissionDeletes);
 
-		// Updating the Submission with the new data and 'OPEN' status before validating
+		// Updating the Submission with the new data and 'VALIDATING' status before validating
 		await update(activeSubmission.id, {
 			data: {
 				inserts: activeSubmission.data.inserts,
@@ -137,7 +150,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 				deletes: mergedSubmissionDeletes,
 			},
 			updatedBy: username,
-			status: 'OPEN',
+			status: 'VALIDATING',
 		});
 
 		// Perform Schema Data validation in a worker thread
@@ -210,7 +223,18 @@ const submittedData = (dependencies: BaseDependencies) => {
 		}
 
 		// Get Active Submission or Open a new one
-		const activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
+		let activeSubmissionId: number;
+		try {
+			activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
+		} catch (error) {
+			if (error instanceof StatusConflict || error instanceof InternalServerError) {
+				return {
+					status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+					description: error.message,
+				};
+			}
+			throw error;
+		}
 
 		// Running Schema validation in the background do not need to wait
 		// Result of validations will be stored in database

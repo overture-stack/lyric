@@ -5,6 +5,7 @@ enum audit_action {
 
 enum submission_status {
   OPEN
+  VALIDATING
   VALID
   INVALID
   CLOSED

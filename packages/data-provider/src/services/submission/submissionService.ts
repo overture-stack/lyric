@@ -188,11 +188,11 @@ const submissionService = (dependencies: BaseDependencies) => {
 			...filter,
 		});
 
-		// Updating the Submission with the new data and 'OPEN' status before validating
+		// Updating the Submission with the new data and 'VALIDATING' status before validating
 		await submissionRepository.update(submission.id, {
 			data: updatedActiveSubmissionData,
 			updatedBy: username,
-			status: 'OPEN',
+			status: 'VALIDATING',
 		});
 
 		// Perform Schema Data validation in a worker thread
@@ -346,6 +346,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 
 	/**
 	 * Find the current Active Submission or Create an Open Active Submission with initial values and no schema data.
+	 * Throws an error if the existing active submission is not in a status that can be modified (OPEN, VALID or INVALID)
 	 * @param {object} params
 	 * @param {string} params.username Owner of the Submission
 	 * @param {number} params.categoryId Category ID of the Submission
@@ -365,7 +366,11 @@ const submissionService = (dependencies: BaseDependencies) => {
 			username,
 			organization,
 		});
+
 		if (activeSubmission) {
+			if (!isSubmissionActive(activeSubmission.status)) {
+				throw new StatusConflict(`Existing submission with status '${activeSubmission.status}' cannot be modified`);
+			}
 			return activeSubmission.id;
 		}
 
@@ -447,7 +452,18 @@ const submissionService = (dependencies: BaseDependencies) => {
 		}
 
 		// Get Active Submission or Open a new one
-		const activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
+		let activeSubmissionId: number;
+		try {
+			activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
+		} catch (error) {
+			if (error instanceof StatusConflict || error instanceof InternalServerError) {
+				return {
+					status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+					description: error.message,
+				};
+			}
+			throw error;
+		}
 
 		// Schema validation runs asynchronously and does not block execution.
 		// The results will be saved to the database.
@@ -541,7 +557,20 @@ const submissionService = (dependencies: BaseDependencies) => {
 		}
 
 		// Get Active Submission or Open a new one
-		const activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
+		let activeSubmissionId: number;
+		try {
+			activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
+		} catch (error) {
+			if (error instanceof StatusConflict || error instanceof InternalServerError) {
+				return {
+					status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+					description: error.message,
+					batchErrors: [],
+					inProcessEntities: [],
+				};
+			}
+			throw error;
+		}
 
 		// TODO: Add files to submission, then run validation separately. Currently these processes are both
 		//       done by the function that adds the files to the submission.

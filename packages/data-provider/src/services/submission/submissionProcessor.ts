@@ -19,7 +19,7 @@ import createCategoryRepository from '../../repository/categoryRepository.js';
 import createDictionaryRepository from '../../repository/dictionaryRepository.js';
 import createSubmittedDataRepository from '../../repository/submittedRepository.js';
 import { getDictionarySchemaRelations, type SchemaChildNode } from '../../utils/dictionarySchemaRelations.js';
-import { BadRequest, InternalServerError } from '../../utils/errors.js';
+import { BadRequest } from '../../utils/errors.js';
 import { convertRecordToString } from '../../utils/formatUtils.js';
 import { parseRecordsToInsert } from '../../utils/recordsParser.js';
 import {
@@ -677,7 +677,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// filter out delete records found on update records
 			const filteredDeletes = filterDeletesFromUpdates(mergedDeletes, updatedActiveSubmissionData);
 
-			// Updating the Submission with the new data and 'OPEN' status before validating
+			// Updating the Submission with the new data and 'VALIDATING' status before validating
 			await update(submission.id, {
 				data: {
 					inserts: mergedInserts,
@@ -685,7 +685,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 					updates: updatedActiveSubmissionData,
 				},
 				updatedBy: username,
-				status: 'OPEN',
+				status: 'VALIDATING',
 			});
 
 			// Perform Schema Data validation in a worker thread
@@ -740,7 +740,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// Merge Active Submission insert records with incoming TSV file data processed
 			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, insertRecords);
 
-			// Updating the Submission with the new data and 'OPEN' status before validating
+			// Updating the Submission with the new data and 'VALIDATING' status before validating
 			await update(activeSubmission.id, {
 				data: {
 					inserts: insertActiveSubmissionData,
@@ -748,7 +748,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 					updates: activeSubmission.data.updates,
 				},
 				updatedBy: username,
-				status: 'OPEN',
+				status: 'VALIDATING',
 			});
 
 			// Perform Schema Data validation in a worker thread
@@ -836,7 +836,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// Merge Active Submission data with incoming TSV file data processed
 			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, filesDataProcessed);
 
-			// Updating the Submission with the new data and 'OPEN' status before validating
+			// Updating the Submission with the new data and 'VALIDATING' status before validating
 			await submissionRepository.update(activeSubmission.id, {
 				data: {
 					inserts: insertActiveSubmissionData,
@@ -844,7 +844,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 					updates: activeSubmission.data.updates,
 				},
 				updatedBy: username,
-				status: 'OPEN',
+				status: 'VALIDATING',
 			});
 
 			// Perform Schema Data validation in a worker thread
