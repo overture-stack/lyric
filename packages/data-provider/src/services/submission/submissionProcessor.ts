@@ -677,7 +677,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// filter out delete records found on update records
 			const filteredDeletes = filterDeletesFromUpdates(mergedDeletes, updatedActiveSubmissionData);
 
-			// Updating the Submission with the new data and 'VALIDATING' status before validating
+			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
 			await update(submission.id, {
 				data: {
 					inserts: mergedInserts,
@@ -740,7 +740,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// Merge Active Submission insert records with incoming TSV file data processed
 			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, insertRecords);
 
-			// Updating the Submission with the new data and 'VALIDATING' status before validating
+			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
 			await update(activeSubmission.id, {
 				data: {
 					inserts: insertActiveSubmissionData,
@@ -836,7 +836,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// Merge Active Submission data with incoming TSV file data processed
 			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, filesDataProcessed);
 
-			// Updating the Submission with the new data and 'VALIDATING' status before validating
+			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
 			await submissionRepository.update(activeSubmission.id, {
 				data: {
 					inserts: insertActiveSubmissionData,

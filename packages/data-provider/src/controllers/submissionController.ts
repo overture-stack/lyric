@@ -7,7 +7,7 @@ import { getSubmittedFileType } from '../services/submission/submissionFile.js';
 import createSubmissionService from '../services/submission/submissionService.js';
 import createSubmittedDataService from '../services/submittedData/submmittedData.js';
 import { hasUserWriteAccess } from '../utils/authUtils.js';
-import { BadRequest, Forbidden, NotFound } from '../utils/errors.js';
+import { BadRequest, Forbidden, NotFound, StatusConflict } from '../utils/errors.js';
 import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
@@ -23,7 +23,7 @@ import {
 	uploadSingleEntitySubmissionDataRequestSchema,
 	uploadSubmissionRequestSchema,
 } from '../utils/schemas.js';
-import { parseSubmissionActionTypes } from '../utils/submissionUtils.js';
+import { isSubmissionActive, parseSubmissionActionTypes } from '../utils/submissionUtils.js';
 import {
 	BATCH_ERROR_TYPE,
 	BatchError,
@@ -83,9 +83,12 @@ const controller = ({
 				if (!submission) {
 					throw new BadRequest(`Submission '${submissionId}' not found`);
 				}
-
 				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(submission.organization, user)) {
 					throw new Forbidden(`User is not authorized to delete the submission from '${submission.organization}'`);
+				}
+
+				if (!isSubmissionActive(submission.status)) {
+					throw new StatusConflict('Only active Submissions can be deleted');
 				}
 
 				const username = user?.username || '';

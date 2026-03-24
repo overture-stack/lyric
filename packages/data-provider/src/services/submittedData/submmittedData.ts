@@ -142,7 +142,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		// filter out update records found matching systemID on delete records
 		const filteredUpdates = filterUpdatesFromDeletes(activeSubmission.data.updates ?? {}, mergedSubmissionDeletes);
 
-		// Updating the Submission with the new data and 'VALIDATING' status before validating
+		// Updating the Submission with the new data and 'VALIDATING' status before validation starts
 		await update(activeSubmission.id, {
 			data: {
 				inserts: activeSubmission.data.inserts,

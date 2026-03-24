@@ -188,7 +188,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 			...filter,
 		});
 
-		// Updating the Submission with the new data and 'VALIDATING' status before validating
+		// Updating the Submission with the new data and 'VALIDATING' status before validation starts
 		await submissionRepository.update(submission.id, {
 			data: updatedActiveSubmissionData,
 			updatedBy: username,
