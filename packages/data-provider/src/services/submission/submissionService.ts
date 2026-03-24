@@ -106,18 +106,20 @@ const submissionService = (dependencies: BaseDependencies) => {
 	 * Returns the resulting ID of the Submission
 	 * @param {number} submissionId
 	 * @param {string} username
+	 * @param {boolean} force - Flag to force deletion of a submission even if it's not active
 	 * @returns {Promise<DeleteSubmissionResult>}
 	 */
 	const deleteActiveSubmissionById = async (
 		submissionId: number,
 		username: string,
+		force: boolean,
 	): Promise<DeleteSubmissionResult> => {
 		const submission = await submissionRepository.getSubmissionById(submissionId);
 		if (!submission) {
 			throw new BadRequest(`Submission '${submissionId}' not found`);
 		}
 
-		if (!isSubmissionActive(submission.status)) {
+		if (!isSubmissionActive(submission.status) && !force) {
 			throw new StatusConflict('Submission is not active. Only Active Submission can be deleted');
 		}
 

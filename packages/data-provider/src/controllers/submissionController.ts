@@ -76,6 +76,7 @@ const controller = ({
 			try {
 				const submissionId = Number(req.params.submissionId);
 				const user = req.user;
+				const force = req.query.force?.toLowerCase() === 'true';
 
 				logger.info(LOG_MODULE, `Request Delete Active Submission '${submissionId}'`);
 
@@ -87,13 +88,17 @@ const controller = ({
 					throw new Forbidden(`User is not authorized to delete the submission from '${submission.organization}'`);
 				}
 
-				if (!isSubmissionActive(submission.status)) {
+				if (!isSubmissionActive(submission.status) && !force) {
 					throw new StatusConflict('Only active Submissions can be deleted');
 				}
 
 				const username = user?.username || '';
 
-				const deleteSubmissionResult = await submissionService.deleteActiveSubmissionById(submissionId, username);
+				const deleteSubmissionResult = await submissionService.deleteActiveSubmissionById(
+					submissionId,
+					username,
+					force,
+				);
 
 				if (isEmpty(deleteSubmissionResult)) {
 					throw new NotFound('Active Submission not found');
