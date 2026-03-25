@@ -50,12 +50,7 @@
     tags:
       - Dictionary
     parameters:
-      - name: categoryId
-        in: path
-        required: true
-        schema:
-          type: integer
-        description: The ID of the category containing the dictionary
+      - $ref: '#/components/parameters/path/CategoryId'
     responses:
       200:
         description: Dictionary schema JSON
@@ -77,12 +72,7 @@
     tags:
       - Dictionary
     parameters:
-      - name: categoryId
-        in: path
-        required: true
-        schema:
-          type: integer
-        description: The ID of the category containing the dictionary
+      - $ref: '#/components/parameters/path/CategoryId'
       - name: fileType
         in: query
         required: false

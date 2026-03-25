@@ -2,7 +2,6 @@ import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
 import { and, count, eq, inArray, or, SQL, sql } from 'drizzle-orm/sql';
-import * as _ from 'lodash-es';
 
 import {
 	auditSubmittedData,
