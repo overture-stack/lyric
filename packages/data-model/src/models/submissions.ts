@@ -12,6 +12,7 @@ import { dictionaryCategories } from './dictionary_categories.js';
 
 export const submissionStatusEnum = pgEnum('submission_status', [
 	'OPEN',
+	'VALIDATING',
 	'VALID',
 	'INVALID',
 	'CLOSED',

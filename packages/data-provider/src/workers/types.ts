@@ -6,6 +6,10 @@ export type CommitWorkerInput = {
 	username: string;
 };
 
+export type DataValidationWorkerInput = {
+	submissionId: number;
+};
+
 export type WorkerContext = {
 	dependencies: BaseDependencies;
 };
@@ -29,6 +33,13 @@ export type WorkerFunctions = {
 	 * @returns A void promise that resolves when the pool is terminated
 	 */
 	terminate(): Promise<void>;
+	/**
+	 * Uses a worker thread from the pool to execute the data validation process.
+	 * This does not return any result nor throws any error.
+	 * @param input The input data for the data validation
+	 * @returns A void promise that resolves when the data validation process is complete
+	 */
+	dataValidation(input: DataValidationWorkerInput): Promise<void>;
 };
 
 /**
@@ -51,4 +62,10 @@ export type WorkerProxy = {
 	 * @returns A promise that resolves with the result of the commit submission process
 	 */
 	commitSubmission: (input: CommitWorkerInput) => Promise<ResultOnCommit>;
+	/**
+	 * This function is executed in the worker thread to start the data validation process.
+	 * @param input The input data for the data validation
+	 * @returns A promise that resolves the submission ID
+	 */
+	dataValidation: (input: DataValidationWorkerInput) => Promise<number>;
 };

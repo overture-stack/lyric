@@ -106,18 +106,20 @@ const submissionService = (dependencies: BaseDependencies) => {
 	 * Returns the resulting ID of the Submission
 	 * @param {number} submissionId
 	 * @param {string} username
+	 * @param {boolean} force - Flag to force deletion of a submission even if it's not active
 	 * @returns {Promise<DeleteSubmissionResult>}
 	 */
 	const deleteActiveSubmissionById = async (
 		submissionId: number,
 		username: string,
+		force: boolean,
 	): Promise<DeleteSubmissionResult> => {
 		const submission = await submissionRepository.getSubmissionById(submissionId);
 		if (!submission) {
 			throw new BadRequest(`Submission '${submissionId}' not found`);
 		}
 
-		if (!isSubmissionActive(submission.status)) {
+		if (!isSubmissionActive(submission.status) && !force) {
 			throw new StatusConflict('Submission is not active. Only Active Submission can be deleted');
 		}
 
@@ -188,12 +190,15 @@ const submissionService = (dependencies: BaseDependencies) => {
 			...filter,
 		});
 
-		// Validate and update Active Submission after removing the entity
-		submissionProcessor.performDataValidation({
-			submissionId: submission.id,
-			submissionData: updatedActiveSubmissionData,
-			username,
+		// Updating the Submission with the new data and 'VALIDATING' status before validation starts
+		await submissionRepository.update(submission.id, {
+			data: updatedActiveSubmissionData,
+			updatedBy: username,
+			status: 'VALIDATING',
 		});
+
+		// Perform Schema Data validation in a worker thread
+		dependencies.workerPool.dataValidation({ submissionId: submission.id });
 
 		logger.info(LOG_MODULE, `Submission '${submission.id}' updated after removing entity '${filter.entityName}'`);
 
@@ -343,6 +348,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 
 	/**
 	 * Find the current Active Submission or Create an Open Active Submission with initial values and no schema data.
+	 * Throws an error if the existing active submission is not in a status that can be modified (OPEN, VALID or INVALID)
 	 * @param {object} params
 	 * @param {string} params.username Owner of the Submission
 	 * @param {number} params.categoryId Category ID of the Submission
@@ -362,7 +368,11 @@ const submissionService = (dependencies: BaseDependencies) => {
 			username,
 			organization,
 		});
+
 		if (activeSubmission) {
+			if (!isSubmissionActive(activeSubmission.status)) {
+				throw new StatusConflict(`Existing submission with status '${activeSubmission.status}' cannot be modified`);
+			}
 			return activeSubmission.id;
 		}
 
@@ -444,7 +454,18 @@ const submissionService = (dependencies: BaseDependencies) => {
 		}
 
 		// Get Active Submission or Open a new one
-		const activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
+		let activeSubmissionId: number;
+		try {
+			activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
+		} catch (error) {
+			if (error instanceof StatusConflict || error instanceof InternalServerError) {
+				return {
+					status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+					description: error.message,
+				};
+			}
+			throw error;
+		}
 
 		// Schema validation runs asynchronously and does not block execution.
 		// The results will be saved to the database.
@@ -538,7 +559,20 @@ const submissionService = (dependencies: BaseDependencies) => {
 		}
 
 		// Get Active Submission or Open a new one
-		const activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
+		let activeSubmissionId: number;
+		try {
+			activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
+		} catch (error) {
+			if (error instanceof StatusConflict || error instanceof InternalServerError) {
+				return {
+					status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+					description: error.message,
+					batchErrors: [],
+					inProcessEntities: [],
+				};
+			}
+			throw error;
+		}
 
 		// TODO: Add files to submission, then run validation separately. Currently these processes are both
 		//       done by the function that adds the files to the submission.

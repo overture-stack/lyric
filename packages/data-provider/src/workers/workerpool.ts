@@ -2,7 +2,8 @@ import * as workerpool from 'workerpool';
 
 import type { AppConfig, ResultOnCommit } from '../../index.js';
 import { processCommitSubmission } from './commitSubmissionWorker.js';
-import type { CommitWorkerInput, WorkerProxy } from './types.js';
+import { processDataValidation } from './dataValidationWorker.js';
+import type { CommitWorkerInput, DataValidationWorkerInput, WorkerProxy } from './types.js';
 import { initializeWorkerContext } from './workerContext.js';
 
 // Store initialization promise once it has been initiated.
@@ -26,6 +27,13 @@ const workerProxy: WorkerProxy = {
 		// TODO: Consider sending result back to main thread in chuncks
 		// workerpool.workerEmit({ type: 'chunk', chunk: { type: 'commitResult', result } });
 		return result;
+	},
+	dataValidation: async (input: DataValidationWorkerInput): Promise<number> => {
+		if (!initializeWorkerPromise) {
+			throw new Error('Worker not initialized. Call initializeWorker first.');
+		}
+		await initializeWorkerPromise;
+		return await processDataValidation(input);
 	},
 };
 

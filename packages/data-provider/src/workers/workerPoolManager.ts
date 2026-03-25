@@ -5,7 +5,7 @@ import * as workerpool from 'workerpool';
 
 import type { AppConfig } from '../config/config.js';
 import { getLogger } from '../config/logger.js';
-import type { CommitWorkerInput, WorkerFunctions, WorkerProxy } from './types.js';
+import type { CommitWorkerInput, DataValidationWorkerInput, WorkerFunctions, WorkerProxy } from './types.js';
 
 const LOG_MODULE = 'WORKER_POOL_MANAGER';
 
@@ -70,6 +70,17 @@ export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
 				const errMessage = error instanceof Error ? error.message : String(error);
 				logger.error(LOG_MODULE, `Worker pool execution failed for commitSubmission: ${errMessage}`);
 				// Do not re-throw error since commitSubmission in the worker is designed to not throw errors, but log them instead.
+				// This ensures the main thread is not affected by worker errors and can continue processing other tasks.
+			}
+		},
+		dataValidation: async (input: DataValidationWorkerInput): Promise<void> => {
+			const proxy = await readyProxy; // wait for worker to initialize before using
+			try {
+				await proxy.dataValidation(input);
+			} catch (error) {
+				const errMessage = error instanceof Error ? error.message : String(error);
+				logger.error(LOG_MODULE, `Worker pool execution failed for dataValidation: ${errMessage}`);
+				// Do not re-throw error since dataValidation in the worker is designed to not throw errors, but log them instead.
 				// This ensures the main thread is not affected by worker errors and can continue processing other tasks.
 			}
 		},

@@ -34,6 +34,9 @@ export const initializeWorkerContext = async (configData: AppConfig): Promise<vo
 			commitSubmission: async () => {
 				throw new Error('Worker pool functions cannot be called from within the worker');
 			},
+			dataValidation: async () => {
+				throw new Error('Worker pool functions cannot be called from within the worker');
+			},
 			terminate: async () => {
 				throw new Error('Worker pool functions cannot be called from within the worker');
 			},

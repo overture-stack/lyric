@@ -7,7 +7,7 @@ import { type NewSubmission, type Submission, submissions } from '@overture-stac
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
-import { openSubmissionStatus } from '../utils/submissionUtils.js';
+import { inProcessSubmissionStatus, openSubmissionStatus } from '../utils/submissionUtils.js';
 import type {
 	BooleanTrueObject,
 	PaginationOptions,
@@ -174,7 +174,10 @@ jsonb_build_object(
 	 * )
 	 * ```
 	 */
-	const activeStatusesCondition: SQL = inArray(submissions.status, [...openSubmissionStatus]);
+	const activeStatusesCondition: SQL = inArray(submissions.status, [
+		...openSubmissionStatus,
+		...inProcessSubmissionStatus,
+	]);
 
 	return {
 		/**

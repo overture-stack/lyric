@@ -292,8 +292,19 @@ export const submissionCommitRequestSchema: RequestValidation<object, ParsedQs, 
 	}),
 };
 
-export const submissionDeleteRequestSchema: RequestValidation<object, ParsedQs, submissionIdPathParam> = {
+export interface SubmissionDeleteQueryParams extends ParsedQs {
+	force?: string;
+}
+
+export const submissionDeleteRequestSchema: RequestValidation<
+	object,
+	SubmissionDeleteQueryParams,
+	submissionIdPathParam
+> = {
 	pathParams: submissionIdPathParamSchema,
+	query: z.object({
+		force: booleanSchema.default('false'),
+	}),
 };
 
 export interface SubmissionDeleteEntityNameParams extends ParamsDictionary {

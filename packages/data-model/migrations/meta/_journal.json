@@ -85,6 +85,13 @@
       "when": 1772737238121,
       "tag": "0011_add_submission_enum_committing",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1774363234821,
+      "tag": "0012_add_submission_enum_validating",
+      "breakpoints": true
     }
   ]
 }

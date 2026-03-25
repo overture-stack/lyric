@@ -32,10 +32,8 @@
     tags:
       - Submission
     parameters:
-      - name: submissionId
-        in: path
-        type: string
-        required: true
+      - $ref: '#/components/parameters/path/SubmissionId'
+      - $ref: '#/components/parameters/query/ForceDeleteSubmission'
     responses:
       200:
         description: Submission closed successfully
@@ -319,7 +317,6 @@
         $ref: '#/components/responses/ServerError'
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
-
 
 /submission/category/{categoryId}/data/{systemId}:
   delete:

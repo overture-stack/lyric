@@ -17,6 +17,14 @@ describe('Submission Utils - isSubmissionActive', () => {
 			const response = isSubmissionActive('INVALID');
 			expect(response).to.be.true;
 		});
+		it('should return false if a Submission status is VALIDATING', () => {
+			const response = isSubmissionActive('VALIDATING');
+			expect(response).to.be.false;
+		});
+		it('should return false if a Submission status is COMMITTING', () => {
+			const response = isSubmissionActive('COMMITTING');
+			expect(response).to.be.false;
+		});
 		it('should return false if a Submission status is CLOSED', () => {
 			const response = isSubmissionActive('CLOSED');
 			expect(response).to.be.false;

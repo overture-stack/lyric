@@ -25,6 +25,7 @@ export type ObjectValues<T> = T[keyof T];
  */
 export const SUBMISSION_STATUS = {
 	OPEN: 'OPEN',
+	VALIDATING: 'VALIDATING',
 	VALID: 'VALID',
 	INVALID: 'INVALID',
 	CLOSED: 'CLOSED',

@@ -5,7 +5,6 @@ import type { DataRecord, Schema } from '@overture-stack/lectern-client';
 import type {
 	DataDiff,
 	NewSubmittedData,
-	SubmissionData,
 	SubmissionDeleteData,
 	SubmissionErrors,
 	SubmissionInsertData,
@@ -481,45 +480,36 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	 * Validates an Active Submission combined with all Submitted Data.
 	 * Active Submission is updated after validation is complete.
 	 * Returns the ID of the Active Submission updated
-	 * @param {Object} input
-	 * @param {Submission} input.originalSubmission Active Submission
-	 * @param {SubmissionData} input.submissionData New Submission data
-	 * @param {string} input.username User who performs the action
+	 * @param {number} submissionId Active Submission
 	 * @returns {Promise<number>} ID of the Submission updated
 	 */
-	const performDataValidation = async (input: {
-		submissionId: number;
-		submissionData: SubmissionData;
-		username: string;
-	}): Promise<number> => {
-		const { submissionId, submissionData, username } = input;
-
+	const performDataValidation = async (submissionId: number): Promise<number> => {
 		const { getActiveDictionaryByCategory } = categoryRepositry;
 		const { getSubmittedDataByCategoryIdAndOrganization } = submittedDataRepository;
-		const { getSubmissionById } = submissionRepository;
+		const { getSubmissionDetailsById } = submissionRepository;
 
 		// Get Active Submission from database
-		const originalSubmission = await getSubmissionById(submissionId);
+		const activeSubmission = await getSubmissionDetailsById(submissionId);
 
-		if (!originalSubmission) {
+		if (!activeSubmission) {
 			throw new Error(`Submission '${submissionId}' not found`);
 		}
 
 		// Get Submitted Data from database
 		const submittedData = await getSubmittedDataByCategoryIdAndOrganization(
-			originalSubmission.dictionaryCategory.id,
-			originalSubmission.organization,
+			activeSubmission.dictionaryCategory.id,
+			activeSubmission.organization,
 		);
 
-		const currentDictionary = await getActiveDictionaryByCategory(originalSubmission.dictionaryCategory.id);
+		const currentDictionary = await getActiveDictionaryByCategory(activeSubmission.dictionaryCategory.id);
 		if (!currentDictionary) {
-			throw new BadRequest(`Dictionary in category '${originalSubmission.dictionaryCategory.id}' not found`);
+			throw new BadRequest(`Dictionary in category '${activeSubmission.dictionaryCategory.id}' not found`);
 		}
 
 		// Merge Submitted Data with Active Submission keepping reference of each record ID
 		const dataMergedByEntityName = mergeAndReferenceEntityData({
 			submissionId,
-			submissionData,
+			submissionData: activeSubmission.data,
 			submittedData,
 		});
 
@@ -537,7 +527,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 		// Check for records to be updated that its systemId was not found in the Submitted Data collection.
 		// Any error found will cause the submission to be marked as 'invalid'
-		Object.entries(submissionData.updates ?? {}).forEach(([entityName, recordsToUpdate]) => {
+		Object.entries(activeSubmission.data.updates ?? {}).forEach(([entityName, recordsToUpdate]) => {
 			recordsToUpdate.forEach((submissionEditData, index) => {
 				const found = findEditSubmittedData(entityName, submissionEditData.systemId, dataMergedByEntityName);
 
@@ -584,14 +574,8 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		// Update Active Submission
 		return await updateActiveSubmission({
 			idActiveSubmission: submissionId,
-			submissionData: {
-				inserts: submissionData.inserts,
-				deletes: submissionData.deletes,
-				updates: submissionData.updates,
-			},
 			schemaErrors: submissionSchemaErrors,
 			dictionaryId: currentDictionary.id,
-			username,
 		});
 	};
 
@@ -617,7 +601,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		},
 	): Promise<void> => {
 		const { getDictionary } = dictionaryRepository;
-		const { getSubmissionDetailsById } = submissionRepository;
+		const { getSubmissionDetailsById, update } = submissionRepository;
 
 		try {
 			// Parse file data
@@ -693,16 +677,19 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// filter out delete records found on update records
 			const filteredDeletes = filterDeletesFromUpdates(mergedDeletes, updatedActiveSubmissionData);
 
-			// Perform Schema Data validation Async.
-			performDataValidation({
-				submissionId: submission.id,
-				submissionData: {
+			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
+			await update(submission.id, {
+				data: {
 					inserts: mergedInserts,
 					deletes: filteredDeletes,
 					updates: updatedActiveSubmissionData,
 				},
-				username,
+				updatedBy: username,
+				status: 'VALIDATING',
 			});
+
+			// Perform Schema Data validation in a worker thread
+			dependencies.workerPool.dataValidation({ submissionId: submission.id });
 		} catch (error) {
 			logger.error(
 				LOG_MODULE,
@@ -753,24 +740,19 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// Merge Active Submission insert records with incoming TSV file data processed
 			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, insertRecords);
 
-			// Result merged submission Data
-			const mergedSubmissionData: SubmissionData = {
-				inserts: insertActiveSubmissionData,
-				deletes: activeSubmission.data.deletes,
-				updates: activeSubmission.data.updates,
-			};
-
+			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
 			await update(activeSubmission.id, {
-				data: mergedSubmissionData,
+				data: {
+					inserts: insertActiveSubmissionData,
+					deletes: activeSubmission.data.deletes,
+					updates: activeSubmission.data.updates,
+				},
 				updatedBy: username,
+				status: 'VALIDATING',
 			});
 
-			// Perform Schema Data validation Async.
-			await performDataValidation({
-				submissionId: activeSubmission.id,
-				submissionData: mergedSubmissionData,
-				username,
-			});
+			// Perform Schema Data validation in a worker thread
+			dependencies.workerPool.dataValidation({ submissionId: activeSubmission.id });
 		} catch (error) {
 			logger.error(
 				LOG_MODULE,
@@ -783,31 +765,26 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 	/**
 	 * Update Active Submission in database
+	 * Updates the status of the Submission to 'VALID' if there is no errors, otherwise updates it to 'INVALID'
 	 * @param {Object} input
 	 * @param {number} input.dictionaryId The Dictionary ID of the Submission
-	 * @param {SubmissionData} input.submissionData Data to be submitted grouped on inserts, updates and deletes
-	 * @param {number} input.idActiveSubmission ID of the Active Submission
-	 * @param {SubmissionErrors} input.schemaErrors Array of schemaErrors
-	 * @param {string} input.username User updating the active submission
-	 * @returns {Promise<number>} An Active Submission updated
+	 * @param {number} input.idActiveSubmission ID of the Submission
+	 * @param {SubmissionErrors} input.schemaErrors Array of errors on the submission
+	 * @returns {Promise<number>} The ID of the updated Submission
 	 */
 	const updateActiveSubmission = async (input: {
 		dictionaryId: number;
-		submissionData: SubmissionData;
 		idActiveSubmission: number;
 		schemaErrors: SubmissionErrors;
-		username: string;
 	}): Promise<number> => {
-		const { dictionaryId, submissionData, idActiveSubmission, schemaErrors, username } = input;
+		const { dictionaryId, idActiveSubmission, schemaErrors } = input;
 		const { update } = submissionRepository;
 		const newStatusSubmission =
 			Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
 		// Update with new data
 		const updatedActiveSubmissionId = await update(idActiveSubmission, {
-			data: submissionData,
 			status: newStatusSubmission,
 			dictionaryId: dictionaryId,
-			updatedBy: username,
 			errors: schemaErrors,
 		});
 
@@ -821,11 +798,10 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	/**
 	 * Void function to process and validate uploaded files on an Active Submission.
 	 * Performs the schema data validation combined with all Submitted Data.
-	 * @param {Record<string, Express.Multer.File>} files Uploaded files to be processed
+	 * @param {Record<string, { files: Express.Multer.File[], schema: Schema }>} fileSchemaMap Mapping the files with a schema
 	 * @param {Object} params
 	 * @param {number} params.categoryId Category Identifier
 	 * @param {string} params.organization Organization name
-	 * @param {SchemasDictionary} params.schemasDictionary Dictionary to parse files with
 	 * @param {string} params.username User who performs the action
 	 * @returns {void}
 	 */
@@ -860,16 +836,19 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// Merge Active Submission data with incoming TSV file data processed
 			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, filesDataProcessed);
 
-			// Perform Schema Data validation Async.
-			await performDataValidation({
-				username,
-				submissionId: activeSubmission.id,
-				submissionData: {
+			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
+			await submissionRepository.update(activeSubmission.id, {
+				data: {
 					inserts: insertActiveSubmissionData,
 					deletes: activeSubmission.data.deletes,
 					updates: activeSubmission.data.updates,
 				},
+				updatedBy: username,
+				status: 'VALIDATING',
 			});
+
+			// Perform Schema Data validation in a worker thread
+			dependencies.workerPool.dataValidation({ submissionId: activeSubmission.id });
 		} catch (error) {
 			logger.error(`There was an error processing submitted files: ${fileSummaries}`, JSON.stringify(error));
 		}
