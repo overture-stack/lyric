@@ -18,16 +18,18 @@ import {
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
 
-type ObjectValues<T> = T[keyof T];
+export type ObjectValues<T> = T[keyof T];
 
 /**
  * Enum matching Submission status in database
  */
 export const SUBMISSION_STATUS = {
 	OPEN: 'OPEN',
+	VALIDATING: 'VALIDATING',
 	VALID: 'VALID',
 	INVALID: 'INVALID',
 	CLOSED: 'CLOSED',
+	COMMITTING: 'COMMITTING',
 	COMMITTED: 'COMMITTED',
 } as const;
 export type SubmissionStatus = ObjectValues<typeof SUBMISSION_STATUS>;
@@ -74,10 +76,7 @@ export type AuditDataResponse = {
  * Include an array of the filtered records and a summary of the pagination
  * Response type used to query submitted data endpoint
  */
-export type AuditPaginatedResponse = {
-	pagination: PaginationMetadata;
-	records: AuditDataResponse[];
-};
+export type AuditPaginatedResponse = PaginatedResponse<AuditDataResponse>;
 
 /**
  * Type that describes the options used as a filter on Audit Table
@@ -93,20 +92,33 @@ export type AuditFilterOptions = PaginationOptions & {
 /**
  * Enum used in the Reponse on Create new Submissions
  */
-export const CREATE_SUBMISSION_STATUS = {
-	PROCESSING: 'PROCESSING',
+export const ACTIVE_SUBMISSION_STATUS = {
 	INVALID_SUBMISSION: 'INVALID_SUBMISSION',
+	PARTIAL_SUBMISSION: 'PARTIAL_SUBMISSION',
+	PROCESSING: 'PROCESSING',
 } as const;
-export type CreateSubmissionStatus = ObjectValues<typeof CREATE_SUBMISSION_STATUS>;
+export type ActiveSubmissionStatus = ObjectValues<typeof ACTIVE_SUBMISSION_STATUS>;
 
 /**
- * Used as a Response type on a Create new Active Submission (Upload endpoint)
+ * Used as a Response type for submitting data
  */
-export type CreateSubmissionResult = {
+export interface SubmitDataResult {
 	submissionId?: number;
-	status: CreateSubmissionStatus;
+	status: ActiveSubmissionStatus;
 	description: string;
-};
+}
+/**
+ * Used as a Response type for submitting data via file upload
+ */
+export interface SubmitFileResult extends SubmitDataResult {
+	batchErrors: BatchError[];
+	inProcessEntities: string[];
+}
+
+/**
+ * Map of entity name to the file and schema that were resolved for that entity during submission
+ */
+export type FileSchemaMap = Record<string, { files: Express.Multer.File[]; schema: Schema }>;
 
 /**
  * Response type on Commit Active Submission (Commit endpoint)
@@ -171,7 +183,6 @@ export type BatchError = {
 export interface ValidateFilesParams {
 	categoryId: number;
 	organization: string;
-	schema: Schema;
 	username: string;
 }
 
@@ -185,7 +196,6 @@ export interface CommitSubmissionParams {
 	dictionary: SchemasDictionary & { id: number };
 	submissionId: number;
 	username: string;
-	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }
 
 export type EntityData = Record<string, DataRecord[]>;
@@ -232,10 +242,10 @@ export type SubmissionDetailsResponse = {
 	data: SubmissionData;
 	dictionary: DictionarySummary;
 	dictionaryCategory: CategorySummary;
-	errors: SubmissionErrors | null;
+	errors: SubmissionErrors;
 	organization: string;
-	status: SubmissionStatus | null;
-	createdAt: string | null;
+	status: SubmissionStatus;
+	createdAt: string;
 	createdBy: string;
 	updatedAt: string;
 	updatedBy: string;
@@ -271,7 +281,7 @@ export type SubmissionDataSummaryRepositoryRecord = {
 	data: SubmissionDataSummary;
 	dictionary: DictionarySummary;
 	dictionaryCategory: CategorySummary;
-	errors: SubmissionErrorsSummary;
+	errors: SubmissionErrorsSummary | null;
 	organization: string;
 	status: SubmissionStatus;
 	createdAt: Date | null;
@@ -356,6 +366,11 @@ export type PaginationMetadata = {
 	totalRecords: number;
 };
 
+export type PaginatedResponse<T> = {
+	pagination: PaginationMetadata;
+	records: T[];
+};
+
 /**
  * Type that describes the options used as a filter on Submitted Data
  */
@@ -367,10 +382,7 @@ export type SubmittedDataFilterOptions = PaginationOptions & {
  * Include an array of the filtered records and a summary of the pagination
  * Response type used to query submitted data endpoint
  */
-export type SubmittedDataPaginatedResponse = {
-	pagination: PaginationMetadata;
-	records: SubmittedDataResponse[];
-};
+export type SubmittedDataPaginatedResponse = PaginatedResponse<SubmittedDataResponse>;
 
 /**
  * Enum used to merge SubmittedData and Submissions
