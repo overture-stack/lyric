@@ -57,6 +57,21 @@ app.use('/health', healthRouter);
 
 app.use(errorHandler);
 // running the server
-app.listen(port, () => {
-	console.log(`Starting ExpressJS server on port ${port}`);
+const server = app.listen(port, () => {
+	lyricProvider.configs.logger.info(`ExpressJS server is running on port ${port}`);
 });
+
+const gracefulShutdown = async (signal: string) => {
+	lyricProvider.configs.logger.info(`Received ${signal}, shutting down…`);
+
+	// 1. Stop accepting new requests
+	server.close();
+
+	// 2. Drain and terminate worker threads
+	await lyricProvider.shutdown();
+
+	process.exit(0);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

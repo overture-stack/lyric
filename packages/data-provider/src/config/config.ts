@@ -5,6 +5,7 @@ import * as schema from '@overture-stack/lyric-data-model/models';
 
 import type { AuthConfig } from '../middleware/auth.js';
 import type { ResultOnCommit } from '../utils/types.js';
+import type { WorkerFunctions } from '../workers/types.js';
 import { Logger } from './logger.js';
 
 export type AuditConfig = {
@@ -22,6 +23,10 @@ export type FeaturesConfig = {
 
 export type SchemaServiceConfig = {
 	url: string;
+};
+
+export type SubmissionServiceConfig = {
+	maxFileSize?: number;
 };
 
 export type LoggerConfig = {
@@ -55,6 +60,7 @@ export type AppConfig = {
 	logger: LoggerConfig;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 	schemaService: SchemaServiceConfig;
+	submissionService: SubmissionServiceConfig;
 	validator: ValidatorConfig;
 };
 
@@ -68,4 +74,6 @@ export interface BaseDependencies {
 	logger: Logger;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 	schemaService: SchemaServiceConfig;
+	submissionService: SubmissionServiceConfig;
+	workerPool: WorkerFunctions;
 }

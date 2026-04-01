@@ -29,7 +29,10 @@ export const submittedData = pgTable(
 	},
 	(table) => {
 		return {
-			organizationIndex: index('organization_index').on(table.organization),
+			organizationIndex: index('submitted_data_organization_index').on(table.organization),
+			categoryIndex: index('submitted_data_category_index').on(table.dictionaryCategoryId),
+			systemIdIndex: index('submitted_data_system_id_index').on(table.systemId),
+			entityNameIndex: index('submitted_data_entity_name_index').on(table.entityName),
 		};
 	},
 );

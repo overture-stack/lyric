@@ -32,10 +32,8 @@
     tags:
       - Submission
     parameters:
-      - name: submissionId
-        in: path
-        type: string
-        required: true
+      - $ref: '#/components/parameters/path/SubmissionId'
+      - $ref: '#/components/parameters/query/ForceDeleteSubmission'
     responses:
       200:
         description: Submission closed successfully
@@ -209,7 +207,7 @@
 
 /submission/category/{categoryId}/data:
   post:
-    summary: Add new data to a submission for the specified category. Returns an Active Submission containing the newly created records
+    summary: Add new data to a submission for the specified category. Data is provided as JSON in the request body.
     tags:
       - Submission
     parameters:
@@ -241,7 +239,7 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
   put:
-    summary: Modifies existing data for a submission. Returns an Active Submission containing the records that will be updated
+    summary: Modifies existing data for a submission.  Data is provided as JSON in the request body.
     tags:
       - Submission
     parameters:
@@ -260,6 +258,53 @@
     responses:
       200:
         description: Edit Data request accepted
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubmissionResult'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
+/submission/category/{categoryId}/files:
+  post:
+    summary: Add new data to a submission for the specified category. An optional filename-to-entity map can be provided to control which entity each file is submitted for, enabling multiple files for the same entity and files whose names do not match the entity name.
+    tags:
+      - Submission
+    parameters:
+      - $ref: '#/components/parameters/path/CategoryId'
+      - $ref: '#/components/parameters/query/Organization'
+    requestBody:
+      description: File(s) to be added to the submission, with an optional mapping of filenames to entity names.
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+              - files
+            properties:
+              files:
+                type: array
+                items:
+                  type: string
+                  format: binary
+              fileEntityMap:
+                type: array
+                description: Optional mapping of uploaded filenames to entity names. When provided, each file is matched to its entity using this map. When omitted, each file's name (without extension) must match an entity name in the dictionary.
+                items:
+                  $ref: '#/components/schemas/FilenameEntityPair'
+          encoding:
+            fileEntityMap:
+              contentType: application/json
+    responses:
+      200:
+        description: Submission accepted
         content:
           application/json:
             schema:

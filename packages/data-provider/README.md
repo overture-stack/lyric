@@ -203,6 +203,34 @@ const app = express();
 app.use('/submission', lyricProvider.routers.submission);
 ```
 
+### Provider Shut down
+
+When the application exits, call `shutdown()` on the provider to gracefully terminate the internal worker thread pool. This allows any in-progress operation running on worker threads to finish before the process exits, preventing data corruption or incomplete writes.
+
+It is recommended to handle both `SIGTERM` (sent by orchestrators like Kubernetes or Docker) and `SIGINT` (sent by Ctrl+C during local development):
+
+```javascript
+const gracefulShutdown = async (signal) => {
+	console.log(`Received ${signal}, shutting down…`);
+
+	// 1. Stop accepting new requests
+	server.close();
+
+	// 2. Drain and terminate worker threads
+	await lyricProvider.shutdown();
+
+	// 3. Close any other resources (e.g. database pool, cache clients)
+	// await db.end();
+
+	process.exit(0);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+```
+
+> **Note:** Worker pool initialisation happens at provider startup. If it fails (for example due to a missing worker script or unsupported Node.js version), an error is thrown immediately and the application will not start.
+
 ### Database Migrations
 
 Import `migrate` function from `@overture-stack/lyric` module to run Database migrations

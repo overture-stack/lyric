@@ -9,6 +9,7 @@ import categoryRepository from '../../repository/categoryRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelations.js';
+import { InternalServerError, StatusConflict } from '../../utils/errors.js';
 import { filterUpdatesFromDeletes, mergeDeleteRecords } from '../../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
@@ -16,15 +17,15 @@ import {
 	transformmSubmittedDataToSubmissionDeleteData,
 } from '../../utils/submittedDataUtils.js';
 import {
-	CREATE_SUBMISSION_STATUS,
-	type CreateSubmissionStatus,
+	ACTIVE_SUBMISSION_STATUS,
+	type ActiveSubmissionStatus,
 	PaginationOptions,
 	SubmittedDataResponse,
 	VIEW_TYPE,
 	type ViewType,
 } from '../../utils/types.js';
-import processor from '../submission/processor.js';
-import submissionService from '../submission/submission.js';
+import submissionProcessorFactory from '../submission/submissionProcessor.js';
+import submissionService from '../submission/submissionService.js';
 import searchDataRelations from './searchDataRelations.js';
 import viewMode from './viewMode.js';
 
@@ -36,6 +37,8 @@ const PAGINATION_ERROR_MESSAGES = {
 const submittedData = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_SERVICE';
 	const submittedDataRepo = submittedRepository(dependencies);
+	const submissionProcessor = submissionProcessorFactory.create(dependencies);
+
 	const { logger } = dependencies;
 	const { convertRecordsToCompoundDocuments } = viewMode(dependencies);
 	const { searchDirectDependents } = searchDataRelations(dependencies);
@@ -47,21 +50,20 @@ const submittedData = (dependencies: BaseDependencies) => {
 	): Promise<{
 		description: string;
 		inProcessEntities: string[];
-		status: CreateSubmissionStatus;
+		status: ActiveSubmissionStatus;
 		submissionId?: string;
 	}> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepo;
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { getSubmissionDetailsById } = submissionRepository(dependencies);
+		const { getSubmissionDetailsById, update } = submissionRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
-		const { performDataValidation } = processor(dependencies);
 
 		// get SubmittedData by SystemId
 		const foundRecordToDelete = await getSubmittedDataBySystemId(systemId);
 
 		if (!foundRecordToDelete) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: `No Submitted data found with systemId '${systemId}'`,
 				inProcessEntities: [],
 			};
@@ -70,7 +72,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		if (foundRecordToDelete.dictionaryCategoryId !== categoryId) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: `Invalid Category ID '${categoryId}' for system ID '${systemId}'`,
 				inProcessEntities: [],
 			};
@@ -81,7 +83,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		if (!currentDictionary) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: `Dictionary not found`,
 				inProcessEntities: [],
 			};
@@ -104,16 +106,29 @@ const submittedData = (dependencies: BaseDependencies) => {
 		const recordsToDeleteMap = transformmSubmittedDataToSubmissionDeleteData(submittedDataToDelete);
 
 		// Get Active Submission or Open a new one
-		const activeSubmissionId = await getOrCreateActiveSubmission({
-			categoryId: foundRecordToDelete.dictionaryCategoryId,
-			username,
-			organization: foundRecordToDelete.organization,
-		});
+		let activeSubmissionId: number;
+		try {
+			activeSubmissionId = await getOrCreateActiveSubmission({
+				categoryId: foundRecordToDelete.dictionaryCategoryId,
+				username,
+				organization: foundRecordToDelete.organization,
+			});
+		} catch (error) {
+			if (error instanceof StatusConflict || error instanceof InternalServerError) {
+				return {
+					status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+					description: error.message,
+					inProcessEntities: [],
+				};
+			}
+			throw error;
+		}
+
 		const activeSubmission = await getSubmissionDetailsById(activeSubmissionId);
 
 		if (!activeSubmission) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: 'Active Submission not found',
 				inProcessEntities: [],
 			};
@@ -127,21 +142,24 @@ const submittedData = (dependencies: BaseDependencies) => {
 		// filter out update records found matching systemID on delete records
 		const filteredUpdates = filterUpdatesFromDeletes(activeSubmission.data.updates ?? {}, mergedSubmissionDeletes);
 
-		// Validate and update Active Submission
-		performDataValidation({
-			submissionId: activeSubmission.id,
-			submissionData: {
+		// Updating the Submission with the new data and 'VALIDATING' status before validation starts
+		await update(activeSubmission.id, {
+			data: {
 				inserts: activeSubmission.data.inserts,
 				updates: filteredUpdates,
 				deletes: mergedSubmissionDeletes,
 			},
-			username,
+			updatedBy: username,
+			status: 'VALIDATING',
 		});
+
+		// Perform Schema Data validation in a worker thread
+		dependencies.workerPool.dataValidation({ submissionId: activeSubmission.id });
 
 		logger.info(LOG_MODULE, `Added '${entitiesToProcess.length}' records to be deleted on the Active Submission`);
 
 		return {
-			status: CREATE_SUBMISSION_STATUS.PROCESSING,
+			status: ACTIVE_SUBMISSION_STATUS.PROCESSING,
 			description: 'Submission data is being processed',
 			submissionId: activeSubmission.id.toString(),
 			inProcessEntities: entitiesToProcess,
@@ -171,12 +189,12 @@ const submittedData = (dependencies: BaseDependencies) => {
 		);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
-		const { processEditRecordsAsync } = processor(dependencies);
+		const { processEditRecordsAsync } = submissionProcessor;
 
 		if (records.length === 0) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: 'No valid records for submission',
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				description: 'No valid records provided.',
 			};
 		}
 
@@ -184,7 +202,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		if (_.isEmpty(currentDictionary)) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: `Dictionary in category '${categoryId}' not found`,
 			};
 		}
@@ -199,13 +217,24 @@ const submittedData = (dependencies: BaseDependencies) => {
 		const entitySchema = schemasDictionary.schemas.find((item) => item.name === entityName);
 		if (!entitySchema) {
 			return {
-				status: CREATE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: `Invalid entity name ${entityName} for submission`,
 			};
 		}
 
 		// Get Active Submission or Open a new one
-		const activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
+		let activeSubmissionId: number;
+		try {
+			activeSubmissionId = await getOrCreateActiveSubmission({ categoryId, username, organization });
+		} catch (error) {
+			if (error instanceof StatusConflict || error instanceof InternalServerError) {
+				return {
+					status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+					description: error.message,
+				};
+			}
+			throw error;
+		}
 
 		// Running Schema validation in the background do not need to wait
 		// Result of validations will be stored in database
@@ -216,7 +245,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		});
 
 		return {
-			status: CREATE_SUBMISSION_STATUS.PROCESSING,
+			status: ACTIVE_SUBMISSION_STATUS.PROCESSING,
 			description: 'Submission records are being processed',
 			submissionId: activeSubmissionId,
 		};
