@@ -1,15 +1,15 @@
 import { NextFunction, Request, Response } from 'express';
 import type { ParamsDictionary, RequestHandler } from 'express-serve-static-core';
 import type { ParsedQs } from 'qs';
-import { ZodError, ZodSchema } from 'zod';
+import { ZodError, type ZodType, type ZodTypeDef } from 'zod';
 
 import type { UserSession } from '../middleware/auth.js';
 import { BadRequest, InternalServerError } from './errors.js';
 
 export declare type RequestValidation<TBody, TQuery, TParams> = {
-	body?: ZodSchema<TBody>;
-	query?: ZodSchema<TQuery>;
-	pathParams?: ZodSchema<TParams>;
+	body?: ZodType<TBody, ZodTypeDef, unknown>;
+	query?: ZodType<TQuery>;
+	pathParams?: ZodType<TParams>;
 };
 
 type RequestWithUser<
@@ -36,7 +36,7 @@ export function validateRequest<
 	return async (req, res, next) => {
 		try {
 			if (schema.body) {
-				schema.body.parse(req.body);
+				req.body = schema.body.parse(req.body);
 			}
 
 			if (schema.query) {
