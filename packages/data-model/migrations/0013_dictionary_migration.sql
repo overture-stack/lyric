@@ -20,6 +20,10 @@ CREATE TABLE IF NOT EXISTS "dictionary_migration" (
 );
 --> statement-breakpoint
 ALTER TABLE "audit_submitted_data" ADD COLUMN "errors" jsonb;--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "dictionary_migration_category_id_index" ON "dictionary_migration" ("category_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "dictionary_migration_from_dictionary_id_index" ON "dictionary_migration" ("from_dictionary_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "dictionary_migration_to_dictionary_id_index" ON "dictionary_migration" ("to_dictionary_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "dictionary_migration_submission_id_index" ON "dictionary_migration" ("submission_id");--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "dictionary_migration" ADD CONSTRAINT "dictionary_migration_category_id_dictionary_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "dictionary_categories"("id") ON DELETE no action ON UPDATE no action;
 EXCEPTION

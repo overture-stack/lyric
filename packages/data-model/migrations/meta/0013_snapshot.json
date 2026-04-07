@@ -1,5 +1,5 @@
 {
-  "id": "f628dbb2-7f75-4fa9-9fa0-768f3272b7c3",
+  "id": "a4119de0-eeda-4b64-b7de-4c2831eb5df8",
   "prevId": "d5327542-f8b1-4ba9-b6bc-4f7c56687076",
   "version": "5",
   "dialect": "pg",
@@ -365,7 +365,36 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "dictionary_migration_category_id_index": {
+          "name": "dictionary_migration_category_id_index",
+          "columns": [
+            "category_id"
+          ],
+          "isUnique": false
+        },
+        "dictionary_migration_from_dictionary_id_index": {
+          "name": "dictionary_migration_from_dictionary_id_index",
+          "columns": [
+            "from_dictionary_id"
+          ],
+          "isUnique": false
+        },
+        "dictionary_migration_to_dictionary_id_index": {
+          "name": "dictionary_migration_to_dictionary_id_index",
+          "columns": [
+            "to_dictionary_id"
+          ],
+          "isUnique": false
+        },
+        "dictionary_migration_submission_id_index": {
+          "name": "dictionary_migration_submission_id_index",
+          "columns": [
+            "submission_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "dictionary_migration_category_id_dictionary_categories_id_fk": {
           "name": "dictionary_migration_category_id_dictionary_categories_id_fk",

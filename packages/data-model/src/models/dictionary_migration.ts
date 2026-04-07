@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { integer, pgEnum, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
+import { index, integer, pgEnum, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
 import { dictionaries } from './dictionaries.js';
 import { dictionaryCategories } from './dictionary_categories.js';
@@ -27,7 +27,14 @@ export const dictionaryMigration = pgTable('dictionary_migration', {
 	createdBy: varchar('created_by'),
 	updatedAt: timestamp('updated_at'),
 	updatedBy: varchar('updated_by'),
-});
+},(table) => {
+		return {
+			categoryIndex: index('dictionary_migration_category_id_index').on(table.categoryId),
+			fromDictionaryIndex: index('dictionary_migration_from_dictionary_id_index').on(table.fromDictionaryId),
+			toDictionaryIndex: index('dictionary_migration_to_dictionary_id_index').on(table.toDictionaryId),
+			submissionIndex: index('dictionary_migration_submission_id_index').on(table.submissionId),
+		};
+	},);
 
 export const dictionaryMigrationRelations = relations(dictionaryMigration, ({ one }) => ({
 	category: one(dictionaryCategories, {

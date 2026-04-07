@@ -76,6 +76,13 @@ table dictionary_migration {
   created_by varchar
   updated_at timestamp
   updated_by varchar
+
+  indexes {
+    category_id [name: 'dictionary_migration_category_id_index']
+    from_dictionary_id [name: 'dictionary_migration_from_dictionary_id_index']
+    to_dictionary_id [name: 'dictionary_migration_to_dictionary_id_index']
+    submission_id [name: 'dictionary_migration_submission_id_index']
+  }
 }
 
 table submissions {
