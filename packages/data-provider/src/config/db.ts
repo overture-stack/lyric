@@ -3,6 +3,10 @@ import pg from 'pg';
 
 import { DbConfig, models } from '@overture-stack/lyric-data-model';
 
+const poolRegistry = new WeakMap<NodePgDatabase<typeof models>, pg.Pool>();
+
+export const getConnectionPool = (db: NodePgDatabase<typeof models>): pg.Pool | undefined => poolRegistry.get(db);
+
 export const connect = (config: DbConfig): NodePgDatabase<typeof models> => {
 	const pool = new pg.Pool({
 		host: config.host,
@@ -13,5 +17,7 @@ export const connect = (config: DbConfig): NodePgDatabase<typeof models> => {
 	});
 	console.log(`Connecting to database on ${config.host}`);
 
-	return drizzle(pool, { schema: models });
+	const db = drizzle(pool, { schema: models });
+	poolRegistry.set(db, pool);
+	return db;
 };

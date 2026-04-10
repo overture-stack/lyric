@@ -5,13 +5,14 @@ import categoryRepository from '../repository/categoryRepository.js';
 import migrationRepository from '../repository/dictionaryMigrationRepository.js';
 import submittedDataRepository from '../repository/submittedRepository.js';
 import type { MigrationStatus } from '../utils/types.js';
-import processor from './submission/processor.js';
-import submissionService from './submission/submission.js';
+import submissionProcessorFactory from './submission/submissionProcessor.js';
+import submissionService from './submission/submissionService.js';
 
 const migrationService = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'MIGRATION_SERVICE';
 	const { logger, onFinishCommit } = dependencies;
 	const migrationRepo = migrationRepository(dependencies);
+	const submissionProcessor = submissionProcessorFactory.create(dependencies);
 
 	/**
 	 * Update the status of the migration to COMPLETED or FAILED
@@ -165,7 +166,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 		const { getAllOrganizationsByCategoryId, getSubmittedDataByCategoryIdAndOrganization } =
 			submittedDataRepository(dependencies);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { performCommitSubmissionAsync } = processor(dependencies);
+		const { performCommitSubmissionAsync } = submissionProcessor;
 
 		const dictionary = await getActiveDictionaryByCategory(categoryId);
 		if (!dictionary) {

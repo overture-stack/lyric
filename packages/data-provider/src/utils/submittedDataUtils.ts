@@ -187,24 +187,47 @@ export const groupSchemaDataByEntityName = (data: {
 	inserts?: NewSubmittedData[];
 	submittedData?: SubmittedData[];
 }) => {
-	const combinedData = [...(data?.inserts || []), ...(data?.submittedData || [])];
-	return combinedData.reduce<GroupedDataSubmission>(
-		(result, submittedDataObject) => {
-			const { entityName, data: recordData } = submittedDataObject;
+	const result: GroupedDataSubmission = {
+		submittedDataByEntityName: {},
+		schemaDataByEntityName: {},
+	};
 
-			result.schemaDataByEntityName[entityName] = [
-				...(result.schemaDataByEntityName[entityName] || []),
-				{ ...recordData },
-			];
+	const inserts = data?.inserts ?? [];
+	const submitted = data?.submittedData ?? [];
 
-			result.submittedDataByEntityName[entityName] = [
-				...(result.submittedDataByEntityName[entityName] || []),
-				{ ...submittedDataObject },
-			];
-			return result;
-		},
-		{ submittedDataByEntityName: {}, schemaDataByEntityName: {} },
-	);
+	for (const submittedDataObject of inserts) {
+		const { entityName, data: recordData } = submittedDataObject;
+
+		let schemaArr = result.schemaDataByEntityName[entityName];
+		let submittedArr = result.submittedDataByEntityName[entityName];
+		if (!schemaArr) {
+			schemaArr = [];
+			submittedArr = [];
+			result.schemaDataByEntityName[entityName] = schemaArr;
+			result.submittedDataByEntityName[entityName] = submittedArr;
+		}
+
+		schemaArr.push(recordData);
+		submittedArr.push(submittedDataObject);
+	}
+
+	for (const submittedDataObject of submitted) {
+		const { entityName, data: recordData } = submittedDataObject;
+
+		let schemaArr = result.schemaDataByEntityName[entityName];
+		let submittedArr = result.submittedDataByEntityName[entityName];
+		if (!schemaArr) {
+			schemaArr = [];
+			submittedArr = [];
+			result.schemaDataByEntityName[entityName] = schemaArr;
+			result.submittedDataByEntityName[entityName] = submittedArr;
+		}
+
+		schemaArr.push(recordData);
+		submittedArr.push(submittedDataObject);
+	}
+
+	return result;
 };
 
 /**

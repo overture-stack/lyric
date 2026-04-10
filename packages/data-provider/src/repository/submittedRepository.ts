@@ -1,7 +1,7 @@
 import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
-import { and, count, eq, or, SQL, sql } from 'drizzle-orm/sql';
+import { and, count, eq, inArray, or, SQL, sql } from 'drizzle-orm/sql';
 
 import type { DictionaryValidationRecordErrorDetails } from '@overture-stack/lectern-client';
 import {
@@ -20,6 +20,8 @@ import { AUDIT_ACTION, BooleanTrueObject, PaginationOptions, SubmittedDataRespon
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTEDDATA_REPOSITORY';
 	const { db, logger, features } = dependencies;
+
+	const BATCH_SIZE = 500 as const;
 
 	const auditDeleteSubmittedData = async (
 		input: {
@@ -126,7 +128,7 @@ const repository = (dependencies: BaseDependencies) => {
 
 	return {
 		/**
-		 * Deletes a submitted data record by its system ID, logs the deletion, and optionally audits the deletion if auditing is enabled.
+		 * Deletes a submitted data record(s) by its system ID, logs the deletion, and optionally audits the deletion if auditing is enabled.
 		 * @param params The parameters for the deletion operation.
 		 * @param params.diff The difference between the old and new data, used for auditing
 		 * @param params.submissionId The ID of the Submission associated with the record
@@ -136,46 +138,77 @@ const repository = (dependencies: BaseDependencies) => {
 		 * @returns The deleted record
 		 */
 		deleteBySystemId: async (
-			params: { diff: DataDiff; submissionId: number; systemId: string; username: string },
+			params:
+				| { diff: DataDiff; submissionId: number; systemId: string; username: string }
+				| { diff: DataDiff; submissionId: number; systemId: string; username: string }[],
 			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
 		) => {
-			const { diff, systemId, submissionId, username } = params;
-			const deletedRecord = await (tx || db)
-				.delete(submittedData)
-				.where(eq(submittedData.systemId, systemId))
-				.returning();
-			logger.info(LOG_MODULE, `Deleting SubmittedData with system ID '${systemId}' succesfully`);
+			const rows = Array.isArray(params) ? params : [params];
 
-			if (features?.audit?.enabled) {
-				await auditDeleteSubmittedData({ recordDeleted: deletedRecord[0], submissionId, diff, username }, tx);
+			const result: SubmittedData[] = [];
+
+			for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+				const batch = rows.slice(i, i + BATCH_SIZE);
+
+				const systemIds = batch.map((p) => p.systemId);
+
+				const deletedRecords = await (tx || db)
+					.delete(submittedData)
+					.where(inArray(submittedData.systemId, systemIds))
+					.returning();
+				logger.info(
+					LOG_MODULE,
+					`Deleted ${deletedRecords.length} SubmittedData record(s) with system ID(s): [${systemIds.join(', ')}]`,
+				);
+				result.push(...deletedRecords);
+
+				if (features?.audit?.enabled) {
+					await Promise.all(
+						batch.map((row) => {
+							const record = deletedRecords.find((r) => r.systemId === row.systemId);
+							if (!record) {
+								return Promise.resolve();
+							}
+							return auditDeleteSubmittedData(
+								{ recordDeleted: record, submissionId: row.submissionId, diff: row.diff, username: row.username },
+								tx,
+							);
+						}),
+					);
+				}
 			}
 
-			return deletedRecord;
+			return result;
 		},
 
 		/**
 		 * Save new SubmittedData in Database
-		 * @param data A SubmittedData object to be saved
+		 * @param data A SubmittedData object or array to be saved
 		 * @param tx The transaction to use for the operation, optional
 		 * @returns The created SubmittedData
 		 */
 		save: async (
-			data: NewSubmittedData,
+			data: NewSubmittedData | NewSubmittedData[],
 			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
-		): Promise<SubmittedData> => {
+		): Promise<{ id: number } | { id: number }[]> => {
+			const rows = Array.isArray(data) ? data : [data];
+
+			const savedRecords: { id: number }[] = [];
+
 			try {
-				const savedSubmittedData = await (tx || db).insert(submittedData).values(data).returning();
-				logger.debug(
-					LOG_MODULE,
-					`Submitting Data with entity name '${data.entityName}' on category '${data.dictionaryCategoryId}' saved successfully`,
-				);
-				return savedSubmittedData[0];
+				for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+					const batch = rows.slice(i, i + BATCH_SIZE);
+					const savedSubmittedData = await (tx || db)
+						.insert(submittedData)
+						.values(batch)
+						.returning({ id: submittedData.id });
+
+					savedRecords.push(...savedSubmittedData);
+				}
+				logger.debug(LOG_MODULE, `Submitted ${savedRecords.length} record(s) successfully`);
+				return Array.isArray(data) ? savedRecords : savedRecords[0];
 			} catch (error) {
-				logger.error(
-					LOG_MODULE,
-					`Failed Submitted Data with entity name '${data.entityName}' on category '${data.dictionaryCategoryId}'`,
-					error,
-				);
+				logger.error(LOG_MODULE, `Failed submitting ${rows.length} record(s)`, error);
 				throw error;
 			}
 		},
@@ -365,47 +398,73 @@ const repository = (dependencies: BaseDependencies) => {
 		/**
 		 * Update a SubmittedData record in database
 		 * @param submittedDataId Submitted Data ID
-		 * @param dataDiff Difference before and after the updata
-		 * @param newData Set fields to update
-		 * @param oldIsValid Previous isValid value
-		 * @param submissionId Submission ID
-		 * @param isMigration Whether the update is part of a migration
-		 * @param errors Audit errors, if any
+		 * @param data Set fields to update
+		 * @param audit.dataDiff Difference before and after the update
+		 * @param audit.errors Audit errors, if any
+		 * @param audit.isMigration Whether the update is part of a migration
+		 * @param audit.oldIsValid Previous isValid value
+		 * @param audit.submissionId Submission ID
 		 * @param tx The transaction to use for the operation, optional
 		 * @returns An updated record
 		 */
 		update: async (
-			{
-				submittedDataId,
-				data,
-				audit: { dataDiff, errors, isMigration, oldIsValid, submissionId },
-			}: {
-				submittedDataId: number;
-				data: Partial<SubmittedData>;
-				audit: {
-					dataDiff: DataDiff;
-					errors?: DictionaryValidationRecordErrorDetails[];
-					isMigration: boolean;
-					oldIsValid: boolean;
-					submissionId: number;
-				};
-			},
+			params:
+				| {
+						submittedDataId: number;
+						data: Partial<SubmittedData>;
+						audit: {
+							dataDiff: DataDiff;
+							errors?: DictionaryValidationRecordErrorDetails[];
+							isMigration: boolean;
+							oldIsValid: boolean;
+							submissionId: number;
+						};
+				  }
+				| {
+						submittedDataId: number;
+						data: Partial<SubmittedData>;
+						audit: {
+							dataDiff: DataDiff;
+							errors?: DictionaryValidationRecordErrorDetails[];
+							isMigration: boolean;
+							oldIsValid: boolean;
+							submissionId: number;
+						};
+				  }[],
 			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
-		): Promise<SubmittedData> => {
-			try {
-				const [recordUpdated] = await (tx || db)
-					.update(submittedData)
-					.set({ ...data, updatedAt: new Date() })
-					.where(eq(submittedData.id, submittedDataId))
-					.returning();
+		): Promise<SubmittedData | SubmittedData[]> => {
+			const updates = Array.isArray(params) ? params : [params];
 
-				if (features?.audit?.enabled && recordUpdated) {
-					await auditUpdateSubmittedData(
-						{ recordUpdated, submissionId, dataDiff, oldIsValid, isMigration, errors },
-						tx,
-					);
+			try {
+				const updatedRecords: SubmittedData[] = [];
+				for (const u of updates) {
+					const updated = await (tx || db)
+						.update(submittedData)
+						.set({ ...u.data, updatedAt: new Date() })
+						.where(eq(submittedData.id, u.submittedDataId))
+						.returning();
+					updatedRecords.push(updated[0]);
+
+					if (
+						features?.audit?.enabled &&
+						Object.keys(u.audit.dataDiff.new).length &&
+						Object.keys(u.audit.dataDiff.old).length
+					) {
+						await auditUpdateSubmittedData(
+							{
+								dataDiff: u.audit.dataDiff,
+								errors: u.audit.errors,
+								isMigration: u.audit.isMigration,
+								oldIsValid: u.audit.oldIsValid,
+								recordUpdated: updated[0],
+								submissionId: u.audit.submissionId,
+							},
+							tx,
+						);
+					}
 				}
-				return recordUpdated;
+
+				return Array.isArray(params) ? updatedRecords : updatedRecords[0];
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed updating SubmittedData`, error);
 				throw new ServiceUnavailable();

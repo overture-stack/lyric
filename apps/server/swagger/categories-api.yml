@@ -27,12 +27,7 @@
     tags:
       - Category
     parameters:
-      - name: categoryId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: ID of the category
+      - $ref: '#/components/parameters/path/CategoryId'
     responses:
       200:
         description: Category Details
