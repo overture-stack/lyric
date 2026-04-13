@@ -2,7 +2,7 @@ import type { DictionaryMigration, NewDictionaryMigration } from '@overture-stac
 
 import type { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
-import migrationRepository from '../repository/dictionaryMigrationRepository.js';
+import createMigrationRepository from '../repository/dictionaryMigrationRepository.js';
 import submittedDataRepository from '../repository/submittedRepository.js';
 import type { MigrationStatus } from '../utils/types.js';
 import submissionProcessorFactory from './submission/submissionProcessor.js';
@@ -11,7 +11,7 @@ import submissionService from './submission/submissionService.js';
 const migrationService = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'MIGRATION_SERVICE';
 	const { logger, onFinishCommit } = dependencies;
-	const migrationRepo = migrationRepository(dependencies);
+	const migrationRepository = createMigrationRepository(dependencies);
 	const submissionProcessor = submissionProcessorFactory.create(dependencies);
 
 	/**
@@ -29,7 +29,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 		userName: string;
 	}): Promise<number> => {
 		try {
-			const updatedMigration = await migrationRepo.update(migrationId, {
+			const updatedMigration = await migrationRepository.update(migrationId, {
 				status,
 				updatedAt: new Date(),
 				updatedBy: userName,
@@ -49,7 +49,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 	 */
 	const getActiveMigrationByCategoryId = async (categoryId: number): Promise<DictionaryMigration | null> => {
 		try {
-			const migrations = await migrationRepo.getMigrationsByCategoryId(
+			const migrations = await migrationRepository.getMigrationsByCategoryId(
 				categoryId,
 				{ page: 1, pageSize: 1 },
 				{ status: 'IN-PROGRESS' },
@@ -86,7 +86,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 	}): Promise<number> => {
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
 		try {
-			const existingMigrationResult = await migrationRepo.getMigrationsByCategoryId(
+			const findMigrationResult = await migrationRepository.getMigrationsByCategoryId(
 				categoryId,
 				{ page: 1, pageSize: 1 },
 				{ fromDictionaryId, toDictionaryId },
@@ -96,13 +96,13 @@ const migrationService = (dependencies: BaseDependencies) => {
 			let submissionId: number;
 
 			// Migration already exists, update retries count
-			if (existingMigrationResult.length > 0) {
-				const migration = existingMigrationResult[0];
-				const updatedRetriesCount = migration.retries + 1;
+			if (findMigrationResult.length > 0) {
+				const existingMigration = findMigrationResult[0];
+				const updatedRetriesCount = existingMigration.retries + 1;
 
-				submissionId = migration.submissionId;
+				submissionId = existingMigration.submissionId;
 
-				migrationId = await migrationRepo.update(migration.id, {
+				migrationId = await migrationRepository.update(existingMigration.id, {
 					retries: updatedRetriesCount,
 					updatedBy: userName,
 					updatedAt: new Date(),
@@ -130,7 +130,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 					createdAt: new Date(),
 				};
 
-				migrationId = await migrationRepo.save(newMigration);
+				migrationId = await migrationRepository.save(newMigration);
 
 				logger.info(LOG_MODULE, `Creating migration record for categoryId '${categoryId}'`);
 			}

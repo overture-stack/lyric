@@ -62,7 +62,7 @@ import createSubmittedDataRelationsSearch from '../submittedData/searchDataRelat
 
 const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_PROCESSOR_SERVICE';
-	const categoryRepositry = createCategoryRepository(dependencies);
+	const categoryRepository = createCategoryRepository(dependencies);
 	const dictionaryRepository = createDictionaryRepository(dependencies);
 	const submissionRepository = createSubmissionRepository(dependencies);
 	const submittedDataRepository = createSubmittedDataRepository(dependencies);
@@ -359,7 +359,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 					if (record.id) {
 						const oldIsValid = record.isValid;
-						const update: Partial<SubmittedData> = {};
+						const inputUpdate: Partial<SubmittedData> = {};
 
 						const submisionUpdateData = dataToValidate.updates?.[record.systemId];
 						if (submisionUpdateData) {
@@ -367,27 +367,27 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 								LOG_MODULE,
 								`Updating submittedData system ID '${record.systemId}' in entity '${entityName}'`,
 							);
-							update.data = record.data;
+							inputUpdate.data = record.data;
 						}
 
 						if (oldIsValid !== newIsValid) {
-							update.isValid = newIsValid;
+							inputUpdate.isValid = newIsValid;
 							if (newIsValid) {
-								update.lastValidSchemaId = dictionary.id;
+								inputUpdate.lastValidSchemaId = dictionary.id;
 							}
 						}
 
-						if (Object.keys(update).length === 0) {
+						if (Object.keys(inputUpdate).length === 0) {
 							return;
 						}
 
-						update.updatedBy = username;
+						inputUpdate.updatedBy = username;
 						if (newIsValid) {
-							update.lastValidSchemaId = dictionary.id;
+							inputUpdate.lastValidSchemaId = dictionary.id;
 						}
 						updatesToSave.push({
 							submittedDataId: record.id,
-							data: update,
+							data: inputUpdate,
 							audit: {
 								dataDiff: { old: submisionUpdateData?.old ?? {}, new: submisionUpdateData?.new ?? {} },
 								errors: errors,
@@ -398,7 +398,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 						});
 
 						// Check if either 'data' or 'isValid' keys has been updated
-						if ('data' in update || 'isValid' in update) {
+						if ('data' in inputUpdate || 'isValid' in inputUpdate) {
 							resultCommit.updates.push({
 								data: record.data,
 								entityName,
@@ -435,7 +435,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 				deletesToProcess.push({
 					submissionId: submission.id,
-					systemId: systemId,
+					systemId,
 					diff: computeDataDiff(data, null),
 					username,
 				});
@@ -496,7 +496,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	 * @returns {Promise<number>} ID of the Submission updated
 	 */
 	const performDataValidation = async (submissionId: number): Promise<number> => {
-		const { getActiveDictionaryByCategory } = categoryRepositry;
+		const { getActiveDictionaryByCategory } = categoryRepository;
 		const { getSubmittedDataByCategoryIdAndOrganization } = submittedDataRepository;
 		const { getSubmissionDetailsById } = submissionRepository;
 
@@ -825,7 +825,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				),
 			)
 			.join(', ');
-		logger.info(`Processing files: ${fileSummaries}`);
+		logger.info(LOG_MODULE, `Processing files: ${fileSummaries}`);
 
 		// TODO: This only gets a summary, we need to insert data into an active submission so we need all the insert statements.
 
@@ -865,6 +865,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			logger.error(`There was an error processing submitted files: ${fileSummaries}`, JSON.stringify(error));
 		}
 		logger.info(
+			LOG_MODULE,
 			`Finished addFilesToSubmissionAsync for active submission in category "${params.categoryId}" for organization "${params.organization}" submitted by user "${params.username}"`,
 		);
 	};
