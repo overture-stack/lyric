@@ -445,11 +445,7 @@ const repository = (dependencies: BaseDependencies) => {
 						.returning();
 					updatedRecords.push(updated[0]);
 
-					if (
-						features?.audit?.enabled &&
-						Object.keys(u.audit.dataDiff.new).length &&
-						Object.keys(u.audit.dataDiff.old).length
-					) {
+					if (features?.audit?.enabled) {
 						await auditUpdateSubmittedData(
 							{
 								dataDiff: u.audit.dataDiff,

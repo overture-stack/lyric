@@ -468,6 +468,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 					},
 					tx,
 				);
+
+				logger.info(
+					LOG_MODULE,
+					`Finished processing data changes for submission '${submission.id}', updating submission status to 'COMMITTED'.`,
+				);
 			});
 
 			return {
@@ -483,7 +488,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				`Unable to complete performCommitSubmissionAsync for submission ${params.submissionId}, an error was thrown during execution`,
 				message,
 			);
-			logger.error(error);
+			logger.error(LOG_MODULE, error);
 			throw error;
 		}
 	};
