@@ -84,6 +84,17 @@ export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
 				// This ensures the main thread is not affected by worker errors and can continue processing other tasks.
 			}
 		},
+		dictionaryMigration: async (input) => {
+			const proxy = await readyProxy; // wait for worker to initialize before using
+			try {
+				await proxy.dictionaryMigration(input);
+			} catch (error) {
+				const errMessage = error instanceof Error ? error.message : String(error);
+				logger.error(LOG_MODULE, `Worker pool execution failed for dictionaryMigration: ${errMessage}`);
+				// Do not re-throw error since dictionaryMigration in the worker is designed to not throw errors, but log them instead.
+				// This ensures the main thread is not affected by worker errors and can continue processing other tasks.
+			}
+		},
 		terminate: async (): Promise<void> => {
 			await pool.terminate();
 		},

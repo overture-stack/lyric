@@ -69,7 +69,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 
 	/**
 	 * Creates a Migration record or update retries if one exists.
-	 * It starts running migration asynchronously
+	 * Then, it starts running migration in a worker thread
 	 * @param param0
 	 * @returns The ID of the initiated or updated migration
 	 */
@@ -135,15 +135,11 @@ const migrationService = (dependencies: BaseDependencies) => {
 				logger.info(LOG_MODULE, `Creating migration record for categoryId '${categoryId}'`);
 			}
 
-			// Start migration asynchronously
-			performMigrationValidation({ categoryId, submissionId, userName })
-				.then(() => {
-					finalizeMigration({ migrationId, status: 'COMPLETED', userName });
-				})
-				.catch(async (error) => {
-					logger.error(LOG_MODULE, `Error during migration validation for categoryId '${categoryId}'`, error);
-					finalizeMigration({ migrationId, status: 'FAILED', userName });
-				});
+			// Perform dictionary migration in a worker thread
+			dependencies.workerPool.dictionaryMigration({
+				migrationId,
+				userName,
+			});
 
 			logger.info(LOG_MODULE, `Migration initiated for categoryId '${categoryId}'`);
 			return migrationId;
@@ -153,20 +149,32 @@ const migrationService = (dependencies: BaseDependencies) => {
 		}
 	};
 
-	/** Execute submitted data validation for the migration */
+	/**
+	 * **This function is designed to be executed in a worker thread.**
+	 * Performs the Submitted data validation for a given migration,
+	 * it iterates over all organizations and validates the submitted data for each of them.
+	 * @param migrationId The ID of the migration to perform
+	 * @param userName The name of the user that initiated the migration (for audit purposes)
+	 * @returns void
+	 */
 	const performMigrationValidation = async ({
-		categoryId,
-		submissionId,
+		migrationId,
 		userName,
 	}: {
-		categoryId: number;
-		submissionId: number;
+		migrationId: number;
 		userName: string;
 	}): Promise<void> => {
 		const { getAllOrganizationsByCategoryId, getSubmittedDataByCategoryIdAndOrganization } =
 			submittedDataRepository(dependencies);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
 		const { performCommitSubmissionAsync } = submissionProcessor;
+
+		const migration = await migrationRepository.getMigrationById(migrationId);
+		if (!migration) {
+			throw new Error(`Migration with id '${migrationId}' not found`);
+		}
+
+		const { categoryId, submissionId } = migration;
 
 		const dictionary = await getActiveDictionaryByCategory(categoryId);
 		if (!dictionary) {

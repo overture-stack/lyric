@@ -10,6 +10,11 @@ export type DataValidationWorkerInput = {
 	submissionId: number;
 };
 
+export type DictionaryMigrationWorkerInput = {
+	migrationId: number;
+	userName: string;
+};
+
 export type WorkerContext = {
 	dependencies: BaseDependencies;
 };
@@ -40,6 +45,11 @@ export type WorkerFunctions = {
 	 * @returns A void promise that resolves when the data validation process is complete
 	 */
 	dataValidation(input: DataValidationWorkerInput): Promise<void>;
+	/**
+	 * Uses a worker thread from the pool to execute the dictionary migration process.
+	 * @param input
+	 */
+	dictionaryMigration(input: DictionaryMigrationWorkerInput): Promise<void>;
 };
 
 /**
@@ -68,4 +78,10 @@ export type WorkerProxy = {
 	 * @returns A promise that resolves the submission ID
 	 */
 	dataValidation: (input: DataValidationWorkerInput) => Promise<number>;
+	/**
+	 * This function is executed in the worker thread to start the dictionary migration process.
+	 * @param input
+	 * @returns
+	 */
+	dictionaryMigration: (input: DictionaryMigrationWorkerInput) => Promise<void>;
 };
