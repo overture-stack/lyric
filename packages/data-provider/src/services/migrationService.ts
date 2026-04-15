@@ -1,12 +1,13 @@
-import type { DictionaryMigration, NewDictionaryMigration } from '@overture-stack/lyric-data-model/models';
+import type { NewDictionaryMigration } from '@overture-stack/lyric-data-model/models';
 
 import type { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
-import migrationRepository from '../repository/dictionaryMigrationRepository.js';
+import migrationRepository, { type MigrationRecordWithRelations } from '../repository/dictionaryMigrationRepository.js';
 import submittedDataRepository from '../repository/submittedRepository.js';
-import type { MigrationStatus } from '../utils/types.js';
+import type { MigrationStatus, PaginationOptions } from '../utils/types.js';
 import processor from './submission/processor.js';
 import submissionService from './submission/submission.js';
+import { formatMigrationRecord } from '../utils/migrationUtils.js';
 
 const migrationService = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'MIGRATION_SERVICE';
@@ -46,22 +47,57 @@ const migrationService = (dependencies: BaseDependencies) => {
 	 * @param categoryId
 	 * @returns
 	 */
-	const getActiveMigrationByCategoryId = async (categoryId: number): Promise<DictionaryMigration | null> => {
+	const getActiveMigrationByCategoryId = async (categoryId: number): Promise<MigrationRecordWithRelations | null> => {
 		try {
 			const migrations = await migrationRepo.getMigrationsByCategoryId(
 				categoryId,
 				{ page: 1, pageSize: 1 },
 				{ status: 'IN-PROGRESS' },
 			);
-			if (migrations.length > 0) {
+			if (migrations.result.length > 0) {
 				logger.info(LOG_MODULE, `Active migration found for categoryId '${categoryId}'`);
-				return migrations[0];
+				return formatMigrationRecord(migrations.result[0]);
 			} else {
 				logger.info(LOG_MODULE, `No active migration for categoryId '${categoryId}'`);
 				return null;
 			}
 		} catch (error) {
 			logger.error(LOG_MODULE, `Error retrieving active migration for categoryId '${categoryId}'`, error);
+			throw error;
+		}
+	};
+
+	const getMigrationById = async (migrationId: number): Promise<MigrationRecordWithRelations | undefined> => {
+		try {
+			const migration = await migrationRepo.getMigrationById(migrationId);
+			if (migration) {
+				logger.info(LOG_MODULE, `Migration found for migrationId '${migrationId}'`);
+				return formatMigrationRecord(migration);
+			} else {
+				logger.info(LOG_MODULE, `No migration found for migrationId '${migrationId}'`);
+				return undefined;
+			}
+		} catch (error) {
+			logger.error(LOG_MODULE, `Error retrieving migration with id '${migrationId}'`, error);
+			throw error;
+		}
+	};
+
+	const getMigrationsByCategoryId = async (
+		categoryId: number,
+		paginationOptions: PaginationOptions,
+	): Promise<{ metadata: { totalRecords: number; errorMessage?: string }; result: MigrationRecordWithRelations[] }> => {
+		try {
+			const migrations = await migrationRepo.getMigrationsByCategoryId(categoryId, paginationOptions, {});
+
+			return {
+				metadata: {
+					totalRecords: migrations.metadata.totalRecords,
+				},
+				result: migrations.result.map(formatMigrationRecord),
+			};
+		} catch (error) {
+			logger.error(LOG_MODULE, `Error retrieving migrations for categoryId '${categoryId}'`, error);
 			throw error;
 		}
 	};
@@ -95,8 +131,8 @@ const migrationService = (dependencies: BaseDependencies) => {
 			let submissionId: number;
 
 			// Migration already exists, update retries count
-			if (existingMigrationResult.length > 0) {
-				const migration = existingMigrationResult[0];
+			if (existingMigrationResult.result.length > 0) {
+				const migration = existingMigrationResult.result[0];
 				const updatedRetriesCount = migration.retries + 1;
 
 				submissionId = migration.submissionId;
@@ -200,6 +236,8 @@ const migrationService = (dependencies: BaseDependencies) => {
 	return {
 		finalizeMigration,
 		getActiveMigrationByCategoryId,
+		getMigrationsByCategoryId,
+		getMigrationById,
 		initiateMigration,
 		performMigrationValidation,
 	};

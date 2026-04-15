@@ -124,6 +124,15 @@ const submissionIdSchema = z
 		return isValidIdNumber(parsed);
 	}, 'invalid submission ID');
 
+const migrationIdSchema = z
+	.string()
+	.trim()
+	.min(1)
+	.refine((value) => {
+		const parsed = parseInt(value);
+		return isValidIdNumber(parsed);
+	}, 'invalid migration ID');
+
 const stringNotEmpty = z.string().trim().min(1);
 
 // Common Category Path Params
@@ -155,6 +164,15 @@ export interface submissionIdPathParam extends ParamsDictionary {
 
 const submissionIdPathParamSchema = z.object({
 	submissionId: submissionIdSchema,
+});
+
+// Common Migration Path Params
+export interface migrationIdPathParam extends ParamsDictionary {
+	migrationId: string;
+}
+
+const migrationIdPathParamSchema = z.object({
+	migrationId: migrationIdSchema,
 });
 
 // Common Pagination Query Params
@@ -225,6 +243,17 @@ export const dictionaryRegisterRequestSchema: RequestValidation<
 		defaultCentricEntity: entityNameSchema.or(z.literal('')).optional(),
 	}),
 };
+
+// Migration Requests
+export const migrationByIdRequestSchema: RequestValidation<object, ParsedQs, migrationIdPathParam> = {
+	pathParams: migrationIdPathParamSchema,
+};
+
+export const migrationsByCategoryIdRequestSchema: RequestValidation<object, paginationQueryParams, categoryPathParams> =
+	{
+		pathParams: categoryPathParamsSchema,
+		query: paginationQuerySchema,
+	};
 
 // Submission Requests
 

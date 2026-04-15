@@ -34,12 +34,12 @@ export const dictionaryMigrationRelations = relations(dictionaryMigration, ({ on
 		fields: [dictionaryMigration.categoryId],
 		references: [dictionaryCategories.id],
 	}),
-	fromDictionaryId: one(dictionaries, {
+	fromDictionary: one(dictionaries, {
 		fields: [dictionaryMigration.fromDictionaryId],
 		references: [dictionaries.id],
 		relationName: 'fromDictionary',
 	}),
-	toDictionaryId: one(dictionaries, {
+	toDictionary: one(dictionaries, {
 		fields: [dictionaryMigration.toDictionaryId],
 		references: [dictionaries.id],
 		relationName: 'toDictionary',

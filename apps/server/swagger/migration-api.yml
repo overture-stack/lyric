@@ -1,0 +1,48 @@
+# Description of Migration API
+
+/migration/{migrationId}:
+  get:
+    summary: Get Migration general information by ID
+    tags:
+      - Migration
+    parameters:
+      - name: migrationId
+        in: path
+        type: string
+        required: true
+    responses:
+      200:
+        description: Migration general information
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MigrationResult'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
+/migration/category/{categoryId}:
+  get:
+    summary: Retrieve the Migrations for a category
+    tags:
+      - Migration
+    parameters:
+      - $ref: '#/components/parameters/path/CategoryId'
+      - $ref: '#/components/parameters/query/Page'
+      - $ref: '#/components/parameters/query/PageSize'
+    responses:
+      200:
+        description: List of Migrations
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListMigrationsResult'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'

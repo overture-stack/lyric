@@ -438,6 +438,78 @@ components:
             type: string
             description: Name of the Category
 
+    ListMigrationsResult:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            currentPage:
+              type: number
+            pageSize:
+              type: number
+            totalPages:
+              type: number
+            totalRecords:
+              type: number
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/MigrationResult'
+
+    MigrationResult:
+      type: object
+      properties:
+        id:
+          type: number
+          description: ID of the Migration
+        category:
+          type: object
+          description: Category this dictionary belongs in
+          properties:
+            id:
+              type: number
+            name:
+              type: string
+        fromDictionary:
+          type: object
+          description: Previous Dictionary used in this category
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+        toDictionary:
+          type: object
+          description: New Dictionary used in this category
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+        submissionId:
+          type: number
+          description: ID of the Submission used for the migration
+        status:
+          type: string
+          description: Status of the Migration
+          enum: ['IN-PROGRESS', 'COMPLETED', 'FAILED']
+        retries:
+          type: number
+          description: Number of retries of the migration
+        createdAt:
+          type: string
+          description: Date and time of creation
+        createdBy:
+          type: string
+          description: User name who created the migration
+        udpatedAt:
+          type: string
+          description: Date and time of latest update
+        updatedBy:
+          type: string
+          description: User name who last updated the migration
+
     RegisterDictionaryResult:
       type: object
       properties:

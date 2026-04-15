@@ -1,6 +1,7 @@
-import { and, eq } from 'drizzle-orm';
+import { and, count, eq, type SQL } from 'drizzle-orm';
 
 import {
+	type Dictionary,
 	type DictionaryMigration,
 	dictionaryMigration,
 	type NewDictionaryMigration,
@@ -8,11 +9,61 @@ import {
 
 import type { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
-import type { MigrationStatus, PaginationOptions } from '../utils/types.js';
+import type { BooleanTrueObject, MigrationStatus, PaginationOptions } from '../utils/types.js';
+
+type MigrationRepositoryRecord = Omit<DictionaryMigration, 'categoryId' | 'fromDictionaryId' | 'toDictionaryId'>;
+
+/**
+ * Defines the structure of a Migration record returned by the repository,
+ * includes related entities like category and dictionaries.
+ */
+export type MigrationRecordWithRelations = MigrationRepositoryRecord & {
+	category: {
+		id: number;
+		name: string;
+	};
+	fromDictionary: {
+		name: string;
+		version: string;
+	} | null;
+	toDictionary: {
+		name: string;
+		version: string;
+	} | null;
+};
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'MIGRATION_REPOSITORY';
 	const { db, logger } = dependencies;
+
+	const migrationRepositoryColumns = {
+		id: true,
+		status: true,
+		submissionId: true,
+		retries: true,
+		createdAt: true,
+		createdBy: true,
+		updatedAt: true,
+		updatedBy: true,
+	} as const satisfies Record<keyof MigrationRepositoryRecord, boolean>;
+
+	const dictionarySummaryColumns = {
+		columns: {
+			name: true,
+			version: true,
+		},
+	} as const satisfies { columns: Partial<Record<keyof Dictionary, boolean>> };
+
+	const migrationWithRelationsColumns = {
+		category: {
+			columns: {
+				id: true,
+				name: true,
+			},
+		},
+		fromDictionary: dictionarySummaryColumns,
+		toDictionary: dictionarySummaryColumns,
+	} as const satisfies Record<string, { columns: BooleanTrueObject }>;
 
 	return {
 		/**
@@ -33,7 +84,7 @@ const repository = (dependencies: BaseDependencies) => {
 			}
 		},
 		/** Update an existing Dictionary Migration in Database */
-		update: async (migrationId: number, data: Partial<DictionaryMigration>): Promise<number> => {
+		update: async (migrationId: number, data: Partial<MigrationRepositoryRecord>): Promise<number> => {
 			try {
 				const updatedMigration = await db
 					.update(dictionaryMigration)
@@ -48,9 +99,11 @@ const repository = (dependencies: BaseDependencies) => {
 			}
 		},
 		/** Retrieve a Dictionary Migration by ID */
-		getMigrationById: async (migrationId: number): Promise<DictionaryMigration | undefined> => {
+		getMigrationById: async (migrationId: number): Promise<MigrationRecordWithRelations | undefined> => {
 			try {
 				const migration = await db.query.dictionaryMigration.findFirst({
+					columns: migrationRepositoryColumns,
+					with: migrationWithRelationsColumns,
 					where: eq(dictionaryMigration.id, migrationId),
 				});
 				if (migration) {
@@ -69,24 +122,43 @@ const repository = (dependencies: BaseDependencies) => {
 			categoryId: number,
 			paginationOptions: PaginationOptions,
 			filterOptions: { status?: MigrationStatus; fromDictionaryId?: number; toDictionaryId?: number },
-		): Promise<DictionaryMigration[]> => {
+		): Promise<{
+			result: MigrationRecordWithRelations[];
+			metadata: { totalRecords: number; errorMessage?: string };
+		}> => {
 			const { page, pageSize } = paginationOptions;
 
 			const { status, fromDictionaryId, toDictionaryId } = filterOptions;
 			try {
+				const whereConditions: SQL | undefined = and(
+					eq(dictionaryMigration.categoryId, categoryId),
+					status ? eq(dictionaryMigration.status, status) : undefined,
+					fromDictionaryId ? eq(dictionaryMigration.fromDictionaryId, fromDictionaryId) : undefined,
+					toDictionaryId ? eq(dictionaryMigration.toDictionaryId, toDictionaryId) : undefined,
+				);
+
 				const migrations = await db.query.dictionaryMigration.findMany({
-					where: and(
-						eq(dictionaryMigration.categoryId, categoryId),
-						status ? eq(dictionaryMigration.status, status) : undefined,
-						fromDictionaryId ? eq(dictionaryMigration.fromDictionaryId, fromDictionaryId) : undefined,
-						toDictionaryId ? eq(dictionaryMigration.toDictionaryId, toDictionaryId) : undefined,
-					),
+					where: whereConditions,
+					columns: migrationRepositoryColumns,
+					with: migrationWithRelationsColumns,
 					orderBy: (dictionaryMigration, { desc }) => desc(dictionaryMigration.createdAt),
 					limit: pageSize,
 					offset: (page - 1) * pageSize,
 				});
-				logger.debug(LOG_MODULE, `Fetched ${migrations.length} migrations for categoryId '${categoryId}'`);
-				return migrations;
+
+				const countMigrations = await db.select({ total: count() }).from(dictionaryMigration).where(whereConditions);
+
+				logger.debug(
+					LOG_MODULE,
+					`Fetched ${migrations.length} migrations from a total of ${countMigrations[0].total} for categoryId '${categoryId}'`,
+				);
+
+				return {
+					metadata: {
+						totalRecords: countMigrations[0].total,
+					},
+					result: migrations,
+				};
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed fetching dictionary migrations for categoryId '${categoryId}'`, error);
 				throw new ServiceUnavailable();
