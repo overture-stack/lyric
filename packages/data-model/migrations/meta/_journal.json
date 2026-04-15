@@ -75,8 +75,29 @@
     {
       "idx": 10,
       "version": "5",
-      "when": 1767901182564,
-      "tag": "0010_dictionary_migration",
+      "when": 1772736571646,
+      "tag": "0010_index_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1772737238121,
+      "tag": "0011_add_submission_enum_committing",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1774363234821,
+      "tag": "0012_add_submission_enum_validating",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1775594188664,
+      "tag": "0013_dictionary_migration",
       "breakpoints": true
     }
   ]

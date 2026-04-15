@@ -44,56 +44,60 @@ sequenceDiagram
     Note over LyricAPI: Find or create Dictionary
     LyricAPI->>+Lectern: Fetch dictionary (name + version)
     Lectern-->>-LyricAPI: Dictionary schema response
-    break Dictionary name and version not found
+    break If dictionary name and version not found
         LyricAPI->>User: 400 Bad Request: `Schema with name '${name}' and version '${version}' not found`
     end
-    break `defaultCentricEntity` does not exist in Dictionary schema
+    break If `defaultCentricEntity` does not exist in Dictionary schema
         LyricAPI->>User: 400 Bad Request: Entity '${defaultCentricEntity}' does not exist in this dictionary
     end
     LyricAPI->>+LyricDB: Query dictionary by dictionaryName + version
-    alt Dictionary does not exists
-        LyricAPI->>LyricDB: Create new dictionary
-    end
     LyricDB-->>-LyricAPI: Return Dictionary
+    alt If dictionary does not exists
+        LyricAPI->>+LyricDB: Create new dictionary
+        LyricDB-->>-LyricAPI: Return Dictionary
+    end
 
     Note over LyricAPI: Find or create Category
     LyricAPI->>+LyricDB: Query category by categoryName
-    break Category is using same dictionary version
+    LyricDB-->>-LyricAPI: Return Category
+    break If category is using same dictionary version
         %% Nothing to do here
         LyricAPI->>User: 200 OK: Return Dictionary and Category
     end
 
-    alt Category does not exists
-        LyricAPI->>LyricDB: Create new category
-    else Category exists but uses different dictionary version
+    alt If category does not exists
+        LyricAPI->>+LyricDB: Create new category
+        LyricDB-->>-LyricAPI: Return new category
+
+        LyricAPI->>User: 200 OK: Return Dictionary and Category
+    else If category exists but uses different dictionary version
         LyricAPI->>LyricDB: Update category (`dictionary_categories` table) with new Dictionary
 
-        rect rgb(230, 242, 255)
-            note over LyricAPI: [Migration] Initiate migration
-            LyricAPI->>LyricDB: Create a migration in `category_migration` table<br />(categoryId, fromDictionaryId, toDictionaryId, submissionId, status=IN-PROGRESS, createdAt, createdBy)
-            LyricAPI->>LyricDB: Create a new submission (no data, status=COMMITTED)
+        note over LyricAPI: [Migration] Initiate migration
+        LyricAPI->>+LyricDB: Create a new submission (no data, status=COMMITTED)
+        LyricDB-->>-LyricAPI: Return submission
+        LyricAPI->>+LyricDB: Create a migration in `category_migration` table<br />(categoryId, fromDictionaryId, toDictionaryId, submissionId, status=IN-PROGRESS, createdAt, createdBy)
+        LyricDB-->>-LyricAPI: Return migrationId
+
+        LyricAPI->>User: 200 OK: Return Dictionary, Category and migrationId
+
+        create participant Worker
+        LyricAPI-->Worker: Start a Worker to run the migration validation
+        note over Worker: [Migration] validation runs in a worker thread
+        Worker->>+LyricDB: Retrieve all existing submitted Data in category
+        LyricDB-->>-Worker: All Submitted Data in Category
+        Worker->>Worker: Validate record against new schema
+
+        loop each record failed validation
+            Worker->>LyricDB: Update record in `submitted_data` table, with isValid = FALSE, lastValidSchema
+            note over LyricDB: triggers audit table
+            Worker->>LyricDB: Insert record in `audit_submitted_data` table with migration error
         end
-    end
 
-    LyricAPI->>User: 200 OK: Return Dictionary, Category and migrationId (if required)
-    alt
-        rect rgb(230, 242, 255)
-            note over LyricAPI: [Migration] validation occurs in the brackground
-            LyricAPI->>+LyricDB: Retrieve all existing submitted Data in category
-            LyricDB-->>-LyricAPI: All Submitted Data in Category
-            LyricAPI->>LyricAPI: Validate record against new schema
-
-            loop each record failed validation
-                LyricAPI->>LyricDB: Update record in `submitted_data` table, with isValid = FALSE, lastValidSchema
-                note over LyricDB: triggers audit table
-                LyricAPI->>LyricDB: Insert record in `audit_submitted_data` table with migration error
-            end
-
-            alt if Migration fails
-                LyricAPI->>LyricDB: Change Migration (`category_migration` table) Status to FAILED
-            end
-
-            LyricAPI->>LyricDB: Change Migration (`category_migration` table) Status to COMPLETED
+        alt if Migration succeed
+            Worker->>LyricDB: Change Migration (`category_migration` table) Status to COMPLETED
+        else if migration fails
+            Worker->>LyricDB: Change Migration (`category_migration` table) Status to FAILED
         end
     end
 ```

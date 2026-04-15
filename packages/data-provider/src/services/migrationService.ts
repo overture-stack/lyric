@@ -2,17 +2,20 @@ import type { NewDictionaryMigration } from '@overture-stack/lyric-data-model/mo
 
 import type { BaseDependencies } from '../config/config.js';
 import categoryRepository from '../repository/categoryRepository.js';
-import migrationRepository, { type MigrationRecordWithRelations } from '../repository/dictionaryMigrationRepository.js';
+import createMigrationRepository, {
+	type MigrationRecordWithRelations,
+} from '../repository/dictionaryMigrationRepository.js';
 import submittedDataRepository from '../repository/submittedRepository.js';
 import type { MigrationStatus, PaginationOptions } from '../utils/types.js';
-import processor from './submission/processor.js';
-import submissionService from './submission/submission.js';
+import submissionProcessorFactory from './submission/submissionProcessor.js';
+import submissionService from './submission/submissionService.js';
 import { formatMigrationRecord } from '../utils/migrationUtils.js';
 
 const migrationService = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'MIGRATION_SERVICE';
 	const { logger, onFinishCommit } = dependencies;
-	const migrationRepo = migrationRepository(dependencies);
+	const migrationRepository = createMigrationRepository(dependencies);
+	const submissionProcessor = submissionProcessorFactory.create(dependencies);
 
 	/**
 	 * Update the status of the migration to COMPLETED or FAILED
@@ -29,7 +32,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 		userName: string;
 	}): Promise<number> => {
 		try {
-			const updatedMigration = await migrationRepo.update(migrationId, {
+			const updatedMigration = await migrationRepository.update(migrationId, {
 				status,
 				updatedAt: new Date(),
 				updatedBy: userName,
@@ -49,7 +52,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 	 */
 	const getActiveMigrationByCategoryId = async (categoryId: number): Promise<MigrationRecordWithRelations | null> => {
 		try {
-			const migrations = await migrationRepo.getMigrationsByCategoryId(
+			const migrations = await migrationRepository.getMigrationsByCategoryId(
 				categoryId,
 				{ page: 1, pageSize: 1 },
 				{ status: 'IN-PROGRESS' },
@@ -69,7 +72,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 
 	const getMigrationById = async (migrationId: number): Promise<MigrationRecordWithRelations | undefined> => {
 		try {
-			const migration = await migrationRepo.getMigrationById(migrationId);
+			const migration = await migrationRepository.getMigrationById(migrationId);
 			if (migration) {
 				logger.info(LOG_MODULE, `Migration found for migrationId '${migrationId}'`);
 				return formatMigrationRecord(migration);
@@ -88,7 +91,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 		paginationOptions: PaginationOptions,
 	): Promise<{ metadata: { totalRecords: number; errorMessage?: string }; result: MigrationRecordWithRelations[] }> => {
 		try {
-			const migrations = await migrationRepo.getMigrationsByCategoryId(categoryId, paginationOptions, {});
+			const migrations = await migrationRepository.getMigrationsByCategoryId(categoryId, paginationOptions, {});
 
 			return {
 				metadata: {
@@ -104,7 +107,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 
 	/**
 	 * Creates a Migration record or update retries if one exists.
-	 * It starts running migration asynchronously
+	 * Then, it starts running migration in a worker thread
 	 * @param param0
 	 * @returns The ID of the initiated or updated migration
 	 */
@@ -121,7 +124,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 	}): Promise<number> => {
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
 		try {
-			const existingMigrationResult = await migrationRepo.getMigrationsByCategoryId(
+			const findMigrationResult = await migrationRepository.getMigrationsByCategoryId(
 				categoryId,
 				{ page: 1, pageSize: 1 },
 				{ fromDictionaryId, toDictionaryId },
@@ -131,13 +134,13 @@ const migrationService = (dependencies: BaseDependencies) => {
 			let submissionId: number;
 
 			// Migration already exists, update retries count
-			if (existingMigrationResult.result.length > 0) {
-				const migration = existingMigrationResult.result[0];
-				const updatedRetriesCount = migration.retries + 1;
+			if (findMigrationResult.result.length > 0) {
+				const existingMigration = findMigrationResult.result[0];
+				const updatedRetriesCount = existingMigration.retries + 1;
 
-				submissionId = migration.submissionId;
+				submissionId = existingMigration.submissionId;
 
-				migrationId = await migrationRepo.update(migration.id, {
+				migrationId = await migrationRepository.update(existingMigration.id, {
 					retries: updatedRetriesCount,
 					updatedBy: userName,
 					updatedAt: new Date(),
@@ -165,20 +168,16 @@ const migrationService = (dependencies: BaseDependencies) => {
 					createdAt: new Date(),
 				};
 
-				migrationId = await migrationRepo.save(newMigration);
+				migrationId = await migrationRepository.save(newMigration);
 
 				logger.info(LOG_MODULE, `Creating migration record for categoryId '${categoryId}'`);
 			}
 
-			// Start migration asynchronously
-			performMigrationValidation({ categoryId, submissionId, userName })
-				.then(() => {
-					finalizeMigration({ migrationId, status: 'COMPLETED', userName });
-				})
-				.catch(async (error) => {
-					logger.error(LOG_MODULE, `Error during migration validation for categoryId '${categoryId}'`, error);
-					finalizeMigration({ migrationId, status: 'FAILED', userName });
-				});
+			// Perform dictionary migration in a worker thread
+			dependencies.workerPool.dictionaryMigration({
+				migrationId,
+				userName,
+			});
 
 			logger.info(LOG_MODULE, `Migration initiated for categoryId '${categoryId}'`);
 			return migrationId;
@@ -188,30 +187,42 @@ const migrationService = (dependencies: BaseDependencies) => {
 		}
 	};
 
-	/** Execute submitted data validation for the migration */
+	/**
+	 * **This function is designed to be executed in a worker thread.**
+	 * Performs the Submitted data validation for a given migration,
+	 * it iterates over all organizations and validates the submitted data for each of them.
+	 * @param migrationId The ID of the migration to perform
+	 * @param userName The name of the user that initiated the migration (for audit purposes)
+	 * @returns void
+	 */
 	const performMigrationValidation = async ({
-		categoryId,
-		submissionId,
+		migrationId,
 		userName,
 	}: {
-		categoryId: number;
-		submissionId: number;
+		migrationId: number;
 		userName: string;
 	}): Promise<void> => {
 		const { getAllOrganizationsByCategoryId, getSubmittedDataByCategoryIdAndOrganization } =
 			submittedDataRepository(dependencies);
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { performCommitSubmissionAsync } = processor(dependencies);
+		const { performCommitSubmissionAsync } = submissionProcessor;
 
-		const dictionary = await getActiveDictionaryByCategory(categoryId);
-		if (!dictionary) {
-			throw new Error(`Dictionary in category '${categoryId}' not found`);
+		const migration = await migrationRepository.getMigrationById(migrationId);
+		if (!migration) {
+			throw new Error(`Migration with id '${migrationId}' not found`);
 		}
 
-		const organizations = await getAllOrganizationsByCategoryId(categoryId);
+		const { category, submissionId } = migration;
+
+		const dictionary = await getActiveDictionaryByCategory(category.id);
+		if (!dictionary) {
+			throw new Error(`Dictionary in category '${category.id}' not found`);
+		}
+
+		const organizations = await getAllOrganizationsByCategoryId(category.id);
 		logger.info(LOG_MODULE, `Starting migration validation for following organizations '${organizations}'`);
 		for (const organization of organizations) {
-			const submittedDataToValidate = await getSubmittedDataByCategoryIdAndOrganization(categoryId, organization);
+			const submittedDataToValidate = await getSubmittedDataByCategoryIdAndOrganization(category.id, organization);
 			logger.info(
 				LOG_MODULE,
 				`Performing migration validation for organization '${organization}' with ${submittedDataToValidate.length} submitted records`,

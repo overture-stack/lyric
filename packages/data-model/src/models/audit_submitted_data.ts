@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { boolean, integer, jsonb, pgEnum, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgEnum, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
 import type { DataRecord, DictionaryValidationRecordErrorDetails } from '@overture-stack/lectern-client';
 
@@ -14,29 +14,39 @@ export type DataDiff = {
 	new: DataRecord;
 };
 
-export const auditSubmittedData = pgTable('audit_submitted_data', {
-	id: serial('id').primaryKey(),
-	action: audit_action('action').notNull(),
-	dictionaryCategoryId: integer('dictionary_category_id')
-		.references(() => dictionaryCategories.id)
-		.notNull(),
-	dataDiff: jsonb('data_diff').$type<DataDiff>(),
-	entityName: varchar('entity_name').notNull(),
-	errors: jsonb('errors').$type<DictionaryValidationRecordErrorDetails[]>(),
-	lastValidSchemaId: integer('last_valid_schema_id').references(() => dictionaries.id),
-	newDataIsValid: boolean('new_data_is_valid').notNull(),
-	oldDataIsValid: boolean('old_data_is_valid').notNull(),
-	organization: varchar('organization').notNull(),
-	originalSchemaId: integer('original_schema_id')
-		.references(() => dictionaries.id)
-		.notNull(),
-	submissionId: integer('submission_id')
-		.references(() => submissions.id)
-		.notNull(),
-	systemId: varchar('system_id').notNull(),
-	createdAt: timestamp('created_at'),
-	createdBy: varchar('created_by'),
-});
+export const auditSubmittedData = pgTable(
+	'audit_submitted_data',
+	{
+		id: serial('id').primaryKey(),
+		action: audit_action('action').notNull(),
+		dictionaryCategoryId: integer('dictionary_category_id')
+			.references(() => dictionaryCategories.id)
+			.notNull(),
+		dataDiff: jsonb('data_diff').$type<DataDiff>(),
+		entityName: varchar('entity_name').notNull(),
+		errors: jsonb('errors').$type<DictionaryValidationRecordErrorDetails[]>(),
+		lastValidSchemaId: integer('last_valid_schema_id').references(() => dictionaries.id),
+		newDataIsValid: boolean('new_data_is_valid').notNull(),
+		oldDataIsValid: boolean('old_data_is_valid').notNull(),
+		organization: varchar('organization').notNull(),
+		originalSchemaId: integer('original_schema_id')
+			.references(() => dictionaries.id)
+			.notNull(),
+		submissionId: integer('submission_id')
+			.references(() => submissions.id)
+			.notNull(),
+		systemId: varchar('system_id').notNull(),
+		createdAt: timestamp('created_at'),
+		createdBy: varchar('created_by'),
+	},
+	(table) => {
+		return {
+			dictionaryIndex: index('audit_submitted_data_dictionary_index').on(table.dictionaryCategoryId),
+			organizationIndex: index('audit_submitted_data_organization_index').on(table.organization),
+			submissionIndex: index('audit_submitted_data_submission_index').on(table.submissionId),
+		};
+	},
+);
 
 export const auditSubmittedDataRelations = relations(auditSubmittedData, ({ one }) => ({
 	dictionaryCategory: one(dictionaryCategories, {

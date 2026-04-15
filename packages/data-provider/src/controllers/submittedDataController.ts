@@ -12,7 +12,7 @@ import {
 	dataGetByCategoryRequestSchema,
 	dataGetByOrganizationRequestSchema,
 	dataGetByQueryRequestSchema,
-	dataGetBySystemIdRequestSchema,
+	DataGetBySystemIdRequestSchema,
 } from '../utils/schemas.js';
 import { convertToViewType } from '../utils/submittedDataUtils.js';
 import { SubmittedDataPaginatedResponse, VIEW_TYPE } from '../utils/types.js';
@@ -185,7 +185,7 @@ const controller = ({
 				next(error);
 			}
 		}),
-		getSubmittedDataBySystemId: validateRequest(dataGetBySystemIdRequestSchema, async (req, res, next) => {
+		getSubmittedDataBySystemId: validateRequest(DataGetBySystemIdRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const systemId = req.params.systemId;

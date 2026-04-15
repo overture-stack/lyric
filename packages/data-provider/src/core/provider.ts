@@ -1,5 +1,5 @@
 import { AppConfig, BaseDependencies } from '../config/config.js';
-import { connect } from '../config/db.js';
+import { connect, getConnectionPool } from '../config/db.js';
 import { getLogger } from '../config/logger.js';
 import auditController from '../controllers/auditController.js';
 import categoryController from '../controllers/categoryController.js';
@@ -25,7 +25,7 @@ import auditService from '../services/auditService.js';
 import categoryService from '../services/categoryService.js';
 import dictionaryService from '../services/dictionaryService.js';
 import migrationService from '../services/migrationService.js';
-import submissionService from '../services/submission/submission.js';
+import submissionService from '../services/submission/submissionService.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
 import validationService from '../services/validationService.js';
 import * as auditUtils from '../utils/auditUtils.js';
@@ -37,6 +37,7 @@ import * as schemaUtils from '../utils/schemas.js';
 import * as submissionUtils from '../utils/submissionUtils.js';
 import * as submittedDataUtils from '../utils/submittedDataUtils.js';
 import * as typeUtils from '../utils/types.js';
+import { createWorkerPool } from '../workers/workerPoolManager.js';
 
 /**
  * The main provider of submission resources
@@ -50,7 +51,9 @@ const provider = (configData: AppConfig) => {
 		idService: configData.idService,
 		logger: getLogger(configData.logger),
 		schemaService: configData.schemaService,
+		submissionService: configData.submissionService,
 		onFinishCommit: configData.onFinishCommit,
+		workerPool: createWorkerPool(configData),
 	};
 
 	return {
@@ -107,6 +110,20 @@ const provider = (configData: AppConfig) => {
 			submission: submissionUtils,
 			submittedData: submittedDataUtils,
 			type: typeUtils,
+		},
+		/**
+		 * Shuts down the worker pool. Call this on application termination to cleanly
+		 * terminate any running worker threads.
+		 *
+		 * @example
+		 * process.on('SIGTERM', async () => {
+		 *   await lyric.shutdown();
+		 *   process.exit(0);
+		 * });
+		 */
+		shutdown: async () => {
+			await getConnectionPool(baseDeps.db)?.end();
+			await baseDeps.workerPool.terminate();
 		},
 	};
 };
