@@ -62,20 +62,23 @@ components:
             $ref: '#/components/responses/Error'
 
   schemas:
+    Pagination:
+      type: object
+      properties:
+        currentPage:
+          type: number
+        pageSize:
+          type: number
+        totalPages:
+          type: number
+        totalRecords:
+          type: number
+
     ListSubmissionsResult:
       type: object
       properties:
         pagination:
-          type: object
-          properties:
-            currentPage:
-              type: number
-            pageSize:
-              type: number
-            totalPages:
-              type: number
-            totalRecords:
-              type: number
+          $ref: '#/components/schemas/Pagination'
         records:
           type: array
           items:
@@ -284,16 +287,7 @@ components:
       type: object
       properties:
         pagination:
-          type: object
-          properties:
-            currentPage:
-              type: number
-            pageSize:
-              type: number
-            totalPages:
-              type: number
-            totalRecords:
-              type: number
+          $ref: '#/components/schemas/Pagination'
         records:
           type: array
           items:
@@ -308,7 +302,7 @@ components:
         event:
           type: string
           description: Type of event
-          enum: ['UPDATE', 'DELETE']
+          enum: ['UPDATE', 'DELETE', 'MIGRATION']
         dataDiff:
           type: object
           description: Captures the state of the data before the change as `old` and after the change as `new`
@@ -413,16 +407,7 @@ components:
       type: object
       properties:
         pagination:
-          type: object
-          properties:
-            currentPage:
-              type: number
-            pageSize:
-              type: number
-            totalPages:
-              type: number
-            totalRecords:
-              type: number
+          $ref: '#/components/schemas/Pagination'
         records:
           type: array
           items:
@@ -453,20 +438,21 @@ components:
             type: string
             description: Name of the Category
 
+    ListMigrationRecordsResult:
+      type: object
+      properties:
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChangeHistoryRecord'
+
     ListMigrationsResult:
       type: object
       properties:
         pagination:
-          type: object
-          properties:
-            currentPage:
-              type: number
-            pageSize:
-              type: number
-            totalPages:
-              type: number
-            totalRecords:
-              type: number
+          $ref: '#/components/schemas/Pagination'
         records:
           type: array
           items:
@@ -524,6 +510,15 @@ components:
         updatedBy:
           type: string
           description: User name who last updated the migration
+
+    ExtendedMigrationResult:
+      allOf:
+        - $ref: '#/components/schemas/MigrationResult'
+        - type: object
+          properties:
+            invalidRecords:
+              type: number
+              description: Number of invalid records during the migration
 
     RegisterDictionaryResult:
       type: object

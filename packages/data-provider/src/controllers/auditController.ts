@@ -26,11 +26,12 @@ const controller = (dependencies: BaseDependencies) => {
 
 				logger.info(LOG_MODULE, 'Request Audit', `categoryId '${categoryId}' organization '${organization}'`);
 
-				const auditRecords = await auditService.byCategoryIdAndOrganization(categoryId, organization, {
+				const auditRecords = await auditService.byCategoryIdAndOrganization(categoryId, {
 					entityName,
 					eventType,
 					startDate,
 					endDate,
+					organization,
 					systemId,
 					page,
 					pageSize,

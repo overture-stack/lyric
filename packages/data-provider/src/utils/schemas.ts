@@ -258,6 +258,23 @@ export const migrationsByCategoryIdRequestSchema: RequestValidation<object, Pagi
 		query: paginationQuerySchema,
 	};
 
+export interface MigrationDataQueryParams extends PaginationQueryParams {
+	entityNames?: string | string[];
+	organizations?: string | string[];
+	isInvalid?: string;
+}
+
+export const migrationDataRequestSchema: RequestValidation<object, MigrationDataQueryParams, migrationIdPathParam> = {
+	pathParams: migrationIdPathParamSchema,
+	query: z
+		.object({
+			entityNames: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
+			organizations: z.union([organizationSchema, organizationSchema.array()]).optional(),
+			isInvalid: booleanSchema.default('false'),
+		})
+		.merge(paginationQuerySchema),
+};
+
 // Submission Requests
 
 export interface SubmissionsByCategoryQueryParams extends PaginationQueryParams {

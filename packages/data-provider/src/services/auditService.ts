@@ -13,7 +13,6 @@ const auditService = (dependencies: BaseDependencies) => {
 	return {
 		byCategoryIdAndOrganization: async (
 			categoryId: number,
-			organization: string,
 			filterOptions: AuditFilterOptions,
 		): Promise<{
 			data: AuditDataResponse[];
@@ -29,7 +28,6 @@ const auditService = (dependencies: BaseDependencies) => {
 
 			const recordsPaginated = await auditRepo.getRecordsByCategoryIdAndOrganizationPaginated(
 				categoryId,
-				organization,
 				filterOptions,
 			);
 
@@ -37,11 +35,7 @@ const auditService = (dependencies: BaseDependencies) => {
 				throw new NotFound('No data found');
 			}
 
-			const totalRecords = await auditRepo.getTotalRecordsByCategoryIdAndOrganization(
-				categoryId,
-				organization,
-				filterOptions,
-			);
+			const totalRecords = await auditRepo.getTotalRecordsByCategoryIdAndOrganization(categoryId, filterOptions);
 
 			logger.info(LOG_MODULE, `Retrieved '${recordsPaginated.length}' Submitted data on categoryId '${categoryId}'`);
 

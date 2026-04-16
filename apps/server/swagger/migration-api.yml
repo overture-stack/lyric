@@ -1,29 +1,5 @@
 # Description of Migration API
 
-/migration/{migrationId}:
-  get:
-    summary: Get Migration general information by ID
-    tags:
-      - Migration
-    parameters:
-      - name: migrationId
-        in: path
-        type: string
-        required: true
-    responses:
-      200:
-        description: Migration general information
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/MigrationResult'
-      404:
-        $ref: '#/components/responses/NotFound'
-      500:
-        $ref: '#/components/responses/ServerError'
-      503:
-        $ref: '#/components/responses/ServiceUnavailableError'
-
 /migration/category/{categoryId}:
   get:
     summary: Retrieve the Migrations for a category
@@ -40,6 +16,57 @@
           application/json:
             schema:
               $ref: '#/components/schemas/ListMigrationsResult'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
+/migration/{migrationId}:
+  get:
+    summary: Get Migration general information by ID
+    tags:
+      - Migration
+    parameters:
+      - $ref: '#/components/parameters/path/MigrationId'
+    responses:
+      200:
+        description: Migration general information
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtendedMigrationResult'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
+/migration/{migrationId}/records:
+  get:
+    summary: Retrieve the records for a migration
+    tags:
+      - Migration
+    parameters:
+      - $ref: '#/components/parameters/path/MigrationId'
+      - isInvalid:
+        description: Optional query parameter to filter results to include only invalid records. Default value is false
+        name: isInvalid
+        in: query
+        schema:
+          type: boolean
+        required: false
+      - $ref: '#/components/parameters/query/Page'
+      - $ref: '#/components/parameters/query/PageSize'
+    responses:
+      200:
+        description: List of Migration records
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListMigrationRecordsResult'
       404:
         $ref: '#/components/responses/NotFound'
       500:

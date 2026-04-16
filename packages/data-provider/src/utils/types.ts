@@ -90,6 +90,9 @@ export type AuditFilterOptions = PaginationOptions & {
 	startDate?: string;
 	endDate?: string;
 	systemId?: string;
+	organization?: string;
+	submissionId?: number;
+	newIsValid?: boolean;
 };
 
 /**

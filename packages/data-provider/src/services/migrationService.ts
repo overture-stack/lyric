@@ -1,20 +1,25 @@
 import type { NewDictionaryMigration } from '@overture-stack/lyric-data-model/models';
 
 import type { BaseDependencies } from '../config/config.js';
-import categoryRepository from '../repository/categoryRepository.js';
+import createAuditRepository from '../repository/auditRepository.js';
+import createCategoryRepository from '../repository/categoryRepository.js';
 import createMigrationRepository, {
 	type MigrationRecordWithRelations,
 } from '../repository/dictionaryMigrationRepository.js';
-import submittedDataRepository from '../repository/submittedRepository.js';
-import type { MigrationStatus, PaginationOptions } from '../utils/types.js';
+import createSubmittedDataRepository from '../repository/submittedRepository.js';
+import { parseAuditRecords } from '../utils/auditUtils.js';
+import { formatMigrationSummary } from '../utils/migrationUtils.js';
+import type { AuditDataResponse, MigrationStatus, PaginationOptions } from '../utils/types.js';
 import submissionProcessorFactory from './submission/submissionProcessor.js';
 import submissionService from './submission/submissionService.js';
-import { formatMigrationRecord } from '../utils/migrationUtils.js';
 
 const migrationService = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'MIGRATION_SERVICE';
 	const { logger, onFinishCommit } = dependencies;
 	const migrationRepository = createMigrationRepository(dependencies);
+	const auditRepository = createAuditRepository(dependencies);
+	const categoryRepository = createCategoryRepository(dependencies);
+	const submittedDataRepository = createSubmittedDataRepository(dependencies);
 	const submissionProcessor = submissionProcessorFactory.create(dependencies);
 
 	/**
@@ -59,7 +64,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 			);
 			if (migrations.result.length > 0) {
 				logger.info(LOG_MODULE, `Active migration found for categoryId '${categoryId}'`);
-				return formatMigrationRecord(migrations.result[0]);
+				return formatMigrationSummary(migrations.result[0]);
 			} else {
 				logger.info(LOG_MODULE, `No active migration for categoryId '${categoryId}'`);
 				return null;
@@ -75,7 +80,15 @@ const migrationService = (dependencies: BaseDependencies) => {
 			const migration = await migrationRepository.getMigrationById(migrationId);
 			if (migration) {
 				logger.info(LOG_MODULE, `Migration found for migrationId '${migrationId}'`);
-				return formatMigrationRecord(migration);
+
+				const invalidRecords = await auditRepository.getTotalRecordsByCategoryIdAndOrganization(migration.category.id, {
+					page: -1,
+					pageSize: -1,
+					newIsValid: false,
+					submissionId: migration.submissionId,
+				});
+
+				return formatMigrationSummary({ ...migration, invalidRecords });
 			} else {
 				logger.info(LOG_MODULE, `No migration found for migrationId '${migrationId}'`);
 				return undefined;
@@ -97,10 +110,40 @@ const migrationService = (dependencies: BaseDependencies) => {
 				metadata: {
 					totalRecords: migrations.metadata.totalRecords,
 				},
-				result: migrations.result.map(formatMigrationRecord),
+				result: migrations.result.map(formatMigrationSummary),
 			};
 		} catch (error) {
 			logger.error(LOG_MODULE, `Error retrieving migrations for categoryId '${categoryId}'`, error);
+			throw error;
+		}
+	};
+
+	const getMigrationRecords = async (
+		migrationId: number,
+		options: {
+			page: number;
+			pageSize: number;
+			entityNames?: string | string[];
+			organizations?: string | string[];
+			isInvalid?: boolean;
+		},
+	): Promise<{ result: AuditDataResponse[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
+		try {
+			const migrationRecords = await migrationRepository.getMigrationRecords(migrationId, options);
+			logger.info(
+				LOG_MODULE,
+				`Migration records retrieved for migrationId '${migrationId}' with options '${JSON.stringify(options)}'`,
+			);
+			return {
+				result: parseAuditRecords(migrationRecords.result),
+				metadata: migrationRecords.metadata,
+			};
+		} catch (error) {
+			logger.error(
+				LOG_MODULE,
+				`Error retrieving migration records for migrationId '${migrationId}' with options '${JSON.stringify(options)}'`,
+				error,
+			);
 			throw error;
 		}
 	};
@@ -202,9 +245,8 @@ const migrationService = (dependencies: BaseDependencies) => {
 		migrationId: number;
 		userName: string;
 	}): Promise<void> => {
-		const { getAllOrganizationsByCategoryId, getSubmittedDataByCategoryIdAndOrganization } =
-			submittedDataRepository(dependencies);
-		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
+		const { getAllOrganizationsByCategoryId, getSubmittedDataByCategoryIdAndOrganization } = submittedDataRepository;
+		const { getActiveDictionaryByCategory } = categoryRepository;
 		const { performCommitSubmissionAsync } = submissionProcessor;
 
 		const migration = await migrationRepository.getMigrationById(migrationId);
@@ -249,6 +291,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 		getActiveMigrationByCategoryId,
 		getMigrationsByCategoryId,
 		getMigrationById,
+		getMigrationRecords,
 		initiateMigration,
 		performMigrationValidation,
 	};

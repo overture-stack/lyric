@@ -21,6 +21,8 @@ const router = ({
 
 	router.get('/category/:categoryId', migrationController(baseDependencies).getMigrationsByCategoryId);
 
+	router.get('/:migrationId/records', migrationController(baseDependencies).getMigrationRecords);
+
 	return router;
 };
 

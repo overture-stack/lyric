@@ -9,7 +9,8 @@ import {
 
 import type { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
-import type { BooleanTrueObject, MigrationStatus, PaginationOptions } from '../utils/types.js';
+import type { AuditRepositoryRecord, BooleanTrueObject, MigrationStatus, PaginationOptions } from '../utils/types.js';
+import createAuditRepository from './auditRepository.js';
 
 type MigrationRepositoryRecord = Omit<DictionaryMigration, 'categoryId' | 'fromDictionaryId' | 'toDictionaryId'>;
 
@@ -35,6 +36,8 @@ export type MigrationRecordWithRelations = MigrationRepositoryRecord & {
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'MIGRATION_REPOSITORY';
 	const { db, logger } = dependencies;
+
+	const auditRepository = createAuditRepository(dependencies);
 
 	const migrationRepositoryColumns = {
 		id: true,
@@ -161,6 +164,59 @@ const repository = (dependencies: BaseDependencies) => {
 				};
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed fetching dictionary migrations for categoryId '${categoryId}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+		getMigrationRecords: async (
+			migrationId: number,
+			options: {
+				page: number;
+				pageSize: number;
+				entityNames?: string | string[];
+				organizations?: string | string[];
+				isInvalid?: boolean;
+			},
+		): Promise<{
+			result: AuditRepositoryRecord[];
+			metadata: { totalRecords: number; errorMessage?: string };
+		}> => {
+			try {
+				const migration = await db.query.dictionaryMigration.findFirst({
+					where: eq(dictionaryMigration.id, migrationId),
+				});
+
+				if (!migration) {
+					logger.debug(LOG_MODULE, `No migration found with id '${migrationId}' when fetching migration records`);
+					return {
+						result: [],
+						metadata: { totalRecords: 0 },
+					};
+				}
+
+				const newIsValid = options.isInvalid !== undefined ? !options.isInvalid : undefined;
+
+				const records = await auditRepository.getRecordsByCategoryIdAndOrganizationPaginated(migration.categoryId, {
+					page: options.page,
+					pageSize: options.pageSize,
+					newIsValid,
+					submissionId: migration.submissionId,
+				});
+
+				const totalRecords = await auditRepository.getTotalRecordsByCategoryIdAndOrganization(migration.categoryId, {
+					page: options.page,
+					pageSize: options.pageSize,
+					newIsValid,
+					submissionId: migration.submissionId,
+				});
+
+				return {
+					metadata: {
+						totalRecords,
+					},
+					result: records,
+				};
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed fetching migration records for migrationId '${migrationId}'`, error);
 				throw new ServiceUnavailable();
 			}
 		},
