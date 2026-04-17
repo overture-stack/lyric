@@ -154,7 +154,7 @@ const repository = (dependencies: BaseDependencies) => {
 							...optionalFilter,
 						),
 					);
-				return resultCount[0].total;
+				return resultCount[0]?.total ?? 0;
 			} catch (error) {
 				logger.error(
 					LOG_MODULE,

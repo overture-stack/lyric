@@ -19,6 +19,9 @@ const repository = (dependencies: BaseDependencies) => {
 		save: async (data: NewCategory): Promise<Category> => {
 			try {
 				const savedCategory = await db.insert(dictionaryCategories).values(data).returning();
+				if (!savedCategory[0]) {
+					throw new Error(`Failed to insert Category '${data.name}', no row returned`);
+				}
 				logger.info(LOG_MODULE, `Category '${data.name}' saved successfully`);
 				return savedCategory[0];
 			} catch (error) {
@@ -150,6 +153,9 @@ const repository = (dependencies: BaseDependencies) => {
 					.set({ ...newData, updatedAt: new Date() })
 					.where(eq(dictionaryCategories.id, categoryId))
 					.returning();
+				if (!updated[0]) {
+					throw new Error(`Failed to update Category with id '${categoryId}', no row returned`);
+				}
 				return updated[0];
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed updating Category`, error);

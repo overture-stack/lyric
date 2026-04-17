@@ -116,7 +116,11 @@ const orOperator = (operations: Operator[]): SQL<unknown> => {
 };
 
 const notOperator = (operations: Operator[]): SQL<unknown> => {
-	return not(iterateOperator(operations[0]));
+	const operation = operations[0];
+	if (!operation) {
+		throw new BadRequest(`Invalid SQON format. Invalid 'not' operator`);
+	}
+	return not(iterateOperator(operation));
 };
 
 /**
