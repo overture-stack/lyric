@@ -1,5 +1,5 @@
 DO $$ BEGIN
- CREATE TYPE "migration_status" AS ENUM('IN-PROGRESS', 'COMPLETED', 'FAILED');
+ CREATE TYPE "migration_status" AS ENUM('IN_PROGRESS', 'COMPLETED', 'FAILED');
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;

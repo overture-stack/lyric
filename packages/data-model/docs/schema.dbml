@@ -5,7 +5,7 @@ enum audit_action {
 }
 
 enum migration_status {
-  "IN-PROGRESS"
+  IN_PROGRESS
   COMPLETED
   FAILED
 }
