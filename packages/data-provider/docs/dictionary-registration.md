@@ -76,7 +76,7 @@ sequenceDiagram
         note over LyricAPI: [Migration] Initiate migration
         LyricAPI->>+LyricDB: Create a new submission (no data, status=COMMITTED)
         LyricDB-->>-LyricAPI: Return submission
-        LyricAPI->>+LyricDB: Create a migration in `category_migration` table<br />(categoryId, fromDictionaryId, toDictionaryId, submissionId, status=IN-PROGRESS, createdAt, createdBy)
+        LyricAPI->>+LyricDB: Create a migration in `category_migration` table<br />(categoryId, fromDictionaryId, toDictionaryId, submissionId, status=IN_PROGRESS, createdAt, createdBy)
         LyricDB-->>-LyricAPI: Return migrationId
 
         LyricAPI->>User: 200 OK: Return Dictionary, Category and migrationId
@@ -134,7 +134,7 @@ When a dictionary definition is updated in Lectern, Lyric allows an existing cat
 
 - The endpoint returns a `migrationId`, representing a new migration job.
 
-- A migration entry is created with the initial status `IN-PROGRESS`.
+- A migration entry is created with the initial status `IN_PROGRESS`.
 
 - Since migrations run asynchronously, the status is updated to `COMPLETED` once processing finishes.
 

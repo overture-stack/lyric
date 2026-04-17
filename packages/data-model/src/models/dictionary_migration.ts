@@ -5,7 +5,7 @@ import { dictionaries } from './dictionaries.js';
 import { dictionaryCategories } from './dictionary_categories.js';
 import { submissions } from './submissions.js';
 
-export const migrationStatusEnum = pgEnum('migration_status', ['IN-PROGRESS', 'COMPLETED', 'FAILED']);
+export const migrationStatusEnum = pgEnum('migration_status', ['IN_PROGRESS', 'COMPLETED', 'FAILED']);
 
 export const dictionaryMigration = pgTable(
 	'dictionary_migration',
