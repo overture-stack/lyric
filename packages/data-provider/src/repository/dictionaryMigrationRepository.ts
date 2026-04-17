@@ -75,12 +75,15 @@ const repository = (dependencies: BaseDependencies) => {
 		 **/
 		save: async (data: NewDictionaryMigration): Promise<number> => {
 			try {
-				const savedMigration = await db
+				const [savedMigration] = await db
 					.insert(dictionaryMigration)
 					.values(data)
 					.returning({ id: dictionaryMigration.id });
+				if (!savedMigration) {
+					throw new Error(`Failed to insert Dictionary Migration for categoryId '${data.categoryId}', no row returned`);
+				}
 				logger.debug(LOG_MODULE, `Dictionary Migration for categoryId '${data.categoryId}' saved successfully`);
-				return savedMigration[0].id;
+				return savedMigration.id;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed saving dictionary migration for categoryId '${data.categoryId}'`, error);
 				throw new ServiceUnavailable();
@@ -89,13 +92,16 @@ const repository = (dependencies: BaseDependencies) => {
 		/** Update an existing Dictionary Migration in Database */
 		update: async (migrationId: number, data: Partial<MigrationRepositoryRecord>): Promise<number> => {
 			try {
-				const updatedMigration = await db
+				const [updatedMigration] = await db
 					.update(dictionaryMigration)
 					.set(data)
 					.where(eq(dictionaryMigration.id, migrationId))
 					.returning({ id: dictionaryMigration.id });
+				if (!updatedMigration) {
+					throw new Error(`Failed to update Dictionary Migration with id '${migrationId}', no row returned`);
+				}
 				logger.debug(LOG_MODULE, `Dictionary Migration with id '${migrationId}' updated successfully`);
-				return updatedMigration[0].id;
+				return updatedMigration.id;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed updating dictionary migration with id '${migrationId}'`, error);
 				throw new ServiceUnavailable();
@@ -150,15 +156,16 @@ const repository = (dependencies: BaseDependencies) => {
 				});
 
 				const countMigrations = await db.select({ total: count() }).from(dictionaryMigration).where(whereConditions);
+				const totalRecords = countMigrations[0]?.total ?? 0;
 
 				logger.debug(
 					LOG_MODULE,
-					`Fetched ${migrations.length} migrations from a total of ${countMigrations[0].total} for categoryId '${categoryId}'`,
+					`Fetched ${migrations.length} migrations from a total of ${totalRecords} for categoryId '${categoryId}'`,
 				);
 
 				return {
 					metadata: {
-						totalRecords: countMigrations[0].total,
+						totalRecords,
 					},
 					result: migrations,
 				};

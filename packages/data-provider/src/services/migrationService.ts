@@ -60,11 +60,12 @@ const migrationService = (dependencies: BaseDependencies) => {
 			const migrations = await migrationRepository.getMigrationsByCategoryId(
 				categoryId,
 				{ page: 1, pageSize: 1 },
-				{ status: 'IN-PROGRESS' },
+				{ status: 'IN_PROGRESS' },
 			);
-			if (migrations.result.length > 0) {
+			const activeMigration = migrations.result[0];
+			if (activeMigration) {
 				logger.info(LOG_MODULE, `Active migration found for categoryId '${categoryId}'`);
-				return formatMigrationSummary(migrations.result[0]);
+				return formatMigrationSummary(activeMigration);
 			} else {
 				logger.info(LOG_MODULE, `No active migration for categoryId '${categoryId}'`);
 				return null;
@@ -177,8 +178,8 @@ const migrationService = (dependencies: BaseDependencies) => {
 			let submissionId: number;
 
 			// Migration already exists, update retries count
-			if (findMigrationResult.result.length > 0) {
-				const existingMigration = findMigrationResult.result[0];
+			const existingMigration = findMigrationResult.result[0];
+			if (existingMigration) {
 				const updatedRetriesCount = existingMigration.retries + 1;
 
 				submissionId = existingMigration.submissionId;
@@ -206,7 +207,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 					fromDictionaryId,
 					toDictionaryId,
 					submissionId,
-					status: 'IN-PROGRESS',
+					status: 'IN_PROGRESS',
 					createdBy: userName,
 					createdAt: new Date(),
 				};

@@ -161,15 +161,13 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 			const result = await Promise.all(
 				submissionUpdateRecords.map(async (submissionUpdateRecord) => {
-					if (!Object.prototype.hasOwnProperty.call(dictionaryRelations, submissionUpdateEntityName)) {
+					const entityRelations = dictionaryRelations[submissionUpdateEntityName];
+					if (!entityRelations) {
 						return { submissionUpdateData: submissionUpdateRecord, dependents: {} };
 					}
 
 					// Finds if updates are impacting dependant records based on it's foreign keys
-					const filterDependents = filterRelationsForPrimaryIdUpdate(
-						dictionaryRelations[submissionUpdateEntityName],
-						submissionUpdateRecord,
-					);
+					const filterDependents = filterRelationsForPrimaryIdUpdate(entityRelations, submissionUpdateRecord);
 
 					if (filterDependents.length === 0) {
 						return { submissionUpdateData: submissionUpdateRecord, dependents: {} };

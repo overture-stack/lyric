@@ -162,7 +162,7 @@ const repository = (dependencies: BaseDependencies) => {
 					.select({ total: count() })
 					.from(auditSubmittedData)
 					.where(and(eq(auditSubmittedData.dictionaryCategoryId, categoryId), ...optionalFilter));
-				return resultCount[0].total;
+				return resultCount[0]?.total ?? 0;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed counting Audit Records with categoryId '${categoryId}'`, error);
 				throw new ServiceUnavailable();
