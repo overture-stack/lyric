@@ -466,7 +466,9 @@ const submittedData = (dependencies: BaseDependencies) => {
 					defaultCentricEntity: defaultCentricEntity,
 				});
 
-				recordResponse = convertedRecord;
+				if (convertedRecord) {
+					recordResponse = convertedRecord;
+				}
 			}
 		}
 

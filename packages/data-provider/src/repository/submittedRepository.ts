@@ -200,7 +200,13 @@ const repository = (dependencies: BaseDependencies) => {
 					savedRecords.push(...savedSubmittedData);
 				}
 				logger.debug(LOG_MODULE, `Submitted ${savedRecords.length} record(s) successfully`);
-				return Array.isArray(data) ? savedRecords : savedRecords[0];
+				if (Array.isArray(data)) {
+					return savedRecords;
+				}
+				if (!savedRecords[0]) {
+					throw new Error('Failed to insert SubmittedData, no row returned');
+				}
+				return savedRecords[0];
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed submitting ${rows.length} record(s)`, error);
 				throw error;
@@ -340,7 +346,7 @@ const repository = (dependencies: BaseDependencies) => {
 			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
 
 			try {
-				const resultCount = await db
+				const [resultCount] = await db
 					.select({ total: count() })
 					.from(submittedData)
 					.where(
@@ -351,7 +357,12 @@ const repository = (dependencies: BaseDependencies) => {
 							filterEntityNameSql,
 						),
 					);
-				return resultCount[0].total;
+
+				if (!resultCount) {
+					throw new Error('Unexpected empty result from COUNT query for submittedData; expected one row');
+				}
+
+				return resultCount.total;
 			} catch (error) {
 				logger.error(
 					LOG_MODULE,
@@ -382,7 +393,7 @@ const repository = (dependencies: BaseDependencies) => {
 					.select({ total: count() })
 					.from(submittedData)
 					.where(and(eq(submittedData.dictionaryCategoryId, categoryId), filterEntityNameSql, filterOrganizationSql));
-				return resultCount[0].total;
+				return resultCount[0]?.total ?? 0;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed counting SubmittedData with categoryId '${categoryId}'`, error);
 				throw new ServiceUnavailable();
@@ -422,17 +433,20 @@ const repository = (dependencies: BaseDependencies) => {
 			try {
 				const updatedRecords: SubmittedData[] = [];
 				for (const u of updates) {
-					const updated = await (tx || db)
+					const [updatedRecord] = await (tx || db)
 						.update(submittedData)
 						.set({ ...u.newData, updatedAt: new Date() })
 						.where(eq(submittedData.id, u.submittedDataId))
 						.returning();
-					updatedRecords.push(updated[0]);
+					if (!updatedRecord) {
+						throw new Error(`Failed to update SubmittedData with id '${u.submittedDataId}', no row returned`);
+					}
+					updatedRecords.push(updatedRecord);
 
 					if (features?.audit?.enabled && Object.keys(u.dataDiff.new).length && Object.keys(u.dataDiff.old).length) {
 						await auditUpdateSubmittedData(
 							{
-								recordUpdated: updated[0],
+								recordUpdated: updatedRecord,
 								submissionId: u.submissionId,
 								dataDiff: u.dataDiff,
 								oldIsValid: u.oldIsValid,
@@ -442,7 +456,13 @@ const repository = (dependencies: BaseDependencies) => {
 					}
 				}
 
-				return Array.isArray(params) ? updatedRecords : updatedRecords[0];
+				if (Array.isArray(params)) {
+					return updatedRecords;
+				}
+				if (!updatedRecords[0]) {
+					throw new Error('Failed to update SubmittedData, no row returned');
+				}
+				return updatedRecords[0];
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed updating SubmittedData`, error);
 				throw new ServiceUnavailable();

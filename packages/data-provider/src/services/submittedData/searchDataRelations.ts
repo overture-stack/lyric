@@ -37,11 +37,12 @@ const searchDataRelations = (dependencies: BaseDependencies) => {
 		const { getSubmittedDataFiltered } = submittedDataRepository;
 
 		// Check if entity has children relationships
-		if (Object.prototype.hasOwnProperty.call(dictionaryRelations, entityName)) {
+		const entityRelations = dictionaryRelations[entityName];
+		if (entityRelations) {
 			// Array that represents the children fields to filter
 
 			const filterData: { entityName: string; dataField: string; dataValue: string | undefined }[] = Object.values(
-				dictionaryRelations[entityName],
+				entityRelations,
 			)
 				.filter((childNode) => childNode.parent?.fieldName)
 				.map((childNode) => ({

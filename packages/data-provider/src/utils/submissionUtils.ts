@@ -364,8 +364,8 @@ export const groupSchemaErrorsByEntity = (input: {
 		}
 
 		Object.entries(groupedErrorsByIndex).forEach(([indexBasedOnCrossSchemas, schemaValidationErrors]) => {
-			const mapping = dataValidated[entityName][Number(indexBasedOnCrossSchemas)];
-			if (!determineIfIsSubmission(mapping.reference)) {
+			const mapping = dataValidated[entityName]?.[Number(indexBasedOnCrossSchemas)];
+			if (!mapping || !determineIfIsSubmission(mapping.reference)) {
 				return;
 			}
 

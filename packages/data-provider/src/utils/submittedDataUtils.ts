@@ -167,7 +167,7 @@ export const groupErrorsByIndex = (
 		if (!acc[item.recordIndex]) {
 			acc[item.recordIndex] = [];
 		}
-		acc[item.recordIndex] = acc[item.recordIndex].concat(item.recordErrors);
+		acc[item.recordIndex] = (acc[item.recordIndex] ?? []).concat(item.recordErrors);
 
 		return acc;
 	}, {});
@@ -200,7 +200,7 @@ export const groupSchemaDataByEntityName = (data: {
 
 		let schemaArr = result.schemaDataByEntityName[entityName];
 		let submittedArr = result.submittedDataByEntityName[entityName];
-		if (!schemaArr) {
+		if (!schemaArr || !submittedArr) {
 			schemaArr = [];
 			submittedArr = [];
 			result.schemaDataByEntityName[entityName] = schemaArr;
@@ -216,7 +216,7 @@ export const groupSchemaDataByEntityName = (data: {
 
 		let schemaArr = result.schemaDataByEntityName[entityName];
 		let submittedArr = result.submittedDataByEntityName[entityName];
-		if (!schemaArr) {
+		if (!schemaArr || !submittedArr) {
 			schemaArr = [];
 			submittedArr = [];
 			result.schemaDataByEntityName[entityName] = schemaArr;
@@ -264,13 +264,17 @@ export const mapAndMergeSubmittedDataToRecordReferences = ({
 		return {};
 	}
 	return submittedData.reduce<Record<string, DataRecordReference[]>>((acc, entityData) => {
-		const foundRecordToUpdateIndex =
-			editSubmittedData && editSubmittedData[entityData.entityName]
-				? editSubmittedData[entityData.entityName].findIndex((item) => item.systemId === entityData.systemId)
-				: -1;
+		const entityEditData = editSubmittedData?.[entityData.entityName];
+		const foundRecordToUpdateIndex = entityEditData
+			? entityEditData.findIndex((item) => item.systemId === entityData.systemId)
+			: -1;
 		let record: DataRecordReference;
-		if (editSubmittedData && foundRecordToUpdateIndex >= 0) {
-			const recordToUpdate = editSubmittedData[entityData.entityName][foundRecordToUpdateIndex];
+		if (entityEditData && foundRecordToUpdateIndex >= 0) {
+			const recordToUpdate = entityEditData[foundRecordToUpdateIndex];
+
+			if (!recordToUpdate) {
+				return acc;
+			}
 
 			const newDataToUpdate = updateEntityData(entityData.data, recordToUpdate);
 
@@ -298,7 +302,7 @@ export const mapAndMergeSubmittedDataToRecordReferences = ({
 			acc[entityData.entityName] = [];
 		}
 
-		acc[entityData.entityName].push(record);
+		acc[entityData.entityName]?.push(record);
 		return acc;
 	}, {});
 };

@@ -91,13 +91,15 @@ This table records historical changes to submitted data, providing an audit trai
 
 Key fields in the audit_submitted_data table include:
 
-- `action`: This field records the type of action performed on the submitted data, represented as an enumerated type (e.g., UPDATE or DELETE)
+- `action`: This field records the type of action performed on the submitted data, represented as an enumerated type (e.g., UPDATE, DELETE or MIGRATION)
 
 - `dictionary_category_id`: This field links the audit entry to the corresponding dictionary category associated with the submitted data. It helps contextualize the action within the framework of the defined schema.
 
 - `data_diff`: This field stores a JSON object that captures the differences between the previous and current states of the submitted data. By providing a detailed view of what was changed, this field is essential for tracking modifications and understanding the impact of those changes.
 
 - `entity_name`: This field specifies the name of the entity related to the submitted data, providing additional context for the action logged in the audit entry.
+
+- `errors`: This field stores list of errors that occurred during dictionary migration.
 
 - `last_valid_schema_id`: This field references the schema version that was last validated before the action was taken, ensuring that users can trace back to the applicable schema for the submission.
 
