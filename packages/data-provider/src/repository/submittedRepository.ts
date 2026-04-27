@@ -352,7 +352,7 @@ const repository = (dependencies: BaseDependencies) => {
 			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
 
 			try {
-				const resultCount = await db
+				const [resultCount] = await db
 					.select({ total: count() })
 					.from(submittedData)
 					.where(
@@ -363,7 +363,12 @@ const repository = (dependencies: BaseDependencies) => {
 							filterEntityNameSql,
 						),
 					);
-				return resultCount[0]?.total ?? 0;
+
+				if (!resultCount) {
+					throw new Error('Unexpected empty result from COUNT query for submittedData; expected one row');
+				}
+
+				return resultCount.total;
 			} catch (error) {
 				logger.error(
 					LOG_MODULE,
