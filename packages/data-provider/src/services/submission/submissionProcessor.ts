@@ -361,7 +361,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 						const submisionUpdateData = dataToValidate.updates?.[record.systemId];
 						if (submisionUpdateData) {
-							logger.info(
+							logger.debug(
 								LOG_MODULE,
 								`Updating submittedData system ID '${record.systemId}' in entity '${entityName}'`,
 							);

@@ -6,15 +6,16 @@ export const performDictionaryMigration = async ({ migrationId, userName }: Dict
 	const dependencies = getWorkerDependencies();
 	const migrationService = createMigrationService(dependencies);
 
-	try {
-		await migrationService.performMigrationValidation({ migrationId, userName });
+	const resultMigration = await migrationService.performMigrationValidation({ migrationId, userName });
+
+	if (resultMigration.success) {
 		migrationService.finalizeMigration({
 			migrationId,
 			status: 'COMPLETED',
 			userName,
 		});
-	} catch (error) {
-		console.error('Error performing migration validation:', error);
+	} else {
+		console.error(`Migration validation failed for migrationId '${migrationId}' with error: ${resultMigration.data}`);
 		migrationService.finalizeMigration({
 			migrationId,
 			status: 'FAILED',
