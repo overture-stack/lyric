@@ -1,4 +1,5 @@
 import { BaseDependencies } from '../config/config.js';
+import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE } from '../config/pagination.js';
 import createMigrationService from '../services/migrationService.js';
 import { NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
@@ -12,8 +13,6 @@ const controller = (dependencies: BaseDependencies) => {
 	const migrationService = createMigrationService(dependencies);
 	const { logger } = dependencies;
 	const LOG_MODULE = 'MIGRATION_CONTROLLER';
-	const defaultPage = 1;
-	const defaultPageSize = 20;
 
 	return {
 		getMigrationById: validateRequest(migrationByIdRequestSchema, async (req, res, next) => {
@@ -35,8 +34,8 @@ const controller = (dependencies: BaseDependencies) => {
 		getMigrationsByCategoryId: validateRequest(migrationsByCategoryIdRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
-				const page = parseInt(String(req.query.page)) || defaultPage;
-				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
+				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
 
 				logger.info(LOG_MODULE, `Request Migrations by category Id '${categoryId}'`);
 
@@ -65,8 +64,8 @@ const controller = (dependencies: BaseDependencies) => {
 			try {
 				const migrationId = Number(req.params.migrationId);
 
-				const page = parseInt(String(req.query.page)) || defaultPage;
-				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
+				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
 				const entityNames = req.query.entityNames;
 				const organizations = req.query.organizations;
 				const isInvalid = req.query.isInvalid === 'true';

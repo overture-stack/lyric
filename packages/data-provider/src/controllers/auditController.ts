@@ -1,4 +1,5 @@
 import { BaseDependencies } from '../config/config.js';
+import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE } from '../config/pagination.js';
 import auditSvc from '../services/auditService.js';
 import { NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
@@ -9,8 +10,6 @@ const controller = (dependencies: BaseDependencies) => {
 	const auditService = auditSvc(dependencies);
 	const { logger } = dependencies;
 	const LOG_MODULE = 'AUDIT_CONTROLLER';
-	const defaultPage = 1;
-	const defaultPageSize = 20;
 	return {
 		byCategoryIdAndOrganization: validateRequest(auditByCatAndOrgRequestSchema, async (req, res, next) => {
 			try {
@@ -18,8 +17,8 @@ const controller = (dependencies: BaseDependencies) => {
 				const organization = req.params.organization;
 
 				// pagination parameters
-				const page = parseInt(String(req.query.page)) || defaultPage;
-				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
+				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
 
 				// optional query parameters
 				const { entityName, eventType, startDate, endDate, systemId } = req.query;
