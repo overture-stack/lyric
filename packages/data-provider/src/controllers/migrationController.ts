@@ -1,5 +1,6 @@
 import { BaseDependencies } from '../config/config.js';
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE } from '../config/pagination.js';
+import createCategoryService from '../services/categoryService.js';
 import createMigrationService from '../services/migrationService.js';
 import { NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
@@ -11,6 +12,7 @@ import {
 
 const controller = (dependencies: BaseDependencies) => {
 	const migrationService = createMigrationService(dependencies);
+	const categoryService = createCategoryService(dependencies);
 	const { logger } = dependencies;
 	const LOG_MODULE = 'MIGRATION_CONTROLLER';
 
@@ -21,12 +23,14 @@ const controller = (dependencies: BaseDependencies) => {
 
 				logger.info(LOG_MODULE, `Request Migration id '${migrationId}'`);
 
-				const submission = await migrationService.getMigrationById(migrationId);
+				const migrationResult = await migrationService.getMigrationById(migrationId);
 
-				if (!submission) {
-					throw new NotFound('Submission not found');
+				if (!migrationResult) {
+					const message = `Migration with id '${migrationId}' not found`;
+					logger.info(LOG_MODULE, message);
+					throw new NotFound(message);
 				}
-				return res.send(submission);
+				return res.send(migrationResult);
 			} catch (error) {
 				next(error);
 			}
@@ -39,20 +43,23 @@ const controller = (dependencies: BaseDependencies) => {
 
 				logger.info(LOG_MODULE, `Request Migrations by category Id '${categoryId}'`);
 
-				const submissions = await migrationService.getMigrationsByCategoryId(categoryId, { page, pageSize });
-
-				if (submissions.result.length === 0) {
-					throw new NotFound('Submissions not found');
+				const categoryExists = await categoryService.getDetails(categoryId);
+				if (!categoryExists) {
+					const message = `Category with id '${categoryId}' not found`;
+					logger.info(LOG_MODULE, message);
+					throw new NotFound(message);
 				}
+
+				const migrationsResult = await migrationService.getMigrationsByCategoryId(categoryId, { page, pageSize });
 
 				const response = {
 					pagination: {
 						currentPage: page,
 						pageSize: pageSize,
-						totalPages: Math.ceil(submissions.metadata.totalRecords / pageSize),
-						totalRecords: submissions.metadata.totalRecords,
+						totalPages: Math.ceil(migrationsResult.metadata.totalRecords / pageSize),
+						totalRecords: migrationsResult.metadata.totalRecords,
 					},
-					records: submissions.result,
+					records: migrationsResult.result,
 				};
 
 				return res.send(response);
@@ -72,6 +79,14 @@ const controller = (dependencies: BaseDependencies) => {
 
 				logger.info(LOG_MODULE, `Request Data Migration id '${migrationId}'`);
 
+				const migrationResult = await migrationService.getMigrationById(migrationId);
+
+				if (!migrationResult) {
+					const message = `Migration with id '${migrationId}' not found`;
+					logger.info(LOG_MODULE, message);
+					throw new NotFound(message);
+				}
+
 				const submissionRecords = await migrationService.getMigrationRecords(migrationId, {
 					page,
 					pageSize,
@@ -79,10 +94,6 @@ const controller = (dependencies: BaseDependencies) => {
 					organizations,
 					isInvalid,
 				});
-
-				if (submissionRecords.result.length === 0) {
-					throw new NotFound('Records not found for the specified migration');
-				}
 
 				const response = {
 					pagination: {
