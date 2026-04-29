@@ -1,4 +1,4 @@
-import { isEmpty } from 'lodash-es';
+import { isEmpty, result } from 'lodash-es';
 
 import { Dictionary as SchemasDictionary, Schema } from '@overture-stack/lectern-client';
 import { Category, Dictionary, NewCategory, NewDictionary } from '@overture-stack/lyric-data-model/models';
@@ -144,19 +144,25 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 				updatedBy: username,
 			});
 
-			const migrationId = await initiateMigration({
+			const resultMigration = await initiateMigration({
 				categoryId: updatedCategory.id,
 				fromDictionaryId: foundCategory.activeDictionaryId,
 				toDictionaryId: savedDictionary.id,
 				userName: username || '',
 			});
 
+			if (!resultMigration.success) {
+				const errorMessage = `Failed to initiate migration for category '${categoryName}' with error: ${resultMigration.data}`;
+				logger.error(LOG_MODULE, errorMessage);
+				throw new Error(errorMessage);
+			}
+
 			logger.info(
 				LOG_MODULE,
 				`Category '${updatedCategory.name}' updated successfully with Dictionary '${savedDictionary.name}' version '${savedDictionary.version}'`,
 			);
 
-			return { dictionary: savedDictionary, category: updatedCategory, migrationId };
+			return { dictionary: savedDictionary, category: updatedCategory, migrationId: resultMigration.data };
 		} else {
 			// Create a new Category
 			const newCategory: NewCategory = {
