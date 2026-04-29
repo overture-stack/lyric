@@ -497,14 +497,14 @@ components:
           enum: ['IN-PROGRESS', 'COMPLETED', 'FAILED']
         retries:
           type: number
-          description: Number of retries of the migration
+          description: Number of times the migration has run. When a migration fails, it can be retried by registering again the same dictionary.
         createdAt:
           type: string
           description: Date and time of creation
         createdBy:
           type: string
           description: User name who created the migration
-        udpatedAt:
+        updatedAt:
           type: string
           description: Date and time of latest update
         updatedBy:
