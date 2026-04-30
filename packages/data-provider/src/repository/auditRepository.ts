@@ -142,7 +142,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 */
 		getTotalRecordsByCategoryIdAndOrganization: async (
 			categoryId: number,
-			filterOptions: AuditFilterOptions,
+			filterOptions: Omit<AuditFilterOptions, 'page' | 'pageSize'>,
 		): Promise<number> => {
 			const { entityName, eventType, endDate, startDate, systemId, organization, submissionId, newIsValid } =
 				filterOptions;

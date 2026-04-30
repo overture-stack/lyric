@@ -3,6 +3,7 @@ import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE } from '../config/pagination.js';
 import createCategoryService from '../services/categoryService.js';
 import createMigrationService from '../services/migrationService.js';
 import { NotFound } from '../utils/errors.js';
+import { formatMigrationSummary } from '../utils/migrationResponseFormatter.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
 	migrationByIdRequestSchema,
@@ -30,7 +31,7 @@ const controller = (dependencies: BaseDependencies) => {
 					logger.info(LOG_MODULE, message);
 					throw new NotFound(message);
 				}
-				return res.send(migrationResult);
+				return res.send(formatMigrationSummary(migrationResult));
 			} catch (error) {
 				next(error);
 			}
@@ -59,7 +60,7 @@ const controller = (dependencies: BaseDependencies) => {
 						totalPages: Math.ceil(migrationsResult.metadata.totalRecords / pageSize),
 						totalRecords: migrationsResult.metadata.totalRecords,
 					},
-					records: migrationsResult.result,
+					records: migrationsResult.result.map(formatMigrationSummary),
 				};
 
 				return res.send(response);

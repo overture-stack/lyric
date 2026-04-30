@@ -10,7 +10,7 @@ import {
 
 import type { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
-import { formatMigrationAuditRecord } from '../utils/migrationUtils.js';
+import { formatMigrationAuditRecord } from '../utils/migrationResponseFormatter.js';
 import type { PaginatedResult } from '../utils/result.js';
 import type {
 	MigrationAuditRecord,
@@ -208,8 +208,6 @@ const repository = (dependencies: BaseDependencies) => {
 				});
 
 				const totalRecords = await auditRepository.getTotalRecordsByCategoryIdAndOrganization(migration.categoryId, {
-					page: options.page,
-					pageSize: options.pageSize,
 					newIsValid,
 					submissionId: migration.submissionId,
 				});

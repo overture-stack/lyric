@@ -7,7 +7,7 @@ import createMigrationRepository, {
 	type MigrationRecordWithRelations,
 } from '../repository/dictionaryMigrationRepository.js';
 import createSubmittedDataRepository from '../repository/submittedRepository.js';
-import { formatMigrationSummary } from '../utils/migrationUtils.js';
+import { type MigrationSummary } from '../utils/migrationResponseFormatter.js';
 import { failure, type PaginatedResult, type Result, success } from '../utils/result.js';
 import type { MigrationAuditRecord, MigrationStatus, PaginationOptions } from '../utils/types.js';
 import submissionProcessorFactory from './submission/submissionProcessor.js';
@@ -74,7 +74,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 			const activeMigration = migrations.result[0];
 			if (activeMigration) {
 				logger.info(LOG_MODULE, `Active migration found for categoryId '${categoryId}'`);
-				return formatMigrationSummary(activeMigration);
+				return activeMigration;
 			} else {
 				logger.info(LOG_MODULE, `No active migration for categoryId '${categoryId}'`);
 				return null;
@@ -91,20 +91,18 @@ const migrationService = (dependencies: BaseDependencies) => {
 	 * @returns The migration with the given ID, or null if no migration exists
 	 * @throws Will throw an error if there is an issue retrieving the migration from the repository
 	 */
-	const getMigrationById = async (migrationId: number): Promise<MigrationRecordWithRelations | null> => {
+	const getMigrationById = async (migrationId: number): Promise<MigrationSummary | null> => {
 		try {
 			const migration = await migrationRepository.getMigrationById(migrationId);
 			if (migration) {
 				logger.info(LOG_MODULE, `Migration found for migrationId '${migrationId}'`);
 
 				const invalidRecords = await auditRepository.getTotalRecordsByCategoryIdAndOrganization(migration.category.id, {
-					page: -1,
-					pageSize: -1,
 					newIsValid: false,
 					submissionId: migration.submissionId,
 				});
 
-				return formatMigrationSummary({ ...migration, invalidRecords });
+				return { ...migration, invalidRecords };
 			} else {
 				logger.info(LOG_MODULE, `No migration found for migrationId '${migrationId}'`);
 				return null;
@@ -125,15 +123,28 @@ const migrationService = (dependencies: BaseDependencies) => {
 	const getMigrationsByCategoryId = async (
 		categoryId: number,
 		paginationOptions: PaginationOptions,
-	): Promise<PaginatedResult<MigrationRecordWithRelations>> => {
+	): Promise<PaginatedResult<MigrationSummary>> => {
 		try {
-			const migrations = await migrationRepository.getMigrationsByCategoryId(categoryId, paginationOptions, {});
+			const migrationsOnCategory = await migrationRepository.getMigrationsByCategoryId(
+				categoryId,
+				paginationOptions,
+				{},
+			);
+
+			const resultsWithInvalidRecords = await Promise.all(
+				migrationsOnCategory.result.map(async (migrationSummary): Promise<MigrationSummary> => {
+					const invalidRecords = await auditRepository.getTotalRecordsByCategoryIdAndOrganization(categoryId, {
+						submissionId: migrationSummary.submissionId,
+					});
+					return { ...migrationSummary, invalidRecords };
+				}),
+			);
 
 			return {
 				metadata: {
-					totalRecords: migrations.metadata.totalRecords,
+					totalRecords: migrationsOnCategory.metadata.totalRecords,
 				},
-				result: migrations.result.map(formatMigrationSummary),
+				result: resultsWithInvalidRecords,
 			};
 		} catch (error) {
 			logger.error(LOG_MODULE, `Error retrieving migrations for categoryId '${categoryId}'`, error);
