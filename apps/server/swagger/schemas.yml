@@ -303,6 +303,11 @@ components:
           type: string
           description: Type of event
           enum: ['UPDATE', 'DELETE', 'MIGRATION']
+        errors:
+          type: array
+          description: List of validation errors related to the change if applicable
+          items:
+            $ref: '#/components/schemas/ValidationError'
         dataDiff:
           type: object
           description: Captures the state of the data before the change as `old` and after the change as `new`
@@ -446,7 +451,7 @@ components:
         records:
           type: array
           items:
-            $ref: '#/components/schemas/ChangeHistoryRecord'
+            $ref: '#/components/schemas/MigrationChangeHistoryRecord'
 
     ListMigrationsResult:
       type: object
@@ -457,6 +462,39 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MigrationResult'
+
+    MigrationChangeHistoryRecord:
+      type: object
+      properties:
+        entityName:
+          type: string
+          description: Name of the Entity
+        errors:
+          type: array
+          description: List of validation errors related to the change if applicable
+          items:
+            $ref: '#/components/schemas/ValidationError'
+        dataDiff:
+          type: object
+          description: Captures the state of the data before the change as `old` and after the change as `new`
+        newIsValid:
+          type: boolean
+          description: New  data isValid value
+        oldIsValid:
+          type: boolean
+          description: Old data isValid value
+        organization:
+          type: string
+          description: Name of the Organization
+        systemId:
+          type: string
+          description: The unique identifier of the record changed
+        createdAt:
+          type: string
+          description: Date and time of creation
+        createdBy:
+          type: string
+          description: User name who updated the submission
 
     MigrationResult:
       type: object

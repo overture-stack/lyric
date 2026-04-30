@@ -44,6 +44,7 @@ export const parseAuditRecords = (data: AuditRepositoryRecord[]): AuditDataRespo
 	return data.map((record) => ({
 		entityName: record.entityName,
 		event: record.action,
+		errors: record.errors,
 		dataDiff: record.dataDiff,
 		newIsValid: record.newDataIsValid,
 		oldIsValid: record.oldDataIsValid,

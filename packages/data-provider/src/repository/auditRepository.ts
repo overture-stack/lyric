@@ -6,13 +6,13 @@ import { BaseDependencies } from '../config/config.js';
 import { convertToAuditEvent } from '../utils/auditUtils.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import { isEmptyString, isValidDateFormat } from '../utils/formatUtils.js';
-import { AuditFilterOptions, AuditRepositoryRecord, BooleanTrueObject } from '../utils/types.js';
+import { AuditFilterOptions, AuditRepositoryRecord } from '../utils/types.js';
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'AUDIT_REPOSITORY';
 	const { db, logger } = dependencies;
 
-	const paginatedColumns: BooleanTrueObject = {
+	const paginatedColumns = {
 		entityName: true,
 		action: true,
 		dataDiff: true,
@@ -24,7 +24,7 @@ const repository = (dependencies: BaseDependencies) => {
 		systemId: true,
 		createdAt: true,
 		createdBy: true,
-	};
+	} as const satisfies Record<keyof AuditRepositoryRecord, boolean>;
 
 	const getOptionalFilter = ({
 		entityName,

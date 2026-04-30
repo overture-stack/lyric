@@ -75,7 +75,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
 				const entityNames = req.query.entityNames;
 				const organizations = req.query.organizations;
-				const isInvalid = req.query.isInvalid === 'true';
+				const isInvalid = req.query.isInvalid === undefined ? undefined : req.query.isInvalid === 'true';
 
 				logger.info(LOG_MODULE, `Request Data Migration id '${migrationId}'`);
 

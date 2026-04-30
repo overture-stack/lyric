@@ -1,6 +1,7 @@
-import { and, count, eq, type SQL } from 'drizzle-orm';
+import { and, count, eq } from 'drizzle-orm';
 
 import {
+	type Category,
 	type Dictionary,
 	type DictionaryMigration,
 	dictionaryMigration,
@@ -9,7 +10,14 @@ import {
 
 import type { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
-import type { AuditRepositoryRecord, BooleanTrueObject, MigrationStatus, PaginationOptions } from '../utils/types.js';
+import { formatMigrationAuditRecord } from '../utils/migrationUtils.js';
+import type {
+	MigrationAuditRecord,
+	MigrationStatus,
+	PaginationOptions,
+	PartialColumns,
+	WithColumns,
+} from '../utils/types.js';
 import createAuditRepository from './auditRepository.js';
 
 type MigrationRepositoryRecord = Omit<DictionaryMigration, 'categoryId' | 'fromDictionaryId' | 'toDictionaryId'>;
@@ -19,18 +27,9 @@ type MigrationRepositoryRecord = Omit<DictionaryMigration, 'categoryId' | 'fromD
  * includes related entities like category and dictionaries.
  */
 export type MigrationRecordWithRelations = MigrationRepositoryRecord & {
-	category: {
-		id: number;
-		name: string;
-	};
-	fromDictionary: {
-		name: string;
-		version: string;
-	} | null;
-	toDictionary: {
-		name: string;
-		version: string;
-	} | null;
+	category: Pick<Category, 'id' | 'name'>;
+	fromDictionary: Pick<Dictionary, 'name' | 'version'> | null;
+	toDictionary: Pick<Dictionary, 'name' | 'version'> | null;
 };
 
 const repository = (dependencies: BaseDependencies) => {
@@ -48,14 +47,14 @@ const repository = (dependencies: BaseDependencies) => {
 		createdBy: true,
 		updatedAt: true,
 		updatedBy: true,
-	} as const satisfies Record<keyof MigrationRepositoryRecord, boolean>;
+	} as const satisfies PartialColumns<MigrationRepositoryRecord>;
 
 	const dictionarySummaryColumns = {
 		columns: {
 			name: true,
 			version: true,
 		},
-	} as const satisfies { columns: Partial<Record<keyof Dictionary, boolean>> };
+	} as const satisfies WithColumns<Dictionary>;
 
 	const migrationWithRelationsColumns = {
 		category: {
@@ -66,7 +65,11 @@ const repository = (dependencies: BaseDependencies) => {
 		},
 		fromDictionary: dictionarySummaryColumns,
 		toDictionary: dictionarySummaryColumns,
-	} as const satisfies Record<string, { columns: BooleanTrueObject }>;
+	} as const satisfies {
+		category: WithColumns<Category>;
+		fromDictionary: WithColumns<Dictionary>;
+		toDictionary: WithColumns<Dictionary>;
+	};
 
 	return {
 		/**
@@ -139,7 +142,7 @@ const repository = (dependencies: BaseDependencies) => {
 
 			const { status, fromDictionaryId, toDictionaryId } = filterOptions;
 			try {
-				const whereConditions: SQL | undefined = and(
+				const whereConditions = and(
 					eq(dictionaryMigration.categoryId, categoryId),
 					status ? eq(dictionaryMigration.status, status) : undefined,
 					fromDictionaryId ? eq(dictionaryMigration.fromDictionaryId, fromDictionaryId) : undefined,
@@ -174,7 +177,7 @@ const repository = (dependencies: BaseDependencies) => {
 				throw new ServiceUnavailable();
 			}
 		},
-		getMigrationRecords: async (
+		getMigrationAuditRecords: async (
 			migrationId: number,
 			options: {
 				page: number;
@@ -184,7 +187,7 @@ const repository = (dependencies: BaseDependencies) => {
 				isInvalid?: boolean;
 			},
 		): Promise<{
-			result: AuditRepositoryRecord[];
+			result: MigrationAuditRecord[];
 			metadata: { totalRecords: number; errorMessage?: string };
 		}> => {
 			try {
@@ -220,7 +223,7 @@ const repository = (dependencies: BaseDependencies) => {
 					metadata: {
 						totalRecords,
 					},
-					result: records,
+					result: records.map(formatMigrationAuditRecord),
 				};
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed fetching migration records for migrationId '${migrationId}'`, error);

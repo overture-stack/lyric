@@ -7,10 +7,9 @@ import createMigrationRepository, {
 	type MigrationRecordWithRelations,
 } from '../repository/dictionaryMigrationRepository.js';
 import createSubmittedDataRepository from '../repository/submittedRepository.js';
-import { parseAuditRecords } from '../utils/auditUtils.js';
 import { formatMigrationSummary } from '../utils/migrationUtils.js';
 import { failure, type Result, success } from '../utils/result.js';
-import type { AuditDataResponse, MigrationStatus, PaginationOptions } from '../utils/types.js';
+import type { MigrationAuditRecord, MigrationStatus, PaginationOptions } from '../utils/types.js';
 import submissionProcessorFactory from './submission/submissionProcessor.js';
 import submissionService from './submission/submissionService.js';
 
@@ -137,15 +136,15 @@ const migrationService = (dependencies: BaseDependencies) => {
 			organizations?: string | string[];
 			isInvalid?: boolean;
 		},
-	): Promise<{ result: AuditDataResponse[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
+	): Promise<{ result: MigrationAuditRecord[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
 		try {
-			const migrationRecords = await migrationRepository.getMigrationRecords(migrationId, options);
+			const migrationRecords = await migrationRepository.getMigrationAuditRecords(migrationId, options);
 			logger.info(
 				LOG_MODULE,
 				`Migration records retrieved for migrationId '${migrationId}' with options '${JSON.stringify(options)}'`,
 			);
 			return {
-				result: parseAuditRecords(migrationRecords.result),
+				result: migrationRecords.result,
 				metadata: migrationRecords.metadata,
 			};
 		} catch (error) {

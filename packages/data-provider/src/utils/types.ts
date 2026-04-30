@@ -4,6 +4,7 @@ import {
 	type DataRecord,
 	type DataRecordValue,
 	Dictionary as SchemasDictionary,
+	type DictionaryValidationRecordErrorDetails,
 	type Schema,
 } from '@overture-stack/lectern-client';
 import {
@@ -50,6 +51,7 @@ export type AuditRepositoryRecord = {
 	entityName: string;
 	action: AuditAction;
 	dataDiff: DataDiff | null;
+	errors: DictionaryValidationRecordErrorDetails[] | null;
 	newDataIsValid: boolean;
 	oldDataIsValid: boolean;
 	organization: string;
@@ -66,6 +68,7 @@ export type AuditDataResponse = {
 	entityName: string;
 	event: AuditAction;
 	dataDiff: DataDiff | null;
+	errors: DictionaryValidationRecordErrorDetails[] | null;
 	newIsValid: boolean;
 	oldIsValid: boolean;
 	organization: string;
@@ -156,6 +159,8 @@ export type RegisterDictionaryResult = {
 	migrationId?: number;
 };
 
+export type MigrationAuditRecord = Omit<AuditRepositoryRecord, 'action' | 'submissionId'>;
+
 export type { Schema, SchemasDictionary };
 
 /**
@@ -221,6 +226,20 @@ export type GroupedDataSubmission = {
 
 export type BooleanTrueObject = {
 	[key: string]: true;
+};
+
+/**
+ * Specifies which columns of a table to select in a Drizzle query
+ * Used in the `columns` property of a Drizzle query
+ */
+export type PartialColumns<T> = Partial<Record<keyof T, boolean>>;
+
+/**
+ * Specifies additional columns to select in a Drizzle query for a related table.
+ * Used in the `with` property of a Drizzle query
+ */
+export type WithColumns<T> = {
+	columns: PartialColumns<T>;
 };
 
 /**

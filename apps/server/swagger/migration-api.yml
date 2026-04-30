@@ -52,7 +52,7 @@
     parameters:
       - $ref: '#/components/parameters/path/MigrationId'
       - isInvalid:
-        description: Optional query parameter to filter results to include only invalid records. Default value is false
+        description: Optional query parameter to filter results to include only invalid records. Default is to include all records.
         name: isInvalid
         in: query
         schema:

@@ -1,4 +1,5 @@
 import type { MigrationRecordWithRelations } from '../repository/dictionaryMigrationRepository.js';
+import type { AuditRepositoryRecord, MigrationAuditRecord } from './types.js';
 
 export type MigrationSummary = MigrationRecordWithRelations & {
 	invalidRecords?: number;
@@ -22,4 +23,16 @@ export const formatMigrationSummary = (migration: MigrationSummary): MigrationSu
 	createdBy: migration.createdBy,
 	updatedAt: migration.updatedAt,
 	updatedBy: migration.updatedBy,
+});
+
+export const formatMigrationAuditRecord = (record: AuditRepositoryRecord): MigrationAuditRecord => ({
+	entityName: record.entityName,
+	dataDiff: record.dataDiff,
+	errors: record.errors,
+	newDataIsValid: record.newDataIsValid,
+	oldDataIsValid: record.oldDataIsValid,
+	organization: record.organization,
+	systemId: record.systemId,
+	createdAt: record.createdAt,
+	createdBy: record.createdBy,
 });
