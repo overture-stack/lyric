@@ -8,7 +8,7 @@ import createMigrationRepository, {
 } from '../repository/dictionaryMigrationRepository.js';
 import createSubmittedDataRepository from '../repository/submittedRepository.js';
 import { formatMigrationSummary } from '../utils/migrationUtils.js';
-import { failure, type Result, success } from '../utils/result.js';
+import { failure, type PaginatedResult, type Result, success } from '../utils/result.js';
 import type { MigrationAuditRecord, MigrationStatus, PaginationOptions } from '../utils/types.js';
 import submissionProcessorFactory from './submission/submissionProcessor.js';
 import submissionService from './submission/submissionService.js';
@@ -60,8 +60,9 @@ const migrationService = (dependencies: BaseDependencies) => {
 
 	/**
 	 * Find the active migration by category ID
-	 * @param categoryId
-	 * @returns
+	 * @param categoryId The ID of the category to find the active migration for
+	 * @returns	The active migration for the given category ID, or null if no active migration exists
+	 * @throws Will throw an error if there is an issue retrieving the migration from the repository
 	 */
 	const getActiveMigrationByCategoryId = async (categoryId: number): Promise<MigrationRecordWithRelations | null> => {
 		try {
@@ -84,7 +85,13 @@ const migrationService = (dependencies: BaseDependencies) => {
 		}
 	};
 
-	const getMigrationById = async (migrationId: number): Promise<MigrationRecordWithRelations | undefined> => {
+	/**
+	 * Find a migration by its ID
+	 * @param migrationId The ID of the migration to find
+	 * @returns The migration with the given ID, or null if no migration exists
+	 * @throws Will throw an error if there is an issue retrieving the migration from the repository
+	 */
+	const getMigrationById = async (migrationId: number): Promise<MigrationRecordWithRelations | null> => {
 		try {
 			const migration = await migrationRepository.getMigrationById(migrationId);
 			if (migration) {
@@ -100,7 +107,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 				return formatMigrationSummary({ ...migration, invalidRecords });
 			} else {
 				logger.info(LOG_MODULE, `No migration found for migrationId '${migrationId}'`);
-				return undefined;
+				return null;
 			}
 		} catch (error) {
 			logger.error(LOG_MODULE, `Error retrieving migration with id '${migrationId}'`, error);
@@ -108,10 +115,17 @@ const migrationService = (dependencies: BaseDependencies) => {
 		}
 	};
 
+	/**
+	 * Find migrations by category ID with pagination options
+	 * @param categoryId The ID of the category to find migrations for
+	 * @param paginationOptions The pagination options to apply
+	 * @returns An object containing the metadata and the list of migrations
+	 * @throws Will throw an error if there is an issue retrieving the migrations from the repository
+	 */
 	const getMigrationsByCategoryId = async (
 		categoryId: number,
 		paginationOptions: PaginationOptions,
-	): Promise<{ metadata: { totalRecords: number; errorMessage?: string }; result: MigrationRecordWithRelations[] }> => {
+	): Promise<PaginatedResult<MigrationRecordWithRelations>> => {
 		try {
 			const migrations = await migrationRepository.getMigrationsByCategoryId(categoryId, paginationOptions, {});
 
@@ -136,7 +150,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 			organizations?: string | string[];
 			isInvalid?: boolean;
 		},
-	): Promise<{ result: MigrationAuditRecord[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
+	): Promise<PaginatedResult<MigrationAuditRecord>> => {
 		try {
 			const migrationRecords = await migrationRepository.getMigrationAuditRecords(migrationId, options);
 			logger.info(

@@ -36,7 +36,7 @@ const controller = (dependencies: BaseDependencies) => {
 					pageSize,
 				});
 
-				if (auditRecords.data.length === 0) {
+				if (auditRecords.result.length === 0) {
 					throw new NotFound('No Records found');
 				}
 
@@ -47,7 +47,7 @@ const controller = (dependencies: BaseDependencies) => {
 						totalPages: Math.ceil(auditRecords.metadata.totalRecords / pageSize),
 						totalRecords: auditRecords.metadata.totalRecords,
 					},
-					records: auditRecords.data,
+					records: auditRecords.result,
 				};
 				return res.status(200).send(responsePaginated);
 			} catch (error) {

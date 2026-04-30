@@ -1,7 +1,7 @@
 import { json, Router, urlencoded } from 'express';
 
 import { BaseDependencies } from '../config/config.js';
-import migrationController from '../controllers/migrationController.js';
+import createMigrationController from '../controllers/migrationController.js';
 import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
 
 const router = ({
@@ -17,11 +17,13 @@ const router = ({
 
 	router.use(authMiddleware(authConfig));
 
-	router.get('/:migrationId', migrationController(baseDependencies).getMigrationById);
+	const migrationController = createMigrationController(baseDependencies);
 
-	router.get('/category/:categoryId', migrationController(baseDependencies).getMigrationsByCategoryId);
+	router.get('/:migrationId', migrationController.getMigrationById);
 
-	router.get('/:migrationId/records', migrationController(baseDependencies).getMigrationRecords);
+	router.get('/category/:categoryId', migrationController.getMigrationsByCategoryId);
+
+	router.get('/:migrationId/records', migrationController.getMigrationRecords);
 
 	return router;
 };
