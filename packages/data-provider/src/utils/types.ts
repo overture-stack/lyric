@@ -148,9 +148,9 @@ export type DeleteSubmissionResult = {
 export type RegisterDictionaryResult = {
 	categoryId: number;
 	categoryName: string;
-	dictionary: object;
 	name: string;
 	version: string;
+	migrationId?: number;
 };
 
 export type { Schema, SchemasDictionary };
@@ -189,6 +189,12 @@ export interface ValidateFilesParams {
 	username: string;
 }
 
+export type ResultCommit = {
+	inserts: SubmittedDataResponse[];
+	updates: SubmittedDataResponse[];
+	deletes: SubmittedDataResponse[];
+};
+
 export interface CommitSubmissionParams {
 	dataToValidate: {
 		inserts: NewSubmittedData[];
@@ -199,6 +205,8 @@ export interface CommitSubmissionParams {
 	dictionary: SchemasDictionary & { id: number };
 	submissionId: number;
 	username: string;
+	isMigration?: boolean;
+	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }
 
 export type EntityData = Record<string, DataRecord[]>;

@@ -1,4 +1,4 @@
-import { groupBy, has } from 'lodash-es';
+import { groupBy } from 'lodash-es';
 
 import {
 	type DataRecord,
@@ -228,16 +228,6 @@ export const groupSchemaDataByEntityName = (data: {
 	}
 
 	return result;
-};
-
-/**
- * Receives any object and finds if it contains an specific key
- * @param {object} hasErrorByIndex An object to evaluate
- * @param {number} index An object key
- * @returns
- */
-export const hasErrorsByIndex = (hasErrorByIndex: object, index: number): boolean => {
-	return has(hasErrorByIndex, index);
 };
 
 /**

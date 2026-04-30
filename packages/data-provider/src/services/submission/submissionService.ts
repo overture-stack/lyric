@@ -31,6 +31,7 @@ import {
 	type SubmitFileResult,
 } from '../../utils/types.js';
 import type { CommitWorkerInput } from '../../workers/types.js';
+import migrationSvc from '../migrationService.js';
 import submissionProcessorFactory from './submissionProcessor.js';
 
 const submissionService = (dependencies: BaseDependencies) => {
@@ -53,6 +54,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		username: string,
 	): Promise<CommitSubmissionResult> => {
 		const { getActiveDictionaryByCategory } = categoryRepository;
+		const { getActiveMigrationByCategoryId } = migrationSvc(dependencies);
 
 		const submission = await submissionRepository.getSubmissionById(submissionId);
 		if (!submission) {
@@ -65,6 +67,11 @@ const submissionService = (dependencies: BaseDependencies) => {
 
 		if (submission.status !== SUBMISSION_STATUS.VALID) {
 			throw new StatusConflict('Submission does not have status VALID and cannot be committed');
+		}
+
+		const activeMigration = await getActiveMigrationByCategoryId(categoryId);
+		if (activeMigration) {
+			throw new StatusConflict('This submission cannot be committed while a migration is running');
 		}
 
 		const currentDictionary = await getActiveDictionaryByCategory(categoryId);

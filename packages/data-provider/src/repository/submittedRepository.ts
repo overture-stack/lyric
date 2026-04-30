@@ -3,6 +3,7 @@ import type { PgTransaction } from 'drizzle-orm/pg-core';
 import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
 import { and, count, eq, inArray, or, SQL, sql } from 'drizzle-orm/sql';
 
+import type { DictionaryValidationRecordErrorDetails } from '@overture-stack/lectern-client';
 import {
 	auditSubmittedData,
 	type DataDiff,
@@ -56,18 +57,23 @@ const repository = (dependencies: BaseDependencies) => {
 			oldIsValid,
 			recordUpdated,
 			submissionId,
+			isMigration,
+			errors,
 		}: {
 			dataDiff: DataDiff;
 			oldIsValid: boolean;
 			recordUpdated: SubmittedData;
 			submissionId: number;
+			isMigration: boolean;
+			errors?: DictionaryValidationRecordErrorDetails[];
 		},
 		tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
 	) => {
 		const newAudit: NewAuditSubmittedData = {
-			action: AUDIT_ACTION.Values.UPDATE,
+			action: isMigration ? AUDIT_ACTION.Values.MIGRATION : AUDIT_ACTION.Values.UPDATE,
 			dictionaryCategoryId: recordUpdated.dictionaryCategoryId,
 			entityName: recordUpdated.entityName,
+			errors,
 			lastValidSchemaId: recordUpdated.lastValidSchemaId,
 			newDataIsValid: recordUpdated.isValid,
 			dataDiff: dataDiff,
@@ -403,10 +409,12 @@ const repository = (dependencies: BaseDependencies) => {
 		/**
 		 * Update a SubmittedData record in database
 		 * @param submittedDataId Submitted Data ID
-		 * @param dataDiff Difference before and after the updata
-		 * @param newData Set fields to update
-		 * @param oldIsValid Previous isValid value
-		 * @param submissionId Submission ID
+		 * @param data Set fields to update
+		 * @param audit.dataDiff Difference before and after the update
+		 * @param audit.errors Audit errors, if any
+		 * @param audit.isMigration Whether the update is part of a migration
+		 * @param audit.oldIsValid Previous isValid value
+		 * @param audit.submissionId Submission ID
 		 * @param tx The transaction to use for the operation, optional
 		 * @returns An updated record
 		 */
@@ -414,17 +422,25 @@ const repository = (dependencies: BaseDependencies) => {
 			params:
 				| {
 						submittedDataId: number;
-						dataDiff: DataDiff;
-						newData: Partial<SubmittedData>;
-						oldIsValid: boolean;
-						submissionId: number;
+						data: Partial<SubmittedData>;
+						audit: {
+							dataDiff: DataDiff;
+							errors?: DictionaryValidationRecordErrorDetails[];
+							isMigration: boolean;
+							oldIsValid: boolean;
+							submissionId: number;
+						};
 				  }
 				| {
 						submittedDataId: number;
-						dataDiff: DataDiff;
-						newData: Partial<SubmittedData>;
-						oldIsValid: boolean;
-						submissionId: number;
+						data: Partial<SubmittedData>;
+						audit: {
+							dataDiff: DataDiff;
+							errors?: DictionaryValidationRecordErrorDetails[];
+							isMigration: boolean;
+							oldIsValid: boolean;
+							submissionId: number;
+						};
 				  }[],
 			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
 		): Promise<SubmittedData | SubmittedData[]> => {
@@ -435,7 +451,7 @@ const repository = (dependencies: BaseDependencies) => {
 				for (const u of updates) {
 					const [updatedRecord] = await (tx || db)
 						.update(submittedData)
-						.set({ ...u.newData, updatedAt: new Date() })
+						.set({ ...u.data, updatedAt: new Date() })
 						.where(eq(submittedData.id, u.submittedDataId))
 						.returning();
 					if (!updatedRecord) {
@@ -443,13 +459,15 @@ const repository = (dependencies: BaseDependencies) => {
 					}
 					updatedRecords.push(updatedRecord);
 
-					if (features?.audit?.enabled && Object.keys(u.dataDiff.new).length && Object.keys(u.dataDiff.old).length) {
+					if (features?.audit?.enabled) {
 						await auditUpdateSubmittedData(
 							{
+								dataDiff: u.audit.dataDiff,
+								errors: u.audit.errors,
+								isMigration: u.audit.isMigration,
+								oldIsValid: u.audit.oldIsValid,
 								recordUpdated: updatedRecord,
-								submissionId: u.submissionId,
-								dataDiff: u.dataDiff,
-								oldIsValid: u.oldIsValid,
+								submissionId: u.audit.submissionId,
 							},
 							tx,
 						);

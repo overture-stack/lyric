@@ -3,7 +3,13 @@ import * as workerpool from 'workerpool';
 import type { AppConfig, ResultOnCommit } from '../../index.js';
 import { processCommitSubmission } from './commitSubmissionWorker.js';
 import { processDataValidation } from './dataValidationWorker.js';
-import type { CommitWorkerInput, DataValidationWorkerInput, WorkerProxy } from './types.js';
+import { performDictionaryMigration } from './dictionaryMigrationWorker.js';
+import type {
+	CommitWorkerInput,
+	DataValidationWorkerInput,
+	DictionaryMigrationWorkerInput,
+	WorkerProxy,
+} from './types.js';
 import { initializeWorkerContext } from './workerContext.js';
 
 // Store initialization promise once it has been initiated.
@@ -34,6 +40,13 @@ const workerProxy: WorkerProxy = {
 		}
 		await initializeWorkerPromise;
 		return await processDataValidation(input);
+	},
+	dictionaryMigration: async (input: DictionaryMigrationWorkerInput): Promise<void> => {
+		if (!initializeWorkerPromise) {
+			throw new Error('Worker not initialized. Call initializeWorker first.');
+		}
+		await initializeWorkerPromise;
+		return await performDictionaryMigration(input);
 	},
 };
 
