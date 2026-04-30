@@ -40,3 +40,13 @@ export const failure = <T>(data: T): Failure<T> => {
 		data,
 	};
 };
+
+/**
+ * Represents a paginated result array of type T
+ * and metadata with the total number of records
+ * and an optional error message
+ */
+export type PaginatedResult<T> = {
+	metadata: { totalRecords: number; errorMessage?: string };
+	result: T[];
+};

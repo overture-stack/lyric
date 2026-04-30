@@ -1,6 +1,7 @@
 import * as _ from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
+import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE } from '../config/pagination.js';
 import { type AuthConfig, shouldBypassAuth } from '../middleware/auth.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
 import { getUserReadableOrganizations, hasUserReadAccess } from '../utils/authUtils.js';
@@ -27,8 +28,6 @@ const controller = ({
 	const service = submittedDataService(baseDependencies);
 	const { logger } = baseDependencies;
 	const LOG_MODULE = 'SUBMITTED_DATA_CONTROLLER';
-	const defaultPage = 1;
-	const defaultPageSize = 20;
 	const defaultView = VIEW_TYPE.Values.flat;
 
 	return {
@@ -38,8 +37,8 @@ const controller = ({
 
 				// query params
 				const entityName = asArray(req.query.entityName || []);
-				const page = parseInt(String(req.query.page)) || defaultPage;
-				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
+				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
 				const view = convertToViewType(req.query.view) || defaultView;
 				const user = req.user;
 
@@ -85,8 +84,8 @@ const controller = ({
 
 				// query parameters
 				const entityName = asArray(req.query.entityName || []);
-				const page = parseInt(String(req.query.page)) || defaultPage;
-				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
+				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
 				const view = convertToViewType(String(req.query.view)) || defaultView;
 				const user = req.user;
 
@@ -139,8 +138,8 @@ const controller = ({
 
 				// query parameters
 				const entityName = asArray(req.query.entityName || []);
-				const page = parseInt(String(req.query.page)) || defaultPage;
-				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
+				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
 				const user = req.user;
 
 				logger.info(

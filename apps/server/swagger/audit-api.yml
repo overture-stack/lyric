@@ -16,7 +16,7 @@
         required: false
         schema:
           type: string
-          enum: [update, delete]
+          enum: [update, delete, migration]
       - name: systemId
         description: Filter events by System ID
         in: query

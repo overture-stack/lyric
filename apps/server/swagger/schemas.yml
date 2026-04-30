@@ -62,20 +62,23 @@ components:
             $ref: '#/components/responses/Error'
 
   schemas:
+    Pagination:
+      type: object
+      properties:
+        currentPage:
+          type: number
+        pageSize:
+          type: number
+        totalPages:
+          type: number
+        totalRecords:
+          type: number
+
     ListSubmissionsResult:
       type: object
       properties:
         pagination:
-          type: object
-          properties:
-            currentPage:
-              type: number
-            pageSize:
-              type: number
-            totalPages:
-              type: number
-            totalRecords:
-              type: number
+          $ref: '#/components/schemas/Pagination'
         records:
           type: array
           items:
@@ -284,16 +287,7 @@ components:
       type: object
       properties:
         pagination:
-          type: object
-          properties:
-            currentPage:
-              type: number
-            pageSize:
-              type: number
-            totalPages:
-              type: number
-            totalRecords:
-              type: number
+          $ref: '#/components/schemas/Pagination'
         records:
           type: array
           items:
@@ -308,7 +302,12 @@ components:
         event:
           type: string
           description: Type of event
-          enum: ['UPDATE', 'DELETE']
+          enum: ['UPDATE', 'DELETE', 'MIGRATION']
+        errors:
+          type: array
+          description: List of validation errors related to the change if applicable
+          items:
+            $ref: '#/components/schemas/ValidationError'
         dataDiff:
           type: object
           description: Captures the state of the data before the change as `old` and after the change as `new`
@@ -413,16 +412,7 @@ components:
       type: object
       properties:
         pagination:
-          type: object
-          properties:
-            currentPage:
-              type: number
-            pageSize:
-              type: number
-            totalPages:
-              type: number
-            totalRecords:
-              type: number
+          $ref: '#/components/schemas/Pagination'
         records:
           type: array
           items:
@@ -452,6 +442,121 @@ components:
           name:
             type: string
             description: Name of the Category
+
+    ListMigrationRecordsResult:
+      type: object
+      properties:
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/MigrationChangeHistoryRecord'
+
+    ListMigrationsResult:
+      type: object
+      properties:
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/MigrationResult'
+
+    MigrationChangeHistoryRecord:
+      type: object
+      properties:
+        entityName:
+          type: string
+          description: Name of the Entity
+        errors:
+          type: array
+          description: List of validation errors related to the change if applicable
+          items:
+            $ref: '#/components/schemas/ValidationError'
+        dataDiff:
+          type: object
+          description: Captures the state of the data before the change as `old` and after the change as `new`
+        newIsValid:
+          type: boolean
+          description: New  data isValid value
+        oldIsValid:
+          type: boolean
+          description: Old data isValid value
+        organization:
+          type: string
+          description: Name of the Organization
+        systemId:
+          type: string
+          description: The unique identifier of the record changed
+        createdAt:
+          type: string
+          description: Date and time of creation
+        createdBy:
+          type: string
+          description: User name who updated the submission
+
+    MigrationResult:
+      type: object
+      properties:
+        id:
+          type: number
+          description: ID of the Migration
+        category:
+          type: object
+          description: Category this dictionary belongs in
+          properties:
+            id:
+              type: number
+            name:
+              type: string
+        fromDictionary:
+          type: object
+          description: Previous Dictionary used in this category
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+        toDictionary:
+          type: object
+          description: New Dictionary used in this category
+          properties:
+            name:
+              type: string
+            version:
+              type: string
+        submissionId:
+          type: number
+          description: ID of the Submission used for the migration
+        status:
+          type: string
+          description: Status of the Migration
+          enum: ['IN-PROGRESS', 'COMPLETED', 'FAILED']
+        retries:
+          type: number
+          description: Number of times the migration has run. When a migration fails, it can be retried by registering again the same dictionary.
+        createdAt:
+          type: string
+          description: Date and time of creation
+        createdBy:
+          type: string
+          description: User name who created the migration
+        updatedAt:
+          type: string
+          description: Date and time of latest update
+        updatedBy:
+          type: string
+          description: User name who last updated the migration
+
+    ExtendedMigrationResult:
+      allOf:
+        - $ref: '#/components/schemas/MigrationResult'
+        - type: object
+          properties:
+            invalidRecords:
+              type: number
+              description: Number of invalid records during the migration
 
     RegisterDictionaryResult:
       type: object
