@@ -11,6 +11,7 @@ import {
 import type { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import { formatMigrationAuditRecord } from '../utils/migrationUtils.js';
+import type { PaginatedResult } from '../utils/result.js';
 import type {
 	MigrationAuditRecord,
 	MigrationStatus,
@@ -134,10 +135,7 @@ const repository = (dependencies: BaseDependencies) => {
 			categoryId: number,
 			paginationOptions: PaginationOptions,
 			filterOptions: { status?: MigrationStatus; fromDictionaryId?: number; toDictionaryId?: number },
-		): Promise<{
-			result: MigrationRecordWithRelations[];
-			metadata: { totalRecords: number; errorMessage?: string };
-		}> => {
+		): Promise<PaginatedResult<MigrationRecordWithRelations>> => {
 			const { page, pageSize } = paginationOptions;
 
 			const { status, fromDictionaryId, toDictionaryId } = filterOptions;
@@ -186,10 +184,7 @@ const repository = (dependencies: BaseDependencies) => {
 				organizations?: string | string[];
 				isInvalid?: boolean;
 			},
-		): Promise<{
-			result: MigrationAuditRecord[];
-			metadata: { totalRecords: number; errorMessage?: string };
-		}> => {
+		): Promise<PaginatedResult<MigrationAuditRecord>> => {
 			try {
 				const migration = await db.query.dictionaryMigration.findFirst({
 					where: eq(dictionaryMigration.id, migrationId),
