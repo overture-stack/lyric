@@ -3,6 +3,7 @@ import auditRepository from '../repository/auditRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import { parseAuditRecords } from '../utils/auditUtils.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
+import type { PaginatedResult } from '../utils/result.js';
 import { AuditDataResponse, AuditFilterOptions } from '../utils/types.js';
 
 const auditService = (dependencies: BaseDependencies) => {
@@ -13,12 +14,8 @@ const auditService = (dependencies: BaseDependencies) => {
 	return {
 		byCategoryIdAndOrganization: async (
 			categoryId: number,
-			organization: string,
 			filterOptions: AuditFilterOptions,
-		): Promise<{
-			data: AuditDataResponse[];
-			metadata: { totalRecords: number; errorMessage?: string };
-		}> => {
+		): Promise<PaginatedResult<AuditDataResponse>> => {
 			logger.debug(LOG_MODULE, `Get category Details`);
 
 			const isValidCategory = await categoryRepo.categoryIdExists(categoryId);
@@ -29,7 +26,6 @@ const auditService = (dependencies: BaseDependencies) => {
 
 			const recordsPaginated = await auditRepo.getRecordsByCategoryIdAndOrganizationPaginated(
 				categoryId,
-				organization,
 				filterOptions,
 			);
 
@@ -37,16 +33,12 @@ const auditService = (dependencies: BaseDependencies) => {
 				throw new NotFound('No data found');
 			}
 
-			const totalRecords = await auditRepo.getTotalRecordsByCategoryIdAndOrganization(
-				categoryId,
-				organization,
-				filterOptions,
-			);
+			const totalRecords = await auditRepo.getTotalRecordsByCategoryIdAndOrganization(categoryId, filterOptions);
 
 			logger.info(LOG_MODULE, `Retrieved '${recordsPaginated.length}' Submitted data on categoryId '${categoryId}'`);
 
 			return {
-				data: parseAuditRecords(recordsPaginated),
+				result: parseAuditRecords(recordsPaginated),
 				metadata: {
 					totalRecords,
 				},

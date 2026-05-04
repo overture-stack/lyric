@@ -15,6 +15,13 @@ components:
         schema:
           type: string
         required: true
+      MigrationId:
+        name: migrationId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The ID of the Migration
       Organization:
         name: organization
         in: path

@@ -2,6 +2,7 @@ import type { Response } from 'express';
 import { isEmpty } from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
+import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE } from '../config/pagination.js';
 import { type AuthConfig, shouldBypassAuth } from '../middleware/auth.js';
 import { getSubmittedFileType } from '../services/submission/submissionFile.js';
 import createSubmissionService from '../services/submission/submissionService.js';
@@ -42,8 +43,6 @@ const controller = ({
 	const submissionService = createSubmissionService(baseDependencies);
 	const dataService = createSubmittedDataService(baseDependencies);
 	const { logger } = baseDependencies;
-	const defaultPage = 1;
-	const defaultPageSize = 20;
 	const LOG_MODULE = 'SUBMISSION_CONTROLLER';
 	return {
 		commit: validateRequest(submissionCommitRequestSchema, async (req, res, next) => {
@@ -228,8 +227,8 @@ const controller = ({
 					const categoryId = Number(req.params.categoryId);
 					const onlyActive = req.query.onlyActive?.toLowerCase() === 'true';
 					const organization = req.query.organization;
-					const page = parseInt(String(req.query.page)) || defaultPage;
-					const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+					const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
+					const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
 					const username = req.query.username;
 
 					logger.info(
@@ -287,8 +286,8 @@ const controller = ({
 				const actionTypes = parseSubmissionActionTypes(req.query.actionTypes || SUBMISSION_ACTION_TYPE.options);
 
 				// query params
-				const page = parseInt(String(req.query.page)) || defaultPage;
-				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
+				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
 
 				logger.info(LOG_MODULE, `Request Submission Details by ID '${submissionId}'`);
 
