@@ -1,4 +1,3 @@
-import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import * as workerpool from 'workerpool';
@@ -9,6 +8,24 @@ import type { CommitWorkerInput, DataValidationWorkerInput, WorkerFunctions, Wor
 
 const LOG_MODULE = 'WORKER_POOL_MANAGER';
 
+const getWorkerPoolConfig = () => {
+	const currentFilePath = fileURLToPath(import.meta.url);
+	const useTsWorker = currentFilePath.endsWith('.ts');
+	const workerFileName = useTsWorker ? 'workerpool.ts' : 'workerpool.js';
+	const workerPath = fileURLToPath(new URL(`./${workerFileName}`, import.meta.url));
+
+	const poolOptions = useTsWorker
+		? {
+				workerType: 'process' as const,
+				forkOpts: {
+					execArgv: ['--import=tsx'],
+				},
+			}
+		: undefined;
+
+	return { workerPath, poolOptions };
+};
+
 /**
  * Factory function to create a worker pool with the given configuration.
  * @param configData The application configuration
@@ -18,8 +35,8 @@ export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
 	const logger = getLogger(configData.logger);
 
 	// Initialize worker pool
-	const workerPath = join(dirname(fileURLToPath(import.meta.url)), 'workerpool.js');
-	const pool = workerpool.pool(workerPath);
+	const { workerPath, poolOptions } = getWorkerPoolConfig();
+	const pool = workerpool.pool(workerPath, poolOptions);
 
 	// Cannot send non serializable objects/functions to worker, so we need to create a config object without those properties
 	const workerConfig: AppConfig = {
