@@ -9,6 +9,12 @@ import { createLyricProvider, type LyricProvider } from '../../dependencies/lyri
 import { createTestApp } from '../../dependencies/testServer.js';
 import { getContainers } from '../../globalSetup.js';
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isSubmissionValidating = (
+	submission: Awaited<ReturnType<LyricProvider['repositories']['submission']['getActiveSubmissionSummary']>>,
+) => submission?.status === 'VALIDATING';
+
 /**
  * These tests check that uploaded files are processed correctly. This includes running the async submission validation
  * processor and also writing the submission records to the active submission table.
@@ -146,8 +152,28 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 		await app.post(`/category/${categoryId}/files?organization=testOrg`).attach('files', sportTsv, 'sport.tsv');
 		await pendingAsyncWork;
 
+		const firstSubmission = await lyricProvider.repositories.submission.getActiveSubmissionSummary({
+			categoryId,
+			username: '',
+			organization: 'testOrg',
+		});
+		if (!isSubmissionValidating(firstSubmission)) {
+			// wait a bit to ensure worker finished validating the submission
+			await sleep(1000);
+		}
+
 		await app.post(`/category/${categoryId}/files?organization=testOrg`).attach('files', teamTsv, 'team.tsv');
 		await pendingAsyncWork;
+
+		const secondSubmission = await lyricProvider.repositories.submission.getActiveSubmissionSummary({
+			categoryId,
+			username: '',
+			organization: 'testOrg',
+		});
+		if (!isSubmissionValidating(secondSubmission)) {
+			// wait a bit to ensure worker finished validating the submission
+			await sleep(1000);
+		}
 
 		const submission = await lyricProvider.repositories.submission.getActiveSubmissionDetails({
 			categoryId,
