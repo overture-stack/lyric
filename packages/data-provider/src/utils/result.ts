@@ -17,6 +17,11 @@ export type Failure<FailureData = DefaultFailureData> = {
  * Optionally, a data type can be provided for the failure case.
  */
 export type Result<SuccessData, FailureData = DefaultFailureData> = Success<SuccessData> | Failure<FailureData>;
+
+/**
+ * Async Reporesentation of Result type, where the result is wrapped in a Promise.
+ */
+export type AsyncResult<SuccessData, FailureData = DefaultFailureData> = Promise<Result<SuccessData, FailureData>>;
 /**
  * Create a successful response for a Result or Either type, with data of the success type
  * @param {T} data
