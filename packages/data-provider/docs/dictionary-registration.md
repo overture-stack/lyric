@@ -108,6 +108,10 @@ A Category is uniquely identified by its case-sensitive `categoryName`.
 
 Category groups data that is related and shares the same data structure, for that reason, a category must be associated to a registered dictionary. Over time, if the dictionary requires an update, the category needs to be updates accordingly, See [Dictionary Migration](#dictionary-migration) for more details.
 
+If a category is already using the same dictionary name and version, registration returns `409 Conflict`.
+
+Set the `force` query parameter to `true` to allow re-registration and trigger a migration (or retry) to revalidate existing category data against that dictionary.
+
 ## Centric entity
 
 Some dictionaries define a centric entity, representing the root of the data model hierarchy (used on compound views).
