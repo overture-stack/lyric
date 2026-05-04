@@ -7,7 +7,7 @@ import { BaseDependencies } from '../config/config.js';
 import lecternClient from '../external/lecternClient.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import dictionaryRepository from '../repository/dictionaryRepository.js';
-import { BadRequest } from '../utils/errors.js';
+import { BadRequest, StatusConflict } from '../utils/errors.js';
 import migrationService from './migrationService.js';
 
 const dictionaryService = (dependencies: BaseDependencies) => {
@@ -99,12 +99,14 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		dictionaryVersion,
 		defaultCentricEntity,
 		username,
+		forceRegistration = false,
 	}: {
 		categoryName: string;
 		dictionaryName: string;
 		dictionaryVersion: string;
 		defaultCentricEntity?: string;
 		username?: string;
+		forceRegistration?: boolean;
 	}): Promise<{ dictionary: Dictionary; category: Category; migrationId?: number }> => {
 		logger.debug(
 			LOG_MODULE,
@@ -135,7 +137,31 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			// Dictionary and Category already exists
 			logger.info(LOG_MODULE, `Dictionary and Category already exists`);
 
-			return { dictionary: savedDictionary, category: foundCategory };
+			if (forceRegistration) {
+				logger.info(
+					LOG_MODULE,
+					`Force flag is true, initiating migration for Category '${foundCategory.name}' 
+					with Dictionary '${savedDictionary.name}' version '${savedDictionary.version}'`,
+				);
+
+				const resultMigration = await initiateMigration({
+					categoryId: foundCategory.id,
+					toDictionaryId: savedDictionary.id,
+					userName: username || '',
+				});
+
+				if (!resultMigration.success) {
+					const errorMessage = `Failed to initiate migration for category '${categoryName}' with error: ${resultMigration.data}`;
+					logger.error(LOG_MODULE, errorMessage);
+					throw new Error(errorMessage);
+				}
+
+				return { dictionary: savedDictionary, category: foundCategory, migrationId: resultMigration.data };
+			}
+
+			throw new StatusConflict(
+				`Category '${categoryName}' with Dictionary '${savedDictionary.name}' version '${savedDictionary.version}' already exists`,
+			);
 		} else if (foundCategory && foundCategory.activeDictionaryId !== savedDictionary.id) {
 			// Update the dictionary on existing Category
 			const updatedCategory = await categoryRepo.update(foundCategory.id, {
