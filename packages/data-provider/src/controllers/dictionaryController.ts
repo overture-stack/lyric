@@ -22,6 +22,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const dictionaryName = req.body.dictionaryName;
 				const dictionaryVersion = req.body.dictionaryVersion;
 				const defaultCentricEntity = req.body.defaultCentricEntity;
+				const forceRegistration = req.query.force?.toLowerCase() === 'true';
 				const user = req.user;
 
 				logger.info(
@@ -35,6 +36,7 @@ const controller = (dependencies: BaseDependencies) => {
 					dictionaryVersion,
 					defaultCentricEntity,
 					username: user?.username,
+					forceRegistration,
 				});
 
 				logger.info(LOG_MODULE, `Register Dictionary completed!`);

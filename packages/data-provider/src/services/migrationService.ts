@@ -174,7 +174,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 		userName,
 	}: {
 		categoryId: number;
-		fromDictionaryId: number;
+		fromDictionaryId?: number;
 		toDictionaryId: number;
 		userName: string;
 	}): AsyncResult<number, string> => {
@@ -214,7 +214,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 
 				const newMigration: NewDictionaryMigration = {
 					categoryId,
-					fromDictionaryId,
+					fromDictionaryId: fromDictionaryId ?? toDictionaryId,
 					toDictionaryId,
 					submissionId,
 					status: 'IN_PROGRESS',

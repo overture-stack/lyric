@@ -2,9 +2,17 @@
 
 /dictionary/register:
   post:
-    summary: Register new dictionary
+    summary: Register a dictionary to a category. Creates the category if it does not exist, or updates its active dictionary and triggers a data migration to validate and update existing data against the new dictionary.
     tags:
       - Dictionary
+    parameters:
+      - name: force
+        description: Re-registers the current active dictionary on the category and retries the data migration.
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
     requestBody:
       content:
         application/json:
@@ -38,8 +46,8 @@
         $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
-      404:
-        $ref: '#/components/responses/NotFound'
+      409:
+        $ref: '#/components/responses/StatusConflict'
       500:
         $ref: '#/components/responses/ServerError'
       503:
