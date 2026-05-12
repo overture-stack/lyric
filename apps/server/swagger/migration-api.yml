@@ -36,7 +36,7 @@
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ExtendedMigrationResult'
+              $ref: '#/components/schemas/MigrationResult'
       404:
         $ref: '#/components/responses/NotFound'
       500:

@@ -529,6 +529,9 @@ components:
         submissionId:
           type: number
           description: ID of the Submission used for the migration
+        invalidRecords:
+          type: number
+          description: Number of invalid records during the migration
         status:
           type: string
           description: Status of the Migration
@@ -548,15 +551,6 @@ components:
         updatedBy:
           type: string
           description: User name who last updated the migration
-
-    ExtendedMigrationResult:
-      allOf:
-        - $ref: '#/components/schemas/MigrationResult'
-        - type: object
-          properties:
-            invalidRecords:
-              type: number
-              description: Number of invalid records during the migration
 
     RegisterDictionaryResult:
       type: object
