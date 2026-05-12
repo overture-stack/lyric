@@ -66,7 +66,7 @@ const controller = ({
 
 				const commitSubmission = await submissionService.commitSubmission(categoryId, submissionId, username);
 
-				return res.status(200).send(commitSubmission);
+				return res.status(200).json(commitSubmission);
 			} catch (error) {
 				next(error);
 			}
@@ -103,7 +103,7 @@ const controller = ({
 					throw new NotFound('Active Submission not found');
 				}
 
-				return res.status(200).send(deleteSubmissionResult);
+				return res.status(200).json(deleteSubmissionResult);
 			} catch (error) {
 				next(error);
 			}
@@ -146,7 +146,7 @@ const controller = ({
 					throw new NotFound('Active Submission not found');
 				}
 
-				return res.status(200).send(deleteSubmissionEntityResult);
+				return res.status(200).json(deleteSubmissionEntityResult);
 			} catch (error) {
 				next(error);
 			}
@@ -178,7 +178,7 @@ const controller = ({
 
 				const deletedRecordsResult = await dataService.deleteSubmittedDataBySystemId(categoryId, systemId, username);
 
-				return res.status(200).send(deletedRecordsResult);
+				return res.status(200).json(deletedRecordsResult);
 			} catch (error) {
 				next(error);
 			}
@@ -215,7 +215,7 @@ const controller = ({
 				});
 
 				// This response provides the details of data Submission
-				return res.status(200).send(editSubmittedDataResult);
+				return res.status(200).json(editSubmittedDataResult);
 			} catch (error) {
 				next(error);
 			}
@@ -255,7 +255,7 @@ const controller = ({
 						records: submissionsResult.result,
 					};
 
-					return res.status(200).send(response);
+					return res.status(200).json(response);
 				} catch (error) {
 					next(error);
 				}
@@ -273,7 +273,7 @@ const controller = ({
 					throw new NotFound('Submission not found');
 				}
 
-				return res.status(200).send(submission);
+				return res.status(200).json(submission);
 			} catch (error) {
 				next(error);
 			}
@@ -301,7 +301,7 @@ const controller = ({
 					throw new NotFound('Submission not found');
 				}
 
-				return res.status(200).send(submission);
+				return res.status(200).json(submission);
 			} catch (error) {
 				next(error);
 			}
@@ -329,7 +329,7 @@ const controller = ({
 					throw new NotFound('Active Submission not found');
 				}
 
-				return res.status(200).send(activeSubmission);
+				return res.status(200).json(activeSubmission);
 			} catch (error) {
 				next(error);
 			}
@@ -377,7 +377,7 @@ const controller = ({
 				}
 
 				// This response provides the details of data Submission
-				return res.status(200).send(resultSubmission);
+				return res.status(200).json(resultSubmission);
 			} catch (error) {
 				next(error);
 			}
@@ -450,7 +450,7 @@ const controller = ({
 
 				return res
 					.status(responseStatus)
-					.send({ ...submitFilesResult, batchErrors: [...fileErrors, ...submitFilesResult.batchErrors] });
+					.json({ ...submitFilesResult, batchErrors: [...fileErrors, ...submitFilesResult.batchErrors] });
 
 				// This response provides the details of file Submission
 			} catch (error) {

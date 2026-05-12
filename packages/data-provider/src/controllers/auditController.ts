@@ -49,7 +49,7 @@ const controller = (dependencies: BaseDependencies) => {
 					},
 					records: auditRecords.result,
 				};
-				return res.status(200).send(responsePaginated);
+				return res.status(200).json(responsePaginated);
 			} catch (error) {
 				next(error);
 			}

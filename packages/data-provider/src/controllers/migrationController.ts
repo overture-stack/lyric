@@ -31,7 +31,7 @@ const controller = (dependencies: BaseDependencies) => {
 					logger.info(LOG_MODULE, message);
 					throw new NotFound(message);
 				}
-				return res.send(formatMigrationSummary(migrationResult));
+				return res.status(200).json(formatMigrationSummary(migrationResult));
 			} catch (error) {
 				next(error);
 			}
@@ -63,7 +63,7 @@ const controller = (dependencies: BaseDependencies) => {
 					records: migrationsResult.result.map(formatMigrationSummary),
 				};
 
-				return res.send(response);
+				return res.status(200).json(response);
 			} catch (error) {
 				next(error);
 			}
@@ -106,7 +106,7 @@ const controller = (dependencies: BaseDependencies) => {
 					records: submissionRecords.result,
 				};
 
-				return res.send(response);
+				return res.status(200).json(response);
 			} catch (error) {
 				next(error);
 			}
