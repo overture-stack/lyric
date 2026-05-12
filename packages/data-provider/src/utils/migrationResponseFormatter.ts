@@ -7,8 +7,8 @@ export type MigrationSummary = MigrationRecordWithRelations & {
 
 /**
  * Order the properties of the Migration Summary Record
- * @param migration
- * @returns
+ * @param {MigrationSummary} migration - The migration summary to format.
+ * @returns {MigrationSummary} The formatted migration summary with ordered properties.
  */
 export const formatMigrationSummary = (migration: MigrationSummary): MigrationSummary => ({
 	id: migration.id,

@@ -71,7 +71,7 @@ const controller = ({
 					records: submittedDataResult.result,
 				};
 
-				return res.status(200).send(response);
+				return res.status(200).json(response);
 			} catch (error) {
 				next(error);
 			}
@@ -124,7 +124,7 @@ const controller = ({
 					records: submittedDataResult.result,
 				};
 
-				return res.status(200).send(responsePaginated);
+				return res.status(200).json(responsePaginated);
 			} catch (error) {
 				next(error);
 			}
@@ -179,7 +179,7 @@ const controller = ({
 					records: submittedDataResult.result,
 				};
 
-				return res.status(200).send(responsePaginated);
+				return res.status(200).json(responsePaginated);
 			} catch (error) {
 				next(error);
 			}
@@ -216,7 +216,7 @@ const controller = ({
 					);
 				}
 
-				return res.status(200).send(submittedDataResult.result);
+				return res.status(200).json(submittedDataResult.result);
 			} catch (error) {
 				next(error);
 			}
