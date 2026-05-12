@@ -10,6 +10,7 @@ import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelations.js';
 import { InternalServerError, StatusConflict } from '../../utils/errors.js';
+import type { PaginatedResult } from '../../utils/result.js';
 import { filterUpdatesFromDeletes, mergeDeleteRecords } from '../../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
@@ -273,10 +274,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		categoryId: number,
 		paginationOptions: PaginationOptions,
 		filterOptions: { entityName?: string[]; view: ViewType; organizations?: string[] },
-	): Promise<{
-		result: SubmittedDataResponse[];
-		metadata: { totalRecords: number; errorMessage?: string };
-	}> => {
+	): Promise<PaginatedResult<SubmittedDataResponse>> => {
 		const { getSubmittedDataByCategoryIdPaginated, getTotalRecordsByCategoryId } = submittedDataRepo;
 
 		const { getCategoryById } = categoryRepository(dependencies);
@@ -345,7 +343,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		organization: string,
 		paginationOptions: PaginationOptions,
 		filterOptions: { sqon?: SQON; entityName?: string[]; view: ViewType },
-	): Promise<{ result: SubmittedDataResponse[]; metadata: { totalRecords: number; errorMessage?: string } }> => {
+	): Promise<PaginatedResult<SubmittedDataResponse>> => {
 		const { getSubmittedDataByCategoryIdAndOrganizationPaginated, getTotalRecordsByCategoryIdAndOrganization } =
 			submittedDataRepo;
 		const { getCategoryById } = categoryRepository(dependencies);

@@ -8,6 +8,7 @@ import createSubmissionRepository from '../../repository/activeSubmissionReposit
 import createCategoryRepository from '../../repository/categoryRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
+import type { PaginatedResult } from '../../utils/result.js';
 import type { FilenameEntityPair } from '../../utils/schemas.js';
 import { filterAndPaginateSubmissionData, type FlattenedSubmissionData } from '../../utils/submissionResponseParser.js';
 import {
@@ -236,10 +237,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 			username?: string;
 			organization?: string;
 		},
-	): Promise<{
-		result: SubmissionSummary[];
-		metadata: { totalRecords: number; errorMessage?: string };
-	}> => {
+	): Promise<PaginatedResult<SubmissionSummary>> => {
 		const recordsPaginated = await submissionRepository.getSubmissionsByCategory(
 			categoryId,
 			paginationOptions,

@@ -52,7 +52,7 @@ const controller = ({
 					throw new NotFound('The specified value was not found.');
 				}
 
-				return res.status(200).send({
+				return res.status(200).json({
 					message: 'Record found',
 				});
 			} catch (error) {
