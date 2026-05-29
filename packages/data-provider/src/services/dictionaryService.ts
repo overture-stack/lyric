@@ -133,6 +133,31 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		// Check if Category exist
 		const foundCategory = await categoryRepo.getCategoryByName(categoryName);
 
+		const initiateMigrationOrThrow = async ({
+			categoryId,
+			fromDictionaryId,
+			toDictionaryId,
+		}: {
+			categoryId: number;
+			fromDictionaryId: number;
+			toDictionaryId: number;
+		}): Promise<number> => {
+			const resultMigration = await initiateMigration({
+				categoryId,
+				fromDictionaryId,
+				toDictionaryId,
+				userName: username || '',
+			});
+
+			if (!resultMigration.success) {
+				const errorMessage = `Failed to initiate migration for category '${categoryName}' with error: ${resultMigration.data}`;
+				logger.error(LOG_MODULE, errorMessage);
+				throw new Error(errorMessage);
+			}
+
+			return resultMigration.data;
+		};
+
 		if (foundCategory && foundCategory.activeDictionaryId === savedDictionary.id) {
 			// Dictionary and Category already exists
 			logger.info(LOG_MODULE, `Dictionary and Category already exists`);
@@ -144,19 +169,13 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 					with Dictionary '${savedDictionary.name}' version '${savedDictionary.version}'`,
 				);
 
-				const resultMigration = await initiateMigration({
+				const migrationId = await initiateMigrationOrThrow({
 					categoryId: foundCategory.id,
+					fromDictionaryId: foundCategory.activeDictionaryId,
 					toDictionaryId: savedDictionary.id,
-					userName: username || '',
 				});
 
-				if (!resultMigration.success) {
-					const errorMessage = `Failed to initiate migration for category '${categoryName}' with error: ${resultMigration.data}`;
-					logger.error(LOG_MODULE, errorMessage);
-					throw new Error(errorMessage);
-				}
-
-				return { dictionary: savedDictionary, category: foundCategory, migrationId: resultMigration.data };
+				return { dictionary: savedDictionary, category: foundCategory, migrationId };
 			}
 
 			throw new StatusConflict(
@@ -170,25 +189,18 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 				updatedBy: username,
 			});
 
-			const resultMigration = await initiateMigration({
+			const migrationId = await initiateMigrationOrThrow({
 				categoryId: updatedCategory.id,
 				fromDictionaryId: foundCategory.activeDictionaryId,
 				toDictionaryId: savedDictionary.id,
-				userName: username || '',
 			});
-
-			if (!resultMigration.success) {
-				const errorMessage = `Failed to initiate migration for category '${categoryName}' with error: ${resultMigration.data}`;
-				logger.error(LOG_MODULE, errorMessage);
-				throw new Error(errorMessage);
-			}
 
 			logger.info(
 				LOG_MODULE,
 				`Category '${updatedCategory.name}' updated successfully with Dictionary '${savedDictionary.name}' version '${savedDictionary.version}'`,
 			);
 
-			return { dictionary: savedDictionary, category: updatedCategory, migrationId: resultMigration.data };
+			return { dictionary: savedDictionary, category: updatedCategory, migrationId };
 		} else {
 			// Create a new Category
 			const newCategory: NewCategory = {
