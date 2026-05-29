@@ -7,7 +7,7 @@
       - Dictionary
     parameters:
       - name: force
-        description: Re-registers the current active dictionary on the category and retries the data migration.
+        description: Runs dictionary registration and migration again for this category, even if the same dictionary is already registered. Use this only when a previous migration ended unexpectedly and you must rerun both steps.
         in: query
         required: false
         schema:
