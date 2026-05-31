@@ -44,7 +44,7 @@ export const extractCategoryId = (req: Request): number | undefined => {
 		const parsed = Number(categoryId);
 		return isNaN(parsed) ? undefined : parsed;
 	}
-	return undefined;
+	return;
 };
 
 /**
@@ -59,7 +59,7 @@ export const extractOrganization = (req: Request): string | undefined => {
 	if (req.query.organization && typeof req.query.organization === 'string') {
 		return req.query.organization;
 	}
-	return undefined;
+	return;
 };
 
 /**
@@ -74,7 +74,7 @@ export const extractEntityName = (req: Request): string | undefined => {
 	if (req.query.entityName && typeof req.query.entityName === 'string') {
 		return req.query.entityName;
 	}
-	return undefined;
+	return;
 };
 
 /**
@@ -93,11 +93,11 @@ export const extractSubmissionId = (req: Request): number | undefined => {
 		const parsed = Number(submissionId);
 		return isNaN(parsed) ? undefined : parsed;
 	}
-	return undefined;
+	return;
 };
 
 /**
- * Extracts user ID from request (only the username, no PII)
+ * Extracts user ID from request
  */
 export const extractUserId = (req: RequestWithUser): string | undefined => {
 	return req.user?.username;
@@ -110,7 +110,7 @@ export const extractActionMetadata = (req: RequestWithUser): ActionLogMetadata =
 	return {
 		action: getActionType(req.method),
 		method: req.method,
-		path: req.route?.path || req.path,
+		path: req.originalUrl || req.path,
 		categoryId: extractCategoryId(req),
 		organization: extractOrganization(req),
 		userId: extractUserId(req),
@@ -127,10 +127,10 @@ export const formatActionLog = (
 	metadata: ActionLogMetadata,
 	statusResult: ActionResultValues,
 	statusCode: number,
-	duration?: number,
+	duration: number,
 	errorMessage?: string,
 ): string => {
-	const actionLogResult = [`ACTION_LOG - PATH=${metadata.action}`, `type=|${metadata.action}-${metadata.method}|`];
+	const actionLogResult = [`ACTION_LOG - PATH=${metadata.path}`, `type=|${metadata.action}-${metadata.method}|`];
 
 	// Parameter metadata if exists
 	if (metadata.categoryId !== undefined) {
@@ -156,10 +156,7 @@ export const formatActionLog = (
 	actionLogResult.push(`userId: ${metadata.userId || 'null'}`);
 	actionLogResult.push(`result: ${statusResult}`);
 	actionLogResult.push(`status: ${statusCode}`);
-
-	if (duration !== undefined) {
-		actionLogResult.push(`duration: ${duration}ms`);
-	}
+	actionLogResult.push(`duration: ${duration}ms`);
 
 	if (errorMessage) {
 		actionLogResult.push(`error: ${errorMessage}`);

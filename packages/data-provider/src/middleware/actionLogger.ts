@@ -22,11 +22,11 @@ export const actionLoggerMiddleware = (config: ActionLoggerConfig, logger: Logge
 		const metadata = extractActionMetadata(req);
 		const startTime = Date.now();
 
-		const logAction = (statusCode: number, errorMessage?: string) => {
+		const logAction = (statusCode: number) => {
 			const duration = Date.now() - startTime;
 			const statusResult = statusCode >= 200 && statusCode < 400 ? ActionResult.ALLOWED : ActionResult.DENIED;
 
-			const logMessage = formatActionLog(metadata, statusResult, statusCode, duration, errorMessage);
+			const logMessage = formatActionLog(metadata, statusResult, statusCode, duration);
 
 			// Use appropriate log level based on statusCode returned
 			if (statusResult === ActionResult.DENIED) {
