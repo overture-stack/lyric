@@ -2,8 +2,8 @@ import { json, Router, urlencoded } from 'express';
 
 import { BaseDependencies, type ValidatorConfig } from '../config/config.js';
 import validationController from '../controllers/validationController.js';
-import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
 import { actionLoggerMiddleware } from '../middleware/actionLogger.js';
+import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
 
 const router = ({
 	baseDependencies,

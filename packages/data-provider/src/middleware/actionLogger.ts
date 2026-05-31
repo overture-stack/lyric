@@ -1,8 +1,8 @@
 import type { NextFunction, Response } from 'express';
 
 import type { Logger } from '../config/logger.js';
-import type { RequestWithUser } from './auth.js';
 import { ActionResult, extractActionMetadata, formatActionLog } from '../utils/actionLoggerUtils.js';
+import type { RequestWithUser } from './auth.js';
 
 export type ActionLoggerConfig = {
 	enabled: boolean;
