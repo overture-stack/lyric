@@ -10,6 +10,9 @@ export {
 export { errorHandler } from './src/middleware/errorHandler.js';
 export { type DbConfig, migrate } from '@overture-stack/lyric-data-model';
 
+// middleware
+export { actionLoggerMiddleware } from './src/middleware/actionLogger.js';
+
 // routes
 export { default as dictionaryRouters } from './src/routers/dictionaryRouter.js';
 export { default as submissionRouter } from './src/routers/submissionRouter.js';

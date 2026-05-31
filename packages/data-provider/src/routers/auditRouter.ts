@@ -3,6 +3,7 @@ import { json, Router, urlencoded } from 'express';
 import { BaseDependencies } from '../config/config.js';
 import auditController from '../controllers/auditController.js';
 import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
+import { actionLoggerMiddleware } from '../middleware/actionLogger.js';
 
 const router = ({
 	baseDependencies,
@@ -16,6 +17,7 @@ const router = ({
 	router.use(json());
 
 	router.use(authMiddleware(authConfig));
+	router.use(actionLoggerMiddleware({ enabled: authConfig.enabled }, baseDependencies.logger));
 
 	router.get(
 		'/category/:categoryId/organization/:organization',
