@@ -51,11 +51,11 @@ export const extractCategoryId = (req: Request): number | undefined => {
  * Extracts organization from request parameters or query
  */
 export const extractOrganization = (req: Request): string | undefined => {
-	// Check params first (e.g., /organization/:organization)
+	// Check params first
 	if (req.params.organization) {
 		return req.params.organization;
 	}
-	// Check query string (e.g., ?organization=test-org)
+	// Check query string
 	if (req.query.organization && typeof req.query.organization === 'string') {
 		return req.query.organization;
 	}
