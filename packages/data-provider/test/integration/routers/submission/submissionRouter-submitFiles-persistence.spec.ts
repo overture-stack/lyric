@@ -94,7 +94,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 
 	after(async () => {
 		submissionProcessorFactory.create = originalCreate;
-		await lyricProvider.disconnect();
+		await lyricProvider.shutdown();
 	});
 
 	it('should save submitted file records to the active submission', async () => {

@@ -6,7 +6,7 @@
  * entire integration test suite — not once per file or once per test.
  *
  * All integration test files share the same container instances through `getContainers()`. Each file
- * is still responsible for creating and disconnecting its own `LyricProvider`, and for calling
+ * is still responsible for creating and shutting down its own `LyricProvider`, and for calling
  * `getContainers().resetDatabases()` in `afterEach` to keep tests isolated from one another.
  *
  * By starting the containers here we only need to wait for containers to start once, instead of at

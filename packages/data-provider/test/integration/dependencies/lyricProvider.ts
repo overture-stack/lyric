@@ -51,11 +51,5 @@ export async function createLyricProvider(config: LyricProviderConfig) {
 		validator: config.validator ?? [],
 	};
 
-	const lyricProvider = provider(appConfig);
-
-	const disconnect = async (): Promise<void> => {
-		await lyricProvider.shutdown();
-	};
-
-	return { ...lyricProvider, disconnect };
+	return provider(appConfig);
 }
