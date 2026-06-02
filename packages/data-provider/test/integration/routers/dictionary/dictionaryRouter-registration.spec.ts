@@ -49,10 +49,6 @@ describe('Integration - Dictionary Router - POST /register', () => {
 		app = createTestApp(lyricProvider.routers.dictionary);
 	});
 
-	beforeEach(async () => {
-		// processInsertRecordsAsyncStub.resetHistory();
-	});
-
 	afterEach(async () => {
 		await getContainers().resetDatabases();
 	});
