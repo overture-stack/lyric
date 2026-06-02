@@ -8,6 +8,11 @@ import type { CommitWorkerInput, DataValidationWorkerInput, WorkerFunctions, Wor
 
 const LOG_MODULE = 'WORKER_POOL_MANAGER';
 
+/**
+ * Resolves the appropriate worker file to use.
+ * For compiled/transpiled environments use .js, integration tests use .ts files directly, so the tsx loader
+ * is required for process workers to execute TypeScript files.
+ */
 const getWorkerPoolConfig = () => {
 	const currentFilePath = fileURLToPath(import.meta.url);
 	const useTsWorker = currentFilePath.endsWith('.ts');
