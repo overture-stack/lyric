@@ -88,8 +88,8 @@ const repository = (dependencies: BaseDependencies) => {
 		/**
 		 * Returns all the records found on the the Audit table matching the Category ID,
 		 * and additional filters
-		 * @param {number} categoryId Category ID to filter the Audit records
-		 * @param {object} filterOptions Additional filters and pagination options
+		 * @param categoryId Category ID to filter the Audit records
+		 * @param filterOptions Additional filters and pagination options
 		 * @returns
 		 */
 		getRecordsByCategoryIdAndOrganizationPaginated: async (
