@@ -114,7 +114,7 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		);
 
 		const categoryRepo = categoryRepository(dependencies);
-		const { initiateMigration } = migrationService(dependencies);
+		const { initiateMigration, getMigrationsByCategoryId } = migrationService(dependencies);
 
 		const dictionary = await fetchDictionaryByVersion(dictionaryName, dictionaryVersion);
 
@@ -162,7 +162,15 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			// Dictionary and Category already exists
 			logger.info(LOG_MODULE, `Dictionary and Category already exists`);
 
-			if (forceRegistration) {
+			// check last migration of this category to find if it failed, if it failed and forceRegistration is true,
+			// we will re-initiate the migration with the new dictionary
+			const activeMigration = await getMigrationsByCategoryId(foundCategory.id, { pageSize: 1, page: 1 });
+
+			if (
+				forceRegistration &&
+				activeMigration.result.length === 1 &&
+				activeMigration.result.at(0)?.status === 'FAILED'
+			) {
 				logger.info(
 					LOG_MODULE,
 					`Force flag is true, initiating migration for Category '${foundCategory.name}' 
