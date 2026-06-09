@@ -37,7 +37,7 @@ insert_buckets AS (
 		'INSERT'::text AS action_type,
 		'inserts'::text AS error_bucket,
 		ins.key AS entity_name,
-		COALESCE(NULLIF(ins.value ->> 'batchName', ''), ins.key) AS file_name,
+		format('inserts_%s', COALESCE(NULLIF(ins.value ->> 'batchName', ''), ins.key)) AS file_name,
 		CASE
 			WHEN jsonb_typeof(ins.value) = 'array' THEN ins.value
 			ELSE COALESCE(ins.value -> 'records', '[]'::jsonb)
@@ -116,7 +116,7 @@ inserted_submission_files AS (
 		submission_id,
 		file_name,
 		entity_name,
-		jsonb_array_length(records) AS file_size
+		0 AS file_size
 	FROM source_submission_files
 	RETURNING id, submission_id, file_name, entity_name
 ),
