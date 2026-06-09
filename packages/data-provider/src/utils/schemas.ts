@@ -234,9 +234,13 @@ export interface DictionaryRegisterBodyParams {
 	defaultCentricEntity?: string;
 }
 
+export interface DictionaryRegisterQueryParams extends ParsedQs {
+	force?: string;
+}
+
 export const dictionaryRegisterRequestSchema: RequestValidation<
 	DictionaryRegisterBodyParams,
-	ParsedQs,
+	DictionaryRegisterQueryParams,
 	ParamsDictionary
 > = {
 	body: z.object({
@@ -244,6 +248,9 @@ export const dictionaryRegisterRequestSchema: RequestValidation<
 		dictionaryName: stringNotEmpty,
 		dictionaryVersion: stringNotEmpty,
 		defaultCentricEntity: entityNameSchema.or(z.literal('')).optional(),
+	}),
+	query: z.object({
+		force: booleanSchema.default('false'),
 	}),
 };
 
