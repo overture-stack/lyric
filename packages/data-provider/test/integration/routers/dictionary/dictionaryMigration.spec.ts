@@ -79,7 +79,6 @@ describe('Integration - Dictionary Migration', () => {
 	});
 
 	beforeEach(async () => {
-		// processInsertRecordsAsyncStub.resetHistory();
 		await seedDictionaryInSchemaService();
 		await seedDictionaryInSchemaService(VALID_DICTIONARY_NAME, NEW_DICTIONARY_VERSION, updatedSportSchema);
 	});
@@ -89,7 +88,6 @@ describe('Integration - Dictionary Migration', () => {
 	});
 
 	after(async () => {
-		// submissionProcessorFactory.create = originalCreate;
 		await lyricProvider.shutdown();
 	});
 

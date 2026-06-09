@@ -54,7 +54,6 @@ describe('Integration - Dictionary Router - POST /register', () => {
 	});
 
 	after(async () => {
-		// submissionProcessorFactory.create = originalCreate;
 		await lyricProvider.shutdown();
 	});
 
