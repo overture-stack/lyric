@@ -7,7 +7,7 @@
       - Dictionary
     parameters:
       - name: force
-        description: Runs dictionary registration and migration again for this category, even if the same dictionary is already registered. Use this only when a previous migration ended unexpectedly and you must rerun both steps.
+        description: Retries migration for this category only when the same dictionary is already registered and the most recent migration previously failed. If there is no previous failed migration, this flag is ignored.
         in: query
         required: false
         schema:
