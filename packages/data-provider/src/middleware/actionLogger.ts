@@ -10,7 +10,6 @@ export type ActionLoggerConfig = {
 
 /**
  * Action Logger Middleware
- * This middleware should be placed after authMiddleware in the router chain.
  */
 export const actionLoggerMiddleware = (config: ActionLoggerConfig, logger: Logger) => {
 	return (req: RequestWithUser, res: Response, next: NextFunction) => {
@@ -18,29 +17,25 @@ export const actionLoggerMiddleware = (config: ActionLoggerConfig, logger: Logge
 		if (!config.enabled) {
 			return next();
 		}
-		// Extract request metadata
-		const metadata = extractActionMetadata(req);
+
 		const startTime = Date.now();
-
-		const logAction = (statusCode: number) => {
-			const duration = Date.now() - startTime;
-			const statusResult = statusCode >= 200 && statusCode < 400 ? ActionResult.ALLOWED : ActionResult.DENIED;
-
-			const logMessage = formatActionLog(metadata, statusResult, statusCode, duration);
-
-			// Use appropriate log level based on statusCode returned
-			if (statusResult === ActionResult.DENIED) {
-				logger.warn(logMessage);
-				return;
-			}
-			logger.info(logMessage);
-		};
 
 		/**
 		 * Log the action after response is sent
 		 */
 		res.on('finish', () => {
-			logAction(res.statusCode);
+			// Extract metadata now that route has been matched and params are populated
+			const metadata = extractActionMetadata(req);
+			const duration = Date.now() - startTime;
+			const statusResult = res.statusCode >= 200 && res.statusCode < 400 ? ActionResult.ALLOWED : ActionResult.DENIED;
+
+			const logMessage = formatActionLog(metadata, statusResult, res.statusCode, duration);
+
+			if (statusResult === 'DENIED') {
+				logger.warn(logMessage);
+			} else {
+				logger.info(logMessage);
+			}
 		});
 
 		next();
