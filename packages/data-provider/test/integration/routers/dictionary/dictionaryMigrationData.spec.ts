@@ -2,45 +2,19 @@ import { expect } from 'chai';
 import { after, afterEach, before, beforeEach, describe, it } from 'mocha';
 import supertest from 'supertest';
 
-import { dictionarySportsData } from '../../../fixtures/dictionarySchemasTestData.js';
-import { createLyricProvider } from '../../dependencies/lyricProvider.js';
+import { dictionarySportsData, updatedSportSchema } from '../../../fixtures/dictionarySchemasTestData.js';
+import { assertExists } from '../../assertions.js';
+import { createLyricProvider, type LyricProvider } from '../../dependencies/lyricProvider.js';
 import { createTestApp } from '../../dependencies/testServer.js';
 import { getContainers } from '../../globalSetup.js';
-
-type LyricProvider = Awaited<ReturnType<typeof createLyricProvider>>;
-
-type RegisterPayload = {
-	categoryName: string;
-	dictionaryName: string;
-	dictionaryVersion: string;
-};
-
-// Schema "modified" to trigger a migration: sport.description becomes required.
-const updatedSportSchema = dictionarySportsData.map((schema) => {
-	if (schema.name === 'sport') {
-		return {
-			...schema,
-			fields: schema.fields.map((field) => {
-				if (field.name === 'description') {
-					return {
-						...field,
-						restrictions: {
-							required: true,
-						},
-					};
-				}
-				return field;
-			}),
-		};
-	}
-	return schema;
-});
-
-const VALID_CATEGORY_NAME = 'test-category';
-const VALID_DICTIONARY_NAME = 'valid-dictionary';
-const VALID_DICTIONARY_VERSION = '1.0';
-const NEW_DICTIONARY_VERSION = '2.0';
-const ORGANIZATION = 'test-org';
+import {
+	NEW_DICTIONARY_VERSION,
+	ORGANIZATION,
+	type RegisterPayload,
+	VALID_CATEGORY_NAME,
+	VALID_DICTIONARY_NAME,
+	VALID_DICTIONARY_VERSION,
+} from './fixtures.js';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -114,13 +88,13 @@ describe('Integration - Dictionary Migration Data Validation', () => {
 
 		expect(initialRegistration.status).to.eql(200);
 		const category = await lyricProvider.repositories.category.getCategoryByName(VALID_CATEGORY_NAME);
-		expect(category).to.exist;
+		assertExists(category);
 
 		const sourceDictionary = await lyricProvider.repositories.dictionary.getDictionary(
 			VALID_DICTIONARY_NAME,
 			VALID_DICTIONARY_VERSION,
 		);
-		expect(sourceDictionary).to.exist;
+		assertExists(sourceDictionary);
 
 		// save an invalid record (missing the required 'description' field in the new schema)
 		await lyricProvider.repositories.submittedData.save({
@@ -128,12 +102,12 @@ describe('Integration - Dictionary Migration Data Validation', () => {
 				sport_id: '1',
 				name: 'Soccer',
 			},
-			dictionaryCategoryId: category!.id,
+			dictionaryCategoryId: category.id,
 			entityName: 'sport',
 			isValid: true,
-			lastValidSchemaId: sourceDictionary!.id,
+			lastValidSchemaId: sourceDictionary.id,
 			organization: ORGANIZATION,
-			originalSchemaId: sourceDictionary!.id,
+			originalSchemaId: sourceDictionary.id,
 			systemId: 'SPORT-1',
 			createdBy: 'test',
 			updatedBy: 'test',
@@ -155,7 +129,7 @@ describe('Integration - Dictionary Migration Data Validation', () => {
 		expect(migrationDetails.body.status).to.eql('COMPLETED');
 
 		const submittedRecords = await lyricProvider.repositories.submittedData.getSubmittedDataByCategoryIdAndOrganization(
-			category!.id,
+			category.id,
 			ORGANIZATION,
 		);
 		expect(submittedRecords).to.have.length(1);
@@ -171,13 +145,13 @@ describe('Integration - Dictionary Migration Data Validation', () => {
 
 		expect(initialRegistration.status).to.eql(200);
 		const category = await lyricProvider.repositories.category.getCategoryByName(VALID_CATEGORY_NAME);
-		expect(category).to.exist;
+		assertExists(category);
 
 		const sourceDictionary = await lyricProvider.repositories.dictionary.getDictionary(
 			VALID_DICTIONARY_NAME,
 			VALID_DICTIONARY_VERSION,
 		);
-		expect(sourceDictionary).to.exist;
+		assertExists(sourceDictionary);
 
 		// save a valid record that satisfies the new schema requirements
 		await lyricProvider.repositories.submittedData.save({
@@ -186,12 +160,12 @@ describe('Integration - Dictionary Migration Data Validation', () => {
 				name: 'Basketball',
 				description: 'Team sport played by two teams',
 			},
-			dictionaryCategoryId: category!.id,
+			dictionaryCategoryId: category.id,
 			entityName: 'sport',
 			isValid: true,
-			lastValidSchemaId: sourceDictionary!.id,
+			lastValidSchemaId: sourceDictionary.id,
 			organization: ORGANIZATION,
-			originalSchemaId: sourceDictionary!.id,
+			originalSchemaId: sourceDictionary.id,
 			systemId: 'SPORT-2',
 			createdBy: 'test',
 			updatedBy: 'test',
@@ -213,7 +187,7 @@ describe('Integration - Dictionary Migration Data Validation', () => {
 		expect(migrationDetails.body.status).to.eql('COMPLETED');
 
 		const submittedRecords = await lyricProvider.repositories.submittedData.getSubmittedDataByCategoryIdAndOrganization(
-			category!.id,
+			category.id,
 			ORGANIZATION,
 		);
 		expect(submittedRecords).to.have.length(1);

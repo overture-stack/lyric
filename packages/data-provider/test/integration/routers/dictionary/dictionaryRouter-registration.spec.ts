@@ -1,24 +1,17 @@
 import { expect } from 'chai';
-import { after, afterEach, before, beforeEach, describe, it } from 'mocha';
+import { after, afterEach, before, describe, it } from 'mocha';
 import supertest from 'supertest';
 
 import { dictionarySportsData } from '../../../fixtures/dictionarySchemasTestData.js';
-import { createLyricProvider } from '../../dependencies/lyricProvider.js';
+import { createLyricProvider, type LyricProvider } from '../../dependencies/lyricProvider.js';
 import { createTestApp } from '../../dependencies/testServer.js';
 import { getContainers } from '../../globalSetup.js';
-
-type LyricProvider = Awaited<ReturnType<typeof createLyricProvider>>;
-
-type RegisterPayload = {
-	categoryName?: string;
-	dictionaryName?: string;
-	dictionaryVersion?: string;
-	defaultCentricEntity?: string;
-};
-
-const VALID_CATEGORY_NAME = 'test-category';
-const VALID_DICTIONARY_NAME = 'valid-dictionary';
-const VALID_DICTIONARY_VERSION = '1.0';
+import {
+	type RegisterPayload,
+	VALID_CATEGORY_NAME,
+	VALID_DICTIONARY_NAME,
+	VALID_DICTIONARY_VERSION,
+} from './fixtures.js';
 
 describe('Integration - Dictionary Router - POST /register', () => {
 	let app: supertest.Agent;
