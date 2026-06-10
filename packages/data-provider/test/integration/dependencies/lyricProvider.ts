@@ -9,7 +9,6 @@ import type {
 	SubmissionServiceConfig,
 	ValidatorConfig,
 } from '../../../src/config/config.js';
-import { getConnectionPool } from '../../../src/config/db.js';
 import provider from '../../../src/core/provider.js';
 
 export type LyricProviderConfig = {
@@ -52,11 +51,5 @@ export async function createLyricProvider(config: LyricProviderConfig) {
 		validator: config.validator ?? [],
 	};
 
-	const lyricProvider = provider(appConfig);
-
-	const disconnect = async (): Promise<void> => {
-		await getConnectionPool(lyricProvider.configs.db)?.end();
-	};
-
-	return { ...lyricProvider, disconnect };
+	return provider(appConfig);
 }

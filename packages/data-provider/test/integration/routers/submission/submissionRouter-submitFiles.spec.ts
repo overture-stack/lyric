@@ -59,7 +59,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 
 	after(async () => {
 		submissionProcessorFactory.create = originalCreate;
-		await lyricProvider.disconnect();
+		await lyricProvider.shutdown();
 	});
 
 	it('should return 200 with PROCESSING status when a valid TSV file is uploaded', async () => {
