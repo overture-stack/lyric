@@ -46,6 +46,7 @@ const provider = (configData: AppConfig) => {
 		features: configData.features,
 		idService: configData.idService,
 		logger: getLogger(configData.logger),
+		loggerEnabled: configData.loggerEnabled || true,
 		schemaService: configData.schemaService,
 		submissionService: configData.submissionService,
 		onFinishCommit: configData.onFinishCommit,

@@ -17,7 +17,7 @@ const router = ({
 	router.use(json());
 
 	router.use(authMiddleware(authConfig));
-	router.use(actionLoggerMiddleware({ enabled: authConfig.enabled }, baseDependencies.logger));
+	router.use(actionLoggerMiddleware({ enabled: baseDependencies.loggerEnabled }, baseDependencies.logger));
 
 	router.post('/register', dictionaryController(baseDependencies).registerDictionary);
 
