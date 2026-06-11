@@ -68,8 +68,8 @@ const router = ({
 		}),
 	);
 
-	router.use(authMiddleware(authConfig));
 	router.use(actionLoggerMiddleware({ enabled: baseDependencies.loggerEnabled }, baseDependencies.logger));
+	router.use(authMiddleware(authConfig));
 
 	router.get('/:submissionId', submissionController.getSubmissionById);
 

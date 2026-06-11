@@ -18,8 +18,8 @@ const router = ({
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	router.use(authMiddleware(authConfig));
 	router.use(actionLoggerMiddleware({ enabled: baseDependencies.loggerEnabled }, baseDependencies.logger));
+	router.use(authMiddleware(authConfig));
 
 	router.get(
 		'/category/:categoryId/entity/:entityName/exists',
