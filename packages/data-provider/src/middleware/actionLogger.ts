@@ -18,18 +18,15 @@ export const actionLoggerMiddleware = (config: ActionLoggerConfig, logger: Logge
 			return next();
 		}
 
-		const startTime = Date.now();
-
 		/**
 		 * Log the action after response is sent
 		 */
 		res.on('finish', () => {
-			// Extract metadata now that route has been matched and params are populated
 			const metadata = extractActionMetadata(req);
-			const duration = Date.now() - startTime;
+			// Extract metadata now that route has been matched and params are populated
 			const statusResult = res.statusCode >= 200 && res.statusCode < 400 ? ActionResult.ALLOWED : ActionResult.DENIED;
 
-			const logMessage = formatActionLog(metadata, statusResult, res.statusCode, duration);
+			const logMessage = formatActionLog(metadata, statusResult, res.statusCode, res.locals.user);
 
 			if (statusResult === 'DENIED') {
 				logger.warn(logMessage);
