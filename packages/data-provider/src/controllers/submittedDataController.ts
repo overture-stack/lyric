@@ -43,13 +43,6 @@ const controller = ({
 				const view = convertToViewType(req.query.view) || defaultView;
 				const user = req.user;
 
-				logger.info(
-					LOG_MODULE,
-					`Request Submitted Data on categoryId '${categoryId}'`,
-					`pagination params: page '${page}' pageSize '${pageSize}'`,
-					`view '${view}'`,
-				);
-
 				const organizations = getUserReadableOrganizations(user);
 
 				const submittedDataResult = await service.getSubmittedDataByCategory(
@@ -89,13 +82,6 @@ const controller = ({
 				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
 				const view = convertToViewType(String(req.query.view)) || defaultView;
 				const user = req.user;
-
-				logger.info(
-					LOG_MODULE,
-					`Request Submitted Data on categoryId '${categoryId}' and organization '${organization}'`,
-					`pagination params: page '${page}' pageSize '${pageSize}'`,
-					`view '${view}'`,
-				);
 
 				if (!shouldBypassAuth(req, authConfig) && !hasUserReadAccess(organization, user)) {
 					throw new Forbidden(`User is not authorized to read submitted data for organization '${organization}'`);
@@ -143,15 +129,6 @@ const controller = ({
 				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
 				const user = req.user;
 
-				logger.info(
-					LOG_MODULE,
-					'Request Query Submitted Data',
-					`categoryId '${categoryId}'`,
-					`organization '${organization}'`,
-					`sqon '${JSON.stringify(sqon)}'`,
-					`pagination params: page '${page}' pageSize '${pageSize}'`,
-				);
-
 				if (!shouldBypassAuth(req, authConfig) && !hasUserReadAccess(organization, user)) {
 					throw new Forbidden(`User is not authorized to read submitted data for organization '${organization}'`);
 				}
@@ -191,14 +168,6 @@ const controller = ({
 				const systemId = req.params.systemId;
 				const view = convertToViewType(String(req.query.view)) || defaultView;
 				const user = req.user;
-
-				logger.info(
-					LOG_MODULE,
-					'Request Submitted Data',
-					`categoryId '${categoryId}'`,
-					`systemId '${systemId}'`,
-					`params: view '${view}'`,
-				);
 
 				const submittedDataResult = await service.getSubmittedDataBySystemId(categoryId, systemId, {
 					view,

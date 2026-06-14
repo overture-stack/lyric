@@ -7,8 +7,6 @@ import { AuditPaginatedResponse } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
 	const auditService = auditSvc(dependencies);
-	const { logger } = dependencies;
-	const LOG_MODULE = 'AUDIT_CONTROLLER';
 	const defaultPage = 1;
 	const defaultPageSize = 20;
 	return {
@@ -23,8 +21,6 @@ const controller = (dependencies: BaseDependencies) => {
 
 				// optional query parameters
 				const { entityName, eventType, startDate, endDate, systemId } = req.query;
-
-				logger.info(LOG_MODULE, 'Request Audit', `categoryId '${categoryId}' organization '${organization}'`);
 
 				const auditRecords = await auditService.byCategoryIdAndOrganization(categoryId, organization, {
 					entityName,
