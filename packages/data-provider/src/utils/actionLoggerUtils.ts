@@ -1,6 +1,6 @@
 import type { Request } from 'express';
 
-import type { RequestWithUser } from '../middleware/auth.js';
+import type { RequestWithUser, UserSession } from '../middleware/auth.js';
 
 export const ActionType = {
 	READ: 'READ',
@@ -125,8 +125,7 @@ export const formatActionLog = (
 	metadata: ActionLogMetadata,
 	result: ActionResultValues,
 	statusCode: number,
-	duration?: number,
-	errorMessage?: string,
+	user?: UserSession,
 ): string => {
 	const parts = ['[ACTION_LOG]', metadata.action, metadata.method, metadata.path];
 
@@ -151,15 +150,12 @@ export const formatActionLog = (
 	}
 
 	parts.push(`result: ${result}`);
+
+	if (user) {
+		parts.push(`user: ${user.username}`);
+	}
+
 	parts.push(`status: ${statusCode}`);
-
-	if (duration) {
-		parts.push(`duration: ${duration}ms`);
-	}
-
-	if (errorMessage) {
-		parts.push(`error: ${errorMessage}`);
-	}
 
 	return parts.join(' - ');
 };
