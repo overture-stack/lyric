@@ -58,7 +58,7 @@ export type AppConfig = {
 	features?: FeaturesConfig;
 	idService: IdServiceConfig;
 	logger: LoggerConfig;
-	loggerEnabled?: boolean;
+	disableLogger?: boolean;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 	schemaService: SchemaServiceConfig;
 	submissionService: SubmissionServiceConfig;
@@ -73,7 +73,7 @@ export interface BaseDependencies {
 	features?: FeaturesConfig;
 	idService: IdServiceConfig;
 	logger: Logger;
-	loggerEnabled: boolean;
+	disableLogger: boolean;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 	schemaService: SchemaServiceConfig;
 	submissionService: SubmissionServiceConfig;

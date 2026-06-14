@@ -17,7 +17,7 @@ const router = ({
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	router.use(actionLoggerMiddleware({ enabled: baseDependencies.loggerEnabled }, baseDependencies.logger));
+	router.use(actionLoggerMiddleware({ enabled: baseDependencies.disableLogger }, baseDependencies.logger));
 	router.use(authMiddleware(authConfig));
 
 	router.get('/', categoryController(baseDependencies).listAll);
