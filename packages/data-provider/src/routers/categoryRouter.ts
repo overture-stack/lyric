@@ -5,7 +5,6 @@ import categoryController from '../controllers/categoryController.js';
 import { actionLoggerMiddleware } from '../middleware/actionLogger.js';
 import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
 
-// REMEMBER, all of the endpoints in clinical are custom and go straight to lyrics controller, so it will not pass through the router,
 const router = ({
 	baseDependencies,
 	authConfig,
