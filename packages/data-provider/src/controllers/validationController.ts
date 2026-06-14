@@ -12,8 +12,6 @@ const controller = ({
 	baseDependencies: BaseDependencies;
 	validatorConfig: ValidatorConfig;
 }) => {
-	const { logger } = baseDependencies;
-	const LOG_MODULE = 'VALIDATION_CONTROLLER';
 	const validationSvc = validationService(baseDependencies);
 
 	return {
@@ -21,15 +19,6 @@ const controller = ({
 			try {
 				const { categoryId, entityName } = req.params;
 				const { organization, value } = req.query;
-
-				logger.info(
-					LOG_MODULE,
-					'Validation Request',
-					`categoryId '${categoryId}'`,
-					`entityName '${entityName}'`,
-					`organization '${organization}'`,
-					`value '${value}'`,
-				);
 
 				// check if validator is enabled for this category, and entity name
 				const validatorEntry = findValidatorEntry({ validatorConfig, categoryId, entityName });

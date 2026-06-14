@@ -41,18 +41,14 @@ const controller = ({
 }) => {
 	const submissionService = createSubmissionService(baseDependencies);
 	const dataService = createSubmittedDataService(baseDependencies);
-	const { logger } = baseDependencies;
 	const defaultPage = 1;
 	const defaultPageSize = 20;
-	const LOG_MODULE = 'SUBMISSION_CONTROLLER';
 	return {
 		commit: validateRequest(submissionCommitRequestSchema, async (req, res, next) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const submissionId = Number(req.params.submissionId);
 				const user = req.user;
-
-				logger.info(LOG_MODULE, `Request Commit Active Submission '${submissionId}' on category '${categoryId}'`);
 
 				const submission = await submissionService.getSubmissionById(submissionId);
 				if (!submission) {
@@ -77,8 +73,6 @@ const controller = ({
 				const submissionId = Number(req.params.submissionId);
 				const user = req.user;
 				const force = req.query.force?.toLowerCase() === 'true';
-
-				logger.info(LOG_MODULE, `Request Delete Active Submission '${submissionId}'`);
 
 				const submission = await submissionService.getSubmissionById(submissionId);
 				if (!submission) {
@@ -117,11 +111,6 @@ const controller = ({
 				const index = req.query.index ? parseInt(req.query.index) : null;
 				const user = req.user;
 
-				logger.info(
-					LOG_MODULE,
-					`Request Delete '${entityName ? entityName : 'all'}' records on '{${actionType}}' Active Submission '${submissionId}'`,
-				);
-
 				const submission = await submissionService.getSubmissionById(submissionId);
 				if (!submission) {
 					throw new BadRequest(`Submission '${submissionId}' not found`);
@@ -158,8 +147,6 @@ const controller = ({
 				const systemId = req.params.systemId;
 				const user = req.user;
 
-				logger.info(LOG_MODULE, `Request Delete Submitted Data systemId '${systemId}' on categoryId '${categoryId}'`);
-
 				// get SubmittedData by SystemId
 				const foundRecordToDelete = await dataService.getSubmittedDataBySystemId(categoryId, systemId, {
 					view: 'flat',
@@ -192,8 +179,6 @@ const controller = ({
 				const organization = req.query.organization;
 				const payload = req.body;
 				const user = req.user;
-
-				logger.info(LOG_MODULE, `Request Edit Submitted Data`);
 
 				if (!payload || payload.length == 0) {
 					throw new BadRequest(
@@ -232,14 +217,6 @@ const controller = ({
 					const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
 					const username = req.query.username;
 
-					logger.info(
-						LOG_MODULE,
-						`Request Submission categoryId '${categoryId}'`,
-						`pagination params: page '${page}' pageSize '${pageSize}'`,
-						`onlyActive '${onlyActive}'`,
-						`organization '${organization}'`,
-					);
-
 					const submissionsResult = await submissionService.getSubmissionsByCategory(
 						categoryId,
 						{ page, pageSize },
@@ -266,8 +243,6 @@ const controller = ({
 			try {
 				const submissionId = Number(req.params.submissionId);
 
-				logger.info(LOG_MODULE, `Request Active Submission submissionId '${submissionId}'`);
-
 				const submission = await submissionService.getSubmissionById(submissionId);
 
 				if (isEmpty(submission)) {
@@ -290,8 +265,6 @@ const controller = ({
 				const page = parseInt(String(req.query.page)) || defaultPage;
 				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
 
-				logger.info(LOG_MODULE, `Request Submission Details by ID '${submissionId}'`);
-
 				const submission = await submissionService.getSubmissionDetailsById({
 					submissionId,
 					paginationOptions: { page, pageSize },
@@ -311,11 +284,6 @@ const controller = ({
 			try {
 				const categoryId = Number(req.params.categoryId);
 				const organization = req.params.organization;
-
-				logger.info(
-					LOG_MODULE,
-					`Request Active Submission categoryId '${categoryId}' and organization '${organization}'`,
-				);
 
 				// Get username from auth
 				const username = req.user?.username || '';
@@ -344,13 +312,6 @@ const controller = ({
 				const user = req.user;
 
 				// TODO: Validate file-entity map in body: no duplicate filenames, and that entities exist in schemaNames
-
-				logger.info(
-					LOG_MODULE,
-					`Submission Request: categoryId '${categoryId}'`,
-					` organization '${organization}'`,
-					` entityName '${entityName}'`,
-				);
 
 				// TODO: parse body payload
 
@@ -392,14 +353,6 @@ const controller = ({
 				const fileEntityMap = req.body;
 				// Get username from auth
 				const username = req.user?.username || '';
-
-				logger.info(
-					LOG_MODULE,
-					`Upload Submission Request: categoryId '${categoryId}'`,
-					` organization '${organization}'`,
-					` files '${files?.map((f) => f.originalname)}'`,
-					` fileEntityMap ${JSON.stringify(fileEntityMap)}`,
-				);
 
 				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(organization, req.user)) {
 					throw new Forbidden(`User is not authorized to submit data to '${organization}'`);
