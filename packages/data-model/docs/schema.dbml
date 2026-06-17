@@ -124,10 +124,8 @@ table submission_records {
 
 table submissions {
   id serial [pk, not null, increment]
-  data jsonb [not null]
   dictionary_category_id integer [not null]
   dictionary_id integer [not null]
-  errors jsonb
   organization varchar [not null]
   status submission_status [not null]
   created_at timestamp [default: `now()`]
@@ -183,9 +181,9 @@ ref: dictionary_migration.to_dictionary_id - dictionaries.id
 
 ref: dictionary_migration.submission_id - submissions.id
 
-ref: submission_files.submission_id - submissions.id
+ref: submission_files.submission_id > submissions.id
 
-ref: submission_records.file_id - submission_files.id
+ref: submission_records.file_id > submission_files.id
 
 ref: submissions.dictionary_id - dictionaries.id
 
