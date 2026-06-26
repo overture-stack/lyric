@@ -97,7 +97,7 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 				const resultCommit = await proxy.commitSubmission(input);
 
 				if (configData.onFinishCommit && resultCommit) {
-					configData.onFinishCommit(resultCommit);
+					await configData.onFinishCommit(resultCommit);
 				}
 			} catch (error) {
 				const errMessage = error instanceof Error ? error.message : String(error);

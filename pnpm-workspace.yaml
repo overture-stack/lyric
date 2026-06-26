@@ -4,6 +4,7 @@ packages:
   # all packages in subdirs of packages/
   - 'packages/*'
 allowBuilds:
+  '@confluentinc/kafka-javascript': true
   '@scarf/scarf': false
   cpu-features: false
   es5-ext: false

@@ -59,12 +59,21 @@ ARG WORKDIR
 
 WORKDIR ${WORKDIR}
 
+# Build tools for native addon compilation fallback - NOT present in final server image
+# (server stage starts from base, not prod-deps)
+USER root
+RUN apk add --no-cache python3 make g++
 USER ${APP_USER}:${APP_USER}
 
 ENV CI=true
 
 # pnpm will not install any package listed in devDependencies
 RUN pnpm install --prod --no-scripts --frozen-lockfile
+# Explicit controlled exception: download/compile the @confluentinc/kafka-javascript native binary.
+# --no-scripts blocks all install lifecycle scripts; this runs only this one package's script directly.
+RUN PKGDIR=$(ls -d $PWD/node_modules/.pnpm/@confluentinc+kafka-javascript@*/node_modules/@confluentinc/kafka-javascript | head -1) \
+    && cd "$PKGDIR" \
+    && node_modules/.bin/node-pre-gyp install --fallback-to-build
 
 
 ######################
