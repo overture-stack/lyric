@@ -65,6 +65,8 @@ export const authMiddleware = (authConfig: AuthConfig) => {
 			const authResult =
 				typeof authConfig.customAuthHandler === 'function' ? await authConfig.customAuthHandler(req) : {};
 
+			// Define locals to access the user result in lyric actionLoggerMiddleware
+			res.locals.user = authResult.user;
 			if (authResult.errorCode) {
 				return res.status(authResult.errorCode).json({ message: authResult.errorMessage });
 			}

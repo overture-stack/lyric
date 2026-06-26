@@ -24,11 +24,6 @@ const controller = (dependencies: BaseDependencies) => {
 				const defaultCentricEntity = req.body.defaultCentricEntity;
 				const user = req.user;
 
-				logger.info(
-					LOG_MODULE,
-					`Register Dictionary Request categoryName '${categoryName}' name '${dictionaryName}' version '${dictionaryVersion}'`,
-				);
-
 				const { dictionary, category } = await dictionaryService.register({
 					categoryName,
 					dictionaryName,
