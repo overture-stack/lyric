@@ -3,16 +3,23 @@ import express from 'express';
 import helmet from 'helmet';
 import { serve, setup } from 'swagger-ui-express';
 
-import { errorHandler, provider } from '@overture-stack/lyric';
+import { connect, errorHandler, getLogger, provider } from '@overture-stack/lyric';
 
-import { appConfig, getServerConfig } from './config/app.js';
+import { buildAppConfig, getDbConfig, getServerConfig } from './config/app.js';
+import { setupKafka } from './config/kafka.js';
 import swaggerDoc from './config/swagger.js';
 import healthRouter from './routes/health.js';
 import pingRouter from './routes/ping.js';
 
 const { allowedOrigins, port, corsEnabled } = getServerConfig();
 
-const lyricProvider = provider(appConfig);
+const logger = getLogger({ level: process.env.LOG_LEVEL || 'info' });
+const db = connect(getDbConfig());
+const kafka = await setupKafka(db, logger);
+
+const appConfig = buildAppConfig({ onFinishCommit: kafka?.onFinishCommit });
+
+const lyricProvider = provider(appConfig, db);
 
 // Create Express server
 const app = express();
@@ -56,18 +63,21 @@ app.use('/api-docs', serve, setup(swaggerDoc, { swaggerUrl: '/openapi.json' }));
 app.use('/health', healthRouter);
 
 app.use(errorHandler);
-// running the server
+
 const server = app.listen(port, () => {
-	lyricProvider.configs.logger.info(`ExpressJS server is running on port ${port}`);
+	logger.info(`ExpressJS server is running on port ${port}`);
 });
 
 const gracefulShutdown = async (signal: string) => {
-	lyricProvider.configs.logger.info(`Received ${signal}, shutting down…`);
+	logger.info(`Received ${signal}, shutting down…`);
 
 	// 1. Stop accepting new requests
 	server.close();
 
-	// 2. Drain and terminate worker threads
+	// 2. Disconnect Kafka producer before draining workers (no new publishes after this)
+	await kafka?.disconnect();
+
+	// 3. Drain and terminate worker threads
 	await lyricProvider.shutdown();
 
 	process.exit(0);

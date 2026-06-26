@@ -11,7 +11,7 @@ packages/
     src/
       config/      AppConfig type, logger, DB connection
       core/        provider entry point
-      external/    ID generator
+      external/    integrations: ID generator, Kafka publisher, publish tracker
       middleware/  auth middleware
       repository/  Drizzle query functions
       routers/     Express routers (submission, submittedData, audit, etc.)
@@ -33,6 +33,18 @@ packages/
 pnpm install
 cp apps/server/.env.example apps/server/.env   # fill in DB and Lectern config
 ```
+
+### Kafka (optional)
+
+Kafka publishing is disabled when `KAFKA_BROKERS` is unset. To enable it locally, add to `apps/server/.env`:
+
+```sh
+KAFKA_BROKERS=localhost:9092
+KAFKA_CLIENT_ID=lyric-local      # optional; defaults to 'lyric'
+KAFKA_TOPIC=lyric-document-updates
+```
+
+The topic is created automatically on startup if it does not exist. Lyric will fail to start if `KAFKA_BROKERS` is set but the broker is unreachable - run a local Kafka (e.g. via Docker Compose) or leave the env var unset to run without it.
 
 ## Running the project
 

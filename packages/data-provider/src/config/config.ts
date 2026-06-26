@@ -58,7 +58,7 @@ export type AppConfig = {
 	features?: FeaturesConfig;
 	idService: IdServiceConfig;
 	logger: LoggerConfig;
-	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
+	onFinishCommit?: (resultOnCommit: ResultOnCommit) => Promise<void>;
 	schemaService: SchemaServiceConfig;
 	submissionService: SubmissionServiceConfig;
 	validator: ValidatorConfig;
@@ -72,7 +72,7 @@ export interface BaseDependencies {
 	features?: FeaturesConfig;
 	idService: IdServiceConfig;
 	logger: Logger;
-	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
+	onFinishCommit?: (resultOnCommit: ResultOnCommit) => Promise<void>;
 	schemaService: SchemaServiceConfig;
 	submissionService: SubmissionServiceConfig;
 	workerPool: WorkerFunctions;
