@@ -63,6 +63,7 @@ table submissions {
   dictionary_id integer [not null]
   errors jsonb
   organization varchar [not null]
+  published_at timestamp
   status submission_status [not null]
   created_at timestamp [default: `now()`]
   created_by varchar

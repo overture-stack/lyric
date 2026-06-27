@@ -1,3 +1,7 @@
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+
+import { models } from '@overture-stack/lyric-data-model';
+
 import { AppConfig, BaseDependencies } from '../config/config.js';
 import { connect, getConnectionPool } from '../config/db.js';
 import { getLogger } from '../config/logger.js';
@@ -40,9 +44,9 @@ import { createWorkerPool } from '../workers/workerPoolManager.js';
  * @param configData Environment variables required to configure resources
  * @returns A provider to get access to resources
  */
-const provider = (configData: AppConfig) => {
+const provider = (configData: AppConfig, db?: NodePgDatabase<typeof models>) => {
 	const baseDeps: BaseDependencies = {
-		db: connect(configData.db),
+		db: db ?? connect(configData.db),
 		features: configData.features,
 		idService: configData.idService,
 		logger: getLogger(configData.logger),
