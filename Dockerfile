@@ -21,8 +21,9 @@ RUN addgroup -S -g $APP_GID $APP_USER \
 	&& adduser -S -u $APP_UID -g $APP_GID $APP_USER \
 	&& mkdir -p ${WORKDIR}
 
+ENV COREPACK_HOME=/usr/local/share/corepack
 RUN corepack enable
-RUN corepack use pnpm@11.1.1
+RUN corepack prepare pnpm@11.1.1 --activate
 
 WORKDIR ${WORKDIR}
 
