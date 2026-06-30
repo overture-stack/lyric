@@ -6,6 +6,7 @@ import multer from 'multer';
 
 import { BaseDependencies } from '../config/config.js';
 import createSubmissionController from '../controllers/submissionController.js';
+import { actionLoggerMiddleware } from '../middleware/actionLogger.js';
 import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
 
 const router = ({
@@ -67,6 +68,7 @@ const router = ({
 		}),
 	);
 
+	router.use(actionLoggerMiddleware({ enabled: baseDependencies.disableLogger }, baseDependencies.logger));
 	router.use(authMiddleware(authConfig));
 
 	router.get('/:submissionId', submissionController.getSubmissionById);

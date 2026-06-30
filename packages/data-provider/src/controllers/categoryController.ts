@@ -15,8 +15,6 @@ const controller = (dependencies: BaseDependencies) => {
 			try {
 				const categoryId = Number(req.params.categoryId);
 
-				logger.info(LOG_MODULE, 'Request Get Category Details', `categoryId '${categoryId}'`);
-
 				const details = await categoryService.getDetails(categoryId);
 
 				if (!details) {
