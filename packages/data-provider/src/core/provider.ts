@@ -37,14 +37,19 @@ import * as schemaUtils from '../utils/schemas.js';
 import * as submissionUtils from '../utils/submissionUtils.js';
 import * as submittedDataUtils from '../utils/submittedDataUtils.js';
 import * as typeUtils from '../utils/types.js';
-import { createWorkerPool } from '../workers/workerPoolManager.js';
+import { createWorkerPool, type WorkerPoolConfigResolver } from '../workers/workerPoolManager.js';
+
+export type ProviderOptions = {
+	workerPoolConfigResolver?: WorkerPoolConfigResolver;
+};
 
 /**
  * The main provider of submission resources
  * @param configData Environment variables required to configure resources
+ * @param options Optional provider-level overrides (mainly for test wiring)
  * @returns A provider to get access to resources
  */
-const provider = (configData: AppConfig) => {
+const provider = (configData: AppConfig, options?: ProviderOptions) => {
 	const baseDeps: BaseDependencies = {
 		db: connect(configData.db),
 		features: configData.features,
@@ -53,7 +58,9 @@ const provider = (configData: AppConfig) => {
 		schemaService: configData.schemaService,
 		submissionService: configData.submissionService,
 		onFinishCommit: configData.onFinishCommit,
-		workerPool: createWorkerPool(configData),
+		workerPool: createWorkerPool(configData, {
+			resolveWorkerPoolConfig: options?.workerPoolConfigResolver,
+		}),
 	};
 
 	return {

@@ -1,5 +1,6 @@
 // config
 export { type AppConfig, type ValidatorEntry } from './src/config/config.js';
+export { type ProviderOptions } from './src/core/provider.js';
 export { default as provider } from './src/core/provider.js';
 export {
 	type AuthConfig,
