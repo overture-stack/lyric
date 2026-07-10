@@ -16,9 +16,12 @@ const repository = (dependencies: BaseDependencies) => {
 		 */
 		save: async (data: NewDictionary): Promise<Dictionary> => {
 			try {
-				const savedDictionary = await db.insert(dictionaries).values(data).returning();
+				const [savedDictionary] = await db.insert(dictionaries).values(data).returning();
+				if (!savedDictionary) {
+					throw new Error(`Failed to insert Dictionary '${data.name}' version '${data.version}', no row returned`);
+				}
 				logger.info(LOG_MODULE, `Dictionary with name '${data.name}' and version '${data.version}' saved successfully`);
-				return savedDictionary[0];
+				return savedDictionary;
 			} catch (error) {
 				logger.error(
 					LOG_MODULE,

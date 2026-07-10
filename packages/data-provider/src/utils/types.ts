@@ -4,6 +4,7 @@ import {
 	type DataRecord,
 	type DataRecordValue,
 	Dictionary as SchemasDictionary,
+	type DictionaryValidationRecordErrorDetails,
 	type Schema,
 } from '@overture-stack/lectern-client';
 import {
@@ -34,10 +35,13 @@ export const SUBMISSION_STATUS = {
 } as const;
 export type SubmissionStatus = ObjectValues<typeof SUBMISSION_STATUS>;
 
+export const MIGRATION_STATUS = z.enum(['IN_PROGRESS', 'COMPLETED', 'FAILED']);
+export type MigrationStatus = z.infer<typeof MIGRATION_STATUS>;
+
 /**
  * Enum matching Audit Action in database
  */
-export const AUDIT_ACTION = z.enum(['UPDATE', 'DELETE']);
+export const AUDIT_ACTION = z.enum(['UPDATE', 'DELETE', 'MIGRATION']);
 export type AuditAction = z.infer<typeof AUDIT_ACTION>;
 
 /**
@@ -47,6 +51,7 @@ export type AuditRepositoryRecord = {
 	entityName: string;
 	action: AuditAction;
 	dataDiff: DataDiff | null;
+	errors: DictionaryValidationRecordErrorDetails[] | null;
 	newDataIsValid: boolean;
 	oldDataIsValid: boolean;
 	organization: string;
@@ -63,6 +68,7 @@ export type AuditDataResponse = {
 	entityName: string;
 	event: AuditAction;
 	dataDiff: DataDiff | null;
+	errors: DictionaryValidationRecordErrorDetails[] | null;
 	newIsValid: boolean;
 	oldIsValid: boolean;
 	organization: string;
@@ -87,6 +93,9 @@ export type AuditFilterOptions = PaginationOptions & {
 	startDate?: string;
 	endDate?: string;
 	systemId?: string;
+	organization?: string;
+	submissionId?: number;
+	newIsValid?: boolean;
 };
 
 /**
@@ -145,10 +154,12 @@ export type DeleteSubmissionResult = {
 export type RegisterDictionaryResult = {
 	categoryId: number;
 	categoryName: string;
-	dictionary: object;
 	name: string;
 	version: string;
+	migrationId?: number;
 };
+
+export type MigrationAuditRecord = Omit<AuditRepositoryRecord, 'action' | 'submissionId'>;
 
 export type { Schema, SchemasDictionary };
 
@@ -186,6 +197,12 @@ export interface ValidateFilesParams {
 	username: string;
 }
 
+export type ResultCommit = {
+	inserts: SubmittedDataResponse[];
+	updates: SubmittedDataResponse[];
+	deletes: SubmittedDataResponse[];
+};
+
 export interface CommitSubmissionParams {
 	dataToValidate: {
 		inserts: NewSubmittedData[];
@@ -196,6 +213,8 @@ export interface CommitSubmissionParams {
 	dictionary: SchemasDictionary & { id: number };
 	submissionId: number;
 	username: string;
+	isMigration?: boolean;
+	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }
 
 export type EntityData = Record<string, DataRecord[]>;
@@ -207,6 +226,20 @@ export type GroupedDataSubmission = {
 
 export type BooleanTrueObject = {
 	[key: string]: true;
+};
+
+/**
+ * Specifies which columns of a table to select in a Drizzle query
+ * Used in the `columns` property of a Drizzle query
+ */
+export type PartialColumns<T> = Partial<Record<keyof T, boolean>>;
+
+/**
+ * Specifies additional columns to select in a Drizzle query for a related table.
+ * Used in the `with` property of a Drizzle query
+ */
+export type WithColumns<T> = {
+	columns: PartialColumns<T>;
 };
 
 /**

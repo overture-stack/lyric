@@ -8,6 +8,7 @@ import createSubmissionRepository from '../../repository/activeSubmissionReposit
 import createCategoryRepository from '../../repository/categoryRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
+import type { PaginatedResult } from '../../utils/result.js';
 import type { FilenameEntityPair } from '../../utils/schemas.js';
 import { filterAndPaginateSubmissionData, type FlattenedSubmissionData } from '../../utils/submissionResponseParser.js';
 import {
@@ -31,6 +32,7 @@ import {
 	type SubmitFileResult,
 } from '../../utils/types.js';
 import type { CommitWorkerInput } from '../../workers/types.js';
+import migrationSvc from '../migrationService.js';
 import submissionProcessorFactory from './submissionProcessor.js';
 
 const submissionService = (dependencies: BaseDependencies) => {
@@ -53,6 +55,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		username: string,
 	): Promise<CommitSubmissionResult> => {
 		const { getActiveDictionaryByCategory } = categoryRepository;
+		const { getActiveMigrationByCategoryId } = migrationSvc(dependencies);
 
 		const submission = await submissionRepository.getSubmissionById(submissionId);
 		if (!submission) {
@@ -65,6 +68,11 @@ const submissionService = (dependencies: BaseDependencies) => {
 
 		if (submission.status !== SUBMISSION_STATUS.VALID) {
 			throw new StatusConflict('Submission does not have status VALID and cannot be committed');
+		}
+
+		const activeMigration = await getActiveMigrationByCategoryId(categoryId);
+		if (activeMigration) {
+			throw new StatusConflict('This submission cannot be committed while a migration is running');
 		}
 
 		const currentDictionary = await getActiveDictionaryByCategory(categoryId);
@@ -229,10 +237,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 			username?: string;
 			organization?: string;
 		},
-	): Promise<{
-		result: SubmissionSummary[];
-		metadata: { totalRecords: number; errorMessage?: string };
-	}> => {
+	): Promise<PaginatedResult<SubmissionSummary>> => {
 		const recordsPaginated = await submissionRepository.getSubmissionsByCategory(
 			categoryId,
 			paginationOptions,

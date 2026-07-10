@@ -126,14 +126,14 @@ export function getSubmittedFileEntity(params: {
 			case 'UNKNOWN_ENTITY': {
 				// Mapped to an unknown entity, return failure
 				return failure({
-					code: 'UNKNOWN_ENTITY',
+					code: SUBMITTED_FILE_ERROR_CODES.UNKNOWN_ENTITY,
 					message: `Provided File-Entity map indicated the file "${file.originalname}" maps to an entity named "${mapResult.data.entityName}", which does not match any of the available Schema names.`,
 				});
 			}
 			case 'MULTIPLE_MATCHES': {
 				// Multiple mappings found, cannot map file to an entity, return failure
 				return failure({
-					code: 'UNKNOWN_ENTITY',
+					code: SUBMITTED_FILE_ERROR_CODES.UNKNOWN_ENTITY,
 					message: `Provided File-Entity map has multiple matches for the file ${file.originalname}: ${mapResult.data.entityNames.join(', ')}`,
 				});
 			}
@@ -146,7 +146,7 @@ export function getSubmittedFileEntity(params: {
 	}
 
 	return failure({
-		code: 'UNKNOWN_ENTITY',
+		code: SUBMITTED_FILE_ERROR_CODES.UNKNOWN_ENTITY,
 		message: `The file named "${file.originalname}" cannot be mapped to an entity.`,
 	});
 }

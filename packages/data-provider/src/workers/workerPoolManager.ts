@@ -1,4 +1,3 @@
-import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import * as workerpool from 'workerpool';
@@ -10,16 +9,50 @@ import type { CommitWorkerInput, DataValidationWorkerInput, WorkerFunctions, Wor
 const LOG_MODULE = 'WORKER_POOL_MANAGER';
 
 /**
+ * Worker pool configuration values used to initialize `workerpool.pool`.
+ */
+export type WorkerPoolConfig = {
+	/** Absolute path to the worker entry file. */
+	workerPath: string;
+	/** Optional worker pool runtime options. */
+	poolOptions?: Parameters<typeof workerpool.pool>[1];
+};
+
+/**
+ * Resolves worker pool configuration at runtime.
+ */
+export type WorkerPoolConfigResolver = () => WorkerPoolConfig;
+
+/**
+ * Optional overrides used when creating a worker pool.
+ */
+export type CreateWorkerPoolOptions = {
+	/** Custom resolver, primarily used by tests to inject worker settings. */
+	resolveWorkerPoolConfig?: WorkerPoolConfigResolver;
+};
+
+/**
+ * Default worker pool configuration resolver.
+ *
+ * Uses the built JavaScript worker entry file generated at build time.
+ */
+const defaultWorkerPoolConfigResolver: WorkerPoolConfigResolver = () => ({
+	workerPath: fileURLToPath(new URL('./workerpool.js', import.meta.url)),
+});
+
+/**
  * Factory function to create a worker pool with the given configuration.
  * @param configData The application configuration
+ * @param options Optional worker pool customization (used by tests to inject TS workers).
  * @returns The worker functions to execute tasks in the worker pool
  */
-export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
+export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPoolOptions): WorkerFunctions => {
 	const logger = getLogger(configData.logger);
 
 	// Initialize worker pool
-	const workerPath = join(dirname(fileURLToPath(import.meta.url)), 'workerpool.js');
-	const pool = workerpool.pool(workerPath);
+	const resolveWorkerPoolConfig = options?.resolveWorkerPoolConfig ?? defaultWorkerPoolConfigResolver;
+	const { workerPath, poolOptions } = resolveWorkerPoolConfig();
+	const pool = workerpool.pool(workerPath, poolOptions);
 
 	// Cannot send non serializable objects/functions to worker, so we need to create a config object without those properties
 	const workerConfig: AppConfig = {
@@ -81,6 +114,17 @@ export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
 				const errMessage = error instanceof Error ? error.message : String(error);
 				logger.error(LOG_MODULE, `Worker pool execution failed for dataValidation: ${errMessage}`);
 				// Do not re-throw error since dataValidation in the worker is designed to not throw errors, but log them instead.
+				// This ensures the main thread is not affected by worker errors and can continue processing other tasks.
+			}
+		},
+		dictionaryMigration: async (input) => {
+			const proxy = await readyProxy; // wait for worker to initialize before using
+			try {
+				await proxy.dictionaryMigration(input);
+			} catch (error) {
+				const errMessage = error instanceof Error ? error.message : String(error);
+				logger.error(LOG_MODULE, `Worker pool execution failed for dictionaryMigration: ${errMessage}`);
+				// Do not re-throw error since dictionaryMigration in the worker is designed to not throw errors, but log them instead.
 				// This ensures the main thread is not affected by worker errors and can continue processing other tasks.
 			}
 		},
