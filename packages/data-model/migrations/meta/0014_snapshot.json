@@ -1,5 +1,5 @@
 {
-  "id": "ec89ae6c-6177-4831-b9cf-c35ca629bae4",
+  "id": "b9fdcf85-7fca-436c-b563-8233881a45fc",
   "prevId": "a4119de0-eeda-4b64-b7de-4c2831eb5df8",
   "version": "5",
   "dialect": "pg",
@@ -37,6 +37,12 @@
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
+        },
+        "errors": {
+          "name": "errors",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         },
         "last_valid_schema_id": {
           "name": "last_valid_schema_id",
@@ -286,6 +292,165 @@
           ]
         }
       }
+    },
+    "dictionary_migration": {
+      "name": "dictionary_migration",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_dictionary_id": {
+          "name": "from_dictionary_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "to_dictionary_id": {
+          "name": "to_dictionary_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submission_id": {
+          "name": "submission_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "migration_status",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "retries": {
+          "name": "retries",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "dictionary_migration_category_id_index": {
+          "name": "dictionary_migration_category_id_index",
+          "columns": [
+            "category_id"
+          ],
+          "isUnique": false
+        },
+        "dictionary_migration_from_dictionary_id_index": {
+          "name": "dictionary_migration_from_dictionary_id_index",
+          "columns": [
+            "from_dictionary_id"
+          ],
+          "isUnique": false
+        },
+        "dictionary_migration_to_dictionary_id_index": {
+          "name": "dictionary_migration_to_dictionary_id_index",
+          "columns": [
+            "to_dictionary_id"
+          ],
+          "isUnique": false
+        },
+        "dictionary_migration_submission_id_index": {
+          "name": "dictionary_migration_submission_id_index",
+          "columns": [
+            "submission_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "dictionary_migration_category_id_dictionary_categories_id_fk": {
+          "name": "dictionary_migration_category_id_dictionary_categories_id_fk",
+          "tableFrom": "dictionary_migration",
+          "tableTo": "dictionary_categories",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "dictionary_migration_from_dictionary_id_dictionaries_id_fk": {
+          "name": "dictionary_migration_from_dictionary_id_dictionaries_id_fk",
+          "tableFrom": "dictionary_migration",
+          "tableTo": "dictionaries",
+          "columnsFrom": [
+            "from_dictionary_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "dictionary_migration_to_dictionary_id_dictionaries_id_fk": {
+          "name": "dictionary_migration_to_dictionary_id_dictionaries_id_fk",
+          "tableFrom": "dictionary_migration",
+          "tableTo": "dictionaries",
+          "columnsFrom": [
+            "to_dictionary_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "dictionary_migration_submission_id_submissions_id_fk": {
+          "name": "dictionary_migration_submission_id_submissions_id_fk",
+          "tableFrom": "dictionary_migration",
+          "tableTo": "submissions",
+          "columnsFrom": [
+            "submission_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
     },
     "submissions": {
       "name": "submissions",
@@ -593,7 +758,16 @@
       "name": "audit_action",
       "values": {
         "UPDATE": "UPDATE",
-        "DELETE": "DELETE"
+        "DELETE": "DELETE",
+        "MIGRATION": "MIGRATION"
+      }
+    },
+    "migration_status": {
+      "name": "migration_status",
+      "values": {
+        "IN_PROGRESS": "IN_PROGRESS",
+        "COMPLETED": "COMPLETED",
+        "FAILED": "FAILED"
       }
     },
     "submission_status": {

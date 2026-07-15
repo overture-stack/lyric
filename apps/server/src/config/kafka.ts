@@ -31,6 +31,11 @@ export const setupKafka = async (db: LyricDb, logger: Logger): Promise<KafkaSetu
 		kafkaJS: {
 			brokers: brokers.split(',').map((b) => b.trim()),
 			clientId,
+			retry: {
+				initialRetryTime: 300,
+				maxRetryTime: 30_000,
+				retries: 5,
+			},
 		},
 	});
 
@@ -45,7 +50,12 @@ export const setupKafka = async (db: LyricDb, logger: Logger): Promise<KafkaSetu
 	});
 
 	logger.info(`[kafka] Connecting to broker(s): ${brokers}`);
-	await producer.connect();
+	try {
+		await producer.connect();
+	} catch (err) {
+		logger.error('[kafka] Failed to connect to broker(s) after retries, shutting down', err);
+		throw err;
+	}
 	logger.info(`[kafka] Connected (clientId: ${clientId}). Publishing commits to topic: ${topic}`);
 
 	const admin = kafka.admin();
