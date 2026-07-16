@@ -14,7 +14,7 @@ import pingRouter from './routes/ping.js';
 const { allowedOrigins, port, corsEnabled } = getServerConfig();
 
 const logger = getLogger({ level: process.env.LOG_LEVEL || 'info' });
-const kafkaConfig = getKafkaConfig();
+const kafkaConfig = getKafkaConfig(logger);
 const kafka = kafkaConfig ? await setupKafka(logger, kafkaConfig) : undefined;
 
 const appConfig = buildAppConfig({ onFinishCommit: kafka?.onFinishCommit });

@@ -14,13 +14,13 @@ context: Depends on / related to the test placement issue above. Team convention
 standalone: yes
 context: Each config area validates its own env vars lazily (e.g. `getRequiredConfig` throws on use). There is no startup pass that validates all required vars before connections are attempted. A schema-based approach (e.g. `zod` on `process.env`) would surface all missing/malformed vars at once on startup and produce a single readable error. `KAFKA_BROKERS`, `KAFKA_TOPIC`, `KAFKA_CLIENT_ID` follow the same lazy pattern.
 
-### Kafka publish tracking: no unit tests for `createPublishTracker`
-standalone: no
-context: `packages/data-provider/src/external/kafkaPublishTracker.ts` has no tests. The function is a single drizzle `update` call - a unit test would require mocking the drizzle query builder chain, which is awkward. An integration test against a real DB (testcontainers pattern already used in the project) would be more valuable and honest.
-
 ### Kafka: failed-publish recovery path not documented
 standalone: yes
-context: When `producer.send` fails after all kafkajs retries, the submission is `COMMITTED` with `published_at = NULL`. No automated recovery exists. Operators can trigger a full Maestro re-index via the existing pull-based sync (`MAESTRO_REPOSITORIES_0_BASE_URL`), but there is no runbook entry for this. Document in `.dev/docs/kafka/` once that directory structure is created. The selective republish endpoint (roadmap) would also address this.
+context: When `producer.send` fails after all kafkajs retries, the commit is complete but the records were never sent to the topic. No automated recovery exists. Operators can trigger a full Maestro re-index via the existing pull-based sync (`MAESTRO_REPOSITORIES_0_BASE_URL`), but there is no runbook entry for this. Document in `.dev/docs/kafka/` once that directory structure is created. The selective republish endpoint (roadmap) would also address this.
+
+### Server logger not passed into AppConfig
+standalone: yes
+context: `server.ts` creates a logger with `getLogger()` and `buildAppConfig()` creates a second one internally from `LoggerConfig`. The lyric provider should use the server's logger instance rather than constructing its own. Requires either `AppConfig` to accept a `Logger` instance (not just `LoggerConfig`), or a way to inject it post-construction. Flagged by Jon in PR #208.
 
 ### Base image has known high vulnerability
 standalone: yes
@@ -31,3 +31,6 @@ context: `FROM node:22-alpine` (Dockerfile line 9) is flagged with a high CVE by
 ## Resolved
 
 <!-- Move entries here when addressed, with a note of when and what fixed it -->
+
+### Kafka publish tracking: no unit tests for `createPublishTracker`
+resolved: tracker removed in PR #208 (published_at column dropped on Jon's review; tracking responsibility deferred)

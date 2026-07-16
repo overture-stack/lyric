@@ -21,9 +21,12 @@ type KafkaSetupResult = {
 };
 
 /** Reads Kafka connection config from environment. Returns `undefined` if `KAFKA_BROKERS` is not set. */
-export const getKafkaConfig = (): KafkaConfig | undefined => {
+export const getKafkaConfig = (logger?: Logger): KafkaConfig | undefined => {
 	const brokers = process.env.KAFKA_BROKERS;
 	if (!brokers) {
+		if (process.env.KAFKA_TOPIC || process.env.KAFKA_CLIENT_ID) {
+			logger?.warn('[kafka] KAFKA_TOPIC or KAFKA_CLIENT_ID is set but KAFKA_BROKERS is missing; Kafka publishing is disabled');
+		}
 		return undefined;
 	}
 
