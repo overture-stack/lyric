@@ -90,12 +90,23 @@ describe('createKafkaPublisher', () => {
 
 			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
 			expect(parsed).to.deep.equal({
+				action: 'insert',
 				data: r.data,
 				entityName: 'donor',
 				isValid: true,
 				organization: 'ORG-A',
 				systemId: 'SYS-123',
 			});
+		});
+
+		it('should set action to insert', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ inserts: [record()] }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed.action).to.equal('insert');
 		});
 
 		it('should preserve isValid from the record', async () => {
@@ -128,6 +139,16 @@ describe('createKafkaPublisher', () => {
 			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
 			expect(parsed.isValid).to.be.false;
 		});
+
+		it('should set action to update', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ updates: [record()] }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed.action).to.equal('update');
+		});
 	});
 
 	describe('deletes', () => {
@@ -140,14 +161,24 @@ describe('createKafkaPublisher', () => {
 			expect(producer.sent[0]?.messages).to.have.length(2);
 		});
 
-		it('should force isValid to false regardless of the record value', async () => {
+		it('should set action to delete', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ deletes: [record()] }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed.action).to.equal('delete');
+		});
+
+		it('should preserve isValid from the record', async () => {
 			const producer = createMockProducer();
 			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
 
 			await publish(commitResult({ deletes: [record({ isValid: true })] }));
 
 			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
-			expect(parsed.isValid).to.be.false;
+			expect(parsed.isValid).to.be.true;
 		});
 	});
 

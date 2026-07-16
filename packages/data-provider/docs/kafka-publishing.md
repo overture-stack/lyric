@@ -6,7 +6,7 @@ After a submission is committed, Lyric can push each affected record to a Kafka 
 
 The `AppConfig.onFinishCommit` callback fires in the main thread after every successful commit. The commit result contains the full set of inserted, updated, and deleted records. `createKafkaPublisher` wraps a Kafka producer and turns that result into a batch of messages - one per record - sent in a single `producer.send` call.
 
-Deleted records have `isValid` forced to `false` regardless of their stored value. This signals to consumers that the document should be removed from the index.
+Each message carries an `action` field (`insert`, `update`, or `delete`) describing what happened to the record in the submission. `isValid` always reflects the record's stored state; consumers interpret `action` to decide what to do with it.
 
 ## Message format
 
@@ -14,6 +14,7 @@ Each message value is a JSON string:
 
 ```json
 {
+  "action": "insert",
   "data": { "field": "value" },
   "entityName": "donor",
   "isValid": true,

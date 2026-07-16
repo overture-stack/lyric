@@ -16,11 +16,12 @@ export type KafkaPublisherConfig = {
 	topic: string;
 };
 
-const toMessage = (record: SubmittedDataResponse, isValid?: boolean) => ({
+const toMessage = (record: SubmittedDataResponse, action: 'delete' | 'insert' | 'update') => ({
 	value: JSON.stringify({
+		action,
 		data: record.data,
 		entityName: record.entityName,
-		isValid: isValid ?? record.isValid,
+		isValid: record.isValid,
 		organization: record.organization,
 		systemId: record.systemId,
 	}),
@@ -28,7 +29,9 @@ const toMessage = (record: SubmittedDataResponse, isValid?: boolean) => ({
 
 /**
  * Returns an `onFinishCommit` handler that batches all records from a commit into a single
- * `producer.send` call. Deleted records have `isValid` forced to `false`.
+ * `producer.send` call. Each message includes an `action` field (`insert`, `update`, or `delete`)
+ * describing what happened to the record in the submission, and `isValid` reflecting the record's
+ * current stored state.
  */
 export const createKafkaPublisher =
 	({ onError, onSuccess, producer, topic }: KafkaPublisherConfig) =>
@@ -37,9 +40,9 @@ export const createKafkaPublisher =
 
 		const { deletes, inserts, updates } = result.data;
 		const messages = [
-			...inserts.map((r) => toMessage(r)),
-			...updates.map((r) => toMessage(r)),
-			...deletes.map((r) => toMessage(r, false)),
+			...inserts.map((r) => toMessage(r, 'insert')),
+			...updates.map((r) => toMessage(r, 'update')),
+			...deletes.map((r) => toMessage(r, 'delete')),
 		];
 
 		if (messages.length === 0) return;
