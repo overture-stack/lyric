@@ -1,31 +1,41 @@
 import { KafkaJS } from '@confluentinc/kafka-javascript';
 
 import {
-	connect,
 	createKafkaPublisher,
-	createPublishTracker,
 	type KafkaPublisherConfig,
 	type Logger,
 	type ResultOnCommit,
 } from '@overture-stack/lyric';
 
-type LyricDb = ReturnType<typeof connect>;
+import { getRequiredConfig } from './envUtils.js';
+
+export type KafkaConfig = {
+	brokers: string;
+	clientId: string;
+	topic: string;
+};
 
 type KafkaSetupResult = {
 	disconnect: () => Promise<void>;
 	onFinishCommit: (result: ResultOnCommit) => Promise<void>;
 };
 
-export const setupKafka = async (db: LyricDb, logger: Logger): Promise<KafkaSetupResult | undefined> => {
+/** Reads Kafka connection config from environment. Returns `undefined` if `KAFKA_BROKERS` is not set. */
+export const getKafkaConfig = (): KafkaConfig | undefined => {
 	const brokers = process.env.KAFKA_BROKERS;
-	const clientId = process.env.KAFKA_CLIENT_ID ?? 'lyric';
-	const topic = process.env.KAFKA_TOPIC;
-
-	if (!brokers) return undefined;
-
-	if (!topic) {
-		throw new Error('KAFKA_TOPIC is required when KAFKA_BROKERS is set');
+	if (!brokers) {
+		return undefined;
 	}
+
+	return {
+		brokers,
+		clientId: process.env.KAFKA_CLIENT_ID ?? 'lyric',
+		topic: getRequiredConfig('KAFKA_TOPIC'),
+	};
+};
+
+export const setupKafka = async (logger: Logger, config: KafkaConfig): Promise<KafkaSetupResult> => {
+	const { brokers, clientId, topic } = config;
 
 	const kafka = new KafkaJS.Kafka({
 		kafkaJS: {
@@ -68,9 +78,8 @@ export const setupKafka = async (db: LyricDb, logger: Logger): Promise<KafkaSetu
 	}
 	await admin.disconnect();
 
-	const config: KafkaPublisherConfig = {
+	const publisherConfig: KafkaPublisherConfig = {
 		onError: (err) => logger.error('[kafka] Failed to publish commit result', err),
-		onSuccess: createPublishTracker(db),
 		producer,
 		topic,
 	};
@@ -80,6 +89,6 @@ export const setupKafka = async (db: LyricDb, logger: Logger): Promise<KafkaSetu
 			logger.info('[kafka] Disconnecting producer');
 			await producer.disconnect();
 		},
-		onFinishCommit: createKafkaPublisher(config),
+		onFinishCommit: createKafkaPublisher(publisherConfig),
 	};
 };

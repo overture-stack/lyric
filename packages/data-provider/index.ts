@@ -10,7 +10,6 @@ export { default as provider } from './src/core/provider.js';
 
 // external integrations
 export { createKafkaPublisher, type KafkaProducer, type KafkaPublisherConfig } from './src/external/kafkaPublisher.js';
-export { createPublishTracker } from './src/external/kafkaPublishTracker.js';
 
 // middleware
 export {

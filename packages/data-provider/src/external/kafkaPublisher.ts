@@ -1,4 +1,4 @@
-import type { ResultOnCommit, SubmittedDataResponse } from '../utils/types.js';
+import type { KafkaAction, ResultOnCommit, SubmittedDataResponse } from '../utils/types.js';
 
 /** Minimal producer interface; keeps kafkajs out of the library's direct dependency graph. */
 export interface KafkaProducer {
@@ -9,14 +9,12 @@ export interface KafkaProducer {
 export type KafkaPublisherConfig = {
 	/** Called when `producer.send` throws after all retries. Defaults to `console.error`. */
 	onError?: (err: unknown) => void;
-	/** Called after a successful send; isolated from publish errors. Use {@link createPublishTracker} to persist `published_at`. */
-	onSuccess?: (submissionId: number) => Promise<void>;
 	producer: KafkaProducer;
 	/** Topic to publish to; created automatically on startup if it does not exist. */
 	topic: string;
 };
 
-const toMessage = (record: SubmittedDataResponse, action: 'delete' | 'insert' | 'update') => ({
+const toMessage = (record: SubmittedDataResponse, action: KafkaAction) => ({
 	value: JSON.stringify({
 		action,
 		data: record.data,
@@ -34,7 +32,7 @@ const toMessage = (record: SubmittedDataResponse, action: 'delete' | 'insert' | 
  * current stored state.
  */
 export const createKafkaPublisher =
-	({ onError, onSuccess, producer, topic }: KafkaPublisherConfig) =>
+	({ onError, producer, topic }: KafkaPublisherConfig) =>
 	async (result: ResultOnCommit): Promise<void> => {
 		if (!result.data) return;
 
@@ -55,12 +53,5 @@ export const createKafkaPublisher =
 			} else {
 				console.error('[kafkaPublisher] Failed to publish commit result:', err);
 			}
-			return;
-		}
-
-		try {
-			await onSuccess?.(result.submissionId);
-		} catch (err: unknown) {
-			console.error('[kafkaPublisher] Failed to record publish tracking for submission', result.submissionId, ':', err);
 		}
 	};

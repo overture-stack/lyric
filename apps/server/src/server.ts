@@ -3,10 +3,10 @@ import express from 'express';
 import helmet from 'helmet';
 import { serve, setup } from 'swagger-ui-express';
 
-import { connect, errorHandler, getLogger, provider } from '@overture-stack/lyric';
+import { errorHandler, getLogger, provider } from '@overture-stack/lyric';
 
-import { buildAppConfig, getDbConfig, getServerConfig } from './config/app.js';
-import { setupKafka } from './config/kafka.js';
+import { buildAppConfig, getServerConfig } from './config/app.js';
+import { getKafkaConfig, setupKafka } from './config/kafka.js';
 import swaggerDoc from './config/swagger.js';
 import healthRouter from './routes/health.js';
 import pingRouter from './routes/ping.js';
@@ -14,8 +14,8 @@ import pingRouter from './routes/ping.js';
 const { allowedOrigins, port, corsEnabled } = getServerConfig();
 
 const logger = getLogger({ level: process.env.LOG_LEVEL || 'info' });
-const db = connect(getDbConfig());
-const kafka = await setupKafka(db, logger);
+const kafkaConfig = getKafkaConfig();
+const kafka = kafkaConfig ? await setupKafka(logger, kafkaConfig) : undefined;
 
 const appConfig = buildAppConfig({ onFinishCommit: kafka?.onFinishCommit });
 

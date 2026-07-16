@@ -209,63 +209,6 @@ describe('createKafkaPublisher', () => {
 		});
 	});
 
-	describe('onSuccess callback', () => {
-		it('should be called with submissionId after a successful publish', async () => {
-			const producer = createMockProducer();
-			const tracked: number[] = [];
-			const publish = createKafkaPublisher({
-				onSuccess: async (id) => { tracked.push(id); },
-				producer,
-				topic: 'lyric-docs',
-			});
-
-			await publish(commitResult({ inserts: [record()] }));
-
-			expect(tracked).to.deep.equal([42]);
-		});
-
-		it('should not be called when there are no messages to publish', async () => {
-			const producer = createMockProducer();
-			const tracked: number[] = [];
-			const publish = createKafkaPublisher({
-				onSuccess: async (id) => { tracked.push(id); },
-				producer,
-				topic: 'lyric-docs',
-			});
-
-			await publish(commitResult());
-
-			expect(tracked).to.have.length(0);
-		});
-
-		it('should not be called when producer.send throws', async () => {
-			const tracked: number[] = [];
-			const publish = createKafkaPublisher({
-				onError: () => {},
-				onSuccess: async (id) => { tracked.push(id); },
-				producer: createFailingProducer(),
-				topic: 'lyric-docs',
-			});
-
-			await publish(commitResult({ inserts: [record()] }));
-
-			expect(tracked).to.have.length(0);
-		});
-
-		it('should not propagate a tracking failure', async () => {
-			const producer = createMockProducer();
-			const publish = createKafkaPublisher({
-				onSuccess: async () => { throw new Error('db down'); },
-				producer,
-				topic: 'lyric-docs',
-			});
-
-			await publish(commitResult({ inserts: [record()] }));
-
-			expect(producer.sent).to.have.length(1);
-		});
-	});
-
 	describe('error handling', () => {
 		it('should call onError when producer.send throws', async () => {
 			const sendError = new Error('broker unavailable');

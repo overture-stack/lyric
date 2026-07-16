@@ -26,10 +26,8 @@ Each message value is a JSON string:
 ## Wiring it up (library consumers)
 
 ```typescript
-import { createKafkaPublisher, createPublishTracker, connect, provider } from '@overture-stack/lyric';
+import { createKafkaPublisher, provider } from '@overture-stack/lyric';
 import { KafkaJS } from '@confluentinc/kafka-javascript';
-
-const db = connect(dbConfig);
 
 const kafka = new KafkaJS.Kafka({ kafkaJS: { brokers: ['kafka:9092'], clientId: 'my-service' } });
 const producer = kafka.producer();
@@ -40,7 +38,6 @@ const appConfig: AppConfig = {
   onFinishCommit: createKafkaPublisher({
     producer,
     topic: 'lyric-document-updates',
-    onSuccess: createPublishTracker(db),   // records published_at in the submissions table
     onError: (err) => console.error('Kafka publish failed', err),
   }),
 };
@@ -66,17 +63,10 @@ When `KAFKA_BROKERS` is not set, `onFinishCommit` is not wired and Lyric operate
 |---|---|---|---|
 | `producer` | `KafkaProducer` | yes | Any object with a `send` method matching the interface |
 | `topic` | `string` | yes | Kafka topic to publish to |
-| `onSuccess` | `(submissionId: number) => Promise<void>` | no | Called after a successful send; use `createPublishTracker(db)` to record `published_at` |
 | `onError` | `(err: unknown) => void` | no | Called when `producer.send` fails after all retries; defaults to `console.error` |
-
-## Publish tracking
-
-`createPublishTracker(db)` writes a `published_at` timestamp to the `submissions` table after a successful send. This is the only record that a given commit reached Kafka. A `NULL` value means the submission was either committed before Kafka was enabled (existing rows are backfilled with the Unix epoch `1970-01-01` as a sentinel) or the publish failed.
-
-Failed publishes can be recovered by triggering a full re-index via Maestro's pull-based sync endpoint.
 
 ## Error handling
 
-Publish errors and tracking errors are caught separately. A tracking failure (e.g. transient DB outage) does not affect the Kafka publish result and vice versa. Both log to `console.error` by default; pass `onError` to route publish errors to your logger.
+Publish errors are caught and passed to `onError`; if no `onError` is provided they go to `console.error`. The publisher never rethrows, so a Kafka failure does not affect the commit result visible to the API caller.
 
 The underlying producer is configured with five retries and exponential backoff (300ms to 30s) before a failure is reported.

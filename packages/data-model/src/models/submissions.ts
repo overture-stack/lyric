@@ -79,7 +79,6 @@ export const submissions = pgTable(
 			.notNull(),
 		errors: jsonb('errors').$type<SubmissionErrors>(),
 		organization: varchar('organization').notNull(),
-		publishedAt: timestamp('published_at'),
 		status: submissionStatusEnum('status').notNull(),
 		createdAt: timestamp('created_at').defaultNow(),
 		createdBy: varchar('created_by'),
