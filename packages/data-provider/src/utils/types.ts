@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z as zod } from 'zod';
 
 import {
 	type DataRecord,
@@ -35,14 +35,14 @@ export const SUBMISSION_STATUS = {
 } as const;
 export type SubmissionStatus = ObjectValues<typeof SUBMISSION_STATUS>;
 
-export const MIGRATION_STATUS = z.enum(['IN_PROGRESS', 'COMPLETED', 'FAILED']);
-export type MigrationStatus = z.infer<typeof MIGRATION_STATUS>;
+export const MIGRATION_STATUS = zod.enum(['IN_PROGRESS', 'COMPLETED', 'FAILED']);
+export type MigrationStatus = zod.infer<typeof MIGRATION_STATUS>;
 
 /**
  * Enum matching Audit Action in database
  */
-export const AUDIT_ACTION = z.enum(['UPDATE', 'DELETE', 'MIGRATION']);
-export type AuditAction = z.infer<typeof AUDIT_ACTION>;
+export const AUDIT_ACTION = zod.enum(['UPDATE', 'DELETE', 'MIGRATION']);
+export type AuditAction = zod.infer<typeof AUDIT_ACTION>;
 
 /**
  * Audit Raw Data from Repository
@@ -166,8 +166,12 @@ export type { Schema, SchemasDictionary };
 /**
  * Enum matching Audit Action in database
  */
-export const SUBMISSION_ACTION_TYPE = z.enum(['INSERTS', 'UPDATES', 'DELETES']);
-export type SubmissionActionType = z.infer<typeof SUBMISSION_ACTION_TYPE>;
+export const SUBMISSION_ACTION_TYPE = zod.enum(['INSERTS', 'UPDATES', 'DELETES']);
+export type SubmissionActionType = zod.infer<typeof SUBMISSION_ACTION_TYPE>;
+
+/** Action field included in each Kafka message emitted after a successful commit. */
+export const KAFKA_ACTION = zod.enum(['delete', 'insert', 'update']);
+export type KafkaAction = zod.infer<typeof KAFKA_ACTION>;
 
 /**
  * File upload validation error types
@@ -501,17 +505,17 @@ export type Clean<T> = T extends infer U ? { [K in keyof U]: U[K] } : never;
 /**
  * Enum matching Schema relationships types
  */
-export const SCHEMA_RELATION_TYPE = z.enum(['parent', 'children']);
-export type SchemaRelationType = z.infer<typeof SCHEMA_RELATION_TYPE>;
+export const SCHEMA_RELATION_TYPE = zod.enum(['parent', 'children']);
+export type SchemaRelationType = zod.infer<typeof SCHEMA_RELATION_TYPE>;
 
 /**
  * Enum matching Schema relationships order types
  */
-export const ORDER_TYPE = z.enum(['asc', 'desc']);
-export type OrderType = z.infer<typeof ORDER_TYPE>;
+export const ORDER_TYPE = zod.enum(['asc', 'desc']);
+export type OrderType = zod.infer<typeof ORDER_TYPE>;
 
 /**
  * Enum matching Retrieve data views
  */
-export const VIEW_TYPE = z.enum(['flat', 'compound']);
-export type ViewType = z.infer<typeof VIEW_TYPE>;
+export const VIEW_TYPE = zod.enum(['flat', 'compound']);
+export type ViewType = zod.infer<typeof VIEW_TYPE>;

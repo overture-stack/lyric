@@ -96,8 +96,12 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 			try {
 				const resultCommit = await proxy.commitSubmission(input);
 
+				// Awaited intentionally: the caller fires commitSubmission without await and returns PROCESSING
+				// to the client immediately, so this does not block the HTTP response. Awaiting here ensures
+				// the publish completes before the worker task is considered complete.
+				// onFinishCommit catches its own errors and never rethrows.
 				if (configData.onFinishCommit && resultCommit) {
-					configData.onFinishCommit(resultCommit);
+					await configData.onFinishCommit(resultCommit);
 				}
 			} catch (error) {
 				const errMessage = error instanceof Error ? error.message : String(error);

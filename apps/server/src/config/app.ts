@@ -8,9 +8,10 @@ const DEFAULT_SUBMISSION_MAX_SIZE = 10 * 1024 * 1024; // 10Mb
 
 export const getServerConfig = () => {
 	return {
-		port: process.env.PORT || 3030,
 		allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || [],
 		corsEnabled: getBoolean(process.env.CORS_ENABLED, false),
+		logLevel: process.env.LOG_LEVEL || 'info',
+		port: process.env.PORT || 3030,
 	};
 };
 
@@ -33,17 +34,19 @@ const getValidatorConfig = (name: string) => {
 	return jsonConfig;
 };
 
-export const appConfig: AppConfig = {
+export const getDbConfig = () => ({
+	host: getRequiredConfig('DB_HOST'),
+	port: Number(getRequiredConfig('DB_PORT')),
+	database: getRequiredConfig('DB_NAME'),
+	user: getRequiredConfig('DB_USER'),
+	password: getRequiredConfig('DB_PASSWORD'),
+});
+
+export const buildAppConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
 	auth: {
 		enabled: false,
 	},
-	db: {
-		host: getRequiredConfig('DB_HOST'),
-		port: Number(getRequiredConfig('DB_PORT')),
-		database: getRequiredConfig('DB_NAME'),
-		user: getRequiredConfig('DB_USER'),
-		password: getRequiredConfig('DB_PASSWORD'),
-	},
+	db: getDbConfig(),
 	features: {
 		audit: {
 			enabled: getBoolean(process.env.AUDIT_ENABLED, true),
@@ -67,4 +70,5 @@ export const appConfig: AppConfig = {
 		maxFileSize: getOptionalIntegerConfig('SUBMISSION_MAX_SIZE') || DEFAULT_SUBMISSION_MAX_SIZE,
 	},
 	validator: getValidatorConfig('VALIDATOR_CONFIG'),
-};
+	...overrides,
+});
