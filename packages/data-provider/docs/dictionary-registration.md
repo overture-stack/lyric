@@ -108,7 +108,7 @@ A Category is uniquely identified by its case-sensitive `categoryName`.
 
 Category groups data that is related and shares the same data structure, for that reason, a category must be associated to a registered dictionary. Over time, if the dictionary requires an update, the category needs to be updates accordingly, See [Dictionary Migration](#dictionary-migration) for more details.
 
-If a category is already using the same dictionary name and version, registration returns `409 Conflict` by default. Set the `force` query parameter to `true` only when you need to override this and rerun registration for the same dictionary. This also triggers migration validation for existing category data, which is mainly useful when a previous registration or migration ended unexpectedly.
+If a category is already using the same dictionary name and version, registration returns `409 Conflict` by default. If the `force` query parameter is set to `true`, Lyric retries only when the same dictionary is already registered and the latest migration previously failed. If no prior failed migration exists, the `force` flag is ignored.
 
 ## Centric entity
 

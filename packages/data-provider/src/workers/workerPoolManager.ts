@@ -9,38 +9,49 @@ import type { CommitWorkerInput, DataValidationWorkerInput, WorkerFunctions, Wor
 const LOG_MODULE = 'WORKER_POOL_MANAGER';
 
 /**
- * Resolves the appropriate worker file to use.
- * For compiled/transpiled environments use .js, integration tests use .ts files directly, so the tsx loader
- * is required for process workers to execute TypeScript files.
+ * Worker pool configuration values used to initialize `workerpool.pool`.
  */
-const getWorkerPoolConfig = () => {
-	const currentFilePath = fileURLToPath(import.meta.url);
-	const useTsWorker = currentFilePath.endsWith('.ts');
-	const workerFileName = useTsWorker ? 'workerpool.ts' : 'workerpool.js';
-	const workerPath = fileURLToPath(new URL(`./${workerFileName}`, import.meta.url));
-
-	const poolOptions = useTsWorker
-		? {
-				workerType: 'process' as const,
-				forkOpts: {
-					execArgv: ['--import=tsx'],
-				},
-			}
-		: undefined;
-
-	return { workerPath, poolOptions };
+export type WorkerPoolConfig = {
+	/** Absolute path to the worker entry file. */
+	workerPath: string;
+	/** Optional worker pool runtime options. */
+	poolOptions?: Parameters<typeof workerpool.pool>[1];
 };
+
+/**
+ * Resolves worker pool configuration at runtime.
+ */
+export type WorkerPoolConfigResolver = () => WorkerPoolConfig;
+
+/**
+ * Optional overrides used when creating a worker pool.
+ */
+export type CreateWorkerPoolOptions = {
+	/** Custom resolver, primarily used by tests to inject worker settings. */
+	resolveWorkerPoolConfig?: WorkerPoolConfigResolver;
+};
+
+/**
+ * Default worker pool configuration resolver.
+ *
+ * Uses the built JavaScript worker entry file generated at build time.
+ */
+const defaultWorkerPoolConfigResolver: WorkerPoolConfigResolver = () => ({
+	workerPath: fileURLToPath(new URL('./workerpool.js', import.meta.url)),
+});
 
 /**
  * Factory function to create a worker pool with the given configuration.
  * @param configData The application configuration
+ * @param options Optional worker pool customization (used by tests to inject TS workers).
  * @returns The worker functions to execute tasks in the worker pool
  */
-export const createWorkerPool = (configData: AppConfig): WorkerFunctions => {
+export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPoolOptions): WorkerFunctions => {
 	const logger = getLogger(configData.logger);
 
 	// Initialize worker pool
-	const { workerPath, poolOptions } = getWorkerPoolConfig();
+	const resolveWorkerPoolConfig = options?.resolveWorkerPoolConfig ?? defaultWorkerPoolConfigResolver;
+	const { workerPath, poolOptions } = resolveWorkerPoolConfig();
 	const pool = workerpool.pool(workerPath, poolOptions);
 
 	// Cannot send non serializable objects/functions to worker, so we need to create a config object without those properties

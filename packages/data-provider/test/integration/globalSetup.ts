@@ -12,6 +12,9 @@
  * By starting the containers here we only need to wait for containers to start once, instead of at
  * the start of every test file.
  */
+
+import { after, before } from 'mocha';
+
 import { startContainers, type StartedContainers } from './dependencies/containers.js';
 
 let sharedContainers: StartedContainers;
