@@ -8,9 +8,10 @@ const DEFAULT_SUBMISSION_MAX_SIZE = 10 * 1024 * 1024; // 10Mb
 
 export const getServerConfig = () => {
 	return {
-		port: process.env.PORT || 3030,
 		allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || [],
 		corsEnabled: getBoolean(process.env.CORS_ENABLED, false),
+		logLevel: process.env.LOG_LEVEL || 'info',
+		port: process.env.PORT || 3030,
 	};
 };
 

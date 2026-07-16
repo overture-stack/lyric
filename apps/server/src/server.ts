@@ -11,9 +11,9 @@ import swaggerDoc from './config/swagger.js';
 import healthRouter from './routes/health.js';
 import pingRouter from './routes/ping.js';
 
-const { allowedOrigins, port, corsEnabled } = getServerConfig();
+const { allowedOrigins, corsEnabled, logLevel, port } = getServerConfig();
 
-const logger = getLogger({ level: process.env.LOG_LEVEL || 'info' });
+const logger = getLogger({ level: logLevel });
 const kafkaConfig = getKafkaConfig(logger);
 const kafka = kafkaConfig ? await setupKafka(logger, kafkaConfig) : undefined;
 
