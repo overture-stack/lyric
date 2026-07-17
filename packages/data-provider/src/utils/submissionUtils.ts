@@ -833,10 +833,11 @@ export const segregateFieldChangeRecords = (
 };
 
 /** Per-file outcome from `submissionInsertDataFromFiles`. */
-export type FileParseResult =
-	| { status: 'ok'; fileName: string; entityName: string }
-	| { status: 'invalid'; fileName: string; entityName: string; parseErrors: ParseSchemaError[] }
-	| { status: 'error'; fileName: string; entityName: string; streamError: string };
+export type FileParseResult = { fileName: string; entityName: string } & (
+	| { status: 'ok' }
+	| { status: 'invalid'; parseErrors: ParseSchemaError[] }
+	| { status: 'error'; streamError: string }
+);
 
 /** Return type of `submissionInsertDataFromFiles`. */
 export type FileInsertResult = {
