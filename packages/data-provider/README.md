@@ -42,7 +42,8 @@ const appConfig: AppConfig = {
 		customSize: 12, // Size of the generated ID
 	},
 	logger: {
-		level: 'info', // Logging level (e.g., 'debug', 'info', 'warn', 'error')
+		json: false, // When true, writes a structured JSON log to logs/app.json for log aggregator ingestion (e.g. Kibana). Controlled by LOG_JSON env var.
+		level: 'info', // Logging level (e.g., 'debug', 'info', 'warn', 'error'). Controlled by LOG_LEVEL env var.
 	},
 	schemaService: {
 		url: 'https://api.lectern-service.com', // URL of the schema service
@@ -202,6 +203,28 @@ const app = express();
 
 app.use('/submission', lyricProvider.routers.submission);
 ```
+
+### File Submission
+
+Files are submitted via `POST /submission/category/:categoryId/files` as a multipart form upload.
+
+By default, parsing runs in the background and `fileResults` will be empty in the response. Pass `sync=true` to wait for parsing and receive per-file results in the response.
+
+| `fileResults[].status` | Meaning |
+|---|---|
+| `ok` | File parsed successfully with no schema validation errors. |
+| `invalid` | File parsed but contains schema validation errors. The submission still proceeds; errors are listed in `parseErrors` (field names and line numbers only). |
+| `error` | File could not be read or parsed at all (e.g. corrupt stream, bad encoding). No records from this file were stored. |
+
+**`sync` query parameter**
+
+By default (`sync=false`), the endpoint returns immediately and parsing runs in the background. Pass `sync=true` to wait for results:
+
+```
+POST /submission/category/1/files?sync=true
+```
+
+When `sync=true`, `fileResults` will be populated in the response with per-file outcomes. Without it, parse errors are logged on the server but not returned to the caller. Avoid `sync=true` on very large batches where parsing time would exceed your client's request timeout.
 
 ### Provider Shut down
 

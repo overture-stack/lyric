@@ -389,6 +389,7 @@ const controller = ({
 				const files = Array.isArray(req.files) ? req.files : [];
 				const organization = req.query.organization;
 				const fileEntityMap = req.body;
+				const sync = req.query.sync === 'true';
 				// Get username from auth
 				const username = req.user?.username || '';
 
@@ -438,6 +439,7 @@ const controller = ({
 					organization,
 					username,
 					fileEntityMap,
+					sync,
 				});
 
 				if (submitFilesResult.status === 'UNKNOWN_CATEGORY') {

@@ -6,6 +6,7 @@ import {
 	Dictionary as SchemasDictionary,
 	DictionaryValidationError,
 	parse,
+	type ParseSchemaError,
 	Schema,
 	TestResult,
 	validate,
@@ -831,32 +832,50 @@ export const segregateFieldChangeRecords = (
 	);
 };
 
+/** Per-file outcome from `submissionInsertDataFromFiles`. */
+export type FileParseResult =
+	| { status: 'ok'; fileName: string; entityName: string }
+	| { status: 'invalid'; fileName: string; entityName: string; parseErrors: ParseSchemaError[] }
+	| { status: 'error'; fileName: string; entityName: string; streamError: string };
+
+/** Return type of `submissionInsertDataFromFiles`. */
+export type FileInsertResult = {
+	data: Record<string, SubmissionInsertData>;
+	fileResults: FileParseResult[];
+};
+
 /**
- * Construct a SubmissionInsertData object per each file returning a Record type based on entityName
- * @param {FileSchemaMap} fileSchemaPairs
- * @returns {Promise<Record<string, SubmissionInsertData>>}
+ * Parses all files in the schema map into insertion records.
+ * Each file is processed independently: a stream or parse failure on one file is captured and
+ * reported without interrupting processing of the remaining files.
  */
-export const submissionInsertDataFromFiles = async (
-	fileSchemaMap: FileSchemaMap,
-): Promise<Record<string, SubmissionInsertData>> => {
-	const output: Record<string, SubmissionInsertData> = {};
+export const submissionInsertDataFromFiles = async (fileSchemaMap: FileSchemaMap): Promise<FileInsertResult> => {
+	const data: Record<string, SubmissionInsertData> = {};
+	const fileResults: FileParseResult[] = [];
 
 	for (const [entityName, { files, schema }] of Object.entries(fileSchemaMap)) {
 		for (const file of files) {
-			const outputEntityValue = output[schema.name] ?? {
-				batchName: entityName,
-				records: [],
-			};
-			const parsedFileData = await readTextFile(file, schema);
-			// TODO: This doesn't handle parsedFileData.errors, when present.
-
-			outputEntityValue.records.push(...parsedFileData.records);
-
-			output[schema.name] = outputEntityValue;
+			try {
+				const parsedFileData = await readTextFile(file, schema);
+				const existing = data[schema.name] ?? { batchName: entityName, records: [] };
+				data[schema.name] = { ...existing, records: [...existing.records, ...parsedFileData.records] };
+				fileResults.push(
+					parsedFileData.errors.length > 0
+						? { status: 'invalid', fileName: file.originalname, entityName, parseErrors: parsedFileData.errors }
+						: { status: 'ok', fileName: file.originalname, entityName },
+				);
+			} catch (err) {
+				fileResults.push({
+					status: 'error',
+					fileName: file.originalname,
+					entityName,
+					streamError: err instanceof Error ? err.message : String(err),
+				});
+			}
 		}
 	}
 
-	return output;
+	return { data, fileResults };
 };
 
 /**

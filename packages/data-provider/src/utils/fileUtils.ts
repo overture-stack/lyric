@@ -44,14 +44,8 @@ export const getSeparatorCharacter = (file: Express.Multer.File): string | undef
  * @returns An `UnprocessedDataRecord` object where each header in `headers` is a key,
  *          and each value is the corresponding entry in `record` formatted for compatibility.
  */
-export const mapRecordToHeaders = (headers: string[], record: string[]) => {
-	return headers.reduce((obj: UnprocessedDataRecord, nextKey, index) => {
-		const dataStr = record[index] || '';
-		const formattedData = formatForExcelCompatibility(dataStr);
-		obj[nextKey] = formattedData;
-		return obj;
-	}, {});
-};
+export const mapRecordToHeaders = (headers: string[], record: string[]): UnprocessedDataRecord =>
+	Object.fromEntries(headers.map((key, index) => [key, formatForExcelCompatibility(record[index] || '')]));
 
 /**
  * Reads only first line of the file
@@ -63,74 +57,52 @@ export const readHeaders = async (file: Express.Multer.File) => {
 	return firstline(file.path);
 };
 
+/** Collects all raw rows from a delimited file stream, then cleans up the temp file. */
+const collectRows = (filePath: string, separator: string): Promise<string[][]> =>
+	new Promise((resolve, reject) => {
+		const rows: string[][] = [];
+		const stream = fs.createReadStream(filePath).pipe(csvParse({ delimiter: separator }));
+		stream.on('data', (row: string[]) => rows.push(row));
+		stream.on('end', () => resolve(rows));
+		stream.on('error', (err) => reject(err));
+		stream.on('close', () => {
+			stream.destroy();
+			fs.unlink(filePath, () => {});
+		});
+	});
+
 /**
- * Reads a text file and parse it to a JSON format.
- * Records are parsed to match schema field types.
- * Supported files: .tsv and .csv
- * @param {Express.Multer.File} file A file to read
- * @param {Schema} schema Schema to parse data with
- * @returns a JSON format objet
+ * Reads a text file and parses it to typed records.
+ * Returns all records (valid or not) and a separate list of per-row schema validation errors.
+ * Supported file types: .tsv and .csv
  */
 export const readTextFile = async (
 	file: Express.Multer.File,
 	schema: Schema,
-): Promise<{ records: DataRecord[]; errors?: ParseSchemaError[] }> => {
-	const returnRecords: DataRecord[] = [];
-	const returnErrors: ParseSchemaError[] = [];
-	const separatorCharacter = getSeparatorCharacter(file);
-	if (!separatorCharacter) {
-		throw new Error('Invalid file Extension');
+): Promise<{ records: DataRecord[]; errors: ParseSchemaError[] }> => {
+	const separator = getSeparatorCharacter(file);
+	if (!separator) {
+		throw new Error('Invalid file extension');
 	}
 
-	let headers: string[] = [];
-	let lineNumber = 0;
+	const rows = await collectRows(file.path, separator);
+	const [headerRow, ...dataRows] = rows;
+	if (!headerRow) {
+		return { records: [], errors: [] };
+	}
+	const headers = Object.values(headerRow);
 
-	return new Promise((resolve, reject) => {
-		const stream = fs.createReadStream(file.path).pipe(csvParse({ delimiter: separatorCharacter }));
-
-		stream.on('data', (record: string[]) => {
-			lineNumber++;
-			if (!headers.length) {
-				headers = Object.values(record);
-			} else {
-				const mappedRecord = mapRecordToHeaders(headers, record);
-
-				try {
-					const parseSchemaResult = parse.parseRecordValues(mappedRecord, schema);
-					if (parseSchemaResult.success) {
-						returnRecords.push(parseSchemaResult.data.record);
-					} else {
-						returnRecords.push(parseSchemaResult.data.record);
-						returnErrors.push({
-							recordErrors: parseSchemaResult.data.errors,
-							recordIndex: lineNumber,
-						});
-					}
-
-					if (lineNumber % 1000 === 0) {
-						// TODO: Add batch processing logic here (e.g., write to database or process as needed)
-						// returnRecords = []; // Clear the array after processing the batch
-						// returnErrors = []; // Clear the array after processing the batch
-					}
-				} catch (error) {
-					console.error(`Catching error parsing data: ${error}`);
-				}
-			}
-		});
-
-		stream.on('end', () => {
-			resolve({ records: returnRecords, errors: returnErrors });
-		});
-
-		stream.on('close', () => {
-			stream.destroy();
-			fs.unlink(file.path, () => {});
-		});
-
-		stream.on('error', () => {
-			reject({ records: returnRecords, errors: returnErrors });
-		});
+	const parsed = dataRows.map((row, index) => {
+		const lineNumber = index + 2; // +1 for header row, +1 for 1-based line numbers
+		const result = parse.parseRecordValues(mapRecordToHeaders(headers, row), schema);
+		const error = result.success ? undefined : { recordErrors: result.data.errors, recordIndex: lineNumber };
+		return { record: result.data.record, error };
 	});
+
+	return {
+		records: parsed.map((p) => p.record),
+		errors: parsed.flatMap((p) => (p.error ? [p.error] : [])),
+	};
 };
 
 function formatForExcelCompatibility(data: string) {
@@ -170,51 +142,55 @@ type FileProcessingResult = {
 	fileErrors: BatchError[];
 };
 
-/**
- * Processes an array of uploaded files, filtering valid `.tsv` files and checking for required headers
- *
- * @param {Express.Multer.File[]} files An array of `Express.Multer.File` objects representing the uploaded files.
- * @returns A `Promise<FileProcessingResult>` that resolves to an object containing two arrays:
- * - `validFiles`: Files that have a `.tsv` extension and contain the `systemId` header.
- * - `fileErrors`: Files that either have an invalid extension or are missing the required `systemId` header.
- */
-export async function processFiles(files: Express.Multer.File[]): Promise<FileProcessingResult> {
-	const result: FileProcessingResult = {
-		validFiles: [],
-		fileErrors: [],
-	};
+type FileOutcome = { valid: true; file: Express.Multer.File } | { valid: false; error: BatchError };
 
-	for (const file of files) {
-		try {
-			if (getSubmittedFileType(file).success) {
-				const fileHeaders = await readHeaders(file); // Wait for the async operation
-				if (fileHeaders.includes('systemId')) {
-					result.validFiles.push(file);
-				} else {
-					const batchError: BatchError = {
-						type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
-						message: `File '${file.originalname}' is missing the column 'systemId'`,
-						batchName: file.originalname,
-					};
-					result.fileErrors.push(batchError);
-				}
-			} else {
-				const batchError: BatchError = {
+const classifyFile = async (file: Express.Multer.File): Promise<FileOutcome> => {
+	try {
+		if (!getSubmittedFileType(file).success) {
+			return {
+				valid: false,
+				error: {
 					type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
 					message: `File '${file.originalname}' has invalid file extension. File extension must be '${SUPPORTED_FILE_EXTENSIONS.options}'`,
 					batchName: file.originalname,
+				},
+			};
+		}
+		const headers = await readHeaders(file);
+		return headers.includes('systemId')
+			? { valid: true, file }
+			: {
+					valid: false,
+					error: {
+						type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
+						message: `File '${file.originalname}' is missing the column 'systemId'`,
+						batchName: file.originalname,
+					},
 				};
-				result.fileErrors.push(batchError);
-			}
-		} catch (error) {
-			const batchError: BatchError = {
+	} catch {
+		return {
+			valid: false,
+			error: {
 				type: BATCH_ERROR_TYPE.FILE_READ_ERROR,
 				message: `Error reading file '${file.originalname}'`,
 				batchName: file.originalname,
-			};
-			result.fileErrors.push(batchError);
-		}
+			},
+		};
 	}
+};
 
-	return result;
-}
+/**
+ * Validates an array of uploaded files in parallel, checking extension and required headers.
+ *
+ * @param {Express.Multer.File[]} files An array of `Express.Multer.File` objects representing the uploaded files.
+ * @returns A `Promise<FileProcessingResult>` that resolves to an object containing two arrays:
+ * - `validFiles`: Files that have a valid extension and contain the `systemId` header.
+ * - `fileErrors`: Files that either have an invalid extension or are missing the required `systemId` header.
+ */
+export const processFiles = async (files: Express.Multer.File[]): Promise<FileProcessingResult> => {
+	const outcomes = await Promise.all(files.map(classifyFile));
+	return {
+		validFiles: outcomes.filter((o): o is { valid: true; file: Express.Multer.File } => o.valid).map((o) => o.file),
+		fileErrors: outcomes.filter((o): o is { valid: false; error: BatchError } => !o.valid).map((o) => o.error),
+	};
+};

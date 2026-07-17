@@ -14,6 +14,7 @@ import { filterAndPaginateSubmissionData, type FlattenedSubmissionData } from '.
 import {
 	checkEntityFieldNames,
 	createSubmissionSummaryResponse,
+	type FileParseResult,
 	isSubmissionActive,
 	removeItemsFromSubmission,
 	resolveFileEntities,
@@ -503,12 +504,14 @@ const submissionService = (dependencies: BaseDependencies) => {
 		organization,
 		username,
 		fileEntityMap,
+		sync = false,
 	}: {
 		files: Express.Multer.File[];
 		categoryId: number;
 		organization: string;
 		username: string;
 		fileEntityMap?: FilenameEntityPair[];
+		sync?: boolean;
 	}): Promise<SubmitFileResult | UnknownCategoryResult> => {
 		logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
 
@@ -517,6 +520,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: 'No valid files for submission',
 				batchErrors: [],
+				fileResults: [],
 				inProcessEntities: [],
 			};
 		}
@@ -559,6 +563,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: 'No valid entities in submission',
 				batchErrors,
+				fileResults: [],
 				inProcessEntities: entitiesToProcess,
 			};
 		}
@@ -573,6 +578,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 					status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 					description: error.message,
 					batchErrors: [],
+					fileResults: [],
 					inProcessEntities: [],
 				};
 			}
@@ -582,14 +588,15 @@ const submissionService = (dependencies: BaseDependencies) => {
 		// TODO: Add files to submission, then run validation separately. Currently these processes are both
 		//       done by the function that adds the files to the submission.
 
-		// Start background process of adding files to submission
-		// Running Schema validation in the background do not need to wait
-		// Result of validations will be stored in database
-		submissionProcessor.addFilesToSubmissionAsync(checkedEntities, {
+		// Parsing always starts immediately. When sync=true (default) the response waits for results;
+		// when sync=false it runs in the background and fileResults will be empty in the response.
+		// Schema validation always runs in a background worker thread regardless of this flag.
+		const parsePromise = submissionProcessor.addFilesToSubmissionAsync(checkedEntities, {
 			categoryId,
 			organization,
 			username,
 		});
+		const fileResults: FileParseResult[] = sync ? await parsePromise : [];
 
 		if (batchErrors.length === 0) {
 			return {
@@ -597,6 +604,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 				description: 'Submission files are being processed',
 				submissionId: activeSubmissionId,
 				batchErrors,
+				fileResults,
 				inProcessEntities: entitiesToProcess,
 			};
 		}
@@ -606,6 +614,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 			description: 'Some Submission files are being processed while others were unable to process',
 			submissionId: activeSubmissionId,
 			batchErrors,
+			fileResults,
 			inProcessEntities: entitiesToProcess,
 		};
 	};
