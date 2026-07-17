@@ -3,6 +3,7 @@ import type { PgTransaction } from 'drizzle-orm/pg-core';
 import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
 import { and, count, eq, inArray, or, SQL, sql } from 'drizzle-orm/sql';
 
+import type { DictionaryValidationRecordErrorDetails } from '@overture-stack/lectern-client';
 import {
 	auditSubmittedData,
 	type DataDiff,
@@ -56,18 +57,23 @@ const repository = (dependencies: BaseDependencies) => {
 			oldIsValid,
 			recordUpdated,
 			submissionId,
+			isMigration,
+			errors,
 		}: {
 			dataDiff: DataDiff;
 			oldIsValid: boolean;
 			recordUpdated: SubmittedData;
 			submissionId: number;
+			isMigration: boolean;
+			errors?: DictionaryValidationRecordErrorDetails[];
 		},
 		tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
 	) => {
 		const newAudit: NewAuditSubmittedData = {
-			action: AUDIT_ACTION.Values.UPDATE,
+			action: isMigration ? AUDIT_ACTION.Values.MIGRATION : AUDIT_ACTION.Values.UPDATE,
 			dictionaryCategoryId: recordUpdated.dictionaryCategoryId,
 			entityName: recordUpdated.entityName,
+			errors,
 			lastValidSchemaId: recordUpdated.lastValidSchemaId,
 			newDataIsValid: recordUpdated.isValid,
 			dataDiff: dataDiff,
@@ -200,7 +206,13 @@ const repository = (dependencies: BaseDependencies) => {
 					savedRecords.push(...savedSubmittedData);
 				}
 				logger.debug(LOG_MODULE, `Submitted ${savedRecords.length} record(s) successfully`);
-				return Array.isArray(data) ? savedRecords : savedRecords[0];
+				if (Array.isArray(data)) {
+					return savedRecords;
+				}
+				if (!savedRecords[0]) {
+					throw new Error('Failed to insert SubmittedData, no row returned');
+				}
+				return savedRecords[0];
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed submitting ${rows.length} record(s)`, error);
 				throw error;
@@ -340,7 +352,7 @@ const repository = (dependencies: BaseDependencies) => {
 			const filterEntityNameSql = filterByEntityNameArray(filter?.entityNames);
 
 			try {
-				const resultCount = await db
+				const [resultCount] = await db
 					.select({ total: count() })
 					.from(submittedData)
 					.where(
@@ -351,7 +363,12 @@ const repository = (dependencies: BaseDependencies) => {
 							filterEntityNameSql,
 						),
 					);
-				return resultCount[0].total;
+
+				if (!resultCount) {
+					throw new Error('Unexpected empty result from COUNT query for submittedData; expected one row');
+				}
+
+				return resultCount.total;
 			} catch (error) {
 				logger.error(
 					LOG_MODULE,
@@ -382,7 +399,7 @@ const repository = (dependencies: BaseDependencies) => {
 					.select({ total: count() })
 					.from(submittedData)
 					.where(and(eq(submittedData.dictionaryCategoryId, categoryId), filterEntityNameSql, filterOrganizationSql));
-				return resultCount[0].total;
+				return resultCount[0]?.total ?? 0;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed counting SubmittedData with categoryId '${categoryId}'`, error);
 				throw new ServiceUnavailable();
@@ -392,10 +409,12 @@ const repository = (dependencies: BaseDependencies) => {
 		/**
 		 * Update a SubmittedData record in database
 		 * @param submittedDataId Submitted Data ID
-		 * @param dataDiff Difference before and after the updata
-		 * @param newData Set fields to update
-		 * @param oldIsValid Previous isValid value
-		 * @param submissionId Submission ID
+		 * @param data Set fields to update
+		 * @param audit.dataDiff Difference before and after the update
+		 * @param audit.errors Audit errors, if any
+		 * @param audit.isMigration Whether the update is part of a migration
+		 * @param audit.oldIsValid Previous isValid value
+		 * @param audit.submissionId Submission ID
 		 * @param tx The transaction to use for the operation, optional
 		 * @returns An updated record
 		 */
@@ -403,17 +422,25 @@ const repository = (dependencies: BaseDependencies) => {
 			params:
 				| {
 						submittedDataId: number;
-						dataDiff: DataDiff;
-						newData: Partial<SubmittedData>;
-						oldIsValid: boolean;
-						submissionId: number;
+						data: Partial<SubmittedData>;
+						audit: {
+							dataDiff: DataDiff;
+							errors?: DictionaryValidationRecordErrorDetails[];
+							isMigration: boolean;
+							oldIsValid: boolean;
+							submissionId: number;
+						};
 				  }
 				| {
 						submittedDataId: number;
-						dataDiff: DataDiff;
-						newData: Partial<SubmittedData>;
-						oldIsValid: boolean;
-						submissionId: number;
+						data: Partial<SubmittedData>;
+						audit: {
+							dataDiff: DataDiff;
+							errors?: DictionaryValidationRecordErrorDetails[];
+							isMigration: boolean;
+							oldIsValid: boolean;
+							submissionId: number;
+						};
 				  }[],
 			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
 		): Promise<SubmittedData | SubmittedData[]> => {
@@ -422,27 +449,38 @@ const repository = (dependencies: BaseDependencies) => {
 			try {
 				const updatedRecords: SubmittedData[] = [];
 				for (const u of updates) {
-					const updated = await (tx || db)
+					const [updatedRecord] = await (tx || db)
 						.update(submittedData)
-						.set({ ...u.newData, updatedAt: new Date() })
+						.set({ ...u.data, updatedAt: new Date() })
 						.where(eq(submittedData.id, u.submittedDataId))
 						.returning();
-					updatedRecords.push(updated[0]);
+					if (!updatedRecord) {
+						throw new Error(`Failed to update SubmittedData with id '${u.submittedDataId}', no row returned`);
+					}
+					updatedRecords.push(updatedRecord);
 
-					if (features?.audit?.enabled && Object.keys(u.dataDiff.new).length && Object.keys(u.dataDiff.old).length) {
+					if (features?.audit?.enabled) {
 						await auditUpdateSubmittedData(
 							{
-								recordUpdated: updated[0],
-								submissionId: u.submissionId,
-								dataDiff: u.dataDiff,
-								oldIsValid: u.oldIsValid,
+								dataDiff: u.audit.dataDiff,
+								errors: u.audit.errors,
+								isMigration: u.audit.isMigration,
+								oldIsValid: u.audit.oldIsValid,
+								recordUpdated: updatedRecord,
+								submissionId: u.audit.submissionId,
 							},
 							tx,
 						);
 					}
 				}
 
-				return Array.isArray(params) ? updatedRecords : updatedRecords[0];
+				if (Array.isArray(params)) {
+					return updatedRecords;
+				}
+				if (!updatedRecords[0]) {
+					throw new Error('Failed to update SubmittedData, no row returned');
+				}
+				return updatedRecords[0];
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed updating SubmittedData`, error);
 				throw new ServiceUnavailable();

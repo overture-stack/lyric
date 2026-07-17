@@ -9,6 +9,36 @@ import { createLyricProvider, type LyricProvider } from '../../dependencies/lyri
 import { createTestApp } from '../../dependencies/testServer.js';
 import { getContainers } from '../../globalSetup.js';
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const waitForSubmissionToStopValidating = async ({
+	lyricProvider,
+	categoryId,
+	organization,
+	maxRetries = 3,
+	delayMs = 500,
+}: {
+	lyricProvider: LyricProvider;
+	categoryId: number;
+	organization: string;
+	maxRetries?: number;
+	delayMs?: number;
+}) => {
+	let attempt = 0;
+	let submission;
+	do {
+		await sleep(delayMs);
+		submission = await lyricProvider.repositories.submission.getActiveSubmissionSummary({
+			categoryId,
+			username: '',
+			organization,
+		});
+		attempt += 1;
+	} while (submission?.status === 'VALIDATING' && attempt < maxRetries);
+
+	return submission;
+};
+
 /**
  * These tests check that uploaded files are processed correctly. This includes running the async submission validation
  * processor and also writing the submission records to the active submission table.
@@ -64,7 +94,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 
 	after(async () => {
 		submissionProcessorFactory.create = originalCreate;
-		await lyricProvider.disconnect();
+		await lyricProvider.shutdown();
 	});
 
 	it('should save submitted file records to the active submission', async () => {
@@ -143,22 +173,47 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 		const sportTsv = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
 		const teamTsv = createTsvFileContent(['team_id', 'sport_id', 'name'], [['1', '1', 'Team A']]);
 
-		await app.post(`/category/${categoryId}/files?organization=testOrg`).attach('files', sportTsv, 'sport.tsv');
+		const organization = 'testOrg';
+
+		await app.post(`/category/${categoryId}/files?organization=${organization}`).attach('files', sportTsv, 'sport.tsv');
 		await pendingAsyncWork;
 
-		await app.post(`/category/${categoryId}/files?organization=testOrg`).attach('files', teamTsv, 'team.tsv');
-		await pendingAsyncWork;
 
-		const submission = await lyricProvider.repositories.submission.getActiveSubmissionDetails({
+		const resultFirstSubmission = await waitForSubmissionToStopValidating({
+			lyricProvider,
 			categoryId,
-			username: '',
-			organization: 'testOrg',
+			organization,
+			maxRetries: 3,
+			delayMs: 500,
 		});
 
-		expect(submission).to.exist;
-		expect(submission!.data.inserts).to.have.property('sport');
-		expect(submission!.data.inserts!['sport'].records).to.have.length(1);
-		expect(submission!.data.inserts).to.have.property('team');
-		expect(submission!.data.inserts!['team'].records).to.have.length(1);
+		expect(resultFirstSubmission).to.exist;
+		expect(resultFirstSubmission!.status).to.equal('VALID');
+
+		await app.post(`/category/${categoryId}/files?organization=${organization}`).attach('files', teamTsv, 'team.tsv');
+		await pendingAsyncWork;
+
+		const resultFinalSubmission = await waitForSubmissionToStopValidating({
+			lyricProvider,
+			categoryId,
+			organization,
+			maxRetries: 3,
+			delayMs: 500,
+		});
+
+		expect(resultFinalSubmission).to.exist;
+		expect(resultFinalSubmission!.status).to.equal('VALID');
+
+		const submissionDetails = await lyricProvider.repositories.submission.getActiveSubmissionDetails({
+			categoryId,
+			username: '',
+			organization,
+		});
+
+		expect(submissionDetails).to.exist;
+		expect(submissionDetails!.data.inserts).to.have.property('sport');
+		expect(submissionDetails!.data.inserts!['sport'].records).to.have.length(1);
+		expect(submissionDetails!.data.inserts).to.have.property('team');
+		expect(submissionDetails!.data.inserts!['team'].records).to.have.length(1);
 	});
 });

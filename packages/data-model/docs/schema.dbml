@@ -1,6 +1,13 @@
 enum audit_action {
   UPDATE
   DELETE
+  MIGRATION
+}
+
+enum migration_status {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
 }
 
 enum submission_status {
@@ -19,6 +26,7 @@ table audit_submitted_data {
   dictionary_category_id integer [not null]
   data_diff jsonb
   entity_name varchar [not null]
+  errors jsonb
   last_valid_schema_id integer
   new_data_is_valid boolean [not null]
   old_data_is_valid boolean [not null]
@@ -56,6 +64,27 @@ table dictionary_categories {
   updated_by varchar
 }
 
+table dictionary_migration {
+  id serial [pk, not null, increment]
+  category_id integer [not null]
+  from_dictionary_id integer [not null]
+  to_dictionary_id integer [not null]
+  submission_id integer [not null]
+  status migration_status [not null]
+  retries integer [not null, default: 0]
+  created_at timestamp
+  created_by varchar
+  updated_at timestamp
+  updated_by varchar
+
+  indexes {
+    category_id [name: 'dictionary_migration_category_id_index']
+    from_dictionary_id [name: 'dictionary_migration_from_dictionary_id_index']
+    to_dictionary_id [name: 'dictionary_migration_to_dictionary_id_index']
+    submission_id [name: 'dictionary_migration_submission_id_index']
+  }
+}
+
 table submissions {
   id serial [pk, not null, increment]
   data jsonb [not null]
@@ -63,6 +92,7 @@ table submissions {
   dictionary_id integer [not null]
   errors jsonb
   organization varchar [not null]
+  published_at timestamp
   status submission_status [not null]
   created_at timestamp [default: `now()`]
   created_by varchar
@@ -108,6 +138,14 @@ ref: audit_submitted_data.original_schema_id - dictionaries.id
 ref: audit_submitted_data.submission_id - submissions.id
 
 ref: dictionary_categories.active_dictionary_id - dictionaries.id
+
+ref: dictionary_migration.category_id - dictionary_categories.id
+
+ref: dictionary_migration.from_dictionary_id - dictionaries.id
+
+ref: dictionary_migration.to_dictionary_id - dictionaries.id
+
+ref: dictionary_migration.submission_id - submissions.id
 
 ref: submissions.dictionary_id - dictionaries.id
 

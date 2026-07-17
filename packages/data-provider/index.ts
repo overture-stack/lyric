@@ -1,6 +1,17 @@
 // config
-export { type AppConfig, type ValidatorEntry } from './src/config/config.js';
+export { type AppConfig, type LoggerConfig, type ValidatorEntry } from './src/config/config.js';
+export { connect } from './src/config/db.js';
+export { getLogger, type Logger } from './src/config/logger.js';
+export { type DbConfig, migrate } from '@overture-stack/lyric-data-model';
+
+// core
+export { type ProviderOptions } from './src/core/provider.js';
 export { default as provider } from './src/core/provider.js';
+
+// external integrations
+export { createKafkaPublisher, type KafkaProducer, type KafkaPublisherConfig } from './src/external/kafkaPublisher.js';
+
+// middleware
 export {
 	type AuthConfig,
 	type RequestWithUser,
@@ -8,10 +19,10 @@ export {
 	type UserSessionResult,
 } from './src/middleware/auth.js';
 export { errorHandler } from './src/middleware/errorHandler.js';
-export { type DbConfig, migrate } from '@overture-stack/lyric-data-model';
 
 // routes
 export { default as dictionaryRouters } from './src/routers/dictionaryRouter.js';
+export { default as migrationRouter } from './src/routers/migrationRouter.js';
 export { default as submissionRouter } from './src/routers/submissionRouter.js';
 export { default as submittedDataRouter } from './src/routers/submittedDataRouter.js';
 

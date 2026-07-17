@@ -14,7 +14,7 @@
 		"start:dev": "nodemon",
 		"test": "pnpm run test:unit",
 		"test:unit": "mocha --ignore 'test/integration/**/*.spec.ts'",
-		"test:integration": "mocha --ignore 'test/unit/**/*.spec.ts' --timeout 60000 --file 'test/integration/globalSetup.ts'",
+		"test:integration": "mocha --ignore 'test/unit/**/*.spec.ts' --timeout 60000 --file 'test/integration/globalSetup.ts' --exit",
 		"test:coverage": "c8 pnpm run test"
 	},
 	"keywords": [
