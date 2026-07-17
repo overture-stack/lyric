@@ -61,12 +61,19 @@ export const readHeaders = async (file: Express.Multer.File) => {
 const collectRows = (filePath: string, separator: string): Promise<string[][]> =>
 	new Promise((resolve, reject) => {
 		const rows: string[][] = [];
-		const stream = fs.createReadStream(filePath).pipe(csvParse({ delimiter: separator }));
-		stream.on('data', (row: string[]) => rows.push(row));
-		stream.on('end', () => resolve(rows));
-		stream.on('error', (err) => reject(err));
-		stream.on('close', () => {
-			stream.destroy();
+		const source = fs.createReadStream(filePath);
+		const parser = source.pipe(csvParse({ delimiter: separator }));
+		// source errors (e.g. ENOENT, EACCES) fire on the ReadStream and do NOT propagate
+		// through pipe() to the transform. Without this, a missing file causes an unhandled
+		// rejection that escapes the try/catch in the caller.
+		source.on('error', (err) => reject(err));
+		parser.on('data', (row: string[]) => rows.push(row));
+		parser.on('end', () => resolve(rows));
+		// parser errors (e.g. malformed CSV) fire on the transform stream, not the source.
+		parser.on('error', (err) => reject(err));
+		parser.on('close', () => {
+			parser.destroy();
+			source.destroy();
 			fs.unlink(filePath, () => {});
 		});
 	});

@@ -4,7 +4,7 @@
 
 ### Tests live in `test/` not co-located with source
 standalone: yes
-context: Convention mismatch: team convention is to co-locate test files with source (`validation.test.ts` next to `validation.ts`). Lyric's existing mocha suite lives in `packages/data-provider/test/`. New tests should be co-located. Migrating existing tests is a standalone cleanup task.
+context: Convention mismatch, two parts: team convention is to co-locate test files with source (`validation.test.ts` next to `validation.ts`), using the `.test.ts` suffix. Lyric's existing suite instead lives entirely under `packages/data-provider/test/{unit,integration}/` (49 spec files total, e.g. `test/unit/external/kafkaPublisher.spec.ts`), using `.spec.ts`. Fix: relocate each spec file into the same directory as the source file it tests, renaming `.spec.ts` to `.test.ts` to match convention. New tests should be co-located from now on; migrating the existing 49 is a standalone cleanup task, not in scope of feature work.
 
 ### Existing tests use mocha/chai/sinon, not node:test
 standalone: no
@@ -20,7 +20,7 @@ context: When `producer.send` fails after all kafkajs retries, the commit is com
 
 ### Server logger not passed into AppConfig
 standalone: yes
-context: `server.ts` creates a logger with `getLogger()` and `buildAppConfig()` creates a second one internally from `LoggerConfig`. The lyric provider should use the server's logger instance rather than constructing its own. Requires either `AppConfig` to accept a `Logger` instance (not just `LoggerConfig`), or a way to inject it post-construction. Flagged by Jon in PR #208.
+context: `server.ts` creates a logger with `getLogger()` and `buildAppConfig()` creates a second one internally from `LoggerConfig`. The lyric provider should use the server's logger instance rather than constructing its own. Requires either `AppConfig` to accept a `Logger` instance (not just `LoggerConfig`), or a way to inject it post-construction. Flagged in PR #208 review.
 
 ### Base image has known high vulnerability
 standalone: yes
@@ -33,4 +33,4 @@ context: `FROM node:22-alpine` (Dockerfile line 9) is flagged with a high CVE by
 <!-- Move entries here when addressed, with a note of when and what fixed it -->
 
 ### Kafka publish tracking: no unit tests for `createPublishTracker`
-resolved: tracker removed in PR #208 (published_at column dropped on Jon's review; tracking responsibility deferred)
+resolved: tracker removed in PR #208 (published_at column dropped during review; tracking responsibility deferred)
