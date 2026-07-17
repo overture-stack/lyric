@@ -42,6 +42,7 @@ const appConfig: AppConfig = {
 		customSize: 12, // Size of the generated ID
 	},
 	logger: {
+		file: false, // When true, writes a plain-text log to logs.log (legacy). Controlled by LOG_FILE env var.
 		json: false, // When true, writes a structured JSON log to logs/app.json for log aggregator ingestion (e.g. Kibana). Controlled by LOG_JSON env var.
 		level: 'info', // Logging level (e.g., 'debug', 'info', 'warn', 'error'). Controlled by LOG_LEVEL env var.
 	},
