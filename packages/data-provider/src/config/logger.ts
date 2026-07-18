@@ -65,7 +65,7 @@ export const getLogger = (config: LoggerConfig): Logger => {
 		}),
 	);
 
-	// Plain-text file transport (legacy; kept for backwards compatibility).
+	// Plain-text file transport for pre-Kubernetes deployments that relied on file-based log shipping.
 	if (config.file) {
 		transportList.push(new transports.File({ filename: 'logs.log' }));
 	}

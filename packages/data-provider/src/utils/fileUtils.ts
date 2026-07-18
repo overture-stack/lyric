@@ -13,6 +13,7 @@ import {
 } from '@overture-stack/lectern-client';
 
 import { getSubmittedFileType } from '../services/submission/submissionFile.js';
+import { failure, success, type Result } from './result.js';
 import { BATCH_ERROR_TYPE, type BatchError } from './types.js';
 
 export const SUPPORTED_FILE_EXTENSIONS = z.enum(['tsv', 'csv']);
@@ -149,55 +150,40 @@ type FileProcessingResult = {
 	fileErrors: BatchError[];
 };
 
-type FileOutcome = { valid: true; file: Express.Multer.File } | { valid: false; error: BatchError };
-
-const classifyFile = async (file: Express.Multer.File): Promise<FileOutcome> => {
+const classifyFile = async (file: Express.Multer.File): Promise<Result<Express.Multer.File, BatchError>> => {
 	try {
 		if (!getSubmittedFileType(file).success) {
-			return {
-				valid: false,
-				error: {
-					type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
-					message: `File '${file.originalname}' has invalid file extension. File extension must be '${SUPPORTED_FILE_EXTENSIONS.options}'`,
-					batchName: file.originalname,
-				},
-			};
+			return failure({
+				type: BATCH_ERROR_TYPE.INVALID_FILE_EXTENSION,
+				message: `File '${file.originalname}' has invalid file extension. File extension must be '${SUPPORTED_FILE_EXTENSIONS.options}'`,
+				batchName: file.originalname,
+			});
 		}
 		const headers = await readHeaders(file);
 		return headers.includes('systemId')
-			? { valid: true, file }
-			: {
-					valid: false,
-					error: {
-						type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
-						message: `File '${file.originalname}' is missing the column 'systemId'`,
-						batchName: file.originalname,
-					},
-				};
+			? success(file)
+			: failure({
+					type: BATCH_ERROR_TYPE.MISSING_REQUIRED_HEADER,
+					message: `File '${file.originalname}' is missing the column 'systemId'`,
+					batchName: file.originalname,
+				});
 	} catch {
-		return {
-			valid: false,
-			error: {
-				type: BATCH_ERROR_TYPE.FILE_READ_ERROR,
-				message: `Error reading file '${file.originalname}'`,
-				batchName: file.originalname,
-			},
-		};
+		return failure({
+			type: BATCH_ERROR_TYPE.FILE_READ_ERROR,
+			message: `Error reading file '${file.originalname}'`,
+			batchName: file.originalname,
+		});
 	}
 };
 
 /**
  * Validates an array of uploaded files in parallel, checking extension and required headers.
- *
- * @param {Express.Multer.File[]} files An array of `Express.Multer.File` objects representing the uploaded files.
- * @returns A `Promise<FileProcessingResult>` that resolves to an object containing two arrays:
- * - `validFiles`: Files that have a valid extension and contain the `systemId` header.
- * - `fileErrors`: Files that either have an invalid extension or are missing the required `systemId` header.
+ * Returns files that passed validation and batch errors for those that did not.
  */
 export const processFiles = async (files: Express.Multer.File[]): Promise<FileProcessingResult> => {
 	const outcomes = await Promise.all(files.map(classifyFile));
 	return {
-		validFiles: outcomes.filter((o): o is { valid: true; file: Express.Multer.File } => o.valid).map((o) => o.file),
-		fileErrors: outcomes.filter((o): o is { valid: false; error: BatchError } => !o.valid).map((o) => o.error),
+		validFiles: outcomes.filter((o) => o.success).map((o) => o.data),
+		fileErrors: outcomes.filter((o) => !o.success).map((o) => o.data),
 	};
 };

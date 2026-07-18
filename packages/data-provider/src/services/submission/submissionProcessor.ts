@@ -858,12 +858,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		let fileResults: FileParseResult[] = [];
 
 		try {
-			// Parse file data — each file is isolated; a failure on one does not block others.
-			const { data: filesDataProcessed, fileResults: parsed } = await submissionInsertDataFromFiles(fileSchemaMap);
-			fileResults = parsed;
-			logFileResults(fileResults);
-
-			// Get Active Submission from database
+			// Verify an active submission exists before doing any parsing work.
 			const activeSubmission = await submissionRepository.getActiveSubmissionDetails({
 				categoryId,
 				username,
@@ -872,6 +867,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			if (!activeSubmission) {
 				throw new BadRequest(`No active submission found for category '${categoryId}' organization '${organization}'`);
 			}
+
+			// Parse file data — each file is isolated; a failure on one does not block others.
+			const { data: filesDataProcessed, fileResults: parsed } = await submissionInsertDataFromFiles(fileSchemaMap);
+			fileResults = parsed;
+			logFileResults(fileResults);
 
 			// Merge Active Submission data with incoming TSV file data processed
 			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, filesDataProcessed);

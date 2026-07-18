@@ -490,13 +490,9 @@ const submissionService = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Validates and Creates the Entities Schemas of the Active Submission and stores it in the database
-	 * @param {object} params
-	 * @param {Express.Multer.File[]} params.files An array of files
-	 * @param {number} params.categoryId Category ID of the Submission
-	 * @param {string} params.organization Organization name
-	 * @param {string} params.username User name creating the Submission
-	 * @returns The Active Submission created or Updated
+	 * Validates the uploaded files against the active submission's entity schemas and stores
+	 * the parsed records in the database. When `sync` is true, awaits parsing and returns
+	 * per-file results; when false (default), parsing runs in the background.
 	 */
 	const submitFiles = async ({
 		files,
