@@ -61,6 +61,8 @@ export const buildAppConfig = (overrides: Partial<AppConfig> = {}): AppConfig =>
 		customSize: Number(process.env.ID_CUSTOM_SIZE) || 21,
 	},
 	logger: {
+		file: getBoolean(process.env.LOG_FILE, false),
+		json: getBoolean(process.env.LOG_JSON, false),
 		level: process.env.LOG_LEVEL || 'info',
 	},
 	schemaService: {

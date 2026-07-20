@@ -1,6 +1,6 @@
 import type { ParamsDictionary } from 'express-serve-static-core';
 import type { ParsedQs } from 'qs';
-import { z } from 'zod';
+import { z as zod } from 'zod';
 
 import type { DataRecord } from '@overture-stack/lectern-client';
 import type { SQON } from '@overture-stack/sqon-builder';
@@ -11,20 +11,20 @@ import { isValidDateFormat, isValidIdNumber } from './formatUtils.js';
 import { RequestValidation } from './requestValidation.js';
 import { VIEW_TYPE } from './types.js';
 
-const auditEventTypeSchema = z
+const auditEventTypeSchema = zod
 	.string()
 	.trim()
 	.min(1)
 	.refine((value) => isAuditEventValid(value), 'invalid Event Type');
 
-const booleanSchema = z
+const booleanSchema = zod
 	.string()
 	.toLowerCase()
 	.refine((value) => value === 'true' || value === 'false');
 
-const viewSchema = z.string().toLowerCase().trim().min(1).pipe(VIEW_TYPE);
+const viewSchema = zod.string().toLowerCase().trim().min(1).pipe(VIEW_TYPE);
 
-const categoryIdSchema = z
+const categoryIdSchema = zod
 	.string()
 	.trim()
 	.min(1)
@@ -33,21 +33,21 @@ const categoryIdSchema = z
 		return isValidIdNumber(parsed);
 	}, 'invalid category ID');
 
-const endDateSchema = z
+const endDateSchema = zod
 	.string()
 	.trim()
 	.min(1)
 	.refine((value) => isValidDateFormat(value), 'invalid `endDate` parameter');
 
-const entityNameSchema = z.string().trim().min(1);
+const entityNameSchema = zod.string().trim().min(1);
 
-const organizationSchema = z.string().trim().min(1);
+const organizationSchema = zod.string().trim().min(1);
 
-const pageSizeSchema = z.string().superRefine((value, ctx) => {
+const pageSizeSchema = zod.string().superRefine((value, ctx) => {
 	const parsed = parseInt(value);
 	if (isNaN(parsed)) {
 		ctx.addIssue({
-			code: z.ZodIssueCode.invalid_type,
+			code: zod.ZodIssueCode.invalid_type,
 			expected: 'number',
 			received: 'nan',
 		});
@@ -55,7 +55,7 @@ const pageSizeSchema = z.string().superRefine((value, ctx) => {
 
 	if (parsed < 1) {
 		ctx.addIssue({
-			code: z.ZodIssueCode.too_small,
+			code: zod.ZodIssueCode.too_small,
 			minimum: 1,
 			inclusive: true,
 			type: 'number',
@@ -63,22 +63,22 @@ const pageSizeSchema = z.string().superRefine((value, ctx) => {
 	}
 });
 
-const indexIntegerSchema = z.string().superRefine((value, ctx) => {
+const indexIntegerSchema = zod.string().superRefine((value, ctx) => {
 	const parsed = parseInt(value);
 	if (isNaN(parsed)) {
 		ctx.addIssue({
-			code: z.ZodIssueCode.invalid_type,
+			code: zod.ZodIssueCode.invalid_type,
 			expected: 'number',
 			received: 'nan',
 		});
 	}
 });
 
-const positiveInteger = z.string().superRefine((value, ctx) => {
+const positiveInteger = zod.string().superRefine((value, ctx) => {
 	const parsed = parseInt(value);
 	if (isNaN(parsed)) {
 		ctx.addIssue({
-			code: z.ZodIssueCode.invalid_type,
+			code: zod.ZodIssueCode.invalid_type,
 			expected: 'number',
 			received: 'nan',
 		});
@@ -86,7 +86,7 @@ const positiveInteger = z.string().superRefine((value, ctx) => {
 
 	if (parsed < 1) {
 		ctx.addIssue({
-			code: z.ZodIssueCode.too_small,
+			code: zod.ZodIssueCode.too_small,
 			minimum: 1,
 			inclusive: true,
 			type: 'number',
@@ -94,7 +94,7 @@ const positiveInteger = z.string().superRefine((value, ctx) => {
 	}
 });
 
-const sqonSchema = z.custom<SQON>((value) => {
+const sqonSchema = zod.custom<SQON>((value) => {
 	try {
 		parseSQON(value);
 		return true;
@@ -103,19 +103,19 @@ const sqonSchema = z.custom<SQON>((value) => {
 	}
 }, 'invalid SQON format');
 
-const startDateSchema = z
+const startDateSchema = zod
 	.string()
 	.trim()
 	.min(1)
 	.refine((value) => isValidDateFormat(value), 'invalid `startDate` parameter');
 
-const submissionActionTypeSchema = z
+const submissionActionTypeSchema = zod
 	.string()
 	.trim()
 	.min(1)
 	.refine((value) => isSubmissionActionTypeValid(value), 'invalid Submission Action Type');
 
-const submissionIdSchema = z
+const submissionIdSchema = zod
 	.string()
 	.trim()
 	.min(1)
@@ -124,7 +124,7 @@ const submissionIdSchema = z
 		return isValidIdNumber(parsed);
 	}, 'invalid submission ID');
 
-const migrationIdSchema = z
+const migrationIdSchema = zod
 	.string()
 	.trim()
 	.min(1)
@@ -133,31 +133,31 @@ const migrationIdSchema = z
 		return isValidIdNumber(parsed);
 	}, 'invalid migration ID');
 
-const stringNotEmpty = z.string().trim().min(1);
+const stringNotEmpty = zod.string().trim().min(1);
 
 // Common Category Path Params
 export interface CategoryPathParams extends ParamsDictionary {
 	categoryId: string;
 }
 
-export const categoryPathParamsSchema = z.object({
+export const categoryPathParamsSchema = zod.object({
 	categoryId: categoryIdSchema,
 });
 
 // Common Category and Organization Path Params
-export const categoryOrganizationPathParamsSchema = z.object({
+export const categoryOrganizationPathParamsSchema = zod.object({
 	categoryId: categoryIdSchema,
 	organization: organizationSchema,
 });
-export type CategoryOrganizationPathParams = z.infer<typeof categoryOrganizationPathParamsSchema>;
+export type CategoryOrganizationPathParams = zod.infer<typeof categoryOrganizationPathParamsSchema>;
 
 // Common Category, Organization, and EntityName Path Params
-export const categoryOrganizationEntityPathParamsSchema = z.object({
+export const categoryOrganizationEntityPathParamsSchema = zod.object({
 	categoryId: categoryIdSchema,
 	organizationId: organizationSchema,
 	entityName: entityNameSchema,
 });
-export type CategoryOrganizationEntityPathParams = z.infer<typeof categoryOrganizationEntityPathParamsSchema>;
+export type CategoryOrganizationEntityPathParams = zod.infer<typeof categoryOrganizationEntityPathParamsSchema>;
 
 // Common Submission Path Params
 
@@ -165,7 +165,7 @@ export interface submissionIdPathParam extends ParamsDictionary {
 	submissionId: string;
 }
 
-const submissionIdPathParamSchema = z.object({
+const submissionIdPathParamSchema = zod.object({
 	submissionId: submissionIdSchema,
 });
 
@@ -174,7 +174,7 @@ export interface migrationIdPathParam extends ParamsDictionary {
 	migrationId: string;
 }
 
-const migrationIdPathParamSchema = z.object({
+const migrationIdPathParamSchema = zod.object({
 	migrationId: migrationIdSchema,
 });
 
@@ -185,7 +185,7 @@ export interface PaginationQueryParams extends ParsedQs {
 	pageSize?: string;
 }
 
-const paginationQuerySchema = z.object({
+const paginationQuerySchema = zod.object({
 	page: positiveInteger.optional(),
 	pageSize: pageSizeSchema.optional(),
 });
@@ -200,7 +200,7 @@ export interface AuditQueryParams extends ParsedQs {
 	endDate?: string;
 }
 
-const auditQuerySchema = z
+const auditQuerySchema = zod
 	.object({
 		entityName: entityNameSchema.optional(),
 		eventType: auditEventTypeSchema.optional(),
@@ -243,13 +243,13 @@ export const dictionaryRegisterRequestSchema: RequestValidation<
 	DictionaryRegisterQueryParams,
 	ParamsDictionary
 > = {
-	body: z.object({
+	body: zod.object({
 		categoryName: stringNotEmpty,
 		dictionaryName: stringNotEmpty,
 		dictionaryVersion: stringNotEmpty,
-		defaultCentricEntity: entityNameSchema.or(z.literal('')).optional(),
+		defaultCentricEntity: entityNameSchema.or(zod.literal('')).optional(),
 	}),
-	query: z.object({
+	query: zod.object({
 		force: booleanSchema.default('false'),
 	}),
 };
@@ -273,10 +273,10 @@ export interface MigrationDataQueryParams extends PaginationQueryParams {
 
 export const migrationDataRequestSchema: RequestValidation<object, MigrationDataQueryParams, migrationIdPathParam> = {
 	pathParams: migrationIdPathParamSchema,
-	query: z
+	query: zod
 		.object({
-			entityNames: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
-			organizations: z.union([organizationSchema, organizationSchema.array()]).optional(),
+			entityNames: zod.union([entityNameSchema, entityNameSchema.array()]).optional(),
+			organizations: zod.union([organizationSchema, organizationSchema.array()]).optional(),
 			isInvalid: booleanSchema.default('false'),
 		})
 		.merge(paginationQuerySchema),
@@ -295,7 +295,7 @@ export const submissionsByCategoryRequestSchema: RequestValidation<
 	SubmissionsByCategoryQueryParams,
 	CategoryPathParams
 > = {
-	query: z.object({
+	query: zod.object({
 		onlyActive: booleanSchema.default('false'),
 		organization: organizationSchema.optional(),
 		username: stringNotEmpty.optional(),
@@ -316,10 +316,10 @@ export const submissionDetailsRequestSchema: RequestValidation<
 	SubmissionsDetailsQueryParams,
 	submissionIdPathParam
 > = {
-	query: z
+	query: zod
 		.object({
-			entityNames: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
-			actionTypes: z.union([submissionActionTypeSchema, submissionActionTypeSchema.array()]).optional(),
+			entityNames: zod.union([entityNameSchema, entityNameSchema.array()]).optional(),
+			actionTypes: zod.union([submissionActionTypeSchema, submissionActionTypeSchema.array()]).optional(),
 		})
 		.merge(paginationQuerySchema),
 	pathParams: submissionIdPathParamSchema,
@@ -339,7 +339,7 @@ export interface submissionCommitPathParams extends ParamsDictionary {
 }
 
 export const submissionCommitRequestSchema: RequestValidation<object, ParsedQs, submissionCommitPathParams> = {
-	pathParams: z.object({
+	pathParams: zod.object({
 		categoryId: categoryIdSchema,
 		submissionId: submissionIdSchema,
 	}),
@@ -355,7 +355,7 @@ export const submissionDeleteRequestSchema: RequestValidation<
 	submissionIdPathParam
 > = {
 	pathParams: submissionIdPathParamSchema,
-	query: z.object({
+	query: zod.object({
 		force: booleanSchema.default('false'),
 	}),
 };
@@ -375,47 +375,48 @@ export const submissionDeleteEntityNameRequestSchema: RequestValidation<
 	SubmissionDeleteEntityNameQueryParams,
 	SubmissionDeleteEntityNameParams
 > = {
-	query: z.object({
+	query: zod.object({
 		entityName: entityNameSchema,
 		index: indexIntegerSchema.optional(),
 	}),
-	pathParams: z.object({
+	pathParams: zod.object({
 		actionType: submissionActionTypeSchema,
 		submissionId: submissionIdSchema,
 	}),
 };
 
-const uploadSubmissionQueryParams = z.object({
+const uploadSubmissionQueryParams = zod.object({
 	entityName: entityNameSchema,
 	organization: organizationSchema,
 });
 
-export type UploadSubmissionQueryParams = z.infer<typeof uploadSubmissionQueryParams>;
+export type UploadSubmissionQueryParams = zod.infer<typeof uploadSubmissionQueryParams>;
 
-const submissionUploadFilesQueryParams = z.object({
+const submissionUploadFilesQueryParams = zod.object({
 	organization: organizationSchema,
+	sync: zod.enum(['true', 'false']).optional(),
 });
 
-export type SubmissionUploadFilesQueryParams = z.infer<typeof submissionUploadFilesQueryParams>;
+export type SubmissionUploadFilesQueryParams = zod.infer<typeof submissionUploadFilesQueryParams>;
 
-export const filenameEntityPair = z.object({
-	filename: z.string(),
-	entity: z.string(),
+export const filenameEntityPair = zod.object({
+	filename: zod.string(),
+	entity: zod.string(),
 });
 
-export type FilenameEntityPair = z.infer<typeof filenameEntityPair>;
+export type FilenameEntityPair = zod.infer<typeof filenameEntityPair>;
 
-const dataRecordValueSchema = z.union([
-	z.string(),
-	z.number(),
-	z.boolean(),
-	z.array(z.string()),
-	z.array(z.number()),
-	z.array(z.boolean()),
-	z.undefined(),
+const dataRecordValueSchema = zod.union([
+	zod.string(),
+	zod.number(),
+	zod.boolean(),
+	zod.array(zod.string()),
+	zod.array(zod.number()),
+	zod.array(zod.boolean()),
+	zod.undefined(),
 ]);
 
-const dataRecordSchema = z.record(dataRecordValueSchema);
+const dataRecordSchema = zod.record(dataRecordValueSchema);
 
 export const uploadSubmissionRequestSchema: RequestValidation<
 	FilenameEntityPair[] | undefined,
@@ -429,7 +430,7 @@ export const uploadSubmissionRequestSchema: RequestValidation<
 	// When no text fields are sent, req.body is an empty null-prototype object {}.
 	// The preprocess step extracts and parses the fileEntityMap field when present,
 	// and coerces all other values (empty object, non-array) to undefined.
-	body: z.preprocess((value: unknown) => {
+	body: zod.preprocess((value: unknown) => {
 		if (Array.isArray(value)) {
 			return value;
 		}
@@ -452,7 +453,7 @@ export const uploadSubmissionRequestSchema: RequestValidation<
 		} catch {
 			return undefined;
 		}
-	}, z.array(filenameEntityPair).optional()),
+	}, zod.array(filenameEntityPair).optional()),
 };
 
 export const uploadSingleEntitySubmissionDataRequestSchema: RequestValidation<
@@ -473,7 +474,7 @@ export interface DataDeleteBySystemIdPathParams extends ParamsDictionary {
 }
 
 export const dataDeleteBySystemIdRequestSchema: RequestValidation<object, ParsedQs, DataDeleteBySystemIdPathParams> = {
-	pathParams: z.object({
+	pathParams: zod.object({
 		systemId: stringNotEmpty,
 		categoryId: categoryIdSchema,
 	}),
@@ -490,7 +491,7 @@ export const editSingleEntityRequestSchema: RequestValidation<
 	UploadSubmissionQueryParams,
 	CategoryPathParams
 > = {
-	body: z.record(z.unknown()).array(),
+	body: zod.record(zod.unknown()).array(),
 	query: uploadSubmissionQueryParams,
 	pathParams: categoryPathParamsSchema,
 };
@@ -505,16 +506,16 @@ export interface GetDataQueryParams extends ParsedQs {
 }
 
 export const dataGetByCategoryRequestSchema: RequestValidation<object, DataQueryParams, CategoryPathParams> = {
-	query: z
+	query: zod
 		.object({
-			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
+			entityName: zod.union([entityNameSchema, entityNameSchema.array()]).optional(),
 			view: viewSchema.optional(),
 		})
 		.merge(paginationQuerySchema)
 		.superRefine((data, ctx) => {
 			if (data.view === VIEW_TYPE.Values.compound && data.entityName && data.entityName?.length > 0) {
 				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
+					code: zod.ZodIssueCode.custom,
 					message: 'is incompatible with `compound` view',
 					path: ['entityName'],
 				});
@@ -528,16 +529,16 @@ export const dataGetByOrganizationRequestSchema: RequestValidation<
 	DataQueryParams,
 	CategoryOrganizationPathParams
 > = {
-	query: z
+	query: zod
 		.object({
-			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
+			entityName: zod.union([entityNameSchema, entityNameSchema.array()]).optional(),
 			view: viewSchema.optional(),
 		})
 		.merge(paginationQuerySchema)
 		.superRefine((data, ctx) => {
 			if (data.view === VIEW_TYPE.Values.compound && data.entityName && data.entityName?.length > 0) {
 				ctx.addIssue({
-					code: z.ZodIssueCode.custom,
+					code: zod.ZodIssueCode.custom,
 					message: 'is incompatible with `compound` view',
 					path: ['entityName'],
 				});
@@ -548,9 +549,9 @@ export const dataGetByOrganizationRequestSchema: RequestValidation<
 
 export const dataGetByQueryRequestSchema: RequestValidation<object, DataQueryParams, CategoryOrganizationPathParams> = {
 	body: sqonSchema,
-	query: z
+	query: zod
 		.object({
-			entityName: z.union([entityNameSchema, entityNameSchema.array()]).optional(),
+			entityName: zod.union([entityNameSchema, entityNameSchema.array()]).optional(),
 		})
 		.merge(paginationQuerySchema),
 	pathParams: categoryOrganizationPathParamsSchema,
@@ -566,24 +567,24 @@ export const DataGetBySystemIdRequestSchema: RequestValidation<
 	GetDataQueryParams,
 	DataGetBySystemIdPathParams
 > = {
-	query: z.object({
+	query: zod.object({
 		view: viewSchema.optional(),
 	}),
-	pathParams: z.object({
+	pathParams: zod.object({
 		systemId: stringNotEmpty,
 		categoryId: categoryIdSchema,
 	}),
 };
 
 export const downloadDataFileTemplatesSchema = {
-	query: z.object({
-		fileType: z.enum(['csv', 'tsv']).optional(),
+	query: zod.object({
+		fileType: zod.enum(['csv', 'tsv']).optional(),
 	}),
-	pathParams: z.object({
+	pathParams: zod.object({
 		categoryId: categoryIdSchema,
 	}),
 };
-export const validationPathParamsSchema = z.object({
+export const validationPathParamsSchema = zod.object({
 	categoryId: categoryIdSchema,
 	entityName: entityNameSchema,
 });
@@ -593,7 +594,7 @@ export interface ValidationPathParams extends ParamsDictionary {
 	entityName: string;
 }
 
-const validationQuerySchema = z.object({
+const validationQuerySchema = zod.object({
 	organization: organizationSchema,
 	value: stringNotEmpty,
 });
