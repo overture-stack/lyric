@@ -55,6 +55,7 @@ const provider = (configData: AppConfig, options?: ProviderOptions) => {
 		features: configData.features,
 		idService: configData.idService,
 		logger: getLogger(configData.logger),
+		routerLoggerEnabled: configData.logger.routerLoggerEnabled ?? true,
 		schemaService: configData.schemaService,
 		submissionService: configData.submissionService,
 		onFinishCommit: configData.onFinishCommit,

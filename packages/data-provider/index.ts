@@ -20,6 +20,9 @@ export {
 } from './src/middleware/auth.js';
 export { errorHandler } from './src/middleware/errorHandler.js';
 
+// middleware
+export { actionLoggerMiddleware } from './src/middleware/actionLogger.js';
+
 // routes
 export { default as dictionaryRouters } from './src/routers/dictionaryRouter.js';
 export { default as migrationRouter } from './src/routers/migrationRouter.js';

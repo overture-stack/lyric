@@ -52,5 +52,17 @@ export const errorHandler = (err: Error, req: Request, res: Response, _next: Nex
 			status = 500;
 	}
 
-	return res.status(status).send({ error: err.name, message: customizableMsg, details: details });
+	// Get request context from res.locals (set by validateRequest middleware)
+	const requestContext = res.locals.requestContext;
+	if (requestContext) {
+		req.params = requestContext.params || req.params;
+		req.query = requestContext.query || req.query;
+		req.body = requestContext.body || req.body;
+	}
+
+	return res.status(status).send({
+		error: err.name,
+		message: customizableMsg,
+		details: details,
+	});
 };

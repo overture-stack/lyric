@@ -27,6 +27,7 @@ export const initializeWorkerContext = async (configData: AppConfig): Promise<vo
 		features: configData.features,
 		idService: configData.idService,
 		logger: getLogger(configData.logger),
+		routerLoggerEnabled: configData.logger.routerLoggerEnabled || true,
 		schemaService: configData.schemaService,
 		submissionService: configData.submissionService,
 		onFinishCommit: configData.onFinishCommit,

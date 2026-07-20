@@ -7,8 +7,7 @@ import { BaseDependencies } from '../config/config.js';
 import dictionarySvc from '../services/dictionaryService.js';
 import { NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
-import { dictionaryRegisterRequestSchema } from '../utils/schemas.js';
-import { downloadDataFileTemplatesSchema } from '../utils/schemas.js';
+import { dictionaryRegisterRequestSchema, downloadDataFileTemplatesSchema } from '../utils/schemas.js';
 import { RegisterDictionaryResult } from '../utils/types.js';
 
 const controller = (dependencies: BaseDependencies) => {
@@ -24,11 +23,6 @@ const controller = (dependencies: BaseDependencies) => {
 				const defaultCentricEntity = req.body.defaultCentricEntity;
 				const forceRegistration = req.query.force?.toLowerCase() === 'true';
 				const user = req.user;
-
-				logger.info(
-					LOG_MODULE,
-					`Register Dictionary Request categoryName '${categoryName}' name '${dictionaryName}' version '${dictionaryVersion}'`,
-				);
 
 				const { dictionary, category, migrationId } = await dictionaryService.register({
 					categoryName,
