@@ -57,7 +57,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/data', ()
 
 	after(async () => {
 		submissionProcessorFactory.create = originalCreate;
-		await lyricProvider.disconnect();
+		await lyricProvider.shutdown();
 	});
 
 	it('should return 200 with PROCESSING status and a submissionId when valid records are submitted', async () => {

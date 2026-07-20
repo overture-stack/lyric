@@ -122,6 +122,9 @@ const buildHierarchyTree = (schema: SchemaDefinition, tree: TreeNode[], order: O
 
 		// Use the first mapping for parent-child field relationship
 		const mapping = foreignKey.mappings[0];
+		if (!mapping) {
+			return;
+		}
 
 		// remove duplicates. skip mapping when schema is already linked
 		if (order === ORDER_TYPE.Values.desc) {

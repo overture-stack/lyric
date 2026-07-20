@@ -188,6 +188,9 @@ jsonb_build_object(
 		save: async (data: NewSubmission): Promise<number> => {
 			try {
 				const [savedActiveSubmission] = await db.insert(submissions).values(data).returning({ id: submissions.id });
+				if (!savedActiveSubmission) {
+					throw new Error('Failed to insert Active Submission, no row returned');
+				}
 				logger.info(LOG_MODULE, `New Active Submission saved successfully`);
 				return savedActiveSubmission.id;
 			} catch (error) {
@@ -319,9 +322,12 @@ jsonb_build_object(
 					.set({ ...newData, updatedAt: new Date() })
 					.where(eq(submissions.id, submissionId))
 					.returning({ id: submissions.id });
+				if (!resultUpdate) {
+					throw new Error(`Failed to update Active Submission with id '${submissionId}', no row returned`);
+				}
 				return resultUpdate.id;
 			} catch (error) {
-				logger.error(LOG_MODULE, `Failed updating Active Submission`, error);
+				logger.error(LOG_MODULE, `Failed updating Active Submission with id '${submissionId}'`, error);
 				throw new ServiceUnavailable();
 			}
 		},
@@ -398,7 +404,7 @@ jsonb_build_object(
 							filterOptions.organization ? eq(submissions.organization, filterOptions.organization) : undefined,
 						),
 					);
-				return resultCount[0].total;
+				return resultCount[0]?.total ?? 0;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed counting Submission with categoryId '${categoryId}'`, error);
 				throw new ServiceUnavailable();

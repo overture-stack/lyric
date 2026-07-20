@@ -72,7 +72,6 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 		expect(response).to.eql({
 			id: 3,
 			data: {
-				total: 3,
 				inserts: {
 					books: {
 						batchName: 'books.tsv',
@@ -89,6 +88,7 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 						recordsCount: 1,
 					},
 				},
+				total: 3,
 			},
 			dictionary: { name: 'books', version: '1' },
 			dictionaryCategory: { name: 'favorite books', id: 1 },

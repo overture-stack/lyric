@@ -7,6 +7,8 @@ import { BaseDependencies } from '../config/config.js';
 import lecternClient from '../external/lecternClient.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import dictionaryRepository from '../repository/dictionaryRepository.js';
+import { BadRequest, StatusConflict } from '../utils/errors.js';
+import migrationService from './migrationService.js';
 
 const dictionaryService = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'DICTIONARY_SERVICE';
@@ -97,25 +99,28 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		dictionaryVersion,
 		defaultCentricEntity,
 		username,
+		forceRegistration = false,
 	}: {
 		categoryName: string;
 		dictionaryName: string;
 		dictionaryVersion: string;
 		defaultCentricEntity?: string;
 		username?: string;
-	}): Promise<{ dictionary: Dictionary; category: Category }> => {
+		forceRegistration?: boolean;
+	}): Promise<{ dictionary: Dictionary; category: Category; migrationId?: number }> => {
 		logger.debug(
 			LOG_MODULE,
 			`Register new dictionary categoryName '${categoryName}' dictionaryName '${dictionaryName}' dictionaryVersion '${dictionaryVersion}'`,
 		);
 
 		const categoryRepo = categoryRepository(dependencies);
+		const { initiateMigration, getMigrationsByCategoryId } = migrationService(dependencies);
 
 		const dictionary = await fetchDictionaryByVersion(dictionaryName, dictionaryVersion);
 
 		if (defaultCentricEntity && !dictionary.schemas.some((schema) => schema.name === defaultCentricEntity)) {
 			logger.error(LOG_MODULE, `Entity '${defaultCentricEntity}' does not exist in this dictionary`);
-			throw new Error(`Entity '${defaultCentricEntity}' does not exist in this dictionary`);
+			throw new BadRequest(`Entity '${defaultCentricEntity}' does not exist in this dictionary`);
 		}
 
 		const savedDictionary = await createDictionaryIfDoesNotExist(
@@ -128,11 +133,62 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		// Check if Category exist
 		const foundCategory = await categoryRepo.getCategoryByName(categoryName);
 
+		const initiateMigrationOrThrow = async ({
+			categoryId,
+			fromDictionaryId,
+			toDictionaryId,
+		}: {
+			categoryId: number;
+			fromDictionaryId: number;
+			toDictionaryId: number;
+		}): Promise<number> => {
+			const resultMigration = await initiateMigration({
+				categoryId,
+				fromDictionaryId,
+				toDictionaryId,
+				userName: username || '',
+			});
+
+			if (!resultMigration.success) {
+				const errorMessage = `Failed to initiate migration for category '${categoryName}' with error: ${resultMigration.data}`;
+				logger.error(LOG_MODULE, errorMessage);
+				throw new Error(errorMessage);
+			}
+
+			return resultMigration.data;
+		};
+
 		if (foundCategory && foundCategory.activeDictionaryId === savedDictionary.id) {
 			// Dictionary and Category already exists
 			logger.info(LOG_MODULE, `Dictionary and Category already exists`);
 
-			return { dictionary: savedDictionary, category: foundCategory };
+			// check last migration of this category to find if it failed, if it failed and forceRegistration is true,
+			// we will re-initiate the migration with the new dictionary
+			const activeMigration = await getMigrationsByCategoryId(foundCategory.id, { pageSize: 1, page: 1 });
+
+			if (
+				forceRegistration &&
+				activeMigration.result.length === 1 &&
+				activeMigration.result.at(0)?.status === 'FAILED'
+			) {
+				logger.info(
+					LOG_MODULE,
+					`Force flag is true, initiating migration for Category '${foundCategory.name}' 
+					with Dictionary '${savedDictionary.name}' version '${savedDictionary.version}'`,
+				);
+
+				const migrationId = await initiateMigrationOrThrow({
+					categoryId: foundCategory.id,
+					fromDictionaryId: foundCategory.activeDictionaryId,
+					toDictionaryId: savedDictionary.id,
+				});
+
+				return { dictionary: savedDictionary, category: foundCategory, migrationId };
+			}
+
+			throw new StatusConflict(
+				`Category '${categoryName}' with Dictionary '${savedDictionary.name}' version '${savedDictionary.version}' already exists`,
+			);
 		} else if (foundCategory && foundCategory.activeDictionaryId !== savedDictionary.id) {
 			// Update the dictionary on existing Category
 			const updatedCategory = await categoryRepo.update(foundCategory.id, {
@@ -141,12 +197,18 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 				updatedBy: username,
 			});
 
+			const migrationId = await initiateMigrationOrThrow({
+				categoryId: updatedCategory.id,
+				fromDictionaryId: foundCategory.activeDictionaryId,
+				toDictionaryId: savedDictionary.id,
+			});
+
 			logger.info(
 				LOG_MODULE,
 				`Category '${updatedCategory.name}' updated successfully with Dictionary '${savedDictionary.name}' version '${savedDictionary.version}'`,
 			);
 
-			return { dictionary: savedDictionary, category: updatedCategory };
+			return { dictionary: savedDictionary, category: updatedCategory, migrationId };
 		} else {
 			// Create a new Category
 			const newCategory: NewCategory = {

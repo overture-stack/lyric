@@ -2,6 +2,7 @@ import type { Response } from 'express';
 import { isEmpty } from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
+import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE } from '../config/pagination.js';
 import { type AuthConfig, shouldBypassAuth } from '../middleware/auth.js';
 import { getSubmittedFileType } from '../services/submission/submissionFile.js';
 import createSubmissionService from '../services/submission/submissionService.js';
@@ -41,8 +42,6 @@ const controller = ({
 }) => {
 	const submissionService = createSubmissionService(baseDependencies);
 	const dataService = createSubmittedDataService(baseDependencies);
-	const defaultPage = 1;
-	const defaultPageSize = 20;
 	return {
 		commit: validateRequest(submissionCommitRequestSchema, async (req, res, next) => {
 			try {
@@ -63,7 +62,7 @@ const controller = ({
 
 				const commitSubmission = await submissionService.commitSubmission(categoryId, submissionId, username);
 
-				return res.status(200).send(commitSubmission);
+				return res.status(200).json(commitSubmission);
 			} catch (error) {
 				next(error);
 			}
@@ -98,7 +97,7 @@ const controller = ({
 					throw new NotFound('Active Submission not found');
 				}
 
-				return res.status(200).send(deleteSubmissionResult);
+				return res.status(200).json(deleteSubmissionResult);
 			} catch (error) {
 				next(error);
 			}
@@ -136,7 +135,7 @@ const controller = ({
 					throw new NotFound('Active Submission not found');
 				}
 
-				return res.status(200).send(deleteSubmissionEntityResult);
+				return res.status(200).json(deleteSubmissionEntityResult);
 			} catch (error) {
 				next(error);
 			}
@@ -166,7 +165,7 @@ const controller = ({
 
 				const deletedRecordsResult = await dataService.deleteSubmittedDataBySystemId(categoryId, systemId, username);
 
-				return res.status(200).send(deletedRecordsResult);
+				return res.status(200).json(deletedRecordsResult);
 			} catch (error) {
 				next(error);
 			}
@@ -201,7 +200,7 @@ const controller = ({
 				});
 
 				// This response provides the details of data Submission
-				return res.status(200).send(editSubmittedDataResult);
+				return res.status(200).json(editSubmittedDataResult);
 			} catch (error) {
 				next(error);
 			}
@@ -213,8 +212,8 @@ const controller = ({
 					const categoryId = Number(req.params.categoryId);
 					const onlyActive = req.query.onlyActive?.toLowerCase() === 'true';
 					const organization = req.query.organization;
-					const page = parseInt(String(req.query.page)) || defaultPage;
-					const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+					const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
+					const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
 					const username = req.query.username;
 
 					const submissionsResult = await submissionService.getSubmissionsByCategory(
@@ -233,7 +232,7 @@ const controller = ({
 						records: submissionsResult.result,
 					};
 
-					return res.status(200).send(response);
+					return res.status(200).json(response);
 				} catch (error) {
 					next(error);
 				}
@@ -249,7 +248,7 @@ const controller = ({
 					throw new NotFound('Submission not found');
 				}
 
-				return res.status(200).send(submission);
+				return res.status(200).json(submission);
 			} catch (error) {
 				next(error);
 			}
@@ -262,8 +261,8 @@ const controller = ({
 				const actionTypes = parseSubmissionActionTypes(req.query.actionTypes || SUBMISSION_ACTION_TYPE.options);
 
 				// query params
-				const page = parseInt(String(req.query.page)) || defaultPage;
-				const pageSize = parseInt(String(req.query.pageSize)) || defaultPageSize;
+				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
+				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
 
 				const submission = await submissionService.getSubmissionDetailsById({
 					submissionId,
@@ -275,7 +274,7 @@ const controller = ({
 					throw new NotFound('Submission not found');
 				}
 
-				return res.status(200).send(submission);
+				return res.status(200).json(submission);
 			} catch (error) {
 				next(error);
 			}
@@ -298,7 +297,7 @@ const controller = ({
 					throw new NotFound('Active Submission not found');
 				}
 
-				return res.status(200).send(activeSubmission);
+				return res.status(200).json(activeSubmission);
 			} catch (error) {
 				next(error);
 			}
@@ -339,7 +338,7 @@ const controller = ({
 				}
 
 				// This response provides the details of data Submission
-				return res.status(200).send(resultSubmission);
+				return res.status(200).json(resultSubmission);
 			} catch (error) {
 				next(error);
 			}
