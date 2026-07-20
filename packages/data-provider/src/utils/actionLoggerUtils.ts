@@ -110,15 +110,6 @@ export const extractActionMetadata = (req: RequestWithUser): ActionLogMetadata =
 };
 
 /**
- * Determines if a route should be logged
- * Excludes health checks, ping, and other non-data routes
- */
-export const shouldLogRoute = (path: string): boolean => {
-	const excludedPaths = ['/health', '/ping', '/api-docs'];
-	return !excludedPaths.some((excluded) => path.startsWith(excluded));
-};
-
-/**
  * Formats action log metadata into a readable string for logging
  */
 export const formatActionLog = (
