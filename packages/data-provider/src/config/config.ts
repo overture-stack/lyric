@@ -32,6 +32,7 @@ export type SubmissionServiceConfig = {
 export type LoggerConfig = {
 	level?: string;
 	file?: boolean;
+	routerLoggerEnabled?: boolean;
 };
 
 export type IdServiceConfig = {
@@ -58,7 +59,6 @@ export type AppConfig = {
 	features?: FeaturesConfig;
 	idService: IdServiceConfig;
 	logger: LoggerConfig;
-	disableLogger?: boolean;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => Promise<void>;
 	schemaService: SchemaServiceConfig;
 	submissionService: SubmissionServiceConfig;
@@ -73,7 +73,7 @@ export interface BaseDependencies {
 	features?: FeaturesConfig;
 	idService: IdServiceConfig;
 	logger: Logger;
-	disableLogger: boolean;
+	routerLoggerEnabled: boolean;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => Promise<void>;
 	schemaService: SchemaServiceConfig;
 	submissionService: SubmissionServiceConfig;
