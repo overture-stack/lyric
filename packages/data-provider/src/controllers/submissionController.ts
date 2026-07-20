@@ -403,7 +403,7 @@ const controller = ({
 
 				return res
 					.status(responseStatus)
-					.send({ ...submitFilesResult, batchErrors: [...fileErrors, ...submitFilesResult.batchErrors] });
+					.json({ ...submitFilesResult, batchErrors: [...fileErrors, ...submitFilesResult.batchErrors] });
 
 				// This response provides the details of file Submission
 			} catch (error) {
