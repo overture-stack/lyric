@@ -14,7 +14,7 @@ export type ActionLoggerConfig = {
 export const actionLoggerMiddleware = (config: ActionLoggerConfig, logger: Logger) => {
 	return (req: RequestWithUser, res: Response, next: NextFunction) => {
 		// Skip logging if disabled
-		if (config.enabled) {
+		if (!config.enabled) {
 			return next();
 		}
 
