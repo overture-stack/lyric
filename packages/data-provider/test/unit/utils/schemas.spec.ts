@@ -4,6 +4,7 @@ import { describe, it } from 'mocha';
 import { uploadSubmissionRequestSchema } from '../../../src/utils/schemas.js';
 
 const bodySchema = uploadSubmissionRequestSchema.body;
+const querySchema = uploadSubmissionRequestSchema.query;
 
 describe('uploadSubmissionRequestSchema body', () => {
 	/**
@@ -64,5 +65,27 @@ describe('uploadSubmissionRequestSchema body', () => {
 				{ filename: 'b.tsv', entity: 'sample' },
 			],
 		});
+	});
+});
+
+describe('uploadSubmissionRequestSchema query', () => {
+	it('accepts a valid organization with no sync param', () => {
+		const result = querySchema?.safeParse({ organization: 'test-org' });
+		expect(result?.success).to.be.true;
+	});
+
+	it('accepts sync=true', () => {
+		const result = querySchema?.safeParse({ organization: 'test-org', sync: 'true' });
+		expect(result?.success).to.be.true;
+	});
+
+	it('accepts sync=false', () => {
+		const result = querySchema?.safeParse({ organization: 'test-org', sync: 'false' });
+		expect(result?.success).to.be.true;
+	});
+
+	it('rejects sync with a value outside the allowed enum', () => {
+		const result = querySchema?.safeParse({ organization: 'test-org', sync: 'yes' });
+		expect(result?.success).to.be.false;
 	});
 });

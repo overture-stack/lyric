@@ -30,8 +30,9 @@ export type SubmissionServiceConfig = {
 };
 
 export type LoggerConfig = {
-	level?: string;
 	file?: boolean;
+	json?: boolean;
+	level?: string;
 };
 
 export type IdServiceConfig = {

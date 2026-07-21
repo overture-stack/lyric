@@ -121,6 +121,7 @@ export interface SubmitDataResult {
  */
 export interface SubmitFileResult extends SubmitDataResult {
 	batchErrors: BatchError[];
+	fileResults: import('./submissionUtils.js').FileParseResult[];
 	inProcessEntities: string[];
 }
 
