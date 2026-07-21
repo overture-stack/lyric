@@ -1,9 +1,10 @@
-import { z } from 'zod';
+import { z as zod } from 'zod';
 
 import {
 	type DataRecord,
 	type DataRecordValue,
 	Dictionary as SchemasDictionary,
+	type DictionaryValidationRecordErrorDetails,
 	type Schema,
 } from '@overture-stack/lectern-client';
 import {
@@ -34,11 +35,14 @@ export const SUBMISSION_STATUS = {
 } as const;
 export type SubmissionStatus = ObjectValues<typeof SUBMISSION_STATUS>;
 
+export const MIGRATION_STATUS = zod.enum(['IN_PROGRESS', 'COMPLETED', 'FAILED']);
+export type MigrationStatus = zod.infer<typeof MIGRATION_STATUS>;
+
 /**
  * Enum matching Audit Action in database
  */
-export const AUDIT_ACTION = z.enum(['UPDATE', 'DELETE']);
-export type AuditAction = z.infer<typeof AUDIT_ACTION>;
+export const AUDIT_ACTION = zod.enum(['UPDATE', 'DELETE', 'MIGRATION']);
+export type AuditAction = zod.infer<typeof AUDIT_ACTION>;
 
 /**
  * Audit Raw Data from Repository
@@ -47,6 +51,7 @@ export type AuditRepositoryRecord = {
 	entityName: string;
 	action: AuditAction;
 	dataDiff: DataDiff | null;
+	errors: DictionaryValidationRecordErrorDetails[] | null;
 	newDataIsValid: boolean;
 	oldDataIsValid: boolean;
 	organization: string;
@@ -63,6 +68,7 @@ export type AuditDataResponse = {
 	entityName: string;
 	event: AuditAction;
 	dataDiff: DataDiff | null;
+	errors: DictionaryValidationRecordErrorDetails[] | null;
 	newIsValid: boolean;
 	oldIsValid: boolean;
 	organization: string;
@@ -87,6 +93,9 @@ export type AuditFilterOptions = PaginationOptions & {
 	startDate?: string;
 	endDate?: string;
 	systemId?: string;
+	organization?: string;
+	submissionId?: number;
+	newIsValid?: boolean;
 };
 
 /**
@@ -112,6 +121,7 @@ export interface SubmitDataResult {
  */
 export interface SubmitFileResult extends SubmitDataResult {
 	batchErrors: BatchError[];
+	fileResults: import('./submissionUtils.js').FileParseResult[];
 	inProcessEntities: string[];
 }
 
@@ -145,18 +155,24 @@ export type DeleteSubmissionResult = {
 export type RegisterDictionaryResult = {
 	categoryId: number;
 	categoryName: string;
-	dictionary: object;
 	name: string;
 	version: string;
+	migrationId?: number;
 };
+
+export type MigrationAuditRecord = Omit<AuditRepositoryRecord, 'action' | 'submissionId'>;
 
 export type { Schema, SchemasDictionary };
 
 /**
  * Enum matching Audit Action in database
  */
-export const SUBMISSION_ACTION_TYPE = z.enum(['INSERTS', 'UPDATES', 'DELETES']);
-export type SubmissionActionType = z.infer<typeof SUBMISSION_ACTION_TYPE>;
+export const SUBMISSION_ACTION_TYPE = zod.enum(['INSERTS', 'UPDATES', 'DELETES']);
+export type SubmissionActionType = zod.infer<typeof SUBMISSION_ACTION_TYPE>;
+
+/** Action field included in each Kafka message emitted after a successful commit. */
+export const KAFKA_ACTION = zod.enum(['delete', 'insert', 'update']);
+export type KafkaAction = zod.infer<typeof KAFKA_ACTION>;
 
 /**
  * File upload validation error types
@@ -186,6 +202,12 @@ export interface ValidateFilesParams {
 	username: string;
 }
 
+export type ResultCommit = {
+	inserts: SubmittedDataResponse[];
+	updates: SubmittedDataResponse[];
+	deletes: SubmittedDataResponse[];
+};
+
 export interface CommitSubmissionParams {
 	dataToValidate: {
 		inserts: NewSubmittedData[];
@@ -196,6 +218,8 @@ export interface CommitSubmissionParams {
 	dictionary: SchemasDictionary & { id: number };
 	submissionId: number;
 	username: string;
+	isMigration?: boolean;
+	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }
 
 export type EntityData = Record<string, DataRecord[]>;
@@ -207,6 +231,20 @@ export type GroupedDataSubmission = {
 
 export type BooleanTrueObject = {
 	[key: string]: true;
+};
+
+/**
+ * Specifies which columns of a table to select in a Drizzle query
+ * Used in the `columns` property of a Drizzle query
+ */
+export type PartialColumns<T> = Partial<Record<keyof T, boolean>>;
+
+/**
+ * Specifies additional columns to select in a Drizzle query for a related table.
+ * Used in the `with` property of a Drizzle query
+ */
+export type WithColumns<T> = {
+	columns: PartialColumns<T>;
 };
 
 /**
@@ -468,17 +506,17 @@ export type Clean<T> = T extends infer U ? { [K in keyof U]: U[K] } : never;
 /**
  * Enum matching Schema relationships types
  */
-export const SCHEMA_RELATION_TYPE = z.enum(['parent', 'children']);
-export type SchemaRelationType = z.infer<typeof SCHEMA_RELATION_TYPE>;
+export const SCHEMA_RELATION_TYPE = zod.enum(['parent', 'children']);
+export type SchemaRelationType = zod.infer<typeof SCHEMA_RELATION_TYPE>;
 
 /**
  * Enum matching Schema relationships order types
  */
-export const ORDER_TYPE = z.enum(['asc', 'desc']);
-export type OrderType = z.infer<typeof ORDER_TYPE>;
+export const ORDER_TYPE = zod.enum(['asc', 'desc']);
+export type OrderType = zod.infer<typeof ORDER_TYPE>;
 
 /**
  * Enum matching Retrieve data views
  */
-export const VIEW_TYPE = z.enum(['flat', 'compound']);
-export type ViewType = z.infer<typeof VIEW_TYPE>;
+export const VIEW_TYPE = zod.enum(['flat', 'compound']);
+export type ViewType = zod.infer<typeof VIEW_TYPE>;

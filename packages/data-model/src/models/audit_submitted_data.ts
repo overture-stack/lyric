@@ -1,13 +1,13 @@
 import { relations } from 'drizzle-orm';
 import { boolean, index, integer, jsonb, pgEnum, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
-import type { DataRecord } from '@overture-stack/lectern-client';
+import type { DataRecord, DictionaryValidationRecordErrorDetails } from '@overture-stack/lectern-client';
 
 import { dictionaries } from './dictionaries.js';
 import { dictionaryCategories } from './dictionary_categories.js';
 import { submissions } from './submissions.js';
 
-export const audit_action = pgEnum('audit_action', ['UPDATE', 'DELETE']);
+export const audit_action = pgEnum('audit_action', ['UPDATE', 'DELETE', 'MIGRATION']);
 
 export type DataDiff = {
 	old: DataRecord;
@@ -24,6 +24,7 @@ export const auditSubmittedData = pgTable(
 			.notNull(),
 		dataDiff: jsonb('data_diff').$type<DataDiff>(),
 		entityName: varchar('entity_name').notNull(),
+		errors: jsonb('errors').$type<DictionaryValidationRecordErrorDetails[]>(),
 		lastValidSchemaId: integer('last_valid_schema_id').references(() => dictionaries.id),
 		newDataIsValid: boolean('new_data_is_valid').notNull(),
 		oldDataIsValid: boolean('old_data_is_valid').notNull(),

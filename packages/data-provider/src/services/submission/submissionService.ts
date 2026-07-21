@@ -8,11 +8,13 @@ import createSubmissionRepository from '../../repository/activeSubmissionReposit
 import createCategoryRepository from '../../repository/categoryRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
+import type { PaginatedResult } from '../../utils/result.js';
 import type { FilenameEntityPair } from '../../utils/schemas.js';
 import { filterAndPaginateSubmissionData, type FlattenedSubmissionData } from '../../utils/submissionResponseParser.js';
 import {
 	checkEntityFieldNames,
 	createSubmissionSummaryResponse,
+	type FileParseResult,
 	isSubmissionActive,
 	removeItemsFromSubmission,
 	resolveFileEntities,
@@ -31,6 +33,7 @@ import {
 	type SubmitFileResult,
 } from '../../utils/types.js';
 import type { CommitWorkerInput } from '../../workers/types.js';
+import migrationSvc from '../migrationService.js';
 import submissionProcessorFactory from './submissionProcessor.js';
 
 const submissionService = (dependencies: BaseDependencies) => {
@@ -53,6 +56,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		username: string,
 	): Promise<CommitSubmissionResult> => {
 		const { getActiveDictionaryByCategory } = categoryRepository;
+		const { getActiveMigrationByCategoryId } = migrationSvc(dependencies);
 
 		const submission = await submissionRepository.getSubmissionById(submissionId);
 		if (!submission) {
@@ -65,6 +69,11 @@ const submissionService = (dependencies: BaseDependencies) => {
 
 		if (submission.status !== SUBMISSION_STATUS.VALID) {
 			throw new StatusConflict('Submission does not have status VALID and cannot be committed');
+		}
+
+		const activeMigration = await getActiveMigrationByCategoryId(categoryId);
+		if (activeMigration) {
+			throw new StatusConflict('This submission cannot be committed while a migration is running');
 		}
 
 		const currentDictionary = await getActiveDictionaryByCategory(categoryId);
@@ -229,10 +238,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 			username?: string;
 			organization?: string;
 		},
-	): Promise<{
-		result: SubmissionSummary[];
-		metadata: { totalRecords: number; errorMessage?: string };
-	}> => {
+	): Promise<PaginatedResult<SubmissionSummary>> => {
 		const recordsPaginated = await submissionRepository.getSubmissionsByCategory(
 			categoryId,
 			paginationOptions,
@@ -484,13 +490,9 @@ const submissionService = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Validates and Creates the Entities Schemas of the Active Submission and stores it in the database
-	 * @param {object} params
-	 * @param {Express.Multer.File[]} params.files An array of files
-	 * @param {number} params.categoryId Category ID of the Submission
-	 * @param {string} params.organization Organization name
-	 * @param {string} params.username User name creating the Submission
-	 * @returns The Active Submission created or Updated
+	 * Validates the uploaded files against the active submission's entity schemas and stores
+	 * the parsed records in the database. When `sync` is true, awaits parsing and returns
+	 * per-file results; when false (default), parsing runs in the background.
 	 */
 	const submitFiles = async ({
 		files,
@@ -498,12 +500,14 @@ const submissionService = (dependencies: BaseDependencies) => {
 		organization,
 		username,
 		fileEntityMap,
+		sync = false,
 	}: {
 		files: Express.Multer.File[];
 		categoryId: number;
 		organization: string;
 		username: string;
 		fileEntityMap?: FilenameEntityPair[];
+		sync?: boolean;
 	}): Promise<SubmitFileResult | UnknownCategoryResult> => {
 		logger.info(LOG_MODULE, `Processing '${files.length}' files on category id '${categoryId}'`);
 
@@ -512,6 +516,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: 'No valid files for submission',
 				batchErrors: [],
+				fileResults: [],
 				inProcessEntities: [],
 			};
 		}
@@ -554,6 +559,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 				description: 'No valid entities in submission',
 				batchErrors,
+				fileResults: [],
 				inProcessEntities: entitiesToProcess,
 			};
 		}
@@ -568,6 +574,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 					status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 					description: error.message,
 					batchErrors: [],
+					fileResults: [],
 					inProcessEntities: [],
 				};
 			}
@@ -577,14 +584,15 @@ const submissionService = (dependencies: BaseDependencies) => {
 		// TODO: Add files to submission, then run validation separately. Currently these processes are both
 		//       done by the function that adds the files to the submission.
 
-		// Start background process of adding files to submission
-		// Running Schema validation in the background do not need to wait
-		// Result of validations will be stored in database
-		submissionProcessor.addFilesToSubmissionAsync(checkedEntities, {
+		// Parsing always starts immediately. When sync=true (default) the response waits for results;
+		// when sync=false it runs in the background and fileResults will be empty in the response.
+		// Schema validation always runs in a background worker thread regardless of this flag.
+		const parsePromise = submissionProcessor.addFilesToSubmissionAsync(checkedEntities, {
 			categoryId,
 			organization,
 			username,
 		});
+		const fileResults: FileParseResult[] = sync ? await parsePromise : [];
 
 		if (batchErrors.length === 0) {
 			return {
@@ -592,6 +600,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 				description: 'Submission files are being processed',
 				submissionId: activeSubmissionId,
 				batchErrors,
+				fileResults,
 				inProcessEntities: entitiesToProcess,
 			};
 		}
@@ -601,6 +610,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 			description: 'Some Submission files are being processed while others were unable to process',
 			submissionId: activeSubmissionId,
 			batchErrors,
+			fileResults,
 			inProcessEntities: entitiesToProcess,
 		};
 	};

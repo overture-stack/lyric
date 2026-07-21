@@ -1,6 +1,6 @@
 {
 	"name": "server",
-	"version": "0.17.0",
+	"version": "0.18.0",
 	"description": "Lyric Server",
 	"engines": {
 		"node": ">=20.0.0"
@@ -27,6 +27,7 @@
 		"dotenv": "^16.4.5",
 		"express": "^4.19.2",
 		"helmet": "^7.1.0",
+		"@confluentinc/kafka-javascript": "^1.9.1",
 		"swagger-jsdoc": "^6.2.8",
 		"swagger-ui-express": "^5.0.1",
 		"winston": "^3.13.1"

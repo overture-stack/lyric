@@ -4,23 +4,27 @@ import { getLogger } from '../config/logger.js';
 import auditController from '../controllers/auditController.js';
 import categoryController from '../controllers/categoryController.js';
 import dictionaryController from '../controllers/dictionaryController.js';
+import migrationController from '../controllers/migrationController.js';
 import submissionController from '../controllers/submissionController.js';
 import submittedDataController from '../controllers/submittedDataController.js';
 import validationController from '../controllers/validationController.js';
 import submissionRepository from '../repository/activeSubmissionRepository.js';
 import auditRepository from '../repository/auditRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
+import migrationRepository from '../repository/dictionaryMigrationRepository.js';
 import dictionaryRepository from '../repository/dictionaryRepository.js';
 import submittedDataRepository from '../repository/submittedRepository.js';
 import auditRouter from '../routers/auditRouter.js';
 import categoryRouter from '../routers/categoryRouter.js';
 import dictionaryRouter from '../routers/dictionaryRouter.js';
+import migrationRouter from '../routers/migrationRouter.js';
 import submissionRouter from '../routers/submissionRouter.js';
 import submittedDataRouter from '../routers/submittedDataRouter.js';
 import validationRouter from '../routers/validationRouter.js';
 import auditService from '../services/auditService.js';
 import categoryService from '../services/categoryService.js';
 import dictionaryService from '../services/dictionaryService.js';
+import migrationService from '../services/migrationService.js';
 import submissionService from '../services/submission/submissionService.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
 import validationService from '../services/validationService.js';
@@ -33,14 +37,19 @@ import * as schemaUtils from '../utils/schemas.js';
 import * as submissionUtils from '../utils/submissionUtils.js';
 import * as submittedDataUtils from '../utils/submittedDataUtils.js';
 import * as typeUtils from '../utils/types.js';
-import { createWorkerPool } from '../workers/workerPoolManager.js';
+import { createWorkerPool, type WorkerPoolConfigResolver } from '../workers/workerPoolManager.js';
+
+export type ProviderOptions = {
+	workerPoolConfigResolver?: WorkerPoolConfigResolver;
+};
 
 /**
  * The main provider of submission resources
  * @param configData Environment variables required to configure resources
+ * @param options Optional provider-level overrides (mainly for test wiring)
  * @returns A provider to get access to resources
  */
-const provider = (configData: AppConfig) => {
+const provider = (configData: AppConfig, options?: ProviderOptions) => {
 	const baseDeps: BaseDependencies = {
 		db: connect(configData.db),
 		features: configData.features,
@@ -49,7 +58,9 @@ const provider = (configData: AppConfig) => {
 		schemaService: configData.schemaService,
 		submissionService: configData.submissionService,
 		onFinishCommit: configData.onFinishCommit,
-		workerPool: createWorkerPool(configData),
+		workerPool: createWorkerPool(configData, {
+			resolveWorkerPoolConfig: options?.workerPoolConfigResolver,
+		}),
 	};
 
 	return {
@@ -58,6 +69,7 @@ const provider = (configData: AppConfig) => {
 			audit: auditRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 			category: categoryRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 			dictionary: dictionaryRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
+			migration: migrationRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 			submission: submissionRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 			submittedData: submittedDataRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
 			validator: validationRouter({
@@ -70,6 +82,7 @@ const provider = (configData: AppConfig) => {
 			audit: auditController(baseDeps),
 			category: categoryController(baseDeps),
 			dictionary: dictionaryController(baseDeps),
+			migration: migrationController(baseDeps),
 			submission: submissionController({
 				baseDependencies: baseDeps,
 				authConfig: { enabled: configData.auth.enabled },
@@ -81,6 +94,7 @@ const provider = (configData: AppConfig) => {
 			audit: auditService(baseDeps),
 			category: categoryService(baseDeps),
 			dictionary: dictionaryService(baseDeps),
+			migration: migrationService(baseDeps),
 			submission: submissionService(baseDeps),
 			submittedData: submittedDataService(baseDeps),
 			validation: validationService(baseDeps),
@@ -89,6 +103,7 @@ const provider = (configData: AppConfig) => {
 			audit: auditRepository(baseDeps),
 			category: categoryRepository(baseDeps),
 			dictionary: dictionaryRepository(baseDeps),
+			migration: migrationRepository(baseDeps),
 			submission: submissionRepository(baseDeps),
 			submittedData: submittedDataRepository(baseDeps),
 		},

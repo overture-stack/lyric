@@ -1,7 +1,7 @@
 import bytes from 'bytes';
 import * as _ from 'lodash-es';
 
-import type { DataRecord, Schema } from '@overture-stack/lectern-client';
+import type { DataRecord, DictionaryValidationRecordErrorDetails, Schema } from '@overture-stack/lectern-client';
 import type {
 	DataDiff,
 	NewSubmittedData,
@@ -24,6 +24,7 @@ import { convertRecordToString } from '../../utils/formatUtils.js';
 import { parseRecordsToInsert } from '../../utils/recordsParser.js';
 import {
 	extractSchemaDataFromMergedDataRecords,
+	type FileParseResult,
 	filterDeletesFromUpdates,
 	filterRelationsForPrimaryIdUpdate,
 	findEditSubmittedData,
@@ -45,25 +46,24 @@ import {
 	groupByEntityName,
 	groupErrorsByIndex,
 	groupSchemaDataByEntityName,
-	hasErrorsByIndex,
 	mergeSubmittedDataAndDeduplicateById,
 	updateSubmittedDataArray,
 } from '../../utils/submittedDataUtils.js';
 import {
-	CommitSubmissionParams,
+	type CommitSubmissionParams,
 	type EntityData,
 	type FileSchemaMap,
+	type ResultCommit,
 	type ResultOnCommit,
 	type SchemasDictionary,
 	SUBMISSION_STATUS,
-	type SubmittedDataResponse,
 	type ValidateFilesParams,
 } from '../../utils/types.js';
 import createSubmittedDataRelationsSearch from '../submittedData/searchDataRelations.js';
 
 const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_PROCESSOR_SERVICE';
-	const categoryRepositry = createCategoryRepository(dependencies);
+	const categoryRepository = createCategoryRepository(dependencies);
 	const dictionaryRepository = createDictionaryRepository(dependencies);
 	const submissionRepository = createSubmissionRepository(dependencies);
 	const submittedDataRepository = createSubmittedDataRepository(dependencies);
@@ -162,15 +162,13 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 			const result = await Promise.all(
 				submissionUpdateRecords.map(async (submissionUpdateRecord) => {
-					if (!Object.prototype.hasOwnProperty.call(dictionaryRelations, submissionUpdateEntityName)) {
+					const entityRelations = dictionaryRelations[submissionUpdateEntityName];
+					if (!entityRelations) {
 						return { submissionUpdateData: submissionUpdateRecord, dependents: {} };
 					}
 
 					// Finds if updates are impacting dependant records based on it's foreign keys
-					const filterDependents = filterRelationsForPrimaryIdUpdate(
-						dictionaryRelations[submissionUpdateEntityName],
-						submissionUpdateRecord,
-					);
+					const filterDependents = filterRelationsForPrimaryIdUpdate(entityRelations, submissionUpdateRecord);
 
 					if (filterDependents.length === 0) {
 						return { submissionUpdateData: submissionUpdateRecord, dependents: {} };
@@ -305,7 +303,9 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// Step 1: Exclude items that are marked for deletion
 			const systemIdsToDelete = new Set<string>(dataToValidate?.deletes?.map((item) => item.systemId) || []);
 			logger.info(LOG_MODULE, `Found '${systemIdsToDelete.size}' Records to delete on Submission '${submission.id}'`);
-			const submittedData = dataToValidate.submittedData?.filter((item) => !systemIdsToDelete.has(item.systemId));
+			const submittedData = systemIdsToDelete.size
+				? dataToValidate.submittedData?.filter((item) => !systemIdsToDelete.has(item.systemId))
+				: dataToValidate.submittedData;
 
 			// Step 2: Modify items marked for update
 			const systemIdsToUpdate = new Set<string>(dataToValidate.updates ? Object.keys(dataToValidate.updates) : []);
@@ -326,11 +326,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 			const resultValidation = validateSchemas(dictionary, schemasDataToValidate.schemaDataByEntityName);
 
-			const resultCommit: {
-				inserts: SubmittedDataResponse[];
-				updates: SubmittedDataResponse[];
-				deletes: SubmittedDataResponse[];
-			} = {
+			const resultCommit: ResultCommit = {
 				inserts: [],
 				updates: [],
 				deletes: [],
@@ -338,82 +334,95 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 			type UpdateSubmittedDataParams = {
 				submittedDataId: number;
-				dataDiff: DataDiff;
-				newData: Partial<SubmittedData>;
-				oldIsValid: boolean;
-				submissionId: number;
+				data: Partial<SubmittedData>;
+				audit: {
+					dataDiff: DataDiff;
+					errors?: DictionaryValidationRecordErrorDetails[];
+					isMigration: boolean;
+					oldIsValid: boolean;
+					submissionId: number;
+				};
 			};
 
 			const insertsToSave: NewSubmittedData[] = [];
 			const updatesToSave: UpdateSubmittedDataParams[] = [];
 			const deletesToProcess: { diff: DataDiff; submissionId: number; systemId: string; username: string }[] = [];
 
-			Object.entries(schemasDataToValidate.submittedDataByEntityName).forEach(([entityName, dataArray], index) => {
+			Object.entries(schemasDataToValidate.submittedDataByEntityName).forEach(([entityName, records]) => {
 				const invalidRecordErrors = findInvalidRecordErrorsBySchemaName(resultValidation, entityName);
-				const hasErrorByIndex = groupErrorsByIndex(invalidRecordErrors);
-				dataArray.forEach((data) => {
-					const oldIsValid = data.isValid;
-					const newIsValid = !hasErrorsByIndex(hasErrorByIndex, index);
-					if (data.id) {
+				const errorsByIndex = groupErrorsByIndex(invalidRecordErrors);
+				logger.info(LOG_MODULE, `Found '${invalidRecordErrors.length}' invalid records in entity '${entityName}'`);
+				records.forEach((record, index) => {
+					const errors = errorsByIndex[index] ?? [];
+					const newIsValid = errors.length === 0;
+
+					if (record.id) {
+						const oldIsValid = record.isValid;
 						const inputUpdate: Partial<SubmittedData> = {};
-						const submisionUpdateData = dataToValidate.updates && dataToValidate.updates[data.systemId];
+
+						const submisionUpdateData = dataToValidate.updates?.[record.systemId];
 						if (submisionUpdateData) {
-							logger.info(LOG_MODULE, `Updating submittedData system ID '${data.systemId}' in entity '${entityName}'`);
-							inputUpdate.data = data.data;
+							logger.debug(
+								LOG_MODULE,
+								`Updating submittedData system ID '${record.systemId}' in entity '${entityName}'`,
+							);
+							inputUpdate.data = record.data;
 						}
 
 						if (oldIsValid !== newIsValid) {
 							inputUpdate.isValid = newIsValid;
 							if (newIsValid) {
-								logger.info(
-									LOG_MODULE,
-									`Updating submittedData system ID '${data.systemId}' as Valid in entity '${entityName}'`,
-								);
 								inputUpdate.lastValidSchemaId = dictionary.id;
 							}
-							logger.info(
-								LOG_MODULE,
-								`Updating submittedData system ID '${data.systemId}' as invalid in entity '${entityName}'`,
-							);
 						}
 
-						if (Object.keys(inputUpdate).length) {
-							inputUpdate.updatedBy = username;
-							if (newIsValid) {
-								inputUpdate.lastValidSchemaId = dictionary.id;
-							}
-							updatesToSave.push({
-								submittedDataId: data.id,
-								newData: inputUpdate,
-								dataDiff: { old: submisionUpdateData?.old ?? {}, new: submisionUpdateData?.new ?? {} },
-								oldIsValid: oldIsValid,
-								submissionId: submission.id,
-							});
+						if (Object.keys(inputUpdate).length === 0) {
+							return;
+						}
 
-							// Check if either 'data' or 'isValid' keys has been updated
-							if ('data' in inputUpdate || 'isValid' in inputUpdate) {
-								resultCommit.updates.push({
-									isValid: newIsValid,
-									entityName,
-									organization: data.organization,
-									data: data.data,
-									systemId: data.systemId,
-								});
-							}
+						inputUpdate.updatedBy = username;
+						if (newIsValid) {
+							inputUpdate.lastValidSchemaId = dictionary.id;
+						}
+						updatesToSave.push({
+							submittedDataId: record.id,
+							data: inputUpdate,
+							audit: {
+								dataDiff: { old: submisionUpdateData?.old ?? {}, new: submisionUpdateData?.new ?? {} },
+								errors: errors,
+								isMigration: params.isMigration || false,
+								oldIsValid,
+								submissionId: submission.id,
+							},
+						});
+
+						// Check if either 'data' or 'isValid' keys has been updated
+						if ('data' in inputUpdate || 'isValid' in inputUpdate) {
+							resultCommit.updates.push({
+								data: record.data,
+								entityName,
+								isValid: newIsValid,
+								organization: record.organization,
+								systemId: record.systemId,
+							});
 						}
 					} else {
-						data.isValid = newIsValid;
+						logger.debug(
+							LOG_MODULE,
+							`Creating new submittedData in entity '${entityName}' with system ID '${record.systemId}'`,
+						);
+						record.isValid = newIsValid;
 						if (newIsValid) {
-							data.lastValidSchemaId = dictionary.id;
+							record.lastValidSchemaId = dictionary.id;
 						}
-						insertsToSave.push(data);
+						insertsToSave.push(record);
 
 						resultCommit.inserts.push({
-							isValid: newIsValid,
+							data: record.data,
 							entityName,
-							organization: data.organization,
-							data: data.data,
-							systemId: data.systemId,
+							isValid: newIsValid,
+							organization: record.organization,
+							systemId: record.systemId,
 						});
 					}
 				});
@@ -421,19 +430,21 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 			// iterate if there are any record to be deleted
 			dataToValidate?.deletes?.forEach((item) => {
+				const { data, entityName, isValid, organization, systemId } = item;
+
 				deletesToProcess.push({
 					submissionId: submission.id,
-					systemId: item.systemId,
-					diff: computeDataDiff(item.data, null),
+					systemId,
+					diff: computeDataDiff(data, null),
 					username,
 				});
 
 				resultCommit.deletes.push({
-					isValid: item.isValid,
-					entityName: item.entityName,
-					organization: item.organization,
-					data: item.data,
-					systemId: item.systemId,
+					data,
+					entityName,
+					isValid,
+					organization,
+					systemId,
 				});
 			});
 
@@ -456,6 +467,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 					},
 					tx,
 				);
+
+				logger.info(
+					LOG_MODULE,
+					`Finished processing data changes for submission '${submission.id}', updating submission status to 'COMMITTED'.`,
+				);
 			});
 
 			return {
@@ -471,7 +487,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				`Unable to complete performCommitSubmissionAsync for submission ${params.submissionId}, an error was thrown during execution`,
 				message,
 			);
-			logger.error(error);
+			logger.error(LOG_MODULE, error);
 			throw error;
 		}
 	};
@@ -484,7 +500,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	 * @returns {Promise<number>} ID of the Submission updated
 	 */
 	const performDataValidation = async (submissionId: number): Promise<number> => {
-		const { getActiveDictionaryByCategory } = categoryRepositry;
+		const { getActiveDictionaryByCategory } = categoryRepository;
 		const { getSubmittedDataByCategoryIdAndOrganization } = submittedDataRepository;
 		const { getSubmissionDetailsById } = submissionRepository;
 
@@ -795,17 +811,40 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		return updatedActiveSubmissionId;
 	};
 
+	const logFileResults = (fileResults: FileParseResult[]) => {
+		for (const result of fileResults) {
+			if (result.status === 'error') {
+				logger.error(LOG_MODULE, `Failed to parse file`, {
+					fileName: result.fileName,
+					entityName: result.entityName,
+					error: result.streamError,
+				});
+			} else if (result.status === 'invalid') {
+				// Log field names and line numbers only — not field values (OWASP A03).
+				logger.warn(LOG_MODULE, `File parsed with schema validation issues`, {
+					fileName: result.fileName,
+					entityName: result.entityName,
+					errorCount: result.parseErrors.length,
+					issues: result.parseErrors.slice(0, 10).map((e) => ({
+						line: e.recordIndex,
+						fields: e.recordErrors.map((re) => re.fieldName),
+					})),
+				});
+			}
+		}
+	};
+
 	/**
-	 * Void function to process and validate uploaded files on an Active Submission.
-	 * Performs the schema data validation combined with all Submitted Data.
-	 * @param {Record<string, { files: Express.Multer.File[], schema: Schema }>} fileSchemaMap Mapping the files with a schema
-	 * @param {Object} params
-	 * @param {number} params.categoryId Category Identifier
-	 * @param {string} params.organization Organization name
-	 * @param {string} params.username User who performs the action
-	 * @returns {void}
+	 * Processes and validates uploaded files on an Active Submission.
+	 * File parsing is fault-isolated per file. Schema validation runs in a background worker thread.
+	 * @param {FileSchemaMap} fileSchemaMap Mapping of files to their resolved entity and schema
+	 * @param {ValidateFilesParams} params categoryId, organization, username
+	 * @returns Per-file parse results, available immediately; validation results arrive later via the worker.
 	 */
-	const addFilesToSubmissionAsync = async (fileSchemaMap: FileSchemaMap, params: ValidateFilesParams) => {
+	const addFilesToSubmissionAsync = async (
+		fileSchemaMap: FileSchemaMap,
+		params: ValidateFilesParams,
+	): Promise<FileParseResult[]> => {
 		const fileSummaries = Object.entries(fileSchemaMap)
 			.flatMap(([_, { files, schema }]) =>
 				files.map(
@@ -813,25 +852,26 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				),
 			)
 			.join(', ');
-		logger.info(`Processing files: ${fileSummaries}`);
-
-		// TODO: This only gets a summary, we need to insert data into an active submission so we need all the insert statements.
+		logger.info(LOG_MODULE, `Processing files: ${fileSummaries}`);
 
 		const { categoryId, organization, username } = params;
+		let fileResults: FileParseResult[] = [];
 
 		try {
-			// Parse file data
-			const filesDataProcessed = await submissionInsertDataFromFiles(fileSchemaMap);
-
-			// Get Active Submission from database
+			// Verify an active submission exists before doing any parsing work.
 			const activeSubmission = await submissionRepository.getActiveSubmissionDetails({
 				categoryId,
 				username,
 				organization,
 			});
 			if (!activeSubmission) {
-				throw new BadRequest(`Submission '${activeSubmission}' not found`);
+				throw new BadRequest(`No active submission found for category '${categoryId}' organization '${organization}'`);
 			}
+
+			// Parse file data — each file is isolated; a failure on one does not block others.
+			const { data: filesDataProcessed, fileResults: parsed } = await submissionInsertDataFromFiles(fileSchemaMap);
+			fileResults = parsed;
+			logFileResults(fileResults);
 
 			// Merge Active Submission data with incoming TSV file data processed
 			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, filesDataProcessed);
@@ -850,11 +890,18 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// Perform Schema Data validation in a worker thread
 			dependencies.workerPool.dataValidation({ submissionId: activeSubmission.id });
 		} catch (error) {
-			logger.error(`There was an error processing submitted files: ${fileSummaries}`, JSON.stringify(error));
+			logger.error(LOG_MODULE, `Error processing submitted files`, {
+				files: fileSummaries,
+				error: error instanceof Error ? error.message : String(error),
+				errorType: error instanceof Error ? error.name : 'unknown',
+			});
 		}
 		logger.info(
+			LOG_MODULE,
 			`Finished addFilesToSubmissionAsync for active submission in category "${params.categoryId}" for organization "${params.organization}" submitted by user "${params.username}"`,
 		);
+
+		return fileResults;
 	};
 
 	return {

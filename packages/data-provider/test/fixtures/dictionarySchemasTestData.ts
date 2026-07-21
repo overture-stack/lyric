@@ -306,3 +306,26 @@ export const dictionaryClinicalSchemas: Schema[] = [
 		},
 	},
 ];
+
+/**
+ * A schema modified from dictionarySportsData to make a sport.description required.
+ */
+export const updatedSportSchema: Schema[] = dictionarySportsData.map((schema) => {
+	if (schema.name === 'sport') {
+		return {
+			...schema,
+			fields: schema.fields.map((field) => {
+				if (field.name === 'description') {
+					return {
+						...field,
+						restrictions: {
+							required: true,
+						},
+					};
+				}
+				return field;
+			}),
+		};
+	}
+	return schema;
+});

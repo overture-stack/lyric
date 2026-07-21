@@ -3,14 +3,21 @@ import express from 'express';
 import helmet from 'helmet';
 import { serve, setup } from 'swagger-ui-express';
 
-import { errorHandler, provider } from '@overture-stack/lyric';
+import { errorHandler, getLogger, provider } from '@overture-stack/lyric';
 
-import { appConfig, getServerConfig } from './config/app.js';
+import { buildAppConfig, getServerConfig } from './config/app.js';
+import { getKafkaConfig, setupKafka } from './config/kafka.js';
 import swaggerDoc from './config/swagger.js';
 import healthRouter from './routes/health.js';
 import pingRouter from './routes/ping.js';
 
-const { allowedOrigins, port, corsEnabled } = getServerConfig();
+const { allowedOrigins, corsEnabled, logLevel, port } = getServerConfig();
+
+const logger = getLogger({ level: logLevel });
+const kafkaConfig = getKafkaConfig(logger);
+const kafka = kafkaConfig ? await setupKafka(logger, kafkaConfig) : undefined;
+
+const appConfig = buildAppConfig({ onFinishCommit: kafka?.onFinishCommit });
 
 const lyricProvider = provider(appConfig);
 
@@ -45,6 +52,7 @@ app.use('/audit', lyricProvider.routers.audit);
 app.use('/category', lyricProvider.routers.category);
 app.use('/data', lyricProvider.routers.submittedData);
 app.use('/dictionary', lyricProvider.routers.dictionary);
+app.use('/migration', lyricProvider.routers.migration);
 app.use('/submission', lyricProvider.routers.submission);
 app.use('/validator', lyricProvider.routers.validator);
 
@@ -56,18 +64,21 @@ app.use('/api-docs', serve, setup(swaggerDoc, { swaggerUrl: '/openapi.json' }));
 app.use('/health', healthRouter);
 
 app.use(errorHandler);
-// running the server
+
 const server = app.listen(port, () => {
-	lyricProvider.configs.logger.info(`ExpressJS server is running on port ${port}`);
+	logger.info(`ExpressJS server is running on port ${port}`);
 });
 
 const gracefulShutdown = async (signal: string) => {
-	lyricProvider.configs.logger.info(`Received ${signal}, shutting down…`);
+	logger.info(`Received ${signal}, shutting down…`);
 
 	// 1. Stop accepting new requests
 	server.close();
 
-	// 2. Drain and terminate worker threads
+	// 2. Disconnect Kafka producer before draining workers (no new publishes after this)
+	await kafka?.disconnect();
+
+	// 3. Drain and terminate worker threads
 	await lyricProvider.shutdown();
 
 	process.exit(0);

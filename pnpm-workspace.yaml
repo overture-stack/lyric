@@ -3,3 +3,11 @@ packages:
   - 'apps/*'
   # all packages in subdirs of packages/
   - 'packages/*'
+allowBuilds:
+  '@confluentinc/kafka-javascript': true
+  '@scarf/scarf': false
+  cpu-features: false
+  es5-ext: false
+  esbuild: false
+  protobufjs: false
+  ssh2: false
