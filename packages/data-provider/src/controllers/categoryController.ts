@@ -4,7 +4,11 @@ import { BaseDependencies } from '../config/config.js';
 import categorySvc from '../services/categoryService.js';
 import { BadRequest } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
-import { categoryDetailsRequestSchema } from '../utils/schemas.js';
+import {
+	categoryAliasAssignRequestSchema,
+	categoryAliasUnassignRequestSchema,
+	categoryDetailsRequestSchema,
+} from '../utils/schemas.js';
 
 const controller = (dependencies: BaseDependencies) => {
 	const categoryService = categorySvc(dependencies);
@@ -37,6 +41,31 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		},
+		assignAlias: validateRequest(categoryAliasAssignRequestSchema, async (req, res, next) => {
+			try {
+				const categoryIdOrAlias = req.params.categoryId;
+				const alias = req.body.alias;
+
+				logger.info(LOG_MODULE, 'Request Assign Category Alias', `categoryId '${categoryIdOrAlias}'`);
+
+				const result = await categoryService.assignAlias(categoryIdOrAlias, alias, req.user?.username);
+				return res.send(result);
+			} catch (error) {
+				next(error);
+			}
+		}),
+		unassignAlias: validateRequest(categoryAliasUnassignRequestSchema, async (req, res, next) => {
+			try {
+				const categoryIdOrAlias = req.params.categoryId;
+
+				logger.info(LOG_MODULE, 'Request Unassign Category Alias', `categoryId '${categoryIdOrAlias}'`);
+
+				const result = await categoryService.unassignAlias(categoryIdOrAlias, req.user?.username);
+				return res.send(result);
+			} catch (error) {
+				next(error);
+			}
+		}),
 	};
 };
 

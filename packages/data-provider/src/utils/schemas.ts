@@ -229,6 +229,33 @@ export const categoryDetailsRequestSchema: RequestValidation<object, ParsedQs, C
 	pathParams: categoryPathParamsSchema,
 };
 
+// Unlike categoryAliasSchema (dictionary registration, where empty string means no alias),
+// assigning one here always requires a real value.
+const categoryAliasAssignmentSchema = zod
+	.string()
+	.trim()
+	.min(1, 'alias is required')
+	.refine((value) => isValidCategoryAlias(value), 'alias must contain only letters, numbers, hyphens, and underscores');
+
+const categoryAliasAssignBodySchema = zod.object({
+	alias: categoryAliasAssignmentSchema,
+});
+
+export type CategoryAliasAssignBodyParams = zod.infer<typeof categoryAliasAssignBodySchema>;
+
+export const categoryAliasAssignRequestSchema: RequestValidation<
+	CategoryAliasAssignBodyParams,
+	ParsedQs,
+	CategoryPathParams
+> = {
+	body: categoryAliasAssignBodySchema,
+	pathParams: categoryPathParamsSchema,
+};
+
+export const categoryAliasUnassignRequestSchema: RequestValidation<object, ParsedQs, CategoryPathParams> = {
+	pathParams: categoryPathParamsSchema,
+};
+
 // Dictionary Request
 
 export interface DictionaryRegisterBodyParams {

@@ -106,4 +106,109 @@ describe('Integration - Category Router', () => {
 			expect(response.body).to.have.property('message', 'Category not found');
 		});
 	});
+
+	describe('PUT /:categoryId/alias', () => {
+		it('should assign an alias to a category that has none', async () => {
+			const category = await seedCategory('never-had-an-alias');
+
+			const response = await app.put(`/${category.id}/alias`).send({ alias: 'donor' });
+
+			expect(response.status).to.equal(200);
+			expect(response.body).to.have.property('alias', 'donor');
+		});
+
+		it('should succeed as a no-op when the category already has the exact same alias, since a retried PUT is idempotent', async () => {
+			const category = await seedCategory('already-aliased', 'donor');
+
+			const response = await app.put(`/${category.id}/alias`).send({ alias: 'donor' });
+
+			expect(response.status).to.equal(200);
+			expect(response.body).to.have.property('alias', 'donor');
+		});
+
+		it('should reject changing an already-set alias to a different value, since rename is not yet supported', async () => {
+			const category = await seedCategory('already-aliased-different', 'donor');
+
+			const response = await app.put(`/${category.id}/alias`).send({ alias: 'mutation' });
+
+			expect(response.status).to.equal(400);
+		});
+
+		it('should reject an alias already used by a different category', async () => {
+			await seedCategory('alias-owner', 'donor');
+			const category = await seedCategory('wants-taken-alias');
+
+			const response = await app.put(`/${category.id}/alias`).send({ alias: 'donor' });
+
+			expect(response.status).to.equal(409);
+		});
+
+		it('should reject an alias that fails the format check', async () => {
+			const category = await seedCategory('rejects-bad-format');
+
+			const response = await app.put(`/${category.id}/alias`).send({ alias: 'not a valid alias!' });
+
+			expect(response.status).to.equal(400);
+		});
+
+		it('should reject an empty alias', async () => {
+			const category = await seedCategory('rejects-empty-alias');
+
+			const response = await app.put(`/${category.id}/alias`).send({ alias: '' });
+
+			expect(response.status).to.equal(400);
+		});
+
+		it('should return not found for a category that does not exist', async () => {
+			const response = await app.put('/999999/alias').send({ alias: 'donor' });
+
+			expect(response.status).to.equal(404);
+		});
+
+		it('should resolve the target category by its existing alias, not only by numeric id', async () => {
+			const category = await seedCategory('addressed-by-alias', 'donor');
+
+			const response = await app.put('/donor/alias').send({ alias: 'donor' });
+
+			expect(response.status).to.equal(200);
+			expect(response.body).to.have.property('id', category.id);
+		});
+	});
+
+	describe('DELETE /:categoryId/alias', () => {
+		it('should clear an existing alias', async () => {
+			const category = await seedCategory('has-an-alias-to-clear', 'donor');
+
+			const response = await app.delete(`/${category.id}/alias`);
+
+			expect(response.status).to.equal(200);
+			expect(response.body.alias).to.be.undefined;
+		});
+
+		it('should succeed as a no-op when the category already has no alias', async () => {
+			const category = await seedCategory('nothing-to-clear');
+
+			const response = await app.delete(`/${category.id}/alias`);
+
+			expect(response.status).to.equal(200);
+			expect(response.body.alias).to.be.undefined;
+		});
+
+		it('should return not found for a category that does not exist', async () => {
+			const response = await app.delete('/999999/alias');
+
+			expect(response.status).to.equal(404);
+		});
+
+		it('should free the alias for a different category to take, once cleared', async () => {
+			const original = await seedCategory('original-owner', 'donor');
+			await app.delete(`/${original.id}/alias`);
+			const newOwner = await seedCategory('new-owner');
+
+			const response = await app.put(`/${newOwner.id}/alias`).send({ alias: 'donor' });
+
+			expect(response.status).to.equal(200);
+			expect(response.body).to.have.property('alias', 'donor');
+		});
+	});
 });
