@@ -141,7 +141,12 @@ export type CommitSubmissionResult = {
 
 export type DictionarySummary = Pick<Dictionary, 'name' | 'version'>;
 
-export type CategorySummary = Pick<Category, 'id' | 'name'>;
+/**
+ * Compact category identity: attached to submission-shaped responses, and used standalone by
+ * `GET /category` and the alias assign/unassign endpoints. `alias` is `undefined` (never
+ * `null`) when absent, distinct from `Category.alias`'s raw DB shape.
+ */
+export type CategorySummary = Pick<Category, 'id' | 'name'> & { alias?: string };
 
 export type DeleteSubmissionResult = {
 	status: string;
@@ -383,14 +388,16 @@ export type SubmittedDataResponse = {
  * Result type Post-Commit Submission
  */
 export type ResultOnCommit = {
-	submissionId: number;
-	organization: string;
+	/** Not present if the category has no alias assigned. */
+	categoryAlias?: string;
 	categoryId: number;
 	data?: {
+		deletes: SubmittedDataResponse[];
 		inserts: SubmittedDataResponse[];
 		updates: SubmittedDataResponse[];
-		deletes: SubmittedDataResponse[];
 	};
+	organization: string;
+	submissionId: number;
 };
 
 /**

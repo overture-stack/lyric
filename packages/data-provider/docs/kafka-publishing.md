@@ -8,6 +8,8 @@ The `AppConfig.onFinishCommit` callback fires in the main thread after every suc
 
 Each message carries an `action` field (`insert`, `update`, or `delete`) describing what happened to the record in the submission. `isValid` always reflects the record's stored state; consumers interpret `action` to decide what to do with it.
 
+Every message also carries `categoryId` (always, numeric) and `categoryAlias` (only if the category has one). Consumers sharing one Kafka topic across multiple categories, like Maestro, need one of these to route a message correctly; topic name alone isn't enough.
+
 ## Message format
 
 Each message value is a JSON string:
@@ -15,6 +17,8 @@ Each message value is a JSON string:
 ```json
 {
   "action": "insert",
+  "categoryAlias": "donor",
+  "categoryId": 3,
   "data": { "field": "value" },
   "entityName": "donor",
   "isValid": true,
@@ -22,6 +26,8 @@ Each message value is a JSON string:
   "systemId": "ABC-12345"
 }
 ```
+
+`categoryAlias` is omitted entirely (not sent as `null`) when the category has no alias assigned.
 
 ## Wiring it up (library consumers)
 

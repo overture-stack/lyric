@@ -14,9 +14,17 @@ export type KafkaPublisherConfig = {
 	topic: string;
 };
 
-const toMessage = (record: SubmittedDataResponse, action: KafkaAction) => ({
+const toMessage = (
+	record: SubmittedDataResponse,
+	action: KafkaAction,
+	categoryId: number,
+	categoryAlias: string | undefined,
+) => ({
+	// JSON.stringify drops the categoryAlias key entirely when it's undefined.
 	value: JSON.stringify({
 		action,
+		categoryAlias,
+		categoryId,
 		data: record.data,
 		entityName: record.entityName,
 		isValid: record.isValid,
@@ -37,10 +45,11 @@ export const createKafkaPublisher =
 		if (!result.data) return;
 
 		const { deletes, inserts, updates } = result.data;
+		const { categoryAlias, categoryId } = result;
 		const messages = [
-			...inserts.map((r) => toMessage(r, 'insert')),
-			...updates.map((r) => toMessage(r, 'update')),
-			...deletes.map((r) => toMessage(r, 'delete')),
+			...inserts.map((r) => toMessage(r, 'insert', categoryId, categoryAlias)),
+			...updates.map((r) => toMessage(r, 'update', categoryId, categoryAlias)),
+			...deletes.map((r) => toMessage(r, 'delete', categoryId, categoryAlias)),
 		];
 
 		if (messages.length === 0) return;
