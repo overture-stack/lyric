@@ -24,6 +24,10 @@
 /category/{categoryId}:
   get:
     summary: Retrieve details of a specific category
+    description: >-
+      Accepts either the category's numeric id or its alias. If a numeric id could also match a
+      different category's alias, the alias wins, allowed on purpose since an alias may be a data
+      version label, not just a stand-in for an id.
     tags:
       - Category
     parameters:

@@ -158,6 +158,7 @@ export type DeleteSubmissionResult = {
  * Response type on Register new Dictionary
  */
 export type RegisterDictionaryResult = {
+	alias?: string;
 	categoryId: number;
 	categoryName: string;
 	name: string;
@@ -350,13 +351,18 @@ export type SubmissionDataDetailsRepositoryRecord = {
 	updatedBy: string | null;
 };
 
+/**
+ * Response type for the Get Category Details endpoint.
+ */
 export type CategoryDetailsResponse = {
-	id: number;
-	dictionary?: DictionarySummary;
-	name: string;
-	organizations: string[];
+	/** Not present if the category has no alias assigned. */
+	alias?: string;
 	createdAt: string;
 	createdBy: string;
+	dictionary?: DictionarySummary;
+	id: number;
+	name: string;
+	organizations: string[];
 	updatedAt: string;
 	updatedBy: string;
 };
@@ -368,10 +374,11 @@ export type DeleteSubmittedData = {
 
 export type FieldNamesByPriorityMap = { required: string[]; optional: string[] };
 
-export type ListAllCategoriesResponse = {
-	id: number;
-	name: string;
-};
+/**
+ * Response type for the List All Categories endpoint. Kept as a distinct export for backward
+ * compatibility; structurally identical to `CategorySummary`.
+ */
+export type ListAllCategoriesResponse = CategorySummary;
 
 /**
  * Submitted Raw Data information

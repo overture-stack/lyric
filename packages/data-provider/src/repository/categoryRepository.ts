@@ -1,11 +1,17 @@
 import { eq } from 'drizzle-orm/sql';
-import { ListAllCategoriesResponse } from 'src/utils/types.js';
 
 import { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
 import { Category, Dictionary, dictionaryCategories, NewCategory } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../config/config.js';
-import { ServiceUnavailable } from '../utils/errors.js';
+import { ServiceUnavailable, StatusConflict } from '../utils/errors.js';
+import { isValidIdNumber } from '../utils/formatUtils.js';
+
+// Postgres' unique_violation code, via the `pg` driver's `.code` field. A race between an
+// app-level uniqueness check and the write can still surface here, handled as 409, not 503.
+const isUniqueConstraintViolation = (error: unknown): boolean => {
+	return typeof error === 'object' && error !== null && 'code' in error && error.code === '23505';
+};
 
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'CATEGORY_REPOSITORY';
@@ -25,6 +31,10 @@ const repository = (dependencies: BaseDependencies) => {
 				logger.info(LOG_MODULE, `Category '${data.name}' saved successfully`);
 				return savedCategory[0];
 			} catch (error) {
+				if (isUniqueConstraintViolation(error)) {
+					logger.warn(LOG_MODULE, `Category '${data.name}' or its alias already exists (race with a concurrent request)`);
+					throw new StatusConflict(`Category '${data.name}' or its alias is already in use`);
+				}
 				logger.error(LOG_MODULE, `Failed saving category '${data.name}'`, error);
 				throw new ServiceUnavailable();
 			}
@@ -52,15 +62,32 @@ const repository = (dependencies: BaseDependencies) => {
 
 		/**
 		 * Get a list of category names and id
-		 * @returns {Promise<ListAllCategoriesResponse[]>}
+		 * @returns {Promise<Pick<Category, 'alias' | 'id' | 'name'>[]>}
 		 */
-		getAllCategoryNames: async (): Promise<ListAllCategoriesResponse[]> => {
+		getAllCategoryNames: async (): Promise<Pick<Category, 'alias' | 'id' | 'name'>[]> => {
 			try {
 				return await db.query.dictionaryCategories.findMany({
 					columns: {
+						alias: true,
 						id: true,
 						name: true,
 					},
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying category`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Find a Category matching a category alias
+		 * @param {string} alias Category alias
+		 * @returns The Category found
+		 */
+		getCategoryByAlias: async (alias: string): Promise<Category | undefined> => {
+			try {
+				return await db.query.dictionaryCategories.findFirst({
+					where: eq(dictionaryCategories.alias, alias),
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying category`, error);
@@ -77,6 +104,43 @@ const repository = (dependencies: BaseDependencies) => {
 			try {
 				return await db.query.dictionaryCategories.findFirst({
 					where: eq(dictionaryCategories.id, id),
+					with: {
+						activeDictionary: true,
+					},
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying category`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Find a Category by its numeric id or its alias; alias wins if both could match
+		 * (see dictionary_categories.alias).
+		 * @param {string} value Category id or alias
+		 * @returns The Category found
+		 */
+		getCategoryByIdOrAlias: async (
+			value: string,
+		): Promise<(Category & { activeDictionary: Dictionary | null }) | undefined> => {
+			try {
+				const byAlias = await db.query.dictionaryCategories.findFirst({
+					where: eq(dictionaryCategories.alias, value),
+					with: {
+						activeDictionary: true,
+					},
+				});
+				if (byAlias) {
+					return byAlias;
+				}
+
+				const parsedId = parseInt(value);
+				if (!isValidIdNumber(parsedId)) {
+					return undefined;
+				}
+
+				return await db.query.dictionaryCategories.findFirst({
+					where: eq(dictionaryCategories.id, parsedId),
 					with: {
 						activeDictionary: true,
 					},
@@ -158,6 +222,13 @@ const repository = (dependencies: BaseDependencies) => {
 				}
 				return updated[0];
 			} catch (error) {
+				if (isUniqueConstraintViolation(error)) {
+					logger.warn(
+						LOG_MODULE,
+						`Update to Category '${categoryId}' conflicts with an existing name or alias (race with a concurrent request)`,
+					);
+					throw new StatusConflict(`The requested change conflicts with an existing category's name or alias`);
+				}
 				logger.error(LOG_MODULE, `Failed updating Category`, error);
 				throw new ServiceUnavailable();
 			}

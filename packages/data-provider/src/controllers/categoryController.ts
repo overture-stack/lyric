@@ -13,11 +13,11 @@ const controller = (dependencies: BaseDependencies) => {
 	return {
 		getDetails: validateRequest(categoryDetailsRequestSchema, async (req, res, next) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryIdOrAlias = req.params.categoryId;
 
-				logger.info(LOG_MODULE, 'Request Get Category Details', `categoryId '${categoryId}'`);
+				logger.info(LOG_MODULE, 'Request Get Category Details', `categoryId '${categoryIdOrAlias}'`);
 
-				const details = await categoryService.getDetails(categoryId);
+				const details = await categoryService.getDetails(categoryIdOrAlias);
 
 				if (!details) {
 					throw new BadRequest('Category not found');

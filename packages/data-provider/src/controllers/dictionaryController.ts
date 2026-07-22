@@ -18,6 +18,7 @@ const controller = (dependencies: BaseDependencies) => {
 	return {
 		registerDictionary: validateRequest(dictionaryRegisterRequestSchema, async (req, res, next) => {
 			try {
+				const alias = req.body.alias;
 				const categoryName = req.body.categoryName;
 				const dictionaryName = req.body.dictionaryName;
 				const dictionaryVersion = req.body.dictionaryVersion;
@@ -31,6 +32,7 @@ const controller = (dependencies: BaseDependencies) => {
 				);
 
 				const { dictionary, category, migrationId } = await dictionaryService.register({
+					alias,
 					categoryName,
 					dictionaryName,
 					dictionaryVersion,
@@ -42,6 +44,7 @@ const controller = (dependencies: BaseDependencies) => {
 				logger.info(LOG_MODULE, `Register Dictionary completed!`);
 
 				const result: RegisterDictionaryResult = {
+					alias: category.alias ?? undefined,
 					categoryId: category.id,
 					categoryName: category.name,
 					name: dictionary.name,

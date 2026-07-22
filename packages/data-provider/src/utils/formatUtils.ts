@@ -46,6 +46,17 @@ export function isValidIdNumber(value: unknown): boolean {
 }
 
 /**
+ * Checks if a string is safe as a category alias: a non-empty URL-safe slug (letters,
+ * numbers, hyphens, underscores). Purely numeric values are allowed, an alias may be a
+ * data version label rather than an id, and is matched by equality, not shape.
+ * @param {string} value
+ * @returns {boolean}
+ */
+export function isValidCategoryAlias(value: string): boolean {
+	return /^[A-Za-z0-9_-]+$/.test(value);
+}
+
+/**
  * Checks if a given string is a valid date format.
  *
  * This function attempts to parse the input string into a timestamp.
