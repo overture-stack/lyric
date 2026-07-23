@@ -7,7 +7,7 @@ import type { SQON } from '@overture-stack/sqon-builder';
 
 import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js';
 import { parseSQON } from './convertSqonToQuery.js';
-import { isValidDateFormat, isValidIdNumber } from './formatUtils.js';
+import { isValidCategoryAlias, isValidDateFormat, isValidIdNumber } from './formatUtils.js';
 import { RequestValidation } from './requestValidation.js';
 import { VIEW_TYPE } from './types.js';
 
@@ -24,14 +24,18 @@ const booleanSchema = zod
 
 const viewSchema = zod.string().toLowerCase().trim().min(1).pipe(VIEW_TYPE);
 
+// Accepts a numeric category id or an alias for lookup; matched by equality downstream, not
+// shape.
 const categoryIdSchema = zod
 	.string()
 	.trim()
 	.min(1)
-	.refine((value) => {
-		const parsed = parseInt(value);
-		return isValidIdNumber(parsed);
-	}, 'invalid category ID');
+	.refine((value) => isValidIdNumber(parseInt(value)) || isValidCategoryAlias(value), 'invalid category ID');
+
+const categoryAliasSchema = zod
+	.string()
+	.trim()
+	.refine((value) => value === '' || isValidCategoryAlias(value), 'alias must contain only letters, numbers, hyphens, and underscores');
 
 const endDateSchema = zod
 	.string()
@@ -225,13 +229,41 @@ export const categoryDetailsRequestSchema: RequestValidation<object, ParsedQs, C
 	pathParams: categoryPathParamsSchema,
 };
 
+// Unlike categoryAliasSchema (dictionary registration, where empty string means no alias),
+// assigning one here always requires a real value.
+const categoryAliasAssignmentSchema = zod
+	.string()
+	.trim()
+	.min(1, 'alias is required')
+	.refine((value) => isValidCategoryAlias(value), 'alias must contain only letters, numbers, hyphens, and underscores');
+
+const categoryAliasAssignBodySchema = zod.object({
+	alias: categoryAliasAssignmentSchema,
+});
+
+export type CategoryAliasAssignBodyParams = zod.infer<typeof categoryAliasAssignBodySchema>;
+
+export const categoryAliasAssignRequestSchema: RequestValidation<
+	CategoryAliasAssignBodyParams,
+	ParsedQs,
+	CategoryPathParams
+> = {
+	body: categoryAliasAssignBodySchema,
+	pathParams: categoryPathParamsSchema,
+};
+
+export const categoryAliasUnassignRequestSchema: RequestValidation<object, ParsedQs, CategoryPathParams> = {
+	pathParams: categoryPathParamsSchema,
+};
+
 // Dictionary Request
 
 export interface DictionaryRegisterBodyParams {
+	alias?: string;
 	categoryName: string;
+	defaultCentricEntity?: string;
 	dictionaryName: string;
 	dictionaryVersion: string;
-	defaultCentricEntity?: string;
 }
 
 export interface DictionaryRegisterQueryParams extends ParsedQs {
@@ -244,10 +276,11 @@ export const dictionaryRegisterRequestSchema: RequestValidation<
 	ParamsDictionary
 > = {
 	body: zod.object({
+		alias: categoryAliasSchema.optional(),
 		categoryName: stringNotEmpty,
+		defaultCentricEntity: entityNameSchema.or(zod.literal('')).optional(),
 		dictionaryName: stringNotEmpty,
 		dictionaryVersion: stringNotEmpty,
-		defaultCentricEntity: entityNameSchema.or(zod.literal('')).optional(),
 	}),
 	query: zod.object({
 		force: booleanSchema.default('false'),

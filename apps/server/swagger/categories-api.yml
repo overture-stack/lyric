@@ -24,6 +24,12 @@
 /category/{categoryId}:
   get:
     summary: Retrieve details of a specific category
+    description: >-
+      Accepts either the category's numeric id or its alias. Aliases are rejected outright if
+      they're purely numeric, so this collision shouldn't arise through normal API usage; as a
+      defense in depth, if a value could still match both a category's numeric id and a different
+      category's alias, the numeric id wins, so a category can never become unreachable by its own
+      id.
     tags:
       - Category
     parameters:
@@ -37,6 +43,78 @@
               $ref: '#/components/schemas/CategoryDetails'
       400:
         $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
+/category/{categoryId}/alias:
+  put:
+    summary: Assign an alias to a category
+    description: >-
+      Sets a category's alias. Succeeds when the category has no alias yet, or when the requested
+      alias matches its existing one (idempotent retry). Changing an already-set alias to a
+      different value isn't supported yet, use DELETE then PUT instead.
+    tags:
+      - Category
+    parameters:
+      - $ref: '#/components/parameters/path/CategoryId'
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              alias:
+                type: string
+                description: >-
+                  A human-readable identifier for the category, usable anywhere a categoryId is
+                  accepted. It isn't permanent: it can be cleared or reassigned to a different
+                  category later. Letters, numbers, hyphens, underscores, and periods only. A
+                  purely numeric value (e.g. `5`) is rejected, since it could collide with a
+                  category's numeric id; a value containing a decimal point (e.g. `2.5`) is
+                  allowed, including as a data version label.
+            required:
+              - alias
+    responses:
+      200:
+        description: The category, with its alias set
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategorySummary'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
+      409:
+        $ref: '#/components/responses/StatusConflict'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+  delete:
+    summary: Clear a category's alias
+    description: >-
+      Removes a category's alias, freeing it for reuse. Idempotent: a category with no alias
+      returns 200 rather than an error.
+    tags:
+      - Category
+    parameters:
+      - $ref: '#/components/parameters/path/CategoryId'
+    responses:
+      200:
+        description: The category, with its alias cleared
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategorySummary'
       401:
         $ref: '#/components/responses/UnauthorizedError'
       404:

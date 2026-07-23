@@ -141,7 +141,12 @@ export type CommitSubmissionResult = {
 
 export type DictionarySummary = Pick<Dictionary, 'name' | 'version'>;
 
-export type CategorySummary = Pick<Category, 'id' | 'name'>;
+/**
+ * Compact category identity: attached to submission-shaped responses, and used standalone by
+ * `GET /category` and the alias assign/unassign endpoints. `alias` is `undefined` (never
+ * `null`) when absent, distinct from `Category.alias`'s raw DB shape.
+ */
+export type CategorySummary = Pick<Category, 'id' | 'name'> & { alias?: string };
 
 export type DeleteSubmissionResult = {
 	status: string;
@@ -153,6 +158,7 @@ export type DeleteSubmissionResult = {
  * Response type on Register new Dictionary
  */
 export type RegisterDictionaryResult = {
+	alias?: string;
 	categoryId: number;
 	categoryName: string;
 	name: string;
@@ -345,13 +351,18 @@ export type SubmissionDataDetailsRepositoryRecord = {
 	updatedBy: string | null;
 };
 
+/**
+ * Response type for the Get Category Details endpoint.
+ */
 export type CategoryDetailsResponse = {
-	id: number;
-	dictionary?: DictionarySummary;
-	name: string;
-	organizations: string[];
+	/** Not present if the category has no alias assigned. */
+	alias?: string;
 	createdAt: string;
 	createdBy: string;
+	dictionary?: DictionarySummary;
+	id: number;
+	name: string;
+	organizations: string[];
 	updatedAt: string;
 	updatedBy: string;
 };
@@ -363,10 +374,11 @@ export type DeleteSubmittedData = {
 
 export type FieldNamesByPriorityMap = { required: string[]; optional: string[] };
 
-export type ListAllCategoriesResponse = {
-	id: number;
-	name: string;
-};
+/**
+ * Response type for the List All Categories endpoint. Kept as a distinct export for backward
+ * compatibility; structurally identical to `CategorySummary`.
+ */
+export type ListAllCategoriesResponse = CategorySummary;
 
 /**
  * Submitted Raw Data information
@@ -383,14 +395,16 @@ export type SubmittedDataResponse = {
  * Result type Post-Commit Submission
  */
 export type ResultOnCommit = {
-	submissionId: number;
-	organization: string;
+	/** Not present if the category has no alias assigned. */
+	categoryAlias?: string;
 	categoryId: number;
 	data?: {
+		deletes: SubmittedDataResponse[];
 		inserts: SubmittedDataResponse[];
 		updates: SubmittedDataResponse[];
-		deletes: SubmittedDataResponse[];
 	};
+	organization: string;
+	submissionId: number;
 };
 
 /**

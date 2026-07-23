@@ -133,3 +133,5 @@ lyric.code-workspace
 
 # MacOS metadata
 .DS_Store
+
+.turbo

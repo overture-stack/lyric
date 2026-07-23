@@ -8,6 +8,7 @@ import { submittedData } from './submitted_data.js';
 export const dictionaryCategories = pgTable('dictionary_categories', {
 	id: serial('id').primaryKey(),
 	activeDictionaryId: integer('active_dictionary_id').notNull(),
+	alias: varchar('alias').unique(),
 	defaultCentricEntity: varchar('default_centric_entity'),
 	name: varchar('name').unique().notNull(),
 	createdAt: timestamp('created_at').defaultNow(),

@@ -34,16 +34,20 @@ const record = (overrides: Partial<SubmittedDataResponse> = {}): SubmittedDataRe
 	...overrides,
 });
 
-const commitResult = (overrides: Partial<NonNullable<ResultOnCommit['data']>> = {}): ResultOnCommit => ({
+const commitResult = (
+	dataOverrides: Partial<NonNullable<ResultOnCommit['data']>> = {},
+	overrides: Partial<Omit<ResultOnCommit, 'data'>> = {},
+): ResultOnCommit => ({
 	categoryId: 1,
-	organization: 'TEST-ORG',
-	submissionId: 42,
 	data: {
 		deletes: [],
 		inserts: [],
 		updates: [],
-		...overrides,
+		...dataOverrides,
 	},
+	organization: 'TEST-ORG',
+	submissionId: 42,
+	...overrides,
 });
 
 // ── tests ─────────────────────────────────────────────────────────────────────
@@ -91,6 +95,7 @@ describe('createKafkaPublisher', () => {
 			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
 			expect(parsed).to.deep.equal({
 				action: 'insert',
+				categoryId: 1,
 				data: r.data,
 				entityName: 'donor',
 				isValid: true,
@@ -206,6 +211,60 @@ describe('createKafkaPublisher', () => {
 			await publish(commitResult({ inserts: [record()] }));
 
 			expect(producer.sent[0]?.topic).to.equal('my-custom-topic');
+		});
+	});
+
+	describe('category identity', () => {
+		it('should include categoryId on every published message', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ inserts: [record()] }, { categoryId: 7 }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed.categoryId).to.equal(7);
+		});
+
+		it('should include categoryAlias when the category has one', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ inserts: [record()] }, { categoryAlias: 'donor' }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed.categoryAlias).to.equal('donor');
+		});
+
+		it('should omit categoryAlias when the category has none', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ inserts: [record()] }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed).to.not.have.property('categoryAlias');
+		});
+
+		it('should apply the same categoryId and categoryAlias to every message in a mixed-action commit', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(
+				commitResult(
+					{
+						deletes: [record({ systemId: 'D' })],
+						inserts: [record({ systemId: 'A' })],
+						updates: [record({ systemId: 'U' })],
+					},
+					{ categoryAlias: 'expression', categoryId: 3 },
+				),
+			);
+
+			for (const message of producer.sent[0]!.messages) {
+				const parsed = JSON.parse(message.value);
+				expect(parsed.categoryId).to.equal(3);
+				expect(parsed.categoryAlias).to.equal('expression');
+			}
 		});
 	});
 

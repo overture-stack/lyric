@@ -9,7 +9,7 @@ Lyric is a tabular data management service designed to handle structured clinica
 - **Comprehensive data management:** Offers complete CRUD operations (Create, Read, Update, Delete) through a RESTful API documented in Swagger.
 - **Detailed change history:** Maintains a complete audit trail of all data modifications, tracking changes from committed submissions and updates ensuring data governance and accountability.
 - **SQON Query Endpoint:** Provides an endpoint for SQON (Structured Query Object Notation) based queries allowing complex search operations through combinations of simple field operations (`in`, `<=`, `>=`) and logic (`and`, `or`, `not`). This allows complex queries to be expressed in a simple JSON format.
-- **Multi-dictionary support:** Handles multiple Lectern dictionaries simultaneously, allowing organizations to manage different data categories with distinct schemas while maintaining data integrity and relationships
+- **Multi-dictionary support:** Handles multiple Lectern dictionaries simultaneously, allowing organizations to manage different data categories with distinct schemas while maintaining data integrity and relationships. A category can optionally have an alias, a human-readable identifier usable anywhere a numeric category ID is accepted
 
 ## System Architecture
 

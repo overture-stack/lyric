@@ -475,10 +475,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			});
 
 			return {
-				submissionId: submission.id,
-				organization: submission.organization,
+				categoryAlias: submission.dictionaryCategory.alias ?? undefined,
 				categoryId: submission.dictionaryCategory.id,
 				data: resultCommit,
+				organization: submission.organization,
+				submissionId: submission.id,
 			};
 		} catch (error) {
 			const message = error instanceof Error ? error.message : error;

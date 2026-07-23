@@ -7,6 +7,7 @@ import { BaseDependencies } from '../config/config.js';
 import dictionarySvc from '../services/dictionaryService.js';
 import { NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
+import { resolveCategoryId } from '../utils/resolveCategoryId.js';
 import { dictionaryRegisterRequestSchema } from '../utils/schemas.js';
 import { downloadDataFileTemplatesSchema } from '../utils/schemas.js';
 import { RegisterDictionaryResult } from '../utils/types.js';
@@ -18,6 +19,7 @@ const controller = (dependencies: BaseDependencies) => {
 	return {
 		registerDictionary: validateRequest(dictionaryRegisterRequestSchema, async (req, res, next) => {
 			try {
+				const alias = req.body.alias;
 				const categoryName = req.body.categoryName;
 				const dictionaryName = req.body.dictionaryName;
 				const dictionaryVersion = req.body.dictionaryVersion;
@@ -31,6 +33,7 @@ const controller = (dependencies: BaseDependencies) => {
 				);
 
 				const { dictionary, category, migrationId } = await dictionaryService.register({
+					alias,
 					categoryName,
 					dictionaryName,
 					dictionaryVersion,
@@ -42,6 +45,7 @@ const controller = (dependencies: BaseDependencies) => {
 				logger.info(LOG_MODULE, `Register Dictionary completed!`);
 
 				const result: RegisterDictionaryResult = {
+					alias: category.alias ?? undefined,
 					categoryId: category.id,
 					categoryName: category.name,
 					name: dictionary.name,
@@ -56,7 +60,10 @@ const controller = (dependencies: BaseDependencies) => {
 		downloadDataFileTemplates: validateRequest(downloadDataFileTemplatesSchema, async (req, res, next) => {
 			try {
 				const { fileType } = req.query;
-				const categoryId = Number(req.params.categoryId);
+				const categoryId = await resolveCategoryId(dependencies, req.params.categoryId);
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${req.params.categoryId}' not found`);
+				}
 
 				const dictionary = await dictionaryService.getActiveDictionaryByCategory(categoryId);
 
@@ -85,7 +92,11 @@ const controller = (dependencies: BaseDependencies) => {
 		}),
 		getDictionaryJson: async (req: Request, res: Response, next: NextFunction) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryIdParam = req.params.categoryId;
+				const categoryId = categoryIdParam ? await resolveCategoryId(dependencies, categoryIdParam) : undefined;
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${categoryIdParam}' not found`);
+				}
 
 				const dictionary = await dictionaryService.getActiveDictionaryByCategory(categoryId);
 				if (!dictionary) {

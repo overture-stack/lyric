@@ -19,6 +19,8 @@ const router = ({
 
 	router.get('/', categoryController(baseDependencies).listAll);
 	router.get('/:categoryId', categoryController(baseDependencies).getDetails);
+	router.put('/:categoryId/alias', categoryController(baseDependencies).assignAlias);
+	router.delete('/:categoryId/alias', categoryController(baseDependencies).unassignAlias);
 
 	return router;
 };

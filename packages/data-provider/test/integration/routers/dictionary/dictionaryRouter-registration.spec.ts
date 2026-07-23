@@ -7,7 +7,9 @@ import { createLyricProvider, type LyricProvider } from '../../dependencies/lyri
 import { createTestApp } from '../../dependencies/testServer.js';
 import { getContainers } from '../../globalSetup.js';
 import {
+	NEW_DICTIONARY_VERSION,
 	type RegisterPayload,
+	VALID_CATEGORY_ALIAS,
 	VALID_CATEGORY_NAME,
 	VALID_DICTIONARY_NAME,
 	VALID_DICTIONARY_VERSION,
@@ -134,5 +136,133 @@ describe('Integration - Dictionary Router - POST /register', () => {
 			'message',
 			`Category '${VALID_CATEGORY_NAME}' with Dictionary '${VALID_DICTIONARY_NAME}' version '${VALID_DICTIONARY_VERSION}' already exists`,
 		);
+	});
+
+	describe('category alias', () => {
+		it('should register a new category with an alias when one is provided', async () => {
+			await seedDictionaryInSchemaService();
+
+			const response = await registerDictionary({
+				alias: VALID_CATEGORY_ALIAS,
+				categoryName: VALID_CATEGORY_NAME,
+				dictionaryName: VALID_DICTIONARY_NAME,
+				dictionaryVersion: VALID_DICTIONARY_VERSION,
+			});
+
+			expect(response.status).to.equal(200);
+			expect(response.body).to.have.property('categoryId');
+			expect(response.body).to.have.property('alias', VALID_CATEGORY_ALIAS);
+		});
+
+		it('should register a new category with no alias when none is provided', async () => {
+			await seedDictionaryInSchemaService();
+
+			const response = await registerDictionary({
+				categoryName: VALID_CATEGORY_NAME,
+				dictionaryName: VALID_DICTIONARY_NAME,
+				dictionaryVersion: VALID_DICTIONARY_VERSION,
+			});
+
+			expect(response.status).to.equal(200);
+			expect(response.body.alias).to.be.undefined;
+		});
+
+		it('should treat an empty string alias the same as no alias being provided', async () => {
+			await seedDictionaryInSchemaService();
+
+			const response = await registerDictionary({
+				alias: '',
+				categoryName: VALID_CATEGORY_NAME,
+				dictionaryName: VALID_DICTIONARY_NAME,
+				dictionaryVersion: VALID_DICTIONARY_VERSION,
+			});
+
+			expect(response.status).to.equal(200);
+		});
+
+		it('should return 400 Bad Request when the alias contains characters unsafe for a URL path segment', async () => {
+			await seedDictionaryInSchemaService();
+
+			const response = await registerDictionary({
+				alias: 'not a valid/alias',
+				categoryName: VALID_CATEGORY_NAME,
+				dictionaryName: VALID_DICTIONARY_NAME,
+				dictionaryVersion: VALID_DICTIONARY_VERSION,
+			});
+
+			expect(response.status).to.equal(400);
+			expect(response.body).to.have.property('error', 'Bad Request');
+		});
+
+		it('should return 409 Conflict when the alias is already used by another category', async () => {
+			await seedDictionaryInSchemaService();
+
+			const firstResponse = await registerDictionary({
+				alias: VALID_CATEGORY_ALIAS,
+				categoryName: VALID_CATEGORY_NAME,
+				dictionaryName: VALID_DICTIONARY_NAME,
+				dictionaryVersion: VALID_DICTIONARY_VERSION,
+			});
+			expect(firstResponse.status).to.equal(200);
+
+			const secondResponse = await registerDictionary({
+				alias: VALID_CATEGORY_ALIAS,
+				categoryName: 'a-different-category',
+				dictionaryName: VALID_DICTIONARY_NAME,
+				dictionaryVersion: VALID_DICTIONARY_VERSION,
+			});
+
+			expect(secondResponse.status).to.equal(409);
+			expect(secondResponse.body).to.have.property('error', 'Conflict');
+		});
+
+		it('should reject a purely-numeric alias, since it could collide with a category id', async () => {
+			await seedDictionaryInSchemaService();
+
+			const response = await registerDictionary({
+				alias: '2024',
+				categoryName: VALID_CATEGORY_NAME,
+				dictionaryName: VALID_DICTIONARY_NAME,
+				dictionaryVersion: VALID_DICTIONARY_VERSION,
+			});
+
+			expect(response.status).to.equal(400);
+		});
+
+		it('should allow an alias containing a decimal point, since it can never be mistaken for a whole-number category id', async () => {
+			await seedDictionaryInSchemaService();
+
+			const response = await registerDictionary({
+				alias: '2024.1',
+				categoryName: VALID_CATEGORY_NAME,
+				dictionaryName: VALID_DICTIONARY_NAME,
+				dictionaryVersion: VALID_DICTIONARY_VERSION,
+			});
+
+			expect(response.status).to.equal(200);
+		});
+
+		it('should return 400 Bad Request when an alias is provided while registering a new dictionary version onto an existing category', async () => {
+			// Alias assignment is creation-time only; reassigning is a separate, later feature.
+			await seedDictionaryInSchemaService();
+
+			await registerDictionary({
+				categoryName: VALID_CATEGORY_NAME,
+				dictionaryName: VALID_DICTIONARY_NAME,
+				dictionaryVersion: VALID_DICTIONARY_VERSION,
+			});
+
+			await seedDictionaryInSchemaService(VALID_DICTIONARY_NAME, NEW_DICTIONARY_VERSION);
+
+			const response = await registerDictionary({
+				alias: VALID_CATEGORY_ALIAS,
+				categoryName: VALID_CATEGORY_NAME,
+				dictionaryName: VALID_DICTIONARY_NAME,
+				dictionaryVersion: NEW_DICTIONARY_VERSION,
+			});
+
+			expect(response.status).to.equal(400);
+			expect(response.body).to.have.property('error', 'Bad Request');
+		});
 	});
 });

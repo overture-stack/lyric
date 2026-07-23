@@ -9,6 +9,7 @@ import { parseSQON } from '../utils/convertSqonToQuery.js';
 import { Forbidden, NotFound } from '../utils/errors.js';
 import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
+import { resolveCategoryId } from '../utils/resolveCategoryId.js';
 import {
 	dataGetByCategoryRequestSchema,
 	dataGetByOrganizationRequestSchema,
@@ -33,7 +34,10 @@ const controller = ({
 	return {
 		getSubmittedDataByCategory: validateRequest(dataGetByCategoryRequestSchema, async (req, res, next) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryId = await resolveCategoryId(baseDependencies, req.params.categoryId);
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${req.params.categoryId}' not found`);
+				}
 
 				// query params
 				const entityName = asArray(req.query.entityName || []);
@@ -79,7 +83,10 @@ const controller = ({
 
 		getSubmittedDataByOrganization: validateRequest(dataGetByOrganizationRequestSchema, async (req, res, next) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryId = await resolveCategoryId(baseDependencies, req.params.categoryId);
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${req.params.categoryId}' not found`);
+				}
 				const organization = req.params.organization;
 
 				// query parameters
@@ -132,7 +139,10 @@ const controller = ({
 
 		getSubmittedDataByQuery: validateRequest(dataGetByQueryRequestSchema, async (req, res, next) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryId = await resolveCategoryId(baseDependencies, req.params.categoryId);
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${req.params.categoryId}' not found`);
+				}
 				const organization = req.params.organization;
 				const sqon = parseSQON(req.body);
 
@@ -186,7 +196,10 @@ const controller = ({
 		}),
 		getSubmittedDataBySystemId: validateRequest(DataGetBySystemIdRequestSchema, async (req, res, next) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryId = await resolveCategoryId(baseDependencies, req.params.categoryId);
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${req.params.categoryId}' not found`);
+				}
 				const systemId = req.params.systemId;
 				const view = convertToViewType(String(req.query.view)) || defaultView;
 				const user = req.user;
@@ -223,7 +236,10 @@ const controller = ({
 		}),
 		getSubmittedDataByCategoryStream: validateRequest(dataGetByCategoryRequestSchema, async (req, res, next) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryId = await resolveCategoryId(baseDependencies, req.params.categoryId);
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${req.params.categoryId}' not found`);
+				}
 				const entityName = asArray(req.query.entityName || []);
 				const view = convertToViewType(String(req.query.view)) || defaultView;
 				const user = req.user;
