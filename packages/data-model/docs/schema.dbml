@@ -10,6 +10,18 @@ enum migration_status {
   FAILED
 }
 
+enum submission_record_state {
+  RECEIVED
+  VALID
+  INVALID
+}
+
+enum submission_record_type {
+  INSERT
+  UPDATE
+  DELETE
+}
+
 enum submission_status {
   OPEN
   VALIDATING
@@ -85,6 +97,31 @@ table dictionary_migration {
   }
 }
 
+table submission_files {
+  id serial [pk, not null, increment]
+  submission_id integer [not null]
+  file_name varchar [not null]
+  entity_name varchar [not null]
+  file_size integer [not null]
+
+  indexes {
+    submission_id [name: 'submission_files_submission_id_index']
+  }
+}
+
+table submission_records {
+  id serial [pk, not null, increment]
+  file_id integer [not null]
+  data jsonb [not null]
+  action_type submission_record_type [not null]
+  errors jsonb
+  state submission_record_state [not null]
+
+  indexes {
+    file_id [name: 'submission_records_file_id_index']
+  }
+}
+
 table submissions {
   id serial [pk, not null, increment]
   data jsonb [not null]
@@ -146,6 +183,10 @@ ref: dictionary_migration.from_dictionary_id - dictionaries.id
 ref: dictionary_migration.to_dictionary_id - dictionaries.id
 
 ref: dictionary_migration.submission_id - submissions.id
+
+ref: submission_files.submission_id - submissions.id
+
+ref: submission_records.file_id - submission_files.id
 
 ref: submissions.dictionary_id - dictionaries.id
 
