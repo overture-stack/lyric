@@ -24,8 +24,8 @@ const booleanSchema = zod
 
 const viewSchema = zod.string().toLowerCase().trim().min(1).pipe(VIEW_TYPE);
 
-// Accepts a numeric category id or an alias; matched by equality downstream, not shape, so a
-// numeric-looking alias is fine.
+// Accepts a numeric category id or an alias for lookup; matched by equality downstream, not
+// shape.
 const categoryIdSchema = zod
 	.string()
 	.trim()

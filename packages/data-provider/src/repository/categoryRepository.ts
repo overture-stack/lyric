@@ -116,10 +116,9 @@ const repository = (dependencies: BaseDependencies) => {
 
 		/**
 		 * Find a Category by its numeric id or its alias; numeric id wins if both could match
-		 * (see dictionary_categories.alias). Ids are permanent and assigned once; aliases can be
-		 * assigned, cleared, and reassigned to a different category later, so a category's own id
-		 * must never become unreachable because some other category was later given a
-		 * numeric-looking alias matching it.
+		 * (see dictionary_categories.alias). Aliases are rejected outright if purely numeric
+		 * (see `isValidCategoryAlias`), so this collision shouldn't arise through normal API usage;
+		 * this precedence remains as a defense in depth for any legacy or bypassed data.
 		 * @param {string} value Category id or alias
 		 * @returns The Category found
 		 * @throws {ServiceUnavailable} on a database query failure

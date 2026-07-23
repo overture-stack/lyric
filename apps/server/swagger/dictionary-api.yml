@@ -26,14 +26,13 @@
                   categoryId is accepted, in place of the numeric id. Doesn't change on its own the
                   way an auto-generated token might, though it can be cleared or reassigned via
                   PUT/DELETE /category/{categoryId}/alias, it isn't permanent the way the numeric id
-                  is. Letters, numbers, hyphens, and underscores only; an empty string is treated as
-                  not provided. A purely numeric alias is allowed, it may be a data version label
-                  rather than an id; if it happens to collide with an existing category's numeric
-                  id, the numeric id always wins on lookup, an alias can never make another
-                  category's id unreachable. Can only be set here at category creation; supplying
-                  it while registering onto an existing category returns 400. Use PUT/DELETE
-                  /category/{categoryId}/alias to add or remove one afterward; changing an
-                  already-set alias isn't supported yet.
+                  is. Letters, numbers, hyphens, underscores, and periods only; an empty string is
+                  treated as not provided. A purely numeric value (e.g. `5`) is rejected, since it
+                  could collide with a category's numeric id; a value containing a decimal point
+                  (e.g. `2.5`) is allowed, including as a data version label. Can only be set here
+                  at category creation; supplying it while registering onto an existing category
+                  returns 400. Use PUT/DELETE /category/{categoryId}/alias to add or remove one
+                  afterward; changing an already-set alias isn't supported yet.
               categoryName:
                 type: string
                 description: A user-defined classification to group and organize data based on shared characteristics or criteria

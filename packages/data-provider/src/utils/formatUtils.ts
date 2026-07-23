@@ -46,14 +46,20 @@ export function isValidIdNumber(value: unknown): boolean {
 }
 
 /**
- * Checks if a string is safe as a category alias: a non-empty URL-safe slug (letters,
- * numbers, hyphens, underscores). Purely numeric values are allowed, an alias may be a
- * data version label rather than an id, and is matched by equality, not shape.
+ * Checks if a string is safe as a category alias: a non-empty URL-safe slug (letters, numbers,
+ * hyphens, underscores, periods). A value that is *only* digits (e.g. `"5"`) is rejected, since
+ * category ids are whole numbers and an alias must never be able to collide with one, now or once
+ * the id sequence catches up to it. A value containing any other character, including a decimal
+ * point (e.g. `"2.5"`, `"v5"`, `"5-donor"`), can never be mistaken for an id and is allowed,
+ * including a data version label.
  * @param {string} value
  * @returns {boolean}
  */
 export function isValidCategoryAlias(value: string): boolean {
-	return /^[A-Za-z0-9_-]+$/.test(value);
+	if (/^\d+$/.test(value)) {
+		return false;
+	}
+	return /^[A-Za-z0-9_.-]+$/.test(value);
 }
 
 /**

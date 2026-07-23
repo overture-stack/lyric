@@ -216,11 +216,24 @@ describe('Integration - Dictionary Router - POST /register', () => {
 			expect(secondResponse.body).to.have.property('error', 'Conflict');
 		});
 
-		it('should allow a numeric-looking alias, since it may represent a data version label rather than an id', async () => {
+		it('should reject a purely-numeric alias, since it could collide with a category id', async () => {
 			await seedDictionaryInSchemaService();
 
 			const response = await registerDictionary({
 				alias: '2024',
+				categoryName: VALID_CATEGORY_NAME,
+				dictionaryName: VALID_DICTIONARY_NAME,
+				dictionaryVersion: VALID_DICTIONARY_VERSION,
+			});
+
+			expect(response.status).to.equal(400);
+		});
+
+		it('should allow an alias containing a decimal point, since it can never be mistaken for a whole-number category id', async () => {
+			await seedDictionaryInSchemaService();
+
+			const response = await registerDictionary({
+				alias: '2024.1',
 				categoryName: VALID_CATEGORY_NAME,
 				dictionaryName: VALID_DICTIONARY_NAME,
 				dictionaryVersion: VALID_DICTIONARY_VERSION,
