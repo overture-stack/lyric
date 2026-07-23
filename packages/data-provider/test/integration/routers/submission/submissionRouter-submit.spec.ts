@@ -85,11 +85,11 @@ describe('Integration - Submission Router - POST /category/:categoryId/data', ()
 		expect(response.status).to.equal(400);
 	});
 
-	it('should return 400 when the category ID is invalid', async () => {
+	it('should return 404 when the category ID does not match any category', async () => {
 		const response = await app
 			.post(`/category/99999/data?entityName=sport&organization=testOrg`)
 			.send([{ sport_id: '1', name: 'Soccer' }]);
 
-		expect(response.status).to.equal(400);
+		expect(response.status).to.equal(404);
 	});
 });

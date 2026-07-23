@@ -7,6 +7,7 @@ import { BaseDependencies } from '../config/config.js';
 import dictionarySvc from '../services/dictionaryService.js';
 import { NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
+import { resolveCategoryId } from '../utils/resolveCategoryId.js';
 import { dictionaryRegisterRequestSchema } from '../utils/schemas.js';
 import { downloadDataFileTemplatesSchema } from '../utils/schemas.js';
 import { RegisterDictionaryResult } from '../utils/types.js';
@@ -59,7 +60,10 @@ const controller = (dependencies: BaseDependencies) => {
 		downloadDataFileTemplates: validateRequest(downloadDataFileTemplatesSchema, async (req, res, next) => {
 			try {
 				const { fileType } = req.query;
-				const categoryId = Number(req.params.categoryId);
+				const categoryId = await resolveCategoryId(dependencies, req.params.categoryId);
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${req.params.categoryId}' not found`);
+				}
 
 				const dictionary = await dictionaryService.getActiveDictionaryByCategory(categoryId);
 
@@ -88,7 +92,11 @@ const controller = (dependencies: BaseDependencies) => {
 		}),
 		getDictionaryJson: async (req: Request, res: Response, next: NextFunction) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryIdParam = req.params.categoryId;
+				const categoryId = categoryIdParam ? await resolveCategoryId(dependencies, categoryIdParam) : undefined;
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${categoryIdParam}' not found`);
+				}
 
 				const dictionary = await dictionaryService.getActiveDictionaryByCategory(categoryId);
 				if (!dictionary) {

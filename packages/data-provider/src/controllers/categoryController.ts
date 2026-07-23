@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 
 import { BaseDependencies } from '../config/config.js';
 import categorySvc from '../services/categoryService.js';
-import { BadRequest } from '../utils/errors.js';
+import { NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
 	categoryAliasAssignRequestSchema,
@@ -24,7 +24,7 @@ const controller = (dependencies: BaseDependencies) => {
 				const details = await categoryService.getDetails(categoryIdOrAlias);
 
 				if (!details) {
-					throw new BadRequest('Category not found');
+					throw new NotFound(`Category '${categoryIdOrAlias}' not found`);
 				}
 				return res.send(details);
 			} catch (error) {

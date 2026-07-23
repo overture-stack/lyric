@@ -102,8 +102,8 @@ describe('Integration - Category Router', () => {
 		it('should return the same not-found error for an unmatched alias as for an unmatched numeric id', async () => {
 			const response = await app.get('/no-such-alias');
 
-			expect(response.status).to.equal(400);
-			expect(response.body).to.have.property('message', 'Category not found');
+			expect(response.status).to.equal(404);
+			expect(response.body).to.have.property('message', "Category 'no-such-alias' not found");
 		});
 	});
 

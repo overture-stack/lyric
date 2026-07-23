@@ -11,6 +11,7 @@ import { hasUserWriteAccess } from '../utils/authUtils.js';
 import { BadRequest, Forbidden, NotFound, StatusConflict } from '../utils/errors.js';
 import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
+import { resolveCategoryId } from '../utils/resolveCategoryId.js';
 import {
 	dataDeleteBySystemIdRequestSchema,
 	editSingleEntityRequestSchema,
@@ -47,7 +48,10 @@ const controller = ({
 	return {
 		commit: validateRequest(submissionCommitRequestSchema, async (req, res, next) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryId = await resolveCategoryId(baseDependencies, req.params.categoryId);
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${req.params.categoryId}' not found`);
+				}
 				const submissionId = Number(req.params.submissionId);
 				const user = req.user;
 
@@ -153,7 +157,10 @@ const controller = ({
 		}),
 		deleteSubmittedDataBySystemId: validateRequest(dataDeleteBySystemIdRequestSchema, async (req, res, next) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryId = await resolveCategoryId(baseDependencies, req.params.categoryId);
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${req.params.categoryId}' not found`);
+				}
 				const systemId = req.params.systemId;
 				const user = req.user;
 
@@ -186,7 +193,10 @@ const controller = ({
 
 		editSubmittedData: validateRequest(editSingleEntityRequestSchema, async (req, res, next) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryId = await resolveCategoryId(baseDependencies, req.params.categoryId);
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${req.params.categoryId}' not found`);
+				}
 				const entityName = req.query.entityName;
 				const organization = req.query.organization;
 				const payload = req.body;
@@ -224,7 +234,10 @@ const controller = ({
 			submissionsByCategoryRequestSchema,
 			async (req, res: Response<PaginatedResponse<SubmissionSummary>>, next) => {
 				try {
-					const categoryId = Number(req.params.categoryId);
+					const categoryId = await resolveCategoryId(baseDependencies, req.params.categoryId);
+					if (categoryId === undefined) {
+						throw new NotFound(`Category '${req.params.categoryId}' not found`);
+					}
 					const onlyActive = req.query.onlyActive?.toLowerCase() === 'true';
 					const organization = req.query.organization;
 					const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
@@ -308,7 +321,10 @@ const controller = ({
 		}),
 		getActiveByOrganization: validateRequest(submissionActiveByOrganizationRequestSchema, async (req, res, next) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryId = await resolveCategoryId(baseDependencies, req.params.categoryId);
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${req.params.categoryId}' not found`);
+				}
 				const organization = req.params.organization;
 
 				logger.info(
@@ -336,7 +352,10 @@ const controller = ({
 		}),
 		submit: validateRequest(uploadSingleEntitySubmissionDataRequestSchema, async (req, res, next) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryId = await resolveCategoryId(baseDependencies, req.params.categoryId);
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${req.params.categoryId}' not found`);
+				}
 				const entityName = req.query.entityName;
 				const organization = req.query.organization;
 				const payload = req.body;
@@ -385,7 +404,10 @@ const controller = ({
 
 		submitFiles: validateRequest(uploadSubmissionRequestSchema, async (req, res, next) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryId = await resolveCategoryId(baseDependencies, req.params.categoryId);
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${req.params.categoryId}' not found`);
+				}
 				const files = Array.isArray(req.files) ? req.files : [];
 				const organization = req.query.organization;
 				const fileEntityMap = req.body;
