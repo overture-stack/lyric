@@ -32,7 +32,7 @@ const repository = (dependencies: BaseDependencies) => {
 				return savedCategory[0];
 			} catch (error) {
 				if (isUniqueConstraintViolation(error)) {
-					logger.warn(LOG_MODULE, `Category '${data.name}' or its alias already exists (race with a concurrent request)`);
+					logger.warn(LOG_MODULE, `Category '${data.name}' or its alias already exists, unique constraint violated`);
 					throw new StatusConflict(`Category '${data.name}' or its alias is already in use`);
 				}
 				logger.error(LOG_MODULE, `Failed saving category '${data.name}'`, error);
@@ -115,32 +115,34 @@ const repository = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Find a Category by its numeric id or its alias; alias wins if both could match
-		 * (see dictionary_categories.alias).
+		 * Find a Category by its numeric id or its alias; numeric id wins if both could match
+		 * (see dictionary_categories.alias). Ids are permanent and assigned once; aliases can be
+		 * assigned, cleared, and reassigned to a different category later, so a category's own id
+		 * must never become unreachable because some other category was later given a
+		 * numeric-looking alias matching it.
 		 * @param {string} value Category id or alias
 		 * @returns The Category found
+		 * @throws {ServiceUnavailable} on a database query failure
 		 */
 		getCategoryByIdOrAlias: async (
 			value: string,
 		): Promise<(Category & { activeDictionary: Dictionary | null }) | undefined> => {
 			try {
-				const byAlias = await db.query.dictionaryCategories.findFirst({
-					where: eq(dictionaryCategories.alias, value),
-					with: {
-						activeDictionary: true,
-					},
-				});
-				if (byAlias) {
-					return byAlias;
-				}
-
 				const parsedId = parseInt(value);
-				if (!isValidIdNumber(parsedId)) {
-					return undefined;
+				if (isValidIdNumber(parsedId)) {
+					const byId = await db.query.dictionaryCategories.findFirst({
+						where: eq(dictionaryCategories.id, parsedId),
+						with: {
+							activeDictionary: true,
+						},
+					});
+					if (byId) {
+						return byId;
+					}
 				}
 
 				return await db.query.dictionaryCategories.findFirst({
-					where: eq(dictionaryCategories.id, parsedId),
+					where: eq(dictionaryCategories.alias, value),
 					with: {
 						activeDictionary: true,
 					},
@@ -225,7 +227,7 @@ const repository = (dependencies: BaseDependencies) => {
 				if (isUniqueConstraintViolation(error)) {
 					logger.warn(
 						LOG_MODULE,
-						`Update to Category '${categoryId}' conflicts with an existing name or alias (race with a concurrent request)`,
+						`Update to Category '${categoryId}' conflicts with an existing name or alias, unique constraint violated`,
 					);
 					throw new StatusConflict(`The requested change conflicts with an existing category's name or alias`);
 				}

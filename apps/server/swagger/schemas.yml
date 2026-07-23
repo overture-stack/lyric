@@ -254,7 +254,7 @@ components:
         alias:
           type: string
           description: >-
-            Optional stable alias for the category, usable in place of the numeric id anywhere a
+            Optional alias for the category, usable in place of the numeric id anywhere a
             categoryId is accepted. Not set if none was assigned at creation.
         id:
           type: number
@@ -293,7 +293,7 @@ components:
       properties:
         alias:
           type: string
-          description: Optional stable alias for the category. Not set if none is assigned.
+          description: Optional alias for the category. Not set if none is assigned.
         id:
           type: number
           description: ID of the Category
@@ -568,7 +568,7 @@ components:
       properties:
         alias:
           type: string
-          description: Optional stable alias for the category. Not present if none was assigned.
+          description: Optional alias for the category. Not present if none was assigned.
         categoryId:
           type: number
           description: ID of the Category

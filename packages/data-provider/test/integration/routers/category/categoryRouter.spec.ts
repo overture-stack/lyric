@@ -88,15 +88,15 @@ describe('Integration - Category Router', () => {
 			expect(response.body).to.have.property('id', category.id);
 		});
 
-		it('should prioritize the alias match when a numeric id string collides with another category\'s alias', async () => {
-			// category A's alias is numerically identical to category B's real id
+		it("should prioritize the numeric id match when another category's alias collides with it, so a category's own id can never become unreachable", async () => {
+			// categoryA's alias is numerically identical to categoryB's real id
 			const categoryB = await seedCategory('collision-id-owner');
 			const categoryA = await seedCategory('collision-alias-owner', String(categoryB.id));
 
 			const response = await app.get(`/${categoryB.id}`);
 
 			expect(response.status).to.equal(200);
-			expect(response.body).to.have.property('id', categoryA.id);
+			expect(response.body).to.have.property('id', categoryB.id);
 		});
 
 		it('should return the same not-found error for an unmatched alias as for an unmatched numeric id', async () => {

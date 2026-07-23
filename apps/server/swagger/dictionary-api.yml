@@ -22,14 +22,18 @@
               alias:
                 type: string
                 description: >-
-                  An optional, stable, human-readable identifier for the category, usable anywhere
-                  a categoryId is accepted, in place of the numeric id. Letters, numbers, hyphens,
-                  and underscores only; an empty string is treated as not provided. A purely
-                  numeric alias is allowed, it may be a data version label rather than an id,
-                  matched by equality not shape. Can only be set here at category creation;
-                  supplying it while registering onto an existing category returns 400. Use
-                  PUT/DELETE /category/{categoryId}/alias to add or remove one afterward; changing
-                  an already-set alias isn't supported yet.
+                  An optional, human-readable identifier for the category, usable anywhere a
+                  categoryId is accepted, in place of the numeric id. Doesn't change on its own the
+                  way an auto-generated token might, though it can be cleared or reassigned via
+                  PUT/DELETE /category/{categoryId}/alias, it isn't permanent the way the numeric id
+                  is. Letters, numbers, hyphens, and underscores only; an empty string is treated as
+                  not provided. A purely numeric alias is allowed, it may be a data version label
+                  rather than an id; if it happens to collide with an existing category's numeric
+                  id, the numeric id always wins on lookup, an alias can never make another
+                  category's id unreachable. Can only be set here at category creation; supplying
+                  it while registering onto an existing category returns 400. Use PUT/DELETE
+                  /category/{categoryId}/alias to add or remove one afterward; changing an
+                  already-set alias isn't supported yet.
               categoryName:
                 type: string
                 description: A user-defined classification to group and organize data based on shared characteristics or criteria

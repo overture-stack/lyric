@@ -25,9 +25,11 @@
   get:
     summary: Retrieve details of a specific category
     description: >-
-      Accepts either the category's numeric id or its alias. If a numeric id could also match a
-      different category's alias, the alias wins, allowed on purpose since an alias may be a data
-      version label, not just a stand-in for an id.
+      Accepts either the category's numeric id or its alias. If a value could match both a
+      category's numeric id and a different category's alias, the numeric id wins: ids are
+      permanent, while aliases can be assigned, cleared, and reassigned later, so a category must
+      never become unreachable by its own id because another category was later given a
+      numeric-looking alias that collides with it.
     tags:
       - Category
     parameters:
