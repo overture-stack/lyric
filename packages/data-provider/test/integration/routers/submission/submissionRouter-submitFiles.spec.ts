@@ -119,14 +119,14 @@ describe('Integration - Submission Router - POST /category/:categoryId/files', (
 		expect(response.status).to.equal(400);
 	});
 
-	it('should return 400 when the category ID is invalid', async () => {
+	it('should return 404 when the category ID does not match any category', async () => {
 		const tsvContent = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
 
 		const response = await app
 			.post(`/category/99999/files?organization=testOrg`)
 			.attach('files', tsvContent, 'sport.tsv');
 
-		expect(response.status).to.equal(400);
+		expect(response.status).to.equal(404);
 	});
 
 	it('should return 400 when the organization query param is missing', async () => {
