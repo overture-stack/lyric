@@ -3,6 +3,7 @@ import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE } from '../config/pagination.js';
 import auditSvc from '../services/auditService.js';
 import { NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
+import { resolveCategoryId } from '../utils/resolveCategoryId.js';
 import { auditByCatAndOrgRequestSchema } from '../utils/schemas.js';
 import { AuditPaginatedResponse } from '../utils/types.js';
 
@@ -13,7 +14,10 @@ const controller = (dependencies: BaseDependencies) => {
 	return {
 		byCategoryIdAndOrganization: validateRequest(auditByCatAndOrgRequestSchema, async (req, res, next) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryId = await resolveCategoryId(dependencies, req.params.categoryId);
+				if (categoryId === undefined) {
+					throw new NotFound(`Category '${req.params.categoryId}' not found`);
+				}
 				const organization = req.params.organization;
 
 				// pagination parameters

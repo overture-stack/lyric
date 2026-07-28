@@ -38,20 +38,23 @@ const controller = (dependencies: BaseDependencies) => {
 		}),
 		getMigrationsByCategoryId: validateRequest(migrationsByCategoryIdRequestSchema, async (req, res, next) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryIdOrAlias = req.params.categoryId;
 				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
 				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
 
-				logger.info(LOG_MODULE, `Request Migrations by category Id '${categoryId}'`);
+				logger.info(LOG_MODULE, `Request Migrations by category Id '${categoryIdOrAlias}'`);
 
-				const categoryExists = await categoryService.getDetails(categoryId);
+				const categoryExists = await categoryService.getDetails(categoryIdOrAlias);
 				if (!categoryExists) {
-					const message = `Category with id '${categoryId}' not found`;
+					const message = `Category with id '${categoryIdOrAlias}' not found`;
 					logger.info(LOG_MODULE, message);
 					throw new NotFound(message);
 				}
 
-				const migrationsResult = await migrationService.getMigrationsByCategoryId(categoryId, { page, pageSize });
+				const migrationsResult = await migrationService.getMigrationsByCategoryId(categoryExists.id, {
+					page,
+					pageSize,
+				});
 
 				const response = {
 					pagination: {

@@ -42,7 +42,9 @@ export type IdServiceConfig = {
 };
 
 export type ValidatorEntry = {
-	categoryId: number;
+	/** A category's numeric id or its alias; matched against the request's categoryId by string
+	 * equality (see `findValidatorEntry`), not by shape. */
+	categoryId: number | string;
 	entityName: string;
 	fieldName: string;
 };
