@@ -98,6 +98,10 @@ docker-compose up -d
    PLURALIZE_SCHEMAS_ENABLED=true
    ```
 
+   Kafka publishing is optional and is left out of the configuration above — the
+   bundled `docker-compose.yml` does not start a broker. Leave `KAFKA_BROKERS`
+   unset for local development and Lyric runs without publishing commits.
+
    <details>
    <summary><strong>Environment Variables Reference</strong></summary>
 
@@ -130,6 +134,16 @@ docker-compose up -d
    - `CORS_ENABLED`: Enable CORS (default: false)
    - `ALLOWED_ORIGINS`: Comma-separated list of permitted CORS origins
    - `PLURALIZE_SCHEMAS_ENABLED`: Automatically pluralize schema names for compound documents (default: true)
+
+   **Kafka (optional)**
+
+   - `KAFKA_BROKERS`: Comma-separated broker addresses (for example `localhost:9092`). When set, Lyric publishes each committed record to a Kafka topic for Maestro to index. Omit to run without Kafka publishing
+   - `KAFKA_TOPIC`: Topic that committed records are published to, created on startup if it does not exist. Required when `KAFKA_BROKERS` is set
+   - `KAFKA_CLIENT_ID`: Kafka client identifier, unique per environment to distinguish producers in broker logs (default: `lyric`)
+
+   **Record Validation (optional)**
+
+   - `VALIDATOR_CONFIG`: JSON array enabling the endpoint that checks whether a record exists with a given field value. Each entry needs `categoryId`, `entityName`, and `fieldName`, where `categoryId` accepts either a category's numeric ID or its alias — for example `[{"categoryId": "1", "entityName": "sample", "fieldName": "sample_id"}]`
 
    </details>
 
