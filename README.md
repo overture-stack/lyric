@@ -94,7 +94,7 @@ A model-agnostic, tabular data submission system designed to manage and validate
 
 - For support, feature requests, and bug reports, please see our [Support Guide](https://docs.overture.bio/community/support).
 
-- For detailed information on how to contribute to this project, please see our [Contributing Guide](https://docs.overture.bio/docs/contribution).
+- For detailed information on how to contribute to this project, please see our [Contributing Guide](https://docs.overture.bio/develop/contributing).
 
 ## Related Software
 
@@ -112,7 +112,7 @@ The Overture Platform includes the following Overture Components:
 | [Lyric](https://github.com/overture-stack/lyric)        | A model-agnostic, tabular data submission system                                          |
 | [Lectern](https://github.com/overture-stack/lectern)    | Schema Manager, designed to validate, store, and manage collections of data dictionaries. |
 
-If you'd like to get started using our platform [check out our quickstart guides](https://docs.overture.bio/guides/getting-started)
+If you'd like to get started using our platform [check out our quickstart guides](https://docs.overture.bio/deploy)
 
 ## Funding Acknowledgement
 
