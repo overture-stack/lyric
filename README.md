@@ -88,7 +88,7 @@ A model-agnostic, tabular data submission system designed to manage and validate
 
 ## Documentation
 
-- **[Developer Documentation](https://docs.overture.bio/develop/Lyric/overview):** Technical resources for developers working with or contributing to the project, located in the `/docs` folder and from our [developer docs website](https://docs.overture.bio/develop/Lyric/overview).
+- **[Developer Documentation](https://docs.overture.bio/develop/Lyric/overview):** Technical resources for developers working with or contributing to the project. This content can also be read and updated within the `/docs` folder of this repository.
 
 ## Support & Contributions
 

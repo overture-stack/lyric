@@ -14,7 +14,7 @@ Before beginning, ensure you have the following installed on your system:
 
 ### 1. Dependent Services
 
-Lyric requires a **PostgreSQL** database for data storage and a running **[Lectern](/develop/Lectern/overview)** service to supply and validate dictionary schemas. The repository ships a `docker-compose.yml` that starts both dependencies (Postgres, plus Lectern and its MongoDB) with development defaults.
+Lyric requires a **PostgreSQL** database for data storage and a running **[Lectern](https://docs.overture.bio/develop/Lectern/overview)** service to supply and validate dictionary schemas. The repository ships a `docker-compose.yml` that starts both dependencies (Postgres, plus Lectern and its MongoDB) with development defaults.
 
 ```bash
 # From the repository root
@@ -177,7 +177,7 @@ Access the interactive API documentation to confirm the server is running:
 - Check the server logs for validation or database-migration errors.
 
 :::info Need Help?
-If you encounter any issues or have questions about our API, please don't hesitate to reach out through our [**support page**](/community/support) or our [**discussion forum**](https://github.com/overture-stack/docs/discussions?discussions_q=).
+If you encounter any issues or have questions about our API, please don't hesitate to reach out through our [**support page**](https://docs.overture.bio/community/support) or our [**discussion forum**](https://github.com/overture-stack/docs/discussions?discussions_q=).
 :::
 
 ## Development Commands Reference

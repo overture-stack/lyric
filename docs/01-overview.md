@@ -1,6 +1,6 @@
 # Overview
 
-Lyric is a model-agnostic, tabular data submission service designed to manage and validate structured clinical and research data. Built on top of [Lectern's](/develop/Lectern/overview) dictionary framework, it provides a system for organizations to submit, validate, and manage structured data according to predefined schemas. While primarily used for clinical data management, Lyric's architecture remains domain-agnostic, allowing it to handle any type of structured data that can be defined within a Lectern dictionary.
+Lyric is a model-agnostic, tabular data submission service designed to manage and validate structured clinical and research data. Built on top of [Lectern's](https://docs.overture.bio/develop/Lectern/overview) dictionary framework, it provides a system for organizations to submit, validate, and manage structured data according to predefined schemas. While primarily used for clinical data management, Lyric's architecture remains domain-agnostic, allowing it to handle any type of structured data that can be defined within a Lectern dictionary.
 
 ## Key Features
 
@@ -13,7 +13,7 @@ Lyric is a model-agnostic, tabular data submission service designed to manage an
 
 ## System Architecture
 
-Lyric manages the submission of tabular data through its API, validating submissions based on Lectern dictionary schemas stored within Lyric and specified on submission. [Song](/develop/Song/overview) will interact with Lyric to confirm the presence of the data in Lyric's database that corresponds to the file metadata being submitted to Song. All Lyric data is stored on the backend within a PostgreSQL database. On commit, Lyric publishes each affected record as a document to a Kafka topic, which [Maestro](/develop/Maestro/overview) consumes to index into Elasticsearch. Maestro also supports a pull-based full re-index from Lyric's REST API as a recovery path.
+Lyric manages the submission of tabular data through its API, validating submissions based on Lectern dictionary schemas stored within Lyric and specified on submission. [Song](https://docs.overture.bio/develop/Song/overview) will interact with Lyric to confirm the presence of the data in Lyric's database that corresponds to the file metadata being submitted to Song. All Lyric data is stored on the backend within a PostgreSQL database. On commit, Lyric publishes each affected record as a document to a Kafka topic, which [Maestro](https://docs.overture.bio/develop/Maestro/overview) consumes to index into Elasticsearch. Maestro also supports a pull-based full re-index from Lyric's REST API as a recovery path.
 
 ![Submission System Architecture](./images/submission-system.svg "Updated Overture Submission System")
 
@@ -23,9 +23,9 @@ Storing data in Elasticsearch allows us to build powerful search UI components l
 
 As part of Overture, Lyric is typically used with additional integrations, including:
 
-- **[Lectern](/develop/Lectern/overview):** Validates, stores, and manages the dictionary schemas fetched, stored, and used by Lyric.
-- **[Maestro](/develop/Maestro/overview):** Consumes Lyric's Kafka document topic to index committed records into Elasticsearch.
-- **[Song](/develop/Song/overview) & [Score](/develop/Score/overview):** Facilitate the submission, validation, and management of file data in object storage (Score) and the corresponding file metadata (Song) in a database.
+- **[Lectern](https://docs.overture.bio/develop/Lectern/overview):** Validates, stores, and manages the dictionary schemas fetched, stored, and used by Lyric.
+- **[Maestro](https://docs.overture.bio/develop/Maestro/overview):** Consumes Lyric's Kafka document topic to index committed records into Elasticsearch.
+- **[Song](https://docs.overture.bio/develop/Song/overview) & [Score](https://docs.overture.bio/develop/Score/overview):** Facilitate the submission, validation, and management of file data in object storage (Score) and the corresponding file metadata (Song) in a database.
 
 ## Repository Structure
 
