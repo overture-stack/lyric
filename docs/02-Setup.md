@@ -6,23 +6,30 @@ This guide provides instructions for setting up a complete development environme
 
 Before beginning, ensure you have the following installed on your system:
 
-- **PNPM** (package manager — used instead of npm)
+- **PNPM** (package manager, used instead of npm)
 - **Node.js** (v20 or higher)
 - **Docker** (for running containerized services)
 
 ## Development Environment Setup
 
-### 1. Dependent Services
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/overture-stack/lyric.git
+cd lyric
+```
+
+### 2. Start Dependent Services
 
 Lyric requires a **PostgreSQL** database for data storage and a running **[Lectern](https://docs.overture.bio/develop/Lectern/overview)** service to supply and validate dictionary schemas. The repository ships a `docker-compose.yml` that starts both dependencies (Postgres, plus Lectern and its MongoDB) with development defaults.
 
 ```bash
 # From the repository root
-docker-compose up -d
+docker compose up -d
 ```
 
-   <details>
-   <summary><strong>Dependent Service Details</strong></summary>
+<details>
+<summary><strong>Dependent Service Details</strong></summary>
 
 | Service          | Port  | Description                          | Purpose                                      |
 | ---------------- | ----- | ------------------------------------ | -------------------------------------------- |
@@ -38,142 +45,104 @@ docker-compose up -d
 
 </details>
 
-### 2. Server Setup
+### 3. Install Dependencies
 
-1. **Clone the Repository**
+```bash
+# Install all dependencies for the entire monorepo
+pnpm install
+```
 
-   ```bash
-   git clone https://github.com/overture-stack/lyric.git
-   cd lyric
-   ```
+### 4. Build the Workspace
 
-2. **Install Dependencies**
+```bash
+# Compile TypeScript and generate the database schema
+pnpm build:all
+```
 
-   ```bash
-   # Install all dependencies for the entire monorepo
-   pnpm install
-   ```
+### 5. Configure Environment
 
-3. **Build the Workspace**
+Create a `.env` file from the provided schema:
 
-   ```bash
-   # Compile TypeScript and generate the database schema
-   pnpm build:all
-   ```
+```bash
+cp .env.schema .env
+```
 
-4. **Configure Environment**
+The populated values in `.env.schema` match the services started in step 2, so a fresh clone runs without further editing. Every variable, what it controls, and its default is documented in [Environment Variables](https://github.com/overture-stack/lyric/blob/main/README.md#environment-variables), which is the single source of truth for configuration.
 
-   Create a `.env` file based on the provided `.env.schema`:
+Kafka publishing is off unless you turn it on: `KAFKA_BROKERS` is blank by default and the bundled `docker-compose.yml` does not start a broker. Set `KAFKA_BROKERS` and `KAFKA_TOPIC` together to publish each commit for [Maestro](https://docs.overture.bio/develop/Maestro/overview) to consume.
 
-   ```bash
-   cp .env.schema .env
-   ```
+### 6. Start the Development Server
 
-   A minimal development configuration looks as follows:
+```bash
+# Runs database migrations, then starts the server with hot reloading
+pnpm start:dev
+```
 
-   ```env
-   # Server
-   PORT=3030
-   LOG_LEVEL=info
-
-   # PostgreSQL (matches the docker-compose defaults)
-   DB_HOST=localhost
-   DB_PORT=5432
-   DB_NAME=lyric
-   DB_USER=postgres
-   DB_PASSWORD=secret
-
-   # Lectern schema service
-   LECTERN_URL=http://localhost:3000
-
-   # Local ID generation
-   ID_USELOCAL=true
-   ID_CUSTOM_ALPHABET=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ
-   ID_CUSTOM_SIZE=21
-
-   # Behaviour flags
-   AUDIT_ENABLED=true
-   CORS_ENABLED=false
-   ALLOWED_ORIGINS=
-   PLURALIZE_SCHEMAS_ENABLED=true
-   ```
-
-   Kafka publishing is optional and is left out of the configuration above — the
-   bundled `docker-compose.yml` does not start a broker. Leave `KAFKA_BROKERS`
-   unset for local development and Lyric runs without publishing commits.
-
-   <details>
-   <summary><strong>Environment Variables Reference</strong></summary>
-
-   **Server**
-
-   - `PORT`: Server port (default: 3030)
-   - `LOG_LEVEL`: Log verbosity (default: info)
-
-   **PostgreSQL**
-
-   - `DB_HOST`: Database hostname
-   - `DB_PORT`: Database port
-   - `DB_NAME`: Database name
-   - `DB_USER`: Database user
-   - `DB_PASSWORD`: Database password
-
-   **Schema Service**
-
-   - `LECTERN_URL`: URL of the Lectern service supplying dictionary schemas
-
-   **ID Generation**
-
-   - `ID_USELOCAL`: Generate record IDs locally (default: true)
-   - `ID_CUSTOM_ALPHABET`: Custom alphabet for local ID generation
-   - `ID_CUSTOM_SIZE`: Length of locally generated IDs (default: 21)
-
-   **Behaviour**
-
-   - `AUDIT_ENABLED`: Log all modifications to submitted data (default: true)
-   - `CORS_ENABLED`: Enable CORS (default: false)
-   - `ALLOWED_ORIGINS`: Comma-separated list of permitted CORS origins
-   - `PLURALIZE_SCHEMAS_ENABLED`: Automatically pluralize schema names for compound documents (default: true)
-
-   **Kafka (optional)**
-
-   - `KAFKA_BROKERS`: Comma-separated broker addresses (for example `localhost:9092`). When set, Lyric publishes each committed record to a Kafka topic for Maestro to index. Omit to run without Kafka publishing
-   - `KAFKA_TOPIC`: Topic that committed records are published to, created on startup if it does not exist. Required when `KAFKA_BROKERS` is set
-   - `KAFKA_CLIENT_ID`: Kafka client identifier, unique per environment to distinguish producers in broker logs (default: `lyric`)
-
-   **Record Validation (optional)**
-
-   - `VALIDATOR_CONFIG`: JSON array enabling the endpoint that checks whether a record exists with a given field value. Each entry needs `categoryId`, `entityName`, and `fieldName`, where `categoryId` accepts either a category's numeric ID or its alias — for example `[{"categoryId": "1", "entityName": "sample", "fieldName": "sample_id"}]`
-
-   </details>
-
-5. **Start the Development Server**
-
-   ```bash
-   # Runs database migrations, then starts the server with hot reloading
-   pnpm start:dev
-   ```
-
-   The server runs on port `3030` by default.
+The server runs on port `3030` by default.
 
 ## Verification & Testing
 
 ### API Documentation
 
-Access the interactive API documentation to confirm the server is running:
-
-- **Swagger UI**: `http://localhost:3030/api-docs`
+Confirm the server is running by opening the interactive API documentation at [Swagger UI](http://localhost:3030/api-docs). Every endpoint below can be exercised from there instead of `curl`.
 
 ### Submission Testing
 
-1. Navigate to the Swagger UI.
-2. Register a Lectern dictionary against a category using the dictionary-registration endpoints.
-3. Submit a tabular data file and verify that it is validated against the registered schema.
+Lyric validates against dictionaries held in Lectern, so a dictionary has to exist in Lectern before Lyric can register it. The Lectern instance started in step 2 is empty on first run.
+
+1. **Upload a dictionary to Lectern.** Lectern's [`simple.json`](https://github.com/overture-stack/lectern/blob/main/samples/dictionary/simple.json) sample defines a single `primitives` schema with one field of each type, which is enough to exercise the whole path:
+
+   ```bash
+   curl -sLO https://raw.githubusercontent.com/overture-stack/lectern/main/samples/dictionary/simple.json
+   curl -X POST http://localhost:3000/dictionaries \
+     -H 'Content-Type: application/json' \
+     -d @simple.json
+   ```
+
+2. **Register that dictionary against a Lyric category** with `POST /dictionary/register`. `categoryName`, `dictionaryName`, and `dictionaryVersion` are required, and the name and version must match what Lectern holds:
+
+   ```bash
+   curl -X POST http://localhost:3030/dictionary/register \
+     -H 'Content-Type: application/json' \
+     -d '{
+       "categoryName": "sample-category",
+       "dictionaryName": "Simple",
+       "dictionaryVersion": "1.0",
+       "defaultCentricEntity": "primitives"
+     }'
+   ```
+
+   The response carries the `categoryId` used by the remaining steps. The examples below assume `1`.
+
+3. **Download the data file templates** with `GET /dictionary/category/{categoryId}/templates`. Lyric generates one blank file per schema in the registered dictionary, each named after its schema and carrying a header row, and returns them as a zip. No sample data of your own is needed. Templates are tab-separated by default; pass `?fileType=csv` for comma-separated:
+
+   ```bash
+   curl -OJ http://localhost:3030/dictionary/category/1/templates
+   unzip Simple_1_templates.zip   # contains primitives.tsv
+   ```
+
+4. **Submit a completed template** with `POST /submission/category/{categoryId}/files`, sending each file under the `files` form field. `organization` is a required query parameter and groups the submission under a data-owning organization. Fill in a row or two of the template first:
+
+   ```bash
+   curl -X POST 'http://localhost:3030/submission/category/1/files?organization=example-org' \
+     -F 'files=@primitives.tsv'
+   ```
+
+   The response carries a `submissionId` along with any validation errors found. A submission stays staged until committed, so this step is safe to repeat while correcting data.
+
+5. **Commit the submission** with `POST /submission/category/{categoryId}/commit/{submissionId}` to write the validated records to Postgres, substituting the `submissionId` returned above:
+
+   ```bash
+   curl -X POST http://localhost:3030/submission/category/1/commit/{submissionId}
+   ```
+
+   Confirm the records landed with `GET /data/category/1`, or inspect the audit trail with `GET /audit/category/1/organization/example-org`.
 
 **Troubleshooting:**
 
-- Ensure PostgreSQL and Lectern are running and reachable at the configured hosts and ports.
-- Confirm `LECTERN_URL` points to a running Lectern service.
+- Confirm all three containers are up and healthy: `docker compose ps` should list `lyric.db`, `lyric.lectern.db`, and `lyric.lectern.service` as `running`. Use `docker compose logs -f <service>` to follow a container that exited or is restarting.
+- Check that the ports are actually reachable rather than just bound: `curl http://localhost:3030/health` for Lyric and `curl http://localhost:3000/health` for Lectern.
+- If Lyric starts but every submission fails validation, confirm `LECTERN_URL` points at the running Lectern service and that the dictionary name and version in your register call match a dictionary Lectern actually holds (`curl http://localhost:3000/dictionaries`).
 - Check the server logs for validation or database-migration errors.
 
 :::info Need Help?
