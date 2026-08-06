@@ -75,7 +75,7 @@ const router = ({
 
 	router.delete('/:submissionId', submissionController.delete);
 
-	router.delete('/:submissionId/:actionType', submissionController.deleteEntityName);
+	router.delete('/:submissionId/data', submissionController.deleteByRecordIdOrFileId);
 
 	router.get('/category/:categoryId', submissionController.getSubmissionsByCategory);
 

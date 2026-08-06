@@ -6,12 +6,13 @@ import { SQON } from '@overture-stack/sqon-builder';
 import { BaseDependencies } from '../../config/config.js';
 import submissionRepository from '../../repository/activeSubmissionRepository.js';
 import categoryRepository from '../../repository/categoryRepository.js';
+import createSubmissionFilesRepository from '../../repository/submissionFilesRepository.js';
+import createSubmissionRecordsRepository from '../../repository/submissionRecordsRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelations.js';
 import { InternalServerError, StatusConflict } from '../../utils/errors.js';
 import type { PaginatedResult } from '../../utils/result.js';
-import { filterUpdatesFromDeletes, mergeDeleteRecords } from '../../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
 	getEntityNamesFromFilterOptions,
@@ -39,6 +40,8 @@ const submittedData = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_SERVICE';
 	const submittedDataRepo = submittedRepository(dependencies);
 	const submissionProcessor = submissionProcessorFactory.create(dependencies);
+	const submissionRecordsRepository = createSubmissionRecordsRepository(dependencies);
+	const submissionFilesRepository = createSubmissionFilesRepository(dependencies);
 
 	const { logger } = dependencies;
 	const { convertRecordsToCompoundDocuments } = viewMode(dependencies);
@@ -56,7 +59,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 	}> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepo;
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { getSubmissionDetailsById, update } = submissionRepository(dependencies);
+		const { update: udpateSubmission } = submissionRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
 
 		// get SubmittedData by SystemId
@@ -125,44 +128,44 @@ const submittedData = (dependencies: BaseDependencies) => {
 			throw error;
 		}
 
-		const activeSubmission = await getSubmissionDetailsById(activeSubmissionId);
-
-		if (!activeSubmission) {
-			return {
-				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: 'Active Submission not found',
-				inProcessEntities: [],
-			};
-		}
-
-		// Merge current Active Submission delete entities with unique records to delete based on systemId
-		const mergedSubmissionDeletes = mergeDeleteRecords(activeSubmission.data.deletes || {}, recordsToDeleteMap);
-
-		const entitiesToProcess = Object.keys(mergedSubmissionDeletes);
-
-		// filter out update records found matching systemID on delete records
-		const filteredUpdates = filterUpdatesFromDeletes(activeSubmission.data.updates ?? {}, mergedSubmissionDeletes);
+		// TODO: get the existing entity names for a submission and merge with the new ones to avoid duplicates,
+		// but for now just insert the new records
+		const entitiesToProcess = Object.keys(recordsToDeleteMap);
 
 		// Updating the Submission with the new data and 'VALIDATING' status before validation starts
-		await update(activeSubmission.id, {
-			data: {
-				inserts: activeSubmission.data.inserts,
-				updates: filteredUpdates,
-				deletes: mergedSubmissionDeletes,
-			},
+		await udpateSubmission(activeSubmissionId, {
 			updatedBy: username,
 			status: 'VALIDATING',
 		});
 
+		await Promise.all(
+			Object.entries(recordsToDeleteMap).map(async ([entityName, entityRecords]) => {
+				const savedFileId = await submissionFilesRepository.save({
+					entityName,
+					fileName: `update-${entityName}-${Date.now()}.json`, // default file name for adding JSON records
+					fileSize: JSON.stringify(entityRecords).length,
+					submissionId: activeSubmissionId,
+				});
+				await submissionRecordsRepository.saveManyForFile(
+					savedFileId,
+					entityRecords.map((record) => ({
+						actionType: 'DELETE',
+						data: record,
+						state: 'RECEIVED',
+					})),
+				);
+			}),
+		);
+
 		// Perform Schema Data validation in a worker thread
-		dependencies.workerPool.dataValidation({ submissionId: activeSubmission.id });
+		dependencies.workerPool.dataValidation({ submissionId: activeSubmissionId });
 
 		logger.info(LOG_MODULE, `Added '${entitiesToProcess.length}' records to be deleted on the Active Submission`);
 
 		return {
 			status: ACTIVE_SUBMISSION_STATUS.PROCESSING,
 			description: 'Submission data is being processed',
-			submissionId: activeSubmission.id.toString(),
+			submissionId: activeSubmissionId.toString(),
 			inProcessEntities: entitiesToProcess,
 		};
 	};
