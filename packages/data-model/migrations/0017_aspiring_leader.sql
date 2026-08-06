@@ -1,0 +1,3 @@
+CREATE INDEX IF NOT EXISTS "submission_files_submission_entity_file_index" ON "submission_files" ("submission_id","entity_name","file_name");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "submission_records_file_id_action_type_index" ON "submission_records" ("file_id","action_type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "submission_records_file_id_state_action_type_index" ON "submission_records" ("file_id","state","action_type");

@@ -63,17 +63,6 @@ const pageSizeSchema = z.string().superRefine((value, ctx) => {
 	}
 });
 
-const indexIntegerSchema = z.string().superRefine((value, ctx) => {
-	const parsed = parseInt(value);
-	if (isNaN(parsed)) {
-		ctx.addIssue({
-			code: z.ZodIssueCode.invalid_type,
-			expected: 'number',
-			received: 'nan',
-		});
-	}
-});
-
 const positiveInteger = z.string().superRefine((value, ctx) => {
 	const parsed = parseInt(value);
 	if (isNaN(parsed)) {
@@ -360,27 +349,25 @@ export const submissionDeleteRequestSchema: RequestValidation<
 	}),
 };
 
-export interface SubmissionDeleteEntityNameParams extends ParamsDictionary {
-	actionType: string;
+export interface SubmissionRecordDeleteParams extends ParamsDictionary {
 	submissionId: string;
 }
 
-export interface SubmissionDeleteEntityNameQueryParams extends ParsedQs {
-	entityName: string;
-	index?: string;
+export interface SubmissionRecordDeleteQueryParams extends ParsedQs {
+	recordId?: string;
+	fileId?: string;
 }
 
-export const submissionDeleteEntityNameRequestSchema: RequestValidation<
+export const submissionRecordDeleteRequestSchema: RequestValidation<
 	object,
-	SubmissionDeleteEntityNameQueryParams,
-	SubmissionDeleteEntityNameParams
+	SubmissionRecordDeleteQueryParams,
+	SubmissionRecordDeleteParams
 > = {
 	query: z.object({
-		entityName: entityNameSchema,
-		index: indexIntegerSchema.optional(),
+		recordId: positiveInteger.optional(),
+		fileId: positiveInteger.optional(),
 	}),
 	pathParams: z.object({
-		actionType: submissionActionTypeSchema,
 		submissionId: submissionIdSchema,
 	}),
 };

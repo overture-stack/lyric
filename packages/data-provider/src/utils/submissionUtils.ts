@@ -11,22 +11,27 @@ import {
 	validate,
 } from '@overture-stack/lectern-client';
 import {
-	SubmissionData,
 	type SubmissionDeleteData,
-	type SubmissionErrors,
 	type SubmissionInsertData,
+	type SubmissionRecordErrors,
 	type SubmissionUpdateData,
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
 
+import type { SubmissionRecordWithEntityName } from '../repository/submissionRecordsRepository.js';
 import { getSubmittedFileEntity } from '../services/submission/submissionFile.js';
 import { isSubmissionActionTypeValid } from './auditUtils.js';
 import type { SchemaChildNode } from './dictionarySchemaRelations.js';
 import { getSchemaFieldNames } from './dictionaryUtils.js';
 import { readHeaders, readTextFile } from './fileUtils.js';
-import { asArray, deepCompare } from './formatUtils.js';
+import { asArray } from './formatUtils.js';
 import type { FilenameEntityPair } from './schemas.js';
-import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
+import {
+	groupErrorsByIndex,
+	mapAndMergeSubmittedDataToRecordReferences,
+	type SubmissionInsertRecordWithEntityName,
+	type SubmissionUpdateRecordWithEntityName,
+} from './submittedDataUtils.js';
 import {
 	BATCH_ERROR_TYPE,
 	type BatchError,
@@ -35,21 +40,62 @@ import {
 	type FileSchemaMap as FileSchemaMap,
 	MERGE_REFERENCE_TYPE,
 	type NewSubmittedDataReference,
-	SUBMISSION_ACTION_TYPE,
+	SUBMISSION_RECORD_ACTION_TYPE,
 	SUBMISSION_STATUS,
-	type SubmissionActionType,
-	type SubmissionDataDetailsRepositoryRecord,
-	type SubmissionDataSummary,
-	type SubmissionDataSummaryRepositoryRecord,
-	type SubmissionDetailsResponse,
-	type SubmissionErrorsSummary,
+	type SubmissionRecordActionType,
 	type SubmissionStatus,
 	type SubmissionSummary,
+	type SubmissionSummaryResponse,
 	SubmittedDataReference,
 } from './types.js';
 
 export const inProcessSubmissionStatus = [SUBMISSION_STATUS.VALIDATING, SUBMISSION_STATUS.COMMITTING] as const;
 export type InProcessSubmissionStatus = typeof inProcessSubmissionStatus;
+
+type SubmissionInsertBatch = {
+	batchName: string;
+	records: DataRecord[];
+};
+
+const FILE_PARSE_CONCURRENCY = 4;
+
+const parseEntityFiles = async (files: Express.Multer.File[], schema: Schema): Promise<DataRecord[][]> => {
+	const parsedRecordsByIndex: DataRecord[][] = new Array(files.length);
+	let nextFileIndex = 0;
+
+	const worker = async () => {
+		while (true) {
+			const fileIndex = nextFileIndex;
+			nextFileIndex++;
+
+			if (fileIndex >= files.length) {
+				return;
+			}
+
+			const file = files[fileIndex];
+			if (!file) {
+				continue;
+			}
+			const parsedFileData = await readTextFile(file, schema);
+
+			if (parsedFileData.errors && parsedFileData.errors.length > 0) {
+				throw new Error(
+					`File '${file.originalname}' has ${parsedFileData.errors.length} parsing ${plur(
+						'error',
+						parsedFileData.errors.length,
+					)}`,
+				);
+			}
+
+			parsedRecordsByIndex[fileIndex] = parsedFileData.records;
+		}
+	};
+
+	const workers = Array.from({ length: Math.min(FILE_PARSE_CONCURRENCY, files.length) }, () => worker());
+	await Promise.all(workers);
+
+	return parsedRecordsByIndex;
+};
 
 // Only "open", "valid", and "invalid" statuses are considered Active Submission
 export const openSubmissionStatus = [
@@ -269,6 +315,7 @@ export const filterRecordsByConflicts = <SourceData, ConflictData>(
  * @param submissionUpdateData - A record containing arrays of `SubmissionUpdateData` to be filtered.
  * @param submissionDeleteData - A record containing arrays of `SubmissionDeleteData` that defines the conflicts.
  * @returns A filtered record of `SubmissionUpdateData[]` where no items conflict with those in `submissionDeleteData`.
+ * TODO: do not delete this function, this MIGHT be usefull in the future to avoid duplicates between submission records
  */
 export const filterUpdatesFromDeletes = (
 	submissionUpdateData: Record<string, SubmissionUpdateData[]>,
@@ -331,6 +378,16 @@ export const filterRelationsForPrimaryIdUpdate = (
 			})
 	);
 };
+type SubmissionRecordErrorDetails = {
+	recordId: number;
+	errors: SubmissionRecordErrors[];
+};
+
+export type SubmissionErrors = {
+	inserts?: Record<string, SubmissionRecordErrorDetails[]>;
+	updates?: Record<string, SubmissionRecordErrorDetails[]>;
+	deletes?: Record<string, SubmissionRecordErrorDetails[]>;
+};
 
 /**
  * Returns only the schema errors corresponding to the Active Submission.
@@ -369,13 +426,8 @@ export const groupSchemaErrorsByEntity = (input: {
 				return;
 			}
 
-			const submissionIndex = mapping.reference.index;
+			const submissionRecordId = mapping.reference.recordId;
 			const actionType = mapping.reference.type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA ? 'inserts' : 'updates';
-
-			const mutableSchemaValidationErrors = schemaValidationErrors.map((errors) => ({
-				...errors,
-				index: submissionIndex,
-			}));
 
 			if (!submissionSchemaErrors[actionType]) {
 				submissionSchemaErrors[actionType] = {};
@@ -385,7 +437,10 @@ export const groupSchemaErrorsByEntity = (input: {
 				submissionSchemaErrors[actionType][entityName] = [];
 			}
 
-			submissionSchemaErrors[actionType][entityName].push(...mutableSchemaValidationErrors);
+			submissionSchemaErrors[actionType][entityName].push({
+				recordId: submissionRecordId,
+				errors: schemaValidationErrors,
+			});
 		});
 	});
 	return submissionSchemaErrors;
@@ -396,25 +451,21 @@ export const groupSchemaErrorsByEntity = (input: {
  * and maps it to it's original reference Id
  * The result mapping is used to perform the cross schema validation
  * @param {number} activeSubmissionId
- * @param {Record<string, SubmissionInsertData>} activeSubmissionInsertDataEntities
- * @returns {Record<string, DataRecordReference[]>}
+ * @param {SubmissionInsertRecordWithEntityName[]} activeSubmissionInsertDataEntities
+ * @returns {DataRecordReference[]}
  */
 export const mapInsertDataToRecordReferences = (
 	activeSubmissionId: number,
-	activeSubmissionInsertDataEntities: Record<string, SubmissionInsertData>,
-): Record<string, DataRecordReference[]> => {
-	return _.mapValues(activeSubmissionInsertDataEntities, (submissionInsertData) =>
-		submissionInsertData.records.map((record, index) => {
-			return {
-				dataRecord: record,
-				reference: {
-					submissionId: activeSubmissionId,
-					type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
-					index: index,
-				},
-			};
-		}),
-	);
+	activeSubmissionInsertDataEntities: SubmissionInsertRecordWithEntityName[],
+): DataRecordReference[] => {
+	return activeSubmissionInsertDataEntities.map((submissionInsertData) => ({
+		dataRecord: submissionInsertData.data,
+		reference: {
+			submissionId: activeSubmissionId,
+			type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
+			recordId: submissionInsertData.recordId,
+		},
+	}));
 };
 
 /**
@@ -460,9 +511,7 @@ export const mapGroupedUpdateSubmissionData = ({
  * The returned Object is a collection of the raw Schema Data with it's reference ID grouped by entity name.
  * @param {number} submissionId ID of the Active Submission
  * @param {Object} submissionData
- * @param {Record<string, SubmissionInsertData>} submissionData.insertData Collection of Data records of the Active Submission
- * @param {Record<string, SubmissionUpdateData[]>} submissionData.updateData Collection of Data records of the Active Submission
- * @param {Record<string, SubmissionDeleteData[]>} submissionData.deleteData Collection of Data records of the Active Submission
+ * @param {SubmissionRecordWithEntityName[]} submissionData The Active Submission data
  * @param {SubmittedData[]} submittedData An array of Submitted Data
  * @returns {Record<string, DataRecordReference[]>}
  */
@@ -472,12 +521,12 @@ export const mergeAndReferenceEntityData = ({
 	submittedData,
 }: {
 	submissionId: number;
-	submissionData: SubmissionData;
+	submissionData: SubmissionRecordWithEntityName[];
 	submittedData: SubmittedData[];
 }): Record<string, DataRecordReference[]> => {
-	const systemsIdsToRemove = submissionData.deletes
-		? Object.values(submissionData.deletes).flatMap((entityData) => entityData.map(({ systemId }) => systemId))
-		: [];
+	const systemsIdsToRemove = submissionData
+		.filter((item) => item.actionType === SUBMISSION_RECORD_ACTION_TYPE.Values.DELETE)
+		.map((item) => item.data.systemId);
 
 	// Exclude items that are marked for deletion
 	const submittedDataFiltered =
@@ -485,15 +534,43 @@ export const mergeAndReferenceEntityData = ({
 			? submittedData.filter(({ systemId }) => !systemsIdsToRemove.includes(systemId))
 			: submittedData;
 
+	const dataToUpdate: SubmissionUpdateRecordWithEntityName[] = submissionData
+		.filter(
+			(
+				item,
+			): item is SubmissionRecordWithEntityName & {
+				actionType: typeof SUBMISSION_RECORD_ACTION_TYPE.Values.UPDATE;
+				data: SubmissionUpdateData;
+			} => item.actionType === SUBMISSION_RECORD_ACTION_TYPE.Values.UPDATE,
+		)
+		.map((item) => ({
+			recordId: item.id,
+			entityName: item.entityName,
+			data: item.data,
+		}));
+
 	const submittedDataWithRef = mapAndMergeSubmittedDataToRecordReferences({
 		submittedData: submittedDataFiltered,
-		editSubmittedData: submissionData.updates,
+		editSubmittedData: dataToUpdate,
 		submissionId,
 	});
 
-	const insertDataWithRef = submissionData.inserts
-		? mapInsertDataToRecordReferences(submissionId, submissionData.inserts)
-		: {};
+	const dataToInsert: SubmissionInsertRecordWithEntityName[] = submissionData
+		.filter(
+			(
+				item,
+			): item is SubmissionRecordWithEntityName & {
+				actionType: typeof SUBMISSION_RECORD_ACTION_TYPE.Values.INSERT;
+				data: SubmissionInsertData;
+			} => item.actionType === SUBMISSION_RECORD_ACTION_TYPE.Values.INSERT,
+		)
+		.map((item) => ({
+			recordId: item.id,
+			entityName: item.entityName,
+			data: item.data,
+		}));
+
+	const insertDataWithRef = dataToInsert.length > 0 ? mapInsertDataToRecordReferences(submissionId, dataToInsert) : {};
 
 	// This object will merge existing data + new data for validation (Submitted data + active Submission)
 	return _.mergeWith(submittedDataWithRef, insertDataWithRef, (objValue, srcValue) => {
@@ -502,90 +579,6 @@ export const mergeAndReferenceEntityData = ({
 			return objValue.concat(srcValue);
 		}
 	});
-};
-
-/**
- * Merges multiple `Record<string, SubmissionInsertData>` objects into a single object.
- * If there are duplicate keys between the objects, the `records` arrays of `SubmissionInsertData`
- * are concatenated for the matching keys, ensuring no duplicates.
- *
- * @param objects An array of objects where each object is a `Record<string, SubmissionInsertData>`.
- * Each key represents the entityName, and the value is an object of type `SubmissionInsertData`.
- *
- * @returns A new `Record<string, SubmissionInsertData>` where:
- * - If a key is unique across all objects, its value is directly included.
- * - If a key appears in multiple objects, the `records` arrays are concatenated for that key, avoiding duplicates.
- */
-export const mergeInsertsRecords = (
-	...objects: Record<string, SubmissionInsertData>[]
-): Record<string, SubmissionInsertData> => {
-	const result: Record<string, SubmissionInsertData> = {};
-
-	let seen: DataRecord[] = [];
-	// Iterate over all objects
-	objects.forEach((obj) => {
-		// Iterate over each key in the current object
-		Object.entries(obj).forEach(([key, value]) => {
-			if (result[key]) {
-				// The key already exists in the result, concatenate the `records` arrays, avoiding duplicates
-				let uniqueData: DataRecord[] = [];
-
-				result[key].records.concat(value.records).forEach((item) => {
-					if (!seen.some((existingItem) => deepCompare(existingItem, item))) {
-						uniqueData = uniqueData.concat(item);
-						seen = seen.concat(item);
-					}
-				});
-
-				result[key].records = uniqueData;
-				return;
-			} else {
-				// The key doesn't exists in the result, create as it comes
-				result[key] = value;
-				return;
-			}
-		});
-	});
-
-	return result;
-};
-
-/**
- * Merges multiple `Record<string, SubmissionDeleteData[]>` objects into a single object.
- * For each key, the `SubmissionDeleteData[]` arrays are concatenated, ensuring no duplicate
- * `SubmissionDeleteData` objects based on the `systemId` field.
- *
- * @param objects Multiple `Record<string, SubmissionDeleteData[]>` objects to be merged.
- * Each key represents an identifier, and the value is an array of `SubmissionDeleteData`.
- *
- * @returns
- */
-export const mergeDeleteRecords = (
-	...objects: Record<string, SubmissionDeleteData[]>[]
-): Record<string, SubmissionDeleteData[]> => {
-	const result: Record<string, SubmissionDeleteData[]> = {};
-
-	// Iterate over all objects
-	objects.forEach((obj) => {
-		// Iterate over each key in the current object
-		Object.entries(obj).forEach(([key, value]) => {
-			if (!result[key]) {
-				result[key] = [];
-			}
-			const uniqueRecords = new Map<string, SubmissionDeleteData>();
-
-			// Add existing records to the map
-			result[key].forEach((record) => uniqueRecords.set(record.systemId, record));
-
-			// Add new records, overriding duplicates based on systemId
-			value.forEach((record) => uniqueRecords.set(record.systemId, record));
-
-			// Convert the map back to an array
-			result[key] = Array.from(uniqueRecords.values());
-		});
-	});
-
-	return result;
 };
 
 /**
@@ -624,58 +617,16 @@ export const mergeUpdatesBySystemId = (
 };
 
 /**
- * Utility to convert a raw Submission record to a Response type
- * @param {SubmissionDataDetailsRepositoryRecord} submission
- * @returns {SubmissionDetailsResponse}
+ * Utility to convert Dates to ISO string for a SubmissionSummaryResponse
+ * @param {SubmissionSummary} submission
+ * @returns {SubmissionSummaryResponse}
  */
-export const createSubmissionDetailsResponse = (
-	submission: SubmissionDataDetailsRepositoryRecord,
-): SubmissionDetailsResponse => {
+export const createSubmissionSummaryResponse = (submission: SubmissionSummary): SubmissionSummaryResponse => {
 	return {
 		id: submission.id,
 		data: submission.data,
 		dictionary: submission.dictionary,
 		dictionaryCategory: submission.dictionaryCategory,
-		errors: submission.errors || {},
-		organization: submission.organization,
-		status: submission.status,
-		createdAt: _.toString(submission.createdAt?.toISOString()),
-		createdBy: _.toString(submission.createdBy),
-		updatedAt: _.toString(submission.updatedAt?.toISOString()),
-		updatedBy: _.toString(submission.updatedBy),
-	};
-};
-
-/**
- * Utility to sum the recordsCount from a SubmissionDataSummary or SubmissionErrorsSummary
- */
-const sumRecordsCount = (buckets: SubmissionDataSummary | SubmissionErrorsSummary): number => {
-	return Object.values(buckets)
-		.flatMap((bucket) => (bucket ? Object.values(bucket) : []))
-		.reduce((total, { recordsCount }) => total + recordsCount, 0);
-};
-
-/**
- * Utility to convert the raw SubmissionDataSummaryRepositoryRecord into a SubmissionSummaryResponse.
- * It includes a `total` value representing the sum of changes of each `data` and `errors`
- * @param {SubmissionDataSummaryRepositoryRecord} submission
- * @returns {SubmissionSummary}
- */
-export const createSubmissionSummaryResponse = (
-	submission: SubmissionDataSummaryRepositoryRecord,
-): SubmissionSummary => {
-	return {
-		id: submission.id,
-		data: {
-			...submission.data,
-			total: sumRecordsCount(submission.data),
-		},
-		dictionary: submission.dictionary,
-		dictionaryCategory: submission.dictionaryCategory,
-		errors: {
-			...submission.errors,
-			total: sumRecordsCount(submission.errors ?? {}),
-		},
 		organization: submission.organization,
 		status: submission.status,
 		createdAt: _.toString(submission.createdAt?.toISOString()),
@@ -687,104 +638,6 @@ export const createSubmissionSummaryResponse = (
 
 export const pluralizeSchemaName = (schemaName: string) => {
 	return plur(schemaName);
-};
-
-export const removeItemsFromSubmission = (
-	submissionData: SubmissionData,
-	filter: { actionType: SubmissionActionType; entityName: string; index: number | null },
-): SubmissionData => {
-	const filteredSubmissionData = _.cloneDeep(submissionData);
-	switch (filter.actionType) {
-		case SUBMISSION_ACTION_TYPE.Values.INSERTS:
-			if (submissionData.inserts) {
-				const filteredInserts = Object.entries(submissionData.inserts).reduce<Record<string, SubmissionInsertData>>(
-					(acc, [insertsEntityName, insertsSubmissionData]) => {
-						if (insertsEntityName === filter.entityName && filter.index == null) {
-							// remove this whole entity
-							return acc;
-						} else if (insertsEntityName === filter.entityName && filter.index != null) {
-							// remove an item on records based on it's index
-							const filteredRecords = insertsSubmissionData.records.filter(
-								(_, recordIndex) => recordIndex !== filter.index,
-							);
-							if (filteredRecords.length > 0) {
-								acc[insertsEntityName] = {
-									batchName: insertsSubmissionData.batchName,
-									records: filteredRecords,
-								};
-							}
-						} else {
-							acc[insertsEntityName] = insertsSubmissionData;
-						}
-
-						return acc;
-					},
-					{},
-				);
-				if (Object.keys(filteredInserts).length === 0) {
-					delete filteredSubmissionData.inserts;
-				} else {
-					filteredSubmissionData.inserts = filteredInserts;
-				}
-			}
-			break;
-		case SUBMISSION_ACTION_TYPE.Values.UPDATES:
-			if (submissionData.updates) {
-				const filteredUpdates = Object.entries(submissionData.updates).reduce<Record<string, SubmissionUpdateData[]>>(
-					(acc, [updatesEntityName, updatesSubmissionData]) => {
-						if (updatesEntityName === filter.entityName && filter.index == null) {
-							// remove this whole entity
-							return acc;
-						} else if (updatesEntityName === filter.entityName && filter.index != null) {
-							// remove an item on records based on it's index
-							const filteredRecords = updatesSubmissionData.filter((_, recordIndex) => recordIndex !== filter.index);
-							if (filteredRecords.length > 0) {
-								acc[updatesEntityName] = filteredRecords;
-							}
-						} else {
-							acc[updatesEntityName] = updatesSubmissionData;
-						}
-
-						return acc;
-					},
-					{},
-				);
-				if (Object.keys(filteredUpdates).length === 0) {
-					delete filteredSubmissionData.updates;
-				} else {
-					filteredSubmissionData.updates = filteredUpdates;
-				}
-			}
-			break;
-		case SUBMISSION_ACTION_TYPE.Values.DELETES:
-			if (submissionData.deletes) {
-				const filteredDeletes = Object.entries(submissionData.deletes).reduce<Record<string, SubmissionDeleteData[]>>(
-					(acc, [deletesEntityName, deletesSubmissionData]) => {
-						if (deletesEntityName === filter.entityName && filter.index == null) {
-							// remove this whole entity
-							return acc;
-						} else if (deletesEntityName === filter.entityName && filter.index != null) {
-							// remove an item on records based on it's index
-							const filteredRecords = deletesSubmissionData.filter((_, recordIndex) => recordIndex !== filter.index);
-							if (filteredRecords.length > 0) {
-								acc[deletesEntityName] = filteredRecords;
-							}
-						} else {
-							acc[deletesEntityName] = deletesSubmissionData;
-						}
-						return acc;
-					},
-					{},
-				);
-				if (Object.keys(filteredDeletes).length === 0) {
-					delete filteredSubmissionData.deletes;
-				} else {
-					filteredSubmissionData.deletes = filteredDeletes;
-				}
-			}
-			break;
-	}
-	return filteredSubmissionData;
 };
 
 /**
@@ -838,22 +691,27 @@ export const segregateFieldChangeRecords = (
  */
 export const submissionInsertDataFromFiles = async (
 	fileSchemaMap: FileSchemaMap,
-): Promise<Record<string, SubmissionInsertData>> => {
-	const output: Record<string, SubmissionInsertData> = {};
+): Promise<Record<string, SubmissionInsertBatch>> => {
+	const output: Record<string, SubmissionInsertBatch> = {};
 
 	for (const [entityName, { files, schema }] of Object.entries(fileSchemaMap)) {
-		for (const file of files) {
-			const outputEntityValue = output[schema.name] ?? {
-				batchName: entityName,
-				records: [],
-			};
-			const parsedFileData = await readTextFile(file, schema);
-			// TODO: This doesn't handle parsedFileData.errors, when present.
-
-			outputEntityValue.records.push(...parsedFileData.records);
-
-			output[schema.name] = outputEntityValue;
+		if (files.length === 0) {
+			continue;
 		}
+		const firstFile = files[0];
+		if (!firstFile) {
+			continue;
+		}
+
+		const outputEntityValue = output[entityName] ?? {
+			batchName: firstFile.originalname,
+			records: [],
+		};
+
+		const parsedRecordsByIndex = await parseEntityFiles(files, schema);
+		parsedRecordsByIndex.forEach((records) => outputEntityValue.records.push(...records));
+
+		output[entityName] = outputEntityValue;
 	}
 
 	return output;
@@ -887,9 +745,9 @@ export const parseToSchema = (schema: Schema) => (record: Record<string, string>
 	return parsedRecord.data.record;
 };
 
-export const parseSubmissionActionTypes = (values: unknown): SubmissionActionType[] => {
+export const parseSubmissionActionTypes = (values: unknown): SubmissionRecordActionType[] => {
 	return asArray(values || [])
 		.map((value) => value.toString().toUpperCase())
 		.filter(isSubmissionActionTypeValid)
-		.map((value) => SUBMISSION_ACTION_TYPE.parse(value));
+		.map((value) => SUBMISSION_RECORD_ACTION_TYPE.parse(value));
 };

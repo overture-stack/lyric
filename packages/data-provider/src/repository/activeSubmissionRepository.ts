@@ -1,7 +1,7 @@
 import type { ExtractTablesWithRelations, SQL } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
-import { and, count, eq, inArray, sql } from 'drizzle-orm/sql';
+import { and, count, eq, inArray } from 'drizzle-orm/sql';
 
 import { type NewSubmission, type Submission, submissions } from '@overture-stack/lyric-data-model/models';
 
@@ -11,18 +11,16 @@ import { inProcessSubmissionStatus, openSubmissionStatus } from '../utils/submis
 import type {
 	BooleanTrueObject,
 	PaginationOptions,
-	SubmissionDataDetailsRepositoryRecord,
-	SubmissionDataSummary,
-	SubmissionDataSummaryRepositoryRecord,
-	SubmissionErrorsSummary,
+	PartialColumns,
+	SubmissionWithDictionaryAndCategoryRepositoryRecord,
 } from '../utils/types.js';
 
 const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
 	const { db, logger } = dependencies;
 
-	// Submission columns for lightweight queries to exclude `data` and `errors` columns to improve performance
-	const submissionColumns: BooleanTrueObject = {
+	// Submission columns for lightweight queries to exclude foreign ID fields
+	const submissionColumns = {
 		id: true,
 		status: true,
 		organization: true,
@@ -30,14 +28,7 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 		createdBy: true,
 		updatedAt: true,
 		updatedBy: true,
-	};
-
-	// Submission columns for full detail queries including `data` and `errors` columns
-	const submissionColumnsWithData: BooleanTrueObject = {
-		...submissionColumns,
-		data: true,
-		errors: true,
-	};
+	} as const satisfies PartialColumns<Omit<Submission, 'dictionaryCategoryId' | 'dictionaryId'>>;
 
 	const submissionDictionaryRelationColumns = {
 		dictionary: {
@@ -53,116 +44,6 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 			},
 		},
 	} as const satisfies Record<string, { columns: BooleanTrueObject }>;
-
-	/**
-	 * A query to generate a summarized JSON object of the 'data' column
-	 * Returns a JSON object of type SubmissionDataSummary
-	 */
-	const dataSummaryQuery = sql<SubmissionDataSummary>`
-jsonb_build_object(
-  'inserts',
-    (
-      SELECT jsonb_object_agg(
-        i.key,
-        jsonb_build_object(
-          'batchName', i.value->>'batchName',
-          'recordsCount',
-            CASE
-              WHEN jsonb_typeof(i.value->'records') = 'array'
-              THEN jsonb_array_length(i.value->'records')
-              ELSE 0
-            END
-        )
-      )
-      FROM jsonb_each(${submissions.data}->'inserts') AS i(key, value)
-    ),
-
-  'updates',
-    (
-      SELECT jsonb_object_agg(
-        u.key,
-        jsonb_build_object(
-          'recordsCount',
-            CASE
-              WHEN jsonb_typeof(u.value) = 'array'
-              THEN jsonb_array_length(u.value)
-              ELSE 0
-            END
-        )
-      )
-      FROM jsonb_each(${submissions.data}->'updates') AS u(key, value)
-    ),
-
-  'deletes',
-    (
-      SELECT jsonb_object_agg(
-        d.key,
-        jsonb_build_object(
-          'recordsCount',
-            CASE
-              WHEN jsonb_typeof(d.value) = 'array'
-              THEN jsonb_array_length(d.value)
-              ELSE 0
-            END
-        )
-      )
-      FROM jsonb_each(${submissions.data}->'deletes') AS d(key, value)
-    )
-)`.as('data');
-
-	/**
-	 * A query to generate a summarized JSON object of the 'errors' column
-	 * Returns a json object of type SubmissionErrorsSummary
-	 */
-	const errorsSummaryQuery = sql<SubmissionErrorsSummary>`jsonb_build_object(
-  'inserts',
-    (
-      SELECT jsonb_object_agg(
-        i.key,
-        jsonb_build_object(
-          'recordsCount',
-            CASE
-              WHEN jsonb_typeof(i.value) = 'array'
-              THEN jsonb_array_length(i.value)
-              ELSE 0
-            END
-        )
-      )
-      FROM jsonb_each(${submissions.errors}->'inserts') AS i(key, value)
-    ),
-
-  'updates',
-    (
-      SELECT jsonb_object_agg(
-        u.key,
-        jsonb_build_object(
-          'recordsCount',
-            CASE
-              WHEN jsonb_typeof(u.value) = 'array'
-              THEN jsonb_array_length(u.value)
-              ELSE 0
-            END
-        )
-      )
-      FROM jsonb_each(${submissions.errors}->'updates') AS u(key, value)
-    ),
-
-  'deletes',
-    (
-      SELECT jsonb_object_agg(
-        d.key,
-        jsonb_build_object(
-          'recordsCount',
-            CASE
-              WHEN jsonb_typeof(d.value) = 'array'
-              THEN jsonb_array_length(d.value)
-              ELSE 0
-            END
-        )
-      )
-      FROM jsonb_each(${submissions.errors}->'deletes') AS d(key, value)
-    )
-)`.as('errors');
 
 	/**
 	 * SQL condition used to filter submissions that are in an active state.
@@ -200,44 +81,16 @@ jsonb_build_object(
 		},
 
 		/**
-		 * Returns the entire active submission, including all data.
-		 */
-		getActiveSubmissionDetails: async ({
-			categoryId,
-			organization,
-			username,
-		}: {
-			categoryId: number;
-			username: string;
-			organization: string;
-		}): Promise<Pick<Submission, 'data' | 'id'> | undefined> => {
-			try {
-				const dbResponse = await db.query.submissions.findFirst({
-					where: and(
-						eq(submissions.dictionaryCategoryId, categoryId),
-						eq(submissions.createdBy, username),
-						eq(submissions.organization, organization),
-						activeStatusesCondition,
-					),
-					columns: submissionColumnsWithData,
-					with: submissionDictionaryRelationColumns,
-				});
-				return dbResponse;
-			} catch (error) {
-				logger.error(LOG_MODULE, `Failed getting active submission data`, error);
-				throw new ServiceUnavailable();
-			}
-		},
-
-		/**
 		 * Finds the current Active Submission by parameters
+		 * Returns general information about the Submission, including its dictionary and category relations,
+		 * omitting its submissionFiles or submissionRecords relations.
 		 * @param {Object} params
 		 * @param {number} params.categoryId Category ID
 		 * @param {string} params.username Name of the user
 		 * @param {string} params.organization Organization name
 		 * @returns
 		 */
-		getActiveSubmissionSummary: async ({
+		getActiveSubmission: async ({
 			categoryId,
 			username,
 			organization,
@@ -245,7 +98,7 @@ jsonb_build_object(
 			categoryId: number;
 			username: string;
 			organization: string;
-		}): Promise<SubmissionDataSummaryRepositoryRecord | undefined> => {
+		}): Promise<SubmissionWithDictionaryAndCategoryRepositoryRecord | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(
@@ -256,7 +109,6 @@ jsonb_build_object(
 					),
 					columns: submissionColumns,
 					with: submissionDictionaryRelationColumns,
-					extras: { data: dataSummaryQuery, errors: errorsSummaryQuery },
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed getting active submission summary`, error);
@@ -266,40 +118,22 @@ jsonb_build_object(
 
 		/**
 		 * Finds a Submission by ID
+		 * Returns general information about the Submission, including its dictionary and category relations,
+		 * omitting its submissionFiles or submissionRecords relations.
 		 * @param {number} submissionId Submission ID
 		 * @returns The Submission found
 		 */
-		getSubmissionById: async (submissionId: number): Promise<SubmissionDataSummaryRepositoryRecord | undefined> => {
+		getSubmissionById: async (
+			submissionId: number,
+		): Promise<SubmissionWithDictionaryAndCategoryRepositoryRecord | undefined> => {
 			try {
 				return await db.query.submissions.findFirst({
 					where: and(eq(submissions.id, submissionId)),
 					columns: submissionColumns,
 					with: submissionDictionaryRelationColumns,
-					extras: { data: dataSummaryQuery, errors: errorsSummaryQuery },
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed getting Submission with id '${submissionId}'`, error);
-				throw new ServiceUnavailable();
-			}
-		},
-
-		/**
-		 * Retun the Submission with data details by ID
-		 * This includes the `data` and `errors` columns
-		 * @param {number} submissionId Submission ID
-		 * @returns The Submission found
-		 */
-		getSubmissionDetailsById: async (
-			submissionId: number,
-		): Promise<SubmissionDataDetailsRepositoryRecord | undefined> => {
-			try {
-				return await db.query.submissions.findFirst({
-					where: and(eq(submissions.id, submissionId)),
-					columns: submissionColumnsWithData,
-					with: submissionDictionaryRelationColumns,
-				});
-			} catch (error) {
-				logger.error(LOG_MODULE, `Failed getting Submission details with id '${submissionId}'`, error);
 				throw new ServiceUnavailable();
 			}
 		},
@@ -352,7 +186,7 @@ jsonb_build_object(
 				username?: string;
 				organization?: string;
 			},
-		): Promise<SubmissionDataSummaryRepositoryRecord[] | undefined> => {
+		): Promise<SubmissionWithDictionaryAndCategoryRepositoryRecord[] | undefined> => {
 			const { page, pageSize } = paginationOptions;
 			try {
 				return await db.query.submissions.findMany({
@@ -363,7 +197,6 @@ jsonb_build_object(
 						filterOptions.organization ? eq(submissions.organization, filterOptions.organization) : undefined,
 					),
 					columns: submissionColumns,
-					extras: { data: dataSummaryQuery, errors: errorsSummaryQuery },
 					with: submissionDictionaryRelationColumns,
 					orderBy: (submissions, { desc }) => desc(submissions.createdAt),
 					limit: pageSize,

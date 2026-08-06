@@ -12,9 +12,7 @@ import {
 	type DataDiff,
 	type Dictionary,
 	NewSubmittedData,
-	SubmissionData,
 	type SubmissionDeleteData,
-	type SubmissionErrors,
 	type SubmissionUpdateData,
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
@@ -170,6 +168,15 @@ export const SUBMISSION_ACTION_TYPE = z.enum(['INSERTS', 'UPDATES', 'DELETES']);
 export type SubmissionActionType = z.infer<typeof SUBMISSION_ACTION_TYPE>;
 
 /**
+ * Enum matching Submission Record state in database
+ */
+export const SUBMISSION_RECORD_STATE = z.enum(['RECEIVED', 'VALID', 'INVALID']);
+export type SubmissionRecordState = z.infer<typeof SUBMISSION_RECORD_STATE>;
+
+export const SUBMISSION_RECORD_ACTION_TYPE = z.enum(['INSERT', 'UPDATE', 'DELETE']);
+export type SubmissionRecordActionType = z.infer<typeof SUBMISSION_RECORD_ACTION_TYPE>;
+
+/**
  * File upload validation error types
  */
 export const BATCH_ERROR_TYPE = {
@@ -253,85 +260,52 @@ export type PaginationOptions = {
 export type DataInsertsSubmissionSummary = {
 	batchName: string;
 	recordsCount: number;
+	errors: number;
 };
 
 export type DataUpdatesSubmissionSummary = {
+	batchName: string;
 	recordsCount: number;
+	errors: number;
 };
 
 export type DataDeletesSubmissionSummary = {
 	recordsCount: number;
-};
-
-export type DataErrorsSubmissionSummary = {
-	recordsCount: number;
-};
-
-/**
- * Response type for Get Submission by Submission ID endpoint
- */
-export type SubmissionDetailsResponse = {
-	id: number;
-	data: SubmissionData;
-	dictionary: DictionarySummary;
-	dictionaryCategory: CategorySummary;
-	errors: SubmissionErrors;
-	organization: string;
-	status: SubmissionStatus;
-	createdAt: string;
-	createdBy: string;
-	updatedAt: string;
-	updatedBy: string;
+	errors: number;
 };
 
 export type SubmissionDataSummary = {
-	inserts?: Record<string, DataInsertsSubmissionSummary>;
-	updates?: Record<string, DataUpdatesSubmissionSummary>;
+	inserts?: Record<string, DataInsertsSubmissionSummary[]>;
+	updates?: Record<string, DataUpdatesSubmissionSummary[]>;
 	deletes?: Record<string, DataDeletesSubmissionSummary>;
 };
 
-export type SubmissionErrorsSummary = {
-	inserts?: Record<string, DataErrorsSubmissionSummary>;
-	updates?: Record<string, DataErrorsSubmissionSummary>;
-	deletes?: Record<string, DataErrorsSubmissionSummary>;
+export type SubmissionDataSummaryWithTotal = SubmissionDataSummary & {
+	totalRecords: number;
+	errors: number;
 };
 
 /**
  * Shortened version of the Submission record that omits the data changes and error details
  * in favour of the count of records changed and errors for each entity type.
  */
-export type SubmissionSummary = Omit<SubmissionDetailsResponse, 'data' | 'errors'> & {
-	data: SubmissionDataSummary & { total: number };
-} & {
-	errors: SubmissionErrorsSummary & { total: number };
+export type SubmissionSummary = SubmissionWithDictionaryAndCategoryRepositoryRecord & {
+	data: SubmissionDataSummaryWithTotal;
+};
+
+export type SubmissionSummaryResponse = Omit<SubmissionSummary, 'createdAt' | 'updatedAt'> & {
+	createdAt: string;
+	updatedAt: string;
 };
 
 /**
- * Retrieve Submission object with data summary from repository
+ * Retrieve Submission object with Dictionary and Category from repository
  */
-export type SubmissionDataSummaryRepositoryRecord = {
-	id: number;
-	data: SubmissionDataSummary;
-	dictionary: DictionarySummary;
-	dictionaryCategory: CategorySummary;
-	errors: SubmissionErrorsSummary | null;
-	organization: string;
-	status: SubmissionStatus;
-	createdAt: Date | null;
-	createdBy: string | null;
-	updatedAt: Date | null;
-	updatedBy: string | null;
-};
 
-/**
- * Retrieve Submission object with data details from repository
- */
-export type SubmissionDataDetailsRepositoryRecord = {
+export type SubmissionWithDictionaryAndCategoryRepositoryRecord = {
 	id: number;
-	data: SubmissionData;
 	dictionary: DictionarySummary;
 	dictionaryCategory: CategorySummary;
-	errors: SubmissionErrors | null;
 	organization: string;
 	status: SubmissionStatus;
 	createdAt: Date | null;
@@ -445,13 +419,13 @@ export interface SubmittedDataReference {
 }
 
 export interface NewSubmittedDataReference {
-	index: number;
+	recordId: number;
 	submissionId: number;
 	type: typeof MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA;
 }
 
 export interface EditSubmittedDataReference {
-	index: number;
+	recordId: number;
 	systemId?: string;
 	submissionId: number;
 	type: typeof MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA;
