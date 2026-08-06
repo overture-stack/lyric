@@ -98,7 +98,7 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
-/submission/{submissionId}/{actionType}:
+/submission/{submissionId}/data:
   delete:
     summary: Clear Active Submission by entity name
     tags:
@@ -109,24 +109,18 @@
         type: string
         required: true
         description: The ID of the Submission
-      - name: actionType
-        in: path
-        required: true
-        schema:
-          type: string
-          enum: [inserts, updates, deletes]
-        description: Parameter to specify the type of record to remove from the Submission. Must be one of `inserts`, `updates`, or `deletes` (case insensitive)
-      - name: entityName
-        in: query
-        type: string
-        required: true
-        description: The name of the entity
-      - name: index
+      - name: recordId
         in: query
         required: false
         schema:
           type: integer
-        description: An optional query parameter used to specify the index of the item within the submission type to be deleted. <br />If not provided all the items within the submission type will be deleted.
+        description: An optional query parameter used to specify the record ID within the submission to be deleted. <br />Only one of `recordId` or `fileId` can be provided
+      - name: fileId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: An optional query parameter used to specify the file ID within the submission to be deleted. <br />Only one of `recordId` or `fileId` can be provided
     responses:
       200:
         description: Submission cleared successfully. Returns the current Active Submission

@@ -13,43 +13,35 @@ export const submissionRecordState = pgEnum('submission_record_state', ['RECEIVE
 
 export const submissionRecordType = pgEnum('submission_record_type', ['INSERT', 'UPDATE', 'DELETE']);
 
-// TODO: export this type
-type SubmissionInsertData = DataRecord;
+export type SubmissionInsertData = DataRecord;
 
-// TODO: export this type
-type SubmissionUpdateData = {
+export type SubmissionUpdateData = {
 	systemId: string;
 	old: DataRecord;
 	new: DataRecord;
 };
 
-// TODO: export this type
-type SubmissionDeleteData = {
+export type SubmissionDeleteData = {
 	systemId: string;
 	data: DataRecord;
 	isValid: boolean;
 	organization: string;
 };
 
-// TODO: export this type
-type SubmissionData = SubmissionInsertData | SubmissionUpdateData | SubmissionDeleteData;
+export type SubmissionData = SubmissionInsertData | SubmissionUpdateData | SubmissionDeleteData;
 
-// TODO: export this type
-type FieldDetails = {
+export type FieldDetails = {
 	fieldName: string;
 	fieldValue: DataRecordValue;
 };
 
-// TODO: export this type
-type UnrecognizedValueReason = {
+export type UnrecognizedValueReason = {
 	reason: 'UNRECOGNIZED_VALUE';
 };
 
-// TODO: export this type
-type RecordErrorInvalidValue = FieldDetails & UnrecognizedValueReason;
+export type RecordErrorInvalidValue = FieldDetails & UnrecognizedValueReason;
 
-// TODO: export this type
-type SubmissionRecordError = DictionaryValidationRecordErrorDetails | RecordErrorInvalidValue;
+export type SubmissionRecordErrors = DictionaryValidationRecordErrorDetails | RecordErrorInvalidValue;
 
 export const submissionRecords = pgTable(
 	'submission_records',
@@ -60,7 +52,7 @@ export const submissionRecords = pgTable(
 			.notNull(),
 		data: jsonb('data').$type<SubmissionData>().notNull(),
 		actionType: submissionRecordType('action_type').notNull(),
-		errors: jsonb('errors').$type<SubmissionRecordError[]>(),
+		errors: jsonb('errors').$type<SubmissionRecordErrors[]>(),
 		state: submissionRecordState('state').notNull(),
 	},
 	(table) => {
