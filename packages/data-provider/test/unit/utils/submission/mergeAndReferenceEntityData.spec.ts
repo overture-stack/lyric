@@ -114,7 +114,7 @@ describe('Submission Utils - Combine Active Submission and the Submitted Data wi
 			submissionData,
 			submittedData,
 		});
-		console.log('response', response);
+
 		expect(Object.keys(response).length).to.eq(1);
 		expect(Object.keys(response)).to.eql(['animals']);
 		assertExists(response['animals']);
