@@ -5,6 +5,7 @@ import supertest from 'supertest';
 import submissionProcessorFactory from '../../../../src/services/submission/submissionProcessor.js';
 import { createTsvFileContent } from '../../../fixtures/createTsvContent.js';
 import { dictionarySportsData } from '../../../fixtures/dictionarySchemasTestData.js';
+import { assertExists } from '../../assertions.js';
 import { createLyricProvider, type LyricProvider } from '../../dependencies/lyricProvider.js';
 import { createTestApp } from '../../dependencies/testServer.js';
 import { getContainers } from '../../globalSetup.js';
@@ -28,7 +29,7 @@ const waitForSubmissionToStopValidating = async ({
 	let submission;
 	do {
 		await sleep(delayMs);
-		submission = await lyricProvider.repositories.submission.getActiveSubmissionSummary({
+		submission = await lyricProvider.repositories.submission.getActiveSubmission({
 			categoryId,
 			username: '',
 			organization,
@@ -100,46 +101,46 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 	it('should save submitted file records to the active submission', async () => {
 		const sportTsv = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
 
-		await app.post(`/category/${categoryId}/files?organization=testOrg`).attach('files', sportTsv, 'sport.tsv');
+		const submitResponse = await app
+			.post(`/category/${categoryId}/files?organization=testOrg`)
+			.attach('files', sportTsv, 'sport.tsv');
 
 		await pendingAsyncWork;
 
-		const submission = await lyricProvider.repositories.submission.getActiveSubmissionDetails({
-			categoryId,
-			username: '',
-			organization: 'testOrg',
-		});
+		const submissionRecords = await lyricProvider.repositories.submissionRecords.getBySubmissionId(
+			submitResponse.body.submissionId,
+		);
 
-		expect(submission).to.exist;
-		expect(submission!.data.inserts).to.have.property('sport');
-		expect(submission!.data.inserts!['sport'].records).to.have.length(1);
-		expect(submission!.data.inserts!['sport'].records[0]).to.include({ sport_id: '1', name: 'Soccer' });
+		expect(submissionRecords.length).to.eq(1);
+		assertExists(submissionRecords[0]);
+		expect(submissionRecords[0].entityName).to.eql('sport');
+		expect(submissionRecords[0].actionType).to.eql('INSERT');
+		expect(submissionRecords[0].data).to.eql({ sport_id: '1', name: 'Soccer' });
 	});
 
 	it('should save records for each entity when multiple files are submitted', async () => {
 		const sportTsv = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
 		const teamTsv = createTsvFileContent(['team_id', 'sport_id', 'name'], [['1', '1', 'Team A']]);
 
-		await app
+		const submitResponse = await app
 			.post(`/category/${categoryId}/files?organization=testOrg`)
 			.attach('files', sportTsv, 'sport.tsv')
 			.attach('files', teamTsv, 'team.tsv');
 
 		await pendingAsyncWork;
 
-		const submission = await lyricProvider.repositories.submission.getActiveSubmissionDetails({
-			categoryId,
-			username: '',
-			organization: 'testOrg',
-		});
+		const submissionRecords = await lyricProvider.repositories.submissionRecords.getBySubmissionId(
+			submitResponse.body.submissionId,
+		);
 
-		expect(submission).to.exist;
-		expect(submission!.data.inserts).to.have.property('sport');
-		expect(submission!.data.inserts!['sport'].records).to.have.length(1);
-		expect(submission!.data.inserts!['sport'].records[0]).to.include({ sport_id: '1', name: 'Soccer' });
-		expect(submission!.data.inserts).to.have.property('team');
-		expect(submission!.data.inserts!['team'].records).to.have.length(1);
-		expect(submission!.data.inserts!['team'].records[0]).to.include({ team_id: '1', sport_id: '1', name: 'Team A' });
+		expect(submissionRecords).to.exist;
+		expect(submissionRecords.length).to.eq(2);
+		expect(submissionRecords.map((record) => record.entityName)).to.eql(['sport', 'team']);
+		expect(submissionRecords.map((record) => record.actionType)).to.eql(['INSERT', 'INSERT']);
+		expect(submissionRecords.map((record) => record.data)).to.eql([
+			{ sport_id: '1', name: 'Soccer' },
+			{ team_id: '1', sport_id: '1', name: 'Team A' },
+		]);
 	});
 
 	it('should merge records from multiple files for the same entity into a single batch', async () => {
@@ -150,7 +151,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 			{ filename: 'sports_batch2.tsv', entity: 'sport' },
 		]);
 
-		await app
+		const submitResponse = await app
 			.post(`/category/${categoryId}/files?organization=testOrg`)
 			.attach('files', batch1, 'sports_batch1.tsv')
 			.attach('files', batch2, 'sports_batch2.tsv')
@@ -158,15 +159,18 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 
 		await pendingAsyncWork;
 
-		const submission = await lyricProvider.repositories.submission.getActiveSubmissionDetails({
-			categoryId,
-			username: '',
-			organization: 'testOrg',
-		});
+		const submissionRecords = await lyricProvider.repositories.submissionRecords.getBySubmissionId(
+			submitResponse.body.submissionId,
+		);
 
-		expect(submission).to.exist;
-		expect(submission!.data.inserts).to.have.property('sport');
-		expect(submission!.data.inserts!['sport'].records).to.have.length(2);
+		expect(submissionRecords).to.exist;
+		expect(submissionRecords.length).to.eq(2);
+		expect(submissionRecords.map((record) => record.entityName)).to.eql(['sport', 'sport']);
+		expect(submissionRecords.map((record) => record.actionType)).to.eql(['INSERT', 'INSERT']);
+		expect(submissionRecords.map((record) => record.data)).to.eql([
+			{ sport_id: '1', name: 'Soccer' },
+			{ sport_id: '2', name: 'Basketball' },
+		]);
 	});
 
 	it('should accumulate records across sequential submissions to the same active submission', async () => {
@@ -189,7 +193,9 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 		expect(resultFirstSubmission).to.exist;
 		expect(resultFirstSubmission!.status).to.equal('VALID');
 
-		await app.post(`/category/${categoryId}/files?organization=${organization}`).attach('files', teamTsv, 'team.tsv');
+		const submitResponse = await app
+			.post(`/category/${categoryId}/files?organization=${organization}`)
+			.attach('files', teamTsv, 'team.tsv');
 		await pendingAsyncWork;
 
 		const resultFinalSubmission = await waitForSubmissionToStopValidating({
@@ -200,19 +206,20 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 			delayMs: 500,
 		});
 
-		expect(resultFinalSubmission).to.exist;
-		expect(resultFinalSubmission!.status).to.equal('VALID');
+		assertExists(resultFinalSubmission);
+		expect(resultFinalSubmission.status).to.equal('VALID');
 
-		const submissionDetails = await lyricProvider.repositories.submission.getActiveSubmissionDetails({
-			categoryId,
-			username: '',
-			organization,
-		});
+		const submissionRecords = await lyricProvider.repositories.submissionRecords.getBySubmissionId(
+			submitResponse.body.submissionId,
+		);
 
-		expect(submissionDetails).to.exist;
-		expect(submissionDetails!.data.inserts).to.have.property('sport');
-		expect(submissionDetails!.data.inserts!['sport'].records).to.have.length(1);
-		expect(submissionDetails!.data.inserts).to.have.property('team');
-		expect(submissionDetails!.data.inserts!['team'].records).to.have.length(1);
+		expect(submissionRecords).to.exist;
+		expect(submissionRecords.length).to.eq(2);
+		expect(submissionRecords.map((record) => record.entityName)).to.eql(['sport', 'team']);
+		expect(submissionRecords.map((record) => record.actionType)).to.eql(['INSERT', 'INSERT']);
+		expect(submissionRecords.map((record) => record.data)).to.eql([
+			{ sport_id: '1', name: 'Soccer' },
+			{ team_id: '1', sport_id: '1', name: 'Team A' },
+		]);
 	});
 });

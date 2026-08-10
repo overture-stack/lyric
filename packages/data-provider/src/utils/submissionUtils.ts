@@ -522,7 +522,6 @@ export const mergeAndReferenceEntityData = ({
 		editSubmittedData: dataToUpdate,
 		submissionId,
 	});
-	console.log(`Submitted Data with Reference: ${JSON.stringify(submittedDataWithRef, null, 2)}`);
 
 	const dataToInsert: SubmissionInsertRecordWithEntityName[] = submissionData
 		.filter(
@@ -540,7 +539,6 @@ export const mergeAndReferenceEntityData = ({
 		}));
 
 	const insertDataWithRef = dataToInsert.length > 0 ? mapInsertDataToRecordReferences(submissionId, dataToInsert) : {};
-	console.log(`Insert Data with Reference: ${JSON.stringify(insertDataWithRef, null, 2)}`);
 
 	// This object will merge existing data + new data for validation (Submitted data + active Submission)
 	return _.mergeWith(submittedDataWithRef, insertDataWithRef, (objValue, srcValue) => {
