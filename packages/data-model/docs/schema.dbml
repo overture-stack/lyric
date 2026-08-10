@@ -68,6 +68,7 @@ table dictionaries {
 table dictionary_categories {
   id serial [pk, not null, increment]
   active_dictionary_id integer [not null]
+  alias varchar [unique]
   default_centric_entity varchar
   name varchar [not null, unique]
   created_at timestamp [default: `now()`]
@@ -106,6 +107,7 @@ table submission_files {
 
   indexes {
     submission_id [name: 'submission_files_submission_id_index']
+    (submission_id, entity_name, file_name) [name: 'submission_files_submission_entity_file_index']
   }
 }
 
@@ -119,6 +121,8 @@ table submission_records {
 
   indexes {
     file_id [name: 'submission_records_file_id_index']
+    (file_id, action_type) [name: 'submission_records_file_id_action_type_index']
+    (file_id, state, action_type) [name: 'submission_records_file_id_state_action_type_index']
   }
 }
 
@@ -185,7 +189,7 @@ ref: dictionary_migration.submission_id - submissions.id
 
 ref: submission_files.submission_id - submissions.id
 
-ref: submission_records.file_id - submission_files.id
+ref: submission_records.file_id > submission_files.id
 
 ref: submissions.dictionary_id - dictionaries.id
 

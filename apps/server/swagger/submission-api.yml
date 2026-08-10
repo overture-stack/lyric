@@ -279,6 +279,20 @@
     parameters:
       - $ref: '#/components/parameters/path/CategoryId'
       - $ref: '#/components/parameters/query/Organization'
+      - name: sync
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [true, false]
+          default: 'false'
+        description: >
+          Controls whether file parsing is synchronous. When `false` (default), parsing runs in the
+          background and `fileResults` will be empty in the response. When `true`, the response waits
+          for all files to be parsed and returns per-file results in `fileResults`.
+
+          **Warning:** Using `sync=true` on very large batches may cause the request to time out before
+          the response is returned. Monitor server logs for parse errors when using the default async mode.
     requestBody:
       description: File(s) to be added to the submission, with an optional mapping of filenames to entity names.
       required: true

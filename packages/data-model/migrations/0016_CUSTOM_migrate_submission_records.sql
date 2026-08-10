@@ -186,7 +186,7 @@ SELECT
 	er.action_type::submission_record_type,
 	ae.error_data,
 	CASE
-		WHEN er.submission_status IN ('OPEN', 'VALIDATING') THEN 'RECEIVED'::submission_record_state
+		WHEN er.submission_status::text IN ('OPEN', 'VALIDATING') THEN 'RECEIVED'::submission_record_state
 		WHEN er.submission_status = 'INVALID' OR ae.error_data IS NOT NULL THEN 'INVALID'::submission_record_state
 		ELSE 'VALID'::submission_record_state
 	END AS state

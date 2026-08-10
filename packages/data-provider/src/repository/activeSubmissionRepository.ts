@@ -48,11 +48,24 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 		},
 		dictionaryCategory: {
 			columns: {
+				alias: true,
 				id: true,
 				name: true,
 			},
 		},
 	} as const satisfies Record<string, { columns: BooleanTrueObject }>;
+
+	/**
+	 * Normalizes a queried record's `dictionaryCategory.alias` from the DB's `string | null`
+	 * to the public `CategorySummary` contract's `string | undefined` (omitted, not null, when unset).
+	 */
+	const withAliasNormalized = <T extends { dictionaryCategory: { alias: string | null } }>(record: T) =>
+		({
+			...record,
+			dictionaryCategory: { ...record.dictionaryCategory, alias: record.dictionaryCategory.alias ?? undefined },
+		}) as Omit<T, 'dictionaryCategory'> & {
+			dictionaryCategory: Omit<T['dictionaryCategory'], 'alias'> & { alias?: string };
+		};
 
 	/**
 	 * A query to generate a summarized JSON object of the 'data' column
@@ -247,7 +260,7 @@ jsonb_build_object(
 			organization: string;
 		}): Promise<SubmissionDataSummaryRepositoryRecord | undefined> => {
 			try {
-				return await db.query.submissions.findFirst({
+				const result = await db.query.submissions.findFirst({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
 						eq(submissions.createdBy, username),
@@ -258,6 +271,7 @@ jsonb_build_object(
 					with: submissionDictionaryRelationColumns,
 					extras: { data: dataSummaryQuery, errors: errorsSummaryQuery },
 				});
+				return result ? withAliasNormalized(result) : undefined;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed getting active submission summary`, error);
 				throw new ServiceUnavailable();
@@ -271,12 +285,13 @@ jsonb_build_object(
 		 */
 		getSubmissionById: async (submissionId: number): Promise<SubmissionDataSummaryRepositoryRecord | undefined> => {
 			try {
-				return await db.query.submissions.findFirst({
+				const result = await db.query.submissions.findFirst({
 					where: and(eq(submissions.id, submissionId)),
 					columns: submissionColumns,
 					with: submissionDictionaryRelationColumns,
 					extras: { data: dataSummaryQuery, errors: errorsSummaryQuery },
 				});
+				return result ? withAliasNormalized(result) : undefined;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed getting Submission with id '${submissionId}'`, error);
 				throw new ServiceUnavailable();
@@ -293,11 +308,12 @@ jsonb_build_object(
 			submissionId: number,
 		): Promise<SubmissionDataDetailsRepositoryRecord | undefined> => {
 			try {
-				return await db.query.submissions.findFirst({
+				const result = await db.query.submissions.findFirst({
 					where: and(eq(submissions.id, submissionId)),
 					columns: submissionColumnsWithData,
 					with: submissionDictionaryRelationColumns,
 				});
+				return result ? withAliasNormalized(result) : undefined;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed getting Submission details with id '${submissionId}'`, error);
 				throw new ServiceUnavailable();
@@ -355,7 +371,7 @@ jsonb_build_object(
 		): Promise<SubmissionDataSummaryRepositoryRecord[] | undefined> => {
 			const { page, pageSize } = paginationOptions;
 			try {
-				return await db.query.submissions.findMany({
+				const results = await db.query.submissions.findMany({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
 						filterOptions.username ? eq(submissions.createdBy, filterOptions.username) : undefined,
@@ -369,6 +385,7 @@ jsonb_build_object(
 					limit: pageSize,
 					offset: (page - 1) * pageSize,
 				});
+				return results.map(withAliasNormalized);
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying Submissions by category with relations`, error);
 				throw new ServiceUnavailable();

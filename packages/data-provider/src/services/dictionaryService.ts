@@ -94,20 +94,22 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 	};
 
 	const register = async ({
+		alias,
 		categoryName,
+		defaultCentricEntity,
 		dictionaryName,
 		dictionaryVersion,
-		defaultCentricEntity,
-		username,
 		forceRegistration = false,
+		username,
 	}: {
+		alias?: string;
 		categoryName: string;
+		defaultCentricEntity?: string;
 		dictionaryName: string;
 		dictionaryVersion: string;
-		defaultCentricEntity?: string;
-		username?: string;
 		forceRegistration?: boolean;
-	}): Promise<{ dictionary: Dictionary; category: Category; migrationId?: number }> => {
+		username?: string;
+	}): Promise<{ category: Category; dictionary: Dictionary; migrationId?: number }> => {
 		logger.debug(
 			LOG_MODULE,
 			`Register new dictionary categoryName '${categoryName}' dictionaryName '${dictionaryName}' dictionaryVersion '${dictionaryVersion}'`,
@@ -132,6 +134,14 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 
 		// Check if Category exist
 		const foundCategory = await categoryRepo.getCategoryByName(categoryName);
+
+		if (foundCategory && alias) {
+			// Alias assignment is creation-time only; reassigning an existing category's alias
+			// is a separate, later feature.
+			throw new BadRequest(
+				`Category '${categoryName}' already exists; alias can only be set when creating a new category`,
+			);
+		}
 
 		const initiateMigrationOrThrow = async ({
 			categoryId,
@@ -211,16 +221,24 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 			return { dictionary: savedDictionary, category: updatedCategory, migrationId };
 		} else {
 			// Create a new Category
+			if (alias) {
+				const existingAliasOwner = await categoryRepo.getCategoryByAlias(alias);
+				if (existingAliasOwner) {
+					throw new StatusConflict(`Category alias '${alias}' is already in use`);
+				}
+			}
+
 			const newCategory: NewCategory = {
-				name: categoryName,
 				activeDictionaryId: savedDictionary.id,
-				defaultCentricEntity,
+				alias: alias || undefined,
 				createdBy: username,
+				defaultCentricEntity,
+				name: categoryName,
 			};
 
 			const savedCategory = await categoryRepo.save(newCategory);
 
-			return { dictionary: savedDictionary, category: savedCategory };
+			return { category: savedCategory, dictionary: savedDictionary };
 		}
 	};
 	return {

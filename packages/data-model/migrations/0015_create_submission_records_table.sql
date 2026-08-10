@@ -28,7 +28,10 @@ CREATE TABLE IF NOT EXISTS "submission_records" (
 );
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "submission_files_submission_id_index" ON "submission_files" ("submission_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "submission_files_submission_entity_file_index" ON "submission_files" ("submission_id","entity_name","file_name");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "submission_records_file_id_index" ON "submission_records" ("file_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "submission_records_file_id_action_type_index" ON "submission_records" ("file_id","action_type");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "submission_records_file_id_state_action_type_index" ON "submission_records" ("file_id","state","action_type");--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "submission_files" ADD CONSTRAINT "submission_files_submission_id_submissions_id_fk" FOREIGN KEY ("submission_id") REFERENCES "submissions"("id") ON DELETE no action ON UPDATE no action;
 EXCEPTION

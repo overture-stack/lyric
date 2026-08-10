@@ -30,8 +30,9 @@ export type SubmissionServiceConfig = {
 };
 
 export type LoggerConfig = {
-	level?: string;
 	file?: boolean;
+	json?: boolean;
+	level?: string;
 };
 
 export type IdServiceConfig = {
@@ -41,7 +42,9 @@ export type IdServiceConfig = {
 };
 
 export type ValidatorEntry = {
-	categoryId: number;
+	/** A category's numeric id or its alias; matched against the request's categoryId by string
+	 * equality (see `findValidatorEntry`), not by shape. */
+	categoryId: number | string;
 	entityName: string;
 	fieldName: string;
 };
@@ -58,7 +61,7 @@ export type AppConfig = {
 	features?: FeaturesConfig;
 	idService: IdServiceConfig;
 	logger: LoggerConfig;
-	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
+	onFinishCommit?: (resultOnCommit: ResultOnCommit) => Promise<void>;
 	schemaService: SchemaServiceConfig;
 	submissionService: SubmissionServiceConfig;
 	validator: ValidatorConfig;
@@ -72,7 +75,7 @@ export interface BaseDependencies {
 	features?: FeaturesConfig;
 	idService: IdServiceConfig;
 	logger: Logger;
-	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
+	onFinishCommit?: (resultOnCommit: ResultOnCommit) => Promise<void>;
 	schemaService: SchemaServiceConfig;
 	submissionService: SubmissionServiceConfig;
 	workerPool: WorkerFunctions;

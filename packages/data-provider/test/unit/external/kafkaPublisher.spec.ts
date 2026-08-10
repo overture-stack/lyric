@@ -1,0 +1,296 @@
+import { expect } from 'chai';
+import { describe, it } from 'mocha';
+
+import { createKafkaPublisher } from '../../../src/external/kafkaPublisher.js';
+import type { KafkaProducer } from '../../../src/external/kafkaPublisher.js';
+import type { ResultOnCommit, SubmittedDataResponse } from '../../../src/utils/types.js';
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+type SentBatch = { topic: string; messages: Array<{ value: string }> };
+
+const createMockProducer = (): KafkaProducer & { sent: SentBatch[] } => {
+	const sent: SentBatch[] = [];
+	return {
+		sent,
+		send: async (params) => {
+			sent.push(params);
+		},
+	};
+};
+
+const createFailingProducer = (error: unknown = new Error('send failed')): KafkaProducer => ({
+	send: async () => {
+		throw error;
+	},
+});
+
+const record = (overrides: Partial<SubmittedDataResponse> = {}): SubmittedDataResponse => ({
+	data: { field: 'value' },
+	entityName: 'donor',
+	isValid: true,
+	organization: 'TEST-ORG',
+	systemId: 'SYS-001',
+	...overrides,
+});
+
+const commitResult = (
+	dataOverrides: Partial<NonNullable<ResultOnCommit['data']>> = {},
+	overrides: Partial<Omit<ResultOnCommit, 'data'>> = {},
+): ResultOnCommit => ({
+	categoryId: 1,
+	data: {
+		deletes: [],
+		inserts: [],
+		updates: [],
+		...dataOverrides,
+	},
+	organization: 'TEST-ORG',
+	submissionId: 42,
+	...overrides,
+});
+
+// ── tests ─────────────────────────────────────────────────────────────────────
+
+describe('createKafkaPublisher', () => {
+	describe('when resultOnCommit has no data', () => {
+		it('should not call producer.send', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish({ categoryId: 1, organization: 'TEST-ORG', submissionId: 1 });
+
+			expect(producer.sent).to.have.length(0);
+		});
+	});
+
+	describe('when all arrays are empty', () => {
+		it('should not call producer.send', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult());
+
+			expect(producer.sent).to.have.length(0);
+		});
+	});
+
+	describe('inserts', () => {
+		it('should publish one message per insert', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ inserts: [record({ systemId: 'A' }), record({ systemId: 'B' })] }));
+
+			expect(producer.sent[0]?.messages).to.have.length(2);
+		});
+
+		it('should publish a message with expected fields', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+			const r = record({ systemId: 'SYS-123', organization: 'ORG-A', entityName: 'donor', isValid: true });
+
+			await publish(commitResult({ inserts: [r] }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed).to.deep.equal({
+				action: 'insert',
+				categoryId: 1,
+				data: r.data,
+				entityName: 'donor',
+				isValid: true,
+				organization: 'ORG-A',
+				systemId: 'SYS-123',
+			});
+		});
+
+		it('should set action to insert', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ inserts: [record()] }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed.action).to.equal('insert');
+		});
+
+		it('should preserve isValid from the record', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ inserts: [record({ isValid: false })] }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed.isValid).to.be.false;
+		});
+	});
+
+	describe('updates', () => {
+		it('should publish one message per update', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ updates: [record(), record()] }));
+
+			expect(producer.sent[0]?.messages).to.have.length(2);
+		});
+
+		it('should preserve isValid from the record', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ updates: [record({ isValid: false })] }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed.isValid).to.be.false;
+		});
+
+		it('should set action to update', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ updates: [record()] }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed.action).to.equal('update');
+		});
+	});
+
+	describe('deletes', () => {
+		it('should publish one message per delete', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ deletes: [record(), record()] }));
+
+			expect(producer.sent[0]?.messages).to.have.length(2);
+		});
+
+		it('should set action to delete', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ deletes: [record()] }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed.action).to.equal('delete');
+		});
+
+		it('should preserve isValid from the record', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ deletes: [record({ isValid: true })] }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed.isValid).to.be.true;
+		});
+	});
+
+	describe('batching', () => {
+		it('should send inserts, updates, and deletes in a single producer.send call', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(
+				commitResult({
+					deletes: [record({ systemId: 'D' })],
+					inserts: [record({ systemId: 'A' })],
+					updates: [record({ systemId: 'U' })],
+				}),
+			);
+
+			expect(producer.sent).to.have.length(1);
+			expect(producer.sent[0]!.messages).to.have.length(3);
+		});
+
+		it('should send to the configured topic', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'my-custom-topic' });
+
+			await publish(commitResult({ inserts: [record()] }));
+
+			expect(producer.sent[0]?.topic).to.equal('my-custom-topic');
+		});
+	});
+
+	describe('category identity', () => {
+		it('should include categoryId on every published message', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ inserts: [record()] }, { categoryId: 7 }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed.categoryId).to.equal(7);
+		});
+
+		it('should include categoryAlias when the category has one', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ inserts: [record()] }, { categoryAlias: 'donor' }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed.categoryAlias).to.equal('donor');
+		});
+
+		it('should omit categoryAlias when the category has none', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(commitResult({ inserts: [record()] }));
+
+			const parsed = JSON.parse(producer.sent[0]!.messages[0]!.value);
+			expect(parsed).to.not.have.property('categoryAlias');
+		});
+
+		it('should apply the same categoryId and categoryAlias to every message in a mixed-action commit', async () => {
+			const producer = createMockProducer();
+			const publish = createKafkaPublisher({ producer, topic: 'lyric-docs' });
+
+			await publish(
+				commitResult(
+					{
+						deletes: [record({ systemId: 'D' })],
+						inserts: [record({ systemId: 'A' })],
+						updates: [record({ systemId: 'U' })],
+					},
+					{ categoryAlias: 'expression', categoryId: 3 },
+				),
+			);
+
+			for (const message of producer.sent[0]!.messages) {
+				const parsed = JSON.parse(message.value);
+				expect(parsed.categoryId).to.equal(3);
+				expect(parsed.categoryAlias).to.equal('expression');
+			}
+		});
+	});
+
+	describe('error handling', () => {
+		it('should call onError when producer.send throws', async () => {
+			const sendError = new Error('broker unavailable');
+			const errors: unknown[] = [];
+			const publish = createKafkaPublisher({
+				onError: (e) => errors.push(e),
+				producer: createFailingProducer(sendError),
+				topic: 'lyric-docs',
+			});
+
+			await publish(commitResult({ inserts: [record()] }));
+
+			expect(errors).to.have.length(1);
+			expect(errors[0]).to.equal(sendError);
+		});
+
+		it('should not throw when producer.send throws and no onError is provided', async () => {
+			const publish = createKafkaPublisher({
+				producer: createFailingProducer(),
+				topic: 'lyric-docs',
+			});
+
+			await publish(commitResult({ inserts: [record()] }));
+		});
+	});
+});

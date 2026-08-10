@@ -49,7 +49,7 @@ type UnrecognizedValueReason = {
 type RecordErrorInvalidValue = FieldDetails & UnrecognizedValueReason;
 
 // TODO: export this type
-type SubmissionRecordErrors = (DictionaryValidationRecordErrorDetails | RecordErrorInvalidValue)[];
+type SubmissionRecordError = DictionaryValidationRecordErrorDetails | RecordErrorInvalidValue;
 
 export const submissionRecords = pgTable(
 	'submission_records',
@@ -60,12 +60,18 @@ export const submissionRecords = pgTable(
 			.notNull(),
 		data: jsonb('data').$type<SubmissionData>().notNull(),
 		actionType: submissionRecordType('action_type').notNull(),
-		errors: jsonb('errors').$type<SubmissionRecordErrors>(),
+		errors: jsonb('errors').$type<SubmissionRecordError[]>(),
 		state: submissionRecordState('state').notNull(),
 	},
 	(table) => {
 		return {
 			fileIndex: index('submission_records_file_id_index').on(table.fileId),
+			fileActionIndex: index('submission_records_file_id_action_type_index').on(table.fileId, table.actionType),
+			fileStateActionIndex: index('submission_records_file_id_state_action_type_index').on(
+				table.fileId,
+				table.state,
+				table.actionType,
+			),
 		};
 	},
 );

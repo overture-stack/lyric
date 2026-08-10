@@ -251,6 +251,11 @@ components:
     CategoryDetails:
       type: object
       properties:
+        alias:
+          type: string
+          description: >-
+            Optional alias for the category, usable in place of the numeric id anywhere a
+            categoryId is accepted. Not set if none was assigned at creation.
         id:
           type: number
           description: ID of the Category
@@ -282,6 +287,19 @@ components:
         updatedBy:
           type: string
           description: User name who last updated the submission
+
+    CategorySummary:
+      type: object
+      properties:
+        alias:
+          type: string
+          description: Optional alias for the category. Not set if none is assigned.
+        id:
+          type: number
+          description: ID of the Category
+        name:
+          type: string
+          description: Name of the Category
 
     ChangeHistorySummaryResult:
       type: object
@@ -434,14 +452,7 @@ components:
     ListAllCategories:
       type: array
       items:
-        type: object
-        properties:
-          id:
-            type: number
-            description: ID of the Submission
-          name:
-            type: string
-            description: Name of the Category
+        $ref: '#/components/schemas/CategorySummary'
 
     ListMigrationRecordsResult:
       type: object
@@ -555,6 +566,9 @@ components:
     RegisterDictionaryResult:
       type: object
       properties:
+        alias:
+          type: string
+          description: Optional alias for the category. Not present if none was assigned.
         categoryId:
           type: number
           description: ID of the Category

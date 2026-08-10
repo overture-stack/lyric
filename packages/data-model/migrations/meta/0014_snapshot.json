@@ -1,5 +1,5 @@
 {
-  "id": "e56be254-f558-4f3a-81ff-fcf6094ceb85",
+  "id": "f2fe7a66-f0e4-4a17-8f49-29fefb6f5809",
   "prevId": "a4119de0-eeda-4b64-b7de-4c2831eb5df8",
   "version": "5",
   "dialect": "pg",
@@ -242,6 +242,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "alias": {
+          "name": "alias",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
         "default_centric_entity": {
           "name": "default_centric_entity",
           "type": "varchar",
@@ -284,6 +290,13 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
+        "dictionary_categories_alias_unique": {
+          "name": "dictionary_categories_alias_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "alias"
+          ]
+        },
         "dictionary_categories_name_unique": {
           "name": "dictionary_categories_name_unique",
           "nullsNotDistinct": false,
@@ -441,136 +454,6 @@
           "tableTo": "submissions",
           "columnsFrom": [
             "submission_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
-    },
-    "submission_files": {
-      "name": "submission_files",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "submission_id": {
-          "name": "submission_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "file_name": {
-          "name": "file_name",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "entity_name": {
-          "name": "entity_name",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "file_size": {
-          "name": "file_size",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "submission_files_submission_id_index": {
-          "name": "submission_files_submission_id_index",
-          "columns": [
-            "submission_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "submission_files_submission_id_submissions_id_fk": {
-          "name": "submission_files_submission_id_submissions_id_fk",
-          "tableFrom": "submission_files",
-          "tableTo": "submissions",
-          "columnsFrom": [
-            "submission_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
-    },
-    "submission_records": {
-      "name": "submission_records",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "file_id": {
-          "name": "file_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "data": {
-          "name": "data",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "action_type": {
-          "name": "action_type",
-          "type": "submission_record_type",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "errors": {
-          "name": "errors",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "state": {
-          "name": "state",
-          "type": "submission_record_state",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "submission_records_file_id_index": {
-          "name": "submission_records_file_id_index",
-          "columns": [
-            "file_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "submission_records_file_id_submission_files_id_fk": {
-          "name": "submission_records_file_id_submission_files_id_fk",
-          "tableFrom": "submission_records",
-          "tableTo": "submission_files",
-          "columnsFrom": [
-            "file_id"
           ],
           "columnsTo": [
             "id"
@@ -892,22 +775,6 @@
         "IN_PROGRESS": "IN_PROGRESS",
         "COMPLETED": "COMPLETED",
         "FAILED": "FAILED"
-      }
-    },
-    "submission_record_state": {
-      "name": "submission_record_state",
-      "values": {
-        "RECEIVED": "RECEIVED",
-        "VALID": "VALID",
-        "INVALID": "INVALID"
-      }
-    },
-    "submission_record_type": {
-      "name": "submission_record_type",
-      "values": {
-        "INSERT": "INSERT",
-        "UPDATE": "UPDATE",
-        "DELETE": "DELETE"
       }
     },
     "submission_status": {
