@@ -13,7 +13,7 @@ import {
 } from '@overture-stack/lectern-client';
 
 import { getSubmittedFileType } from '../services/submission/submissionFile.js';
-import { failure, success, type Result } from './result.js';
+import { failure, type Result, success } from './result.js';
 import { BATCH_ERROR_TYPE, type BatchError } from './types.js';
 
 export const SUPPORTED_FILE_EXTENSIONS = z.enum(['tsv', 'csv']);
@@ -124,6 +124,13 @@ function formatForExcelCompatibility(data: string) {
 		.replace(/""/g, '"') // excel might've used a second double quote to escape a double quote in a string
 		.trim();
 }
+
+/**
+ * Generates a generic file name for submission files with `.json` extension.
+ * Based on the current date and time in ISO format.
+ * @returns
+ */
+export const genericSubmissionFileName = () => `submission-${new Date().toISOString()}.json`;
 
 export function getSizeInBytes(size: string | number): number {
 	// Parse the string value into an integer in bytes.
