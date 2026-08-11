@@ -13,6 +13,7 @@ import {
 	type Dictionary,
 	NewSubmittedData,
 	type SubmissionDeleteData,
+	type SubmissionInsertData,
 	type SubmissionUpdateData,
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
@@ -458,6 +459,17 @@ export type DataRecordReference = {
 export interface DataRecordNested {
 	[key: string]: DataRecordValue | DataRecordNested | DataRecordNested[];
 }
+
+export type SubmissionInsertRecordWithEntityName = {
+	recordId: number;
+	entityName: string;
+	data: SubmissionInsertData;
+};
+export type SubmissionUpdateRecordWithEntityName = {
+	recordId: number;
+	entityName: string;
+	data: SubmissionUpdateData;
+};
 
 /**
  * Keys of an object type as a union

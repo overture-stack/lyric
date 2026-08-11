@@ -27,12 +27,7 @@ import { getSchemaFieldNames } from './dictionaryUtils.js';
 import { readHeaders, readTextFile } from './fileUtils.js';
 import { asArray } from './formatUtils.js';
 import type { FilenameEntityPair } from './schemas.js';
-import {
-	groupErrorsByIndex,
-	mapAndMergeSubmittedDataToRecordReferences,
-	type SubmissionInsertRecordWithEntityName,
-	type SubmissionUpdateRecordWithEntityName,
-} from './submittedDataUtils.js';
+import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
 	BATCH_ERROR_TYPE,
 	type BatchError,
@@ -43,10 +38,12 @@ import {
 	type NewSubmittedDataReference,
 	SUBMISSION_RECORD_ACTION_TYPE,
 	SUBMISSION_STATUS,
+	type SubmissionInsertRecordWithEntityName,
 	type SubmissionRecordActionType,
 	type SubmissionStatus,
 	type SubmissionSummary,
 	type SubmissionSummaryResponse,
+	type SubmissionUpdateRecordWithEntityName,
 	SubmittedDataReference,
 } from './types.js';
 
@@ -265,27 +262,6 @@ export const filterRecordsByConflicts = <SourceData, ConflictData>(
 };
 
 /**
- * Filters updates from the provided `submissionUpdateData` based on conflicts found in the `submissionDeleteData`.
- * Conflicts are determined by matching the `systemId` of the items in both records.
- *
- * @param submissionUpdateData - A record containing arrays of `SubmissionUpdateData` to be filtered.
- * @param submissionDeleteData - A record containing arrays of `SubmissionDeleteData` that defines the conflicts.
- * @returns A filtered record of `SubmissionUpdateData[]` where no items conflict with those in `submissionDeleteData`.
- * TODO: do not delete this function, this MIGHT be usefull in the future to avoid duplicates between submission records
- */
-export const filterUpdatesFromDeletes = (
-	submissionUpdateData: Record<string, SubmissionUpdateData[]>,
-	submissionDeleteData: Record<string, SubmissionDeleteData[]>,
-): Record<string, SubmissionUpdateData[]> => {
-	return filterRecordsByConflicts(
-		submissionUpdateData,
-		submissionDeleteData,
-		(itemToUpdate) => itemToUpdate.systemId,
-		(itemToDelete) => itemToDelete.systemId,
-	);
-};
-
-/**
  * Filters deletes from the provided `submissionDeleteData` based on conflicts found in the `submissionUpdateData`.
  * Conflicts are determined by matching the `systemId` of the items in both records.
  *
@@ -408,7 +384,7 @@ export const groupSchemaErrorsByEntity = (input: {
  * The result mapping is used to perform the cross schema validation
  * @param {number} activeSubmissionId
  * @param {SubmissionInsertRecordWithEntityName[]} activeSubmissionInsertDataEntities
- * @returns {DataRecordReference[]}
+ * @returns {Record<string, DataRecordReference[]>}
  */
 export const mapInsertDataToRecordReferences = (
 	activeSubmissionId: number,
@@ -478,7 +454,6 @@ export const mapGroupedUpdateSubmissionData = ({
  * Then, the Schema Data is extracted and mapped with its internal reference ID.
  * The returned Object is a collection of the raw Schema Data with it's reference ID grouped by entity name.
  * @param {number} submissionId ID of the Active Submission
- * @param {Object} submissionData
  * @param {SubmissionRecordWithEntityName[]} submissionData The Active Submission data
  * @param {SubmittedData[]} submittedData An array of Submitted Data
  * @returns {Record<string, DataRecordReference[]>}
@@ -585,7 +560,7 @@ export const mergeUpdatesBySystemId = (
 };
 
 /**
- * Utility to convert Dates to ISO string for a SubmissionSummaryResponse
+ * Utility to convert a raw Submission record to a Response type
  * @param {SubmissionSummary} submission
  * @returns {SubmissionSummaryResponse}
  */

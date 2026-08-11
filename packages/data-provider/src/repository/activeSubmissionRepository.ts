@@ -47,7 +47,7 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 	} as const satisfies Record<string, { columns: BooleanTrueObject }>;
 
 	/**
-	 *  Normalizes a queried record's `dictionaryCategory.alias` from the DB's `string | null`
+	 * Normalizes a queried record's `dictionaryCategory.alias` from the DB's `string | null`
 	 * to the public `CategorySummary` contract's `string | undefined` (omitted, not null, when unset).
 	 */
 	const withAliasNormalized = <T extends { dictionaryCategory: { alias: string | null } }>(record: T) =>

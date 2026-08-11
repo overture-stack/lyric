@@ -10,7 +10,6 @@ import {
 	type DataDiff,
 	NewSubmittedData,
 	type SubmissionDeleteData,
-	type SubmissionInsertData,
 	type SubmissionUpdateData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
@@ -22,6 +21,7 @@ import {
 	MERGE_REFERENCE_TYPE,
 	type MutableDataDiff,
 	type MutableDataRecord,
+	type SubmissionUpdateRecordWithEntityName,
 	VIEW_TYPE,
 	type ViewType,
 } from './types.js';
@@ -342,17 +342,6 @@ export const updateSubmittedDataArray = (
 		}
 		return existingSubmittedData;
 	});
-};
-
-export type SubmissionInsertRecordWithEntityName = {
-	recordId: number;
-	entityName: string;
-	data: SubmissionInsertData;
-};
-export type SubmissionUpdateRecordWithEntityName = {
-	recordId: number;
-	entityName: string;
-	data: SubmissionUpdateData;
 };
 
 /**
