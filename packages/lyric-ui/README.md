@@ -2,14 +2,13 @@
 
 Shared React component library for Lyric-based UIs.
 
-`lyric-ui` provides a set of accessible, themeable UI primitives for building front-end applications that interact with the [Lyric](https://github.com/overture-stack/lyric) data submission system. It is part of the [Overture](https://www.overture.bio/) open-source platform, a collection of microservices for organizing and sharing genomics data.
+`lyric-ui` provides a set of accessible, themeable UI primitives for building front-end applications that interact with the [Lyric](https://github.com/overture-stack/lyric) data submission system.
 
 ---
 
 ## Features
 
-- **Themeable design tokens** — colors, radii, and other design values are driven by CSS custom properties, making it straightforward to adapt the look to your application's brand.
-- **Dark mode support** — components respond to a `.dark` class variant out of the box.
+- **Themeable** — Theming can be customized using css variables in the main .css file in your application. Please see section [Theming].
 - **Variant-driven components** — built with [`class-variance-authority`](https://cva.style/) so each component exposes a clean, type-safe variant API.
 - **Dual-format build** — ships both ES module (`lyric-ui.js`) and CommonJS (`lyric-ui.cjs`) outputs so it works in both modern bundlers and legacy setups.
 - **Storybook** — every component has stories for interactive development and visual documentation.
@@ -38,12 +37,74 @@ Shared React component library for Lyric-based UIs.
 | [Vite](https://vitejs.dev/)                                                                          | Library build (ESM + CJS, bundled CSS)            |
 | [Storybook 8](https://storybook.js.org/)                                                             | Component development environment and visual docs |
 
-The theming system follows the [shadcn/ui](https://ui.shadcn.com/) convention: design tokens are declared as CSS custom properties (HSL values) in a `@layer base` block, then referenced by Tailwind via `@theme`. This means callers can override the full palette simply by redefining the CSS variables in their own stylesheet.
+The theming system follows a similar [shadcn/ui](https://ui.shadcn.com/) convention: design tokens are declared as CSS custom properties in a `@layer base` block, then referenced by Tailwind via `@theme`. Shadcdn uses HSL to apply their themes by default, this implementation will also be able to support other formats. Ultimatly, callers can override the full palette simply by redefining the CSS variables in their own stylesheet which will be explained futher in the next section.
+
+### Theming
+
+Tailoring lyric-ui components to a target application is done by overriding CSS variables in your application's main `.css` file. The following tokens control the full palette:
+
+| Variable                   | Default value            | Description                                                         |
+| -------------------------- | ------------------------ | ------------------------------------------------------------------- |
+| `--background`             | `hsl(0 0% 100%)`         | Page/surface background                                             |
+| `--foreground`             | `hsl(222.2 84% 4.9%)`    | Default text and icon color                                         |
+| `--primary`                | `hsl(222.2 47.4% 11.2%)` | Primary action color (buttons, links)                               |
+| `--primary-foreground`     | `hsl(210 40% 98%)`       | Text/icons rendered on a primary-colored surface                    |
+| `--secondary`              | `hsl(210 40% 96.1%)`     | Secondary action or surface color                                   |
+| `--secondary-foreground`   | `hsl(222.2 47.4% 11.2%)` | Text/icons rendered on a secondary-colored surface                  |
+| `--muted`                  | `hsl(210 40% 96.1%)`     | Subdued background for non-interactive areas (badges, placeholders) |
+| `--muted-foreground`       | `hsl(215.4 16.3% 46.9%)` | Text/icons rendered on a muted surface                              |
+| `--accent`                 | `hsl(210 40% 96.1%)`     | Highlight or hover state background                                 |
+| `--accent-foreground`      | `hsl(222.2 47.4% 11.2%)` | Text/icons rendered on an accent-colored surface                    |
+| `--destructive`            | `hsl(0 84.2% 60.2%)`     | Destructive/error action color (delete, error states)               |
+| `--destructive-foreground` | `hsl(210 40% 98%)`       | Text/icons rendered on a destructive-colored surface                |
+| `--border`                 | `hsl(214.3 31.8% 91.4%)` | Default border color for cards, inputs, and dividers                |
+| `--input`                  | `hsl(214.3 31.8% 91.4%)` | Input field border color                                            |
+| `--ring`                   | `hsl(222.2 84% 4.9%)`    | Focus ring color for interactive elements                           |
+| `--radius`                 | `0.5rem`                 | Base border-radius used across components                           |
+
+Your main css file should look something like this:
+
+```css
+:root {
+	--background: hsl(0 0% 100%);
+	--foreground: hsl(222.2 84% 4.9%);
+	--primary: hsl(222.2 47.4% 11.2%);
+	--primary-foreground: hsl(210 40% 98%);
+	--secondary: hsl(210 40% 96.1%);
+	--secondary-foreground: hsl(222.2 47.4% 11.2%);
+	--muted: hsl(210 40% 96.1%);
+	--muted-foreground: hsl(215.4 16.3% 46.9%);
+	--accent: hsl(210 40% 96.1%);
+	--accent-foreground: hsl(222.2 47.4% 11.2%);
+	--destructive: hsl(0 84.2% 60.2%);
+	--destructive-foreground: hsl(210 40% 98%);
+	--border: hsl(214.3 31.8% 91.4%);
+	--input: hsl(214.3 31.8% 91.4%);
+	--ring: hsl(222.2 84% 4.9%);
+	--radius: 0.5rem;
+}
+```
+
+If you are using tailwind along side with lyric-ui, you can use tailwind css variable to populate lyric-ui as a source of truth:
+
+```css
+@theme {
+	--color-primary-900: #054a74;
+}
+
+:root {
+	--primary: var(--color-primary-900);
+}
+```
+
+Because tailwind is being bundled with these exported components, its worth noting that a project also using tailwind may possible overlap on styles. Functionally will not effect
+the project but may encounter unintented visual issues.
 
 ---
 
 ## Installation
 
+<!--
 ```bash
 pnpm add @overture-stack/lyric-ui
-```
+```-->
