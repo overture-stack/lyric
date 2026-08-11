@@ -628,54 +628,57 @@ export const segregateFieldChangeRecords = (
 };
 
 /** Per-file outcome from `submissionInsertDataFromFiles`. */
-export type FileParseResult = { fileName: string; fileSize: number; entityName: string } & (
-	| { status: 'ok'; data: DataRecord[] }
-	| { status: 'invalid'; parseErrors: ParseSchemaError[]; data?: DataRecord[] }
+export type FileParseResult = { fileName: string; entityName: string; fileSize: number } & (
+	| { status: 'ok' }
+	| { status: 'invalid'; parseErrors: ParseSchemaError[] }
 	| { status: 'error'; streamError: string }
 );
+
+/** Return type of `submissionInsertDataFromFiles`. */
+export type FileInsertResult = {
+	data: DataRecord[];
+	fileResult: FileParseResult;
+};
 
 /**
  * Parses all files in the schema map into insertion records.
  * Each file is processed independently: a stream or parse failure on one file is captured and
  * reported without interrupting processing of the remaining files.
  */
-export const submissionInsertDataFromFiles = async (fileSchemaMap: FileSchemaMap): Promise<FileParseResult[]> => {
-	const fileResults: FileParseResult[] = [];
+export const submissionInsertDataFromFiles = async (fileSchemaMap: FileSchemaMap): Promise<FileInsertResult[]> => {
+	const result: FileInsertResult[] = [];
 
 	for (const [entityName, { files, schema }] of Object.entries(fileSchemaMap)) {
 		for (const file of files) {
 			try {
 				const parsedFileData = await readTextFile(file, schema);
-				fileResults.push(
-					parsedFileData.errors.length > 0
-						? {
-								status: 'invalid',
-								fileName: file.originalname,
-								fileSize: file.size,
-								entityName,
-								parseErrors: parsedFileData.errors,
-							}
-						: {
-								status: 'ok',
-								fileName: file.originalname,
-								fileSize: file.size,
-								entityName,
-								data: parsedFileData.records,
-							},
-				);
+				result.push({
+					data: parsedFileData.records,
+					fileResult: {
+						entityName,
+						fileName: file.originalname,
+						fileSize: file.size,
+						...(parsedFileData.errors.length > 0
+							? { status: 'invalid', parseErrors: parsedFileData.errors }
+							: { status: 'ok' }),
+					},
+				});
 			} catch (err) {
-				fileResults.push({
-					status: 'error',
-					fileName: file.originalname,
-					fileSize: file.size,
-					entityName,
-					streamError: err instanceof Error ? err.message : String(err),
+				result.push({
+					data: [],
+					fileResult: {
+						status: 'error',
+						fileName: file.originalname,
+						fileSize: file.size,
+						entityName,
+						streamError: err instanceof Error ? err.message : String(err),
+					},
 				});
 			}
 		}
 	}
 
-	return fileResults;
+	return result;
 };
 
 /**

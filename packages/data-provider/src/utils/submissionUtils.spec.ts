@@ -68,8 +68,8 @@ describe('submissionInsertDataFromFiles', () => {
 		const fileResults = await submissionInsertDataFromFiles(fileSchemaMap);
 
 		expect(fileResults).to.have.length(1);
-		expect(fileResults[0]?.status).to.equal('ok');
-		expect(fileResults[0]?.fileName).to.equal('items.tsv');
+		expect(fileResults[0]?.fileResult.status).to.equal('ok');
+		expect(fileResults[0]?.fileResult.fileName).to.equal('items.tsv');
 	});
 
 	it('returns status invalid for a file with schema validation failures', async () => {
@@ -82,9 +82,9 @@ describe('submissionInsertDataFromFiles', () => {
 
 		expect(fileResults).to.have.length(1);
 		const result = fileResults[0];
-		expect(result?.status).to.equal('invalid');
-		if (result?.status === 'invalid') {
-			expect(result.parseErrors).to.have.length.greaterThan(0);
+		expect(result?.fileResult.status).to.equal('invalid');
+		if (result?.fileResult.status === 'invalid') {
+			expect(result.fileResult.parseErrors).to.have.length.greaterThan(0);
 		}
 	});
 
@@ -97,9 +97,9 @@ describe('submissionInsertDataFromFiles', () => {
 
 		expect(fileResults).to.have.length(1);
 		const result = fileResults[0];
-		expect(result?.status).to.equal('error');
-		if (result?.status === 'error') {
-			expect(result.streamError).to.be.a('string').and.not.be.empty;
+		expect(result?.fileResult.status).to.equal('error');
+		if (result?.fileResult.status === 'error') {
+			expect(result.fileResult.streamError).to.be.a('string').and.not.be.empty;
 		}
 	});
 
@@ -115,8 +115,8 @@ describe('submissionInsertDataFromFiles', () => {
 		const fileResults = await submissionInsertDataFromFiles(fileSchemaMap);
 
 		expect(fileResults).to.have.length(2);
-		expect(fileResults.find((r) => r.fileName === 'missing.tsv')?.status).to.equal('error');
-		expect(fileResults.find((r) => r.fileName === 'valid.tsv')?.status).to.equal('ok');
+		expect(fileResults.find((r) => r.fileResult.fileName === 'missing.tsv')?.fileResult.status).to.equal('error');
+		expect(fileResults.find((r) => r.fileResult.fileName === 'valid.tsv')?.fileResult.status).to.equal('ok');
 	});
 
 	it('accumulates records from multiple successful files for the same entity', async () => {
@@ -130,7 +130,7 @@ describe('submissionInsertDataFromFiles', () => {
 		const fileResults = await submissionInsertDataFromFiles(fileSchemaMap);
 
 		expect(fileResults).to.have.length(2);
-		expect(fileResults.every((r) => r.status === 'ok')).to.be.true;
-		expect(fileResults.every((r) => r.status === 'ok' && r.data.length === 1)).to.be.true;
+		expect(fileResults.every((r) => r.fileResult.status === 'ok')).to.be.true;
+		expect(fileResults.every((r) => r.fileResult.status === 'ok' && r.data.length === 1)).to.be.true;
 	});
 });
