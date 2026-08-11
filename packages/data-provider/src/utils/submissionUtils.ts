@@ -41,8 +41,6 @@ import {
 	type SubmissionInsertRecordWithEntityName,
 	type SubmissionRecordActionType,
 	type SubmissionStatus,
-	type SubmissionSummary,
-	type SubmissionSummaryResponse,
 	type SubmissionUpdateRecordWithEntityName,
 	SubmittedDataReference,
 } from './types.js';
@@ -449,6 +447,57 @@ export const mapGroupedUpdateSubmissionData = ({
 	);
 };
 
+export const isUpdateSubmissionRecord = (
+	item: SubmissionRecordWithEntityName,
+): item is SubmissionRecordWithEntityName & {
+	actionType: typeof SUBMISSION_RECORD_ACTION_TYPE.Values.UPDATE;
+	data: SubmissionUpdateData;
+} => item.actionType === SUBMISSION_RECORD_ACTION_TYPE.Values.UPDATE;
+
+export const isInsertSubmissionRecord = (
+	item: SubmissionRecordWithEntityName,
+): item is SubmissionRecordWithEntityName & {
+	actionType: typeof SUBMISSION_RECORD_ACTION_TYPE.Values.INSERT;
+	data: SubmissionInsertData;
+} => item.actionType === SUBMISSION_RECORD_ACTION_TYPE.Values.INSERT;
+
+export const isDeleteSubmissionRecord = (
+	item: SubmissionRecordWithEntityName,
+): item is SubmissionRecordWithEntityName & {
+	actionType: typeof SUBMISSION_RECORD_ACTION_TYPE.Values.DELETE;
+	data: SubmissionDeleteData;
+} => item.actionType === SUBMISSION_RECORD_ACTION_TYPE.Values.DELETE;
+
+export const createSubmissionUpdateRecords = (
+	submissionData: SubmissionRecordWithEntityName[],
+): SubmissionUpdateRecordWithEntityName[] => {
+	return submissionData.reduce<SubmissionUpdateRecordWithEntityName[]>((acc, item) => {
+		if (isUpdateSubmissionRecord(item)) {
+			acc.push({
+				recordId: item.id,
+				entityName: item.entityName,
+				data: item.data,
+			});
+		}
+		return acc;
+	}, []);
+};
+
+export const createSubmissionInsertRecords = (
+	submissionData: SubmissionRecordWithEntityName[],
+): SubmissionInsertRecordWithEntityName[] => {
+	return submissionData.reduce<SubmissionInsertRecordWithEntityName[]>((acc, item) => {
+		if (isInsertSubmissionRecord(item)) {
+			acc.push({
+				recordId: item.id,
+				entityName: item.entityName,
+				data: item.data,
+			});
+		}
+		return acc;
+	}, []);
+};
+
 /**
  * Combines **Active Submission** and the **Submitted Data** recevied as arguments.
  * Then, the Schema Data is extracted and mapped with its internal reference ID.
@@ -467,9 +516,7 @@ export const mergeAndReferenceEntityData = ({
 	submissionData: SubmissionRecordWithEntityName[];
 	submittedData: SubmittedData[];
 }): Record<string, DataRecordReference[]> => {
-	const systemsIdsToRemove = submissionData
-		.filter((item) => item.actionType === SUBMISSION_RECORD_ACTION_TYPE.Values.DELETE)
-		.map((item) => item.data.systemId);
+	const systemsIdsToRemove = submissionData.filter(isDeleteSubmissionRecord).map((item) => item.data.systemId);
 
 	// Exclude items that are marked for deletion
 	const submittedDataFiltered =
@@ -477,20 +524,7 @@ export const mergeAndReferenceEntityData = ({
 			? submittedData.filter(({ systemId }) => !systemsIdsToRemove.includes(systemId))
 			: submittedData;
 
-	const dataToUpdate: SubmissionUpdateRecordWithEntityName[] = submissionData
-		.filter(
-			(
-				item,
-			): item is SubmissionRecordWithEntityName & {
-				actionType: typeof SUBMISSION_RECORD_ACTION_TYPE.Values.UPDATE;
-				data: SubmissionUpdateData;
-			} => item.actionType === SUBMISSION_RECORD_ACTION_TYPE.Values.UPDATE,
-		)
-		.map((item) => ({
-			recordId: item.id,
-			entityName: item.entityName,
-			data: item.data,
-		}));
+	const dataToUpdate = createSubmissionUpdateRecords(submissionData);
 
 	const submittedDataWithRef = mapAndMergeSubmittedDataToRecordReferences({
 		submittedData: submittedDataFiltered,
@@ -498,20 +532,7 @@ export const mergeAndReferenceEntityData = ({
 		submissionId,
 	});
 
-	const dataToInsert: SubmissionInsertRecordWithEntityName[] = submissionData
-		.filter(
-			(
-				item,
-			): item is SubmissionRecordWithEntityName & {
-				actionType: typeof SUBMISSION_RECORD_ACTION_TYPE.Values.INSERT;
-				data: SubmissionInsertData;
-			} => item.actionType === SUBMISSION_RECORD_ACTION_TYPE.Values.INSERT,
-		)
-		.map((item) => ({
-			recordId: item.id,
-			entityName: item.entityName,
-			data: item.data,
-		}));
+	const dataToInsert = createSubmissionInsertRecords(submissionData);
 
 	const insertDataWithRef = dataToInsert.length > 0 ? mapInsertDataToRecordReferences(submissionId, dataToInsert) : {};
 
@@ -557,26 +578,6 @@ export const mergeUpdatesBySystemId = (
 	});
 
 	return result;
-};
-
-/**
- * Utility to convert a raw Submission record to a Response type
- * @param {SubmissionSummary} submission
- * @returns {SubmissionSummaryResponse}
- */
-export const createSubmissionSummaryResponse = (submission: SubmissionSummary): SubmissionSummaryResponse => {
-	return {
-		id: submission.id,
-		data: submission.data,
-		dictionary: submission.dictionary,
-		dictionaryCategory: submission.dictionaryCategory,
-		organization: submission.organization,
-		status: submission.status,
-		createdAt: _.toString(submission.createdAt?.toISOString()),
-		createdBy: _.toString(submission.createdBy),
-		updatedAt: _.toString(submission.updatedAt?.toISOString()),
-		updatedBy: _.toString(submission.updatedBy),
-	};
 };
 
 export const pluralizeSchemaName = (schemaName: string) => {

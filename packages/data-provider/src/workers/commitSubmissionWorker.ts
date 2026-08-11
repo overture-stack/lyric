@@ -1,8 +1,4 @@
-import type {
-	SubmissionDeleteData,
-	SubmissionInsertData,
-	SubmissionUpdateData,
-} from '@overture-stack/lyric-data-model/models';
+import type { SubmissionUpdateData } from '@overture-stack/lyric-data-model/models';
 
 import systemIdGenerator from '../external/systemIdGenerator.js';
 import createSubmissionRepository from '../repository/activeSubmissionRepository.js';
@@ -10,8 +6,12 @@ import createCategoryRepository from '../repository/categoryRepository.js';
 import createSubmissionRecordsRepository from '../repository/submissionRecordsRepository.js';
 import createSubmittedRepository from '../repository/submittedRepository.js';
 import submissionProcessorFactory from '../services/submission/submissionProcessor.js';
-import type { ResultOnCommit } from '../utils/types.js';
-import { SUBMISSION_STATUS } from '../utils/types.js';
+import {
+	isDeleteSubmissionRecord,
+	isInsertSubmissionRecord,
+	isUpdateSubmissionRecord,
+} from '../utils/submissionUtils.js';
+import { type ResultOnCommit, SUBMISSION_STATUS } from '../utils/types.js';
 import type { CommitWorkerInput } from './types.js';
 import { getWorkerDependencies } from './workerContext.js';
 
@@ -65,56 +65,31 @@ export const processCommitSubmission = async (message: CommitWorkerInput): Promi
 	});
 
 	// Build inserts for validation
-	const insertsToValidate = recordsToInsert
-		.filter(
-			(
-				record,
-			): record is (typeof recordsToInsert)[number] & {
-				actionType: 'INSERT';
-				data: SubmissionInsertData;
-			} => record.actionType === 'INSERT',
-		)
-		.map(({ entityName, data }) => {
-			return {
-				data,
-				dictionaryCategoryId: categoryId,
-				entityName,
-				isValid: false, // By default, New Submitted Data is created as invalid until validation proves otherwise
-				organization: submission.organization,
-				originalSchemaId: currentDictionary.id,
-				systemId: generateIdentifier(entityName, data),
-				createdBy: username,
-			};
-		});
+	const insertsToValidate = recordsToInsert.filter(isInsertSubmissionRecord).map(({ entityName, data }) => {
+		return {
+			data,
+			dictionaryCategoryId: categoryId,
+			entityName,
+			isValid: false, // By default, New Submitted Data is created as invalid until validation proves otherwise
+			organization: submission.organization,
+			originalSchemaId: currentDictionary.id,
+			systemId: generateIdentifier(entityName, data),
+			createdBy: username,
+		};
+	});
 
 	const recordsToDelete = await submissionRecordsRepo.getBySubmissionId(submissionId, undefined, {
 		actionTypes: ['DELETE'],
 	});
 
-	const deleteDataArray = recordsToDelete
-		.filter(
-			(
-				record,
-			): record is (typeof recordsToDelete)[number] & {
-				actionType: 'DELETE';
-				data: SubmissionDeleteData;
-			} => record.actionType === 'DELETE',
-		)
-		.map(({ data }) => data);
+	const deleteDataArray = recordsToDelete.filter(isDeleteSubmissionRecord).map(({ data }) => data);
 
 	const recordsToUpdate = await submissionRecordsRepo.getBySubmissionId(submissionId, undefined, {
 		actionTypes: ['UPDATE'],
 	});
 
 	const updatesBySystemId = recordsToUpdate
-		.filter(
-			(
-				record,
-			): record is (typeof recordsToUpdate)[number] & {
-				actionType: 'UPDATE';
-				data: SubmissionUpdateData;
-			} => record.actionType === 'UPDATE',
-		)
+		.filter(isUpdateSubmissionRecord)
 		.reduce<Record<string, SubmissionUpdateData>>((acc, { data }) => {
 			acc[data.systemId] = data;
 			return acc;
