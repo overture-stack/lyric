@@ -2,6 +2,7 @@ import { BaseDependencies, type ValidatorConfig } from '../config/config.js';
 import validationService from '../services/validationService.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
+import { resolveCategoryId } from '../utils/resolveCategoryId.js';
 import { validationRequestSchema } from '../utils/schemas.js';
 import { findValidatorEntry } from '../utils/validator.js';
 
@@ -32,6 +33,7 @@ const controller = ({
 				);
 
 				// check if validator is enabled for this category, and entity name
+				// matched against the raw categoryId string, whatever form (id or alias) VALIDATOR_CONFIG uses
 				const validatorEntry = findValidatorEntry({ validatorConfig, categoryId, entityName });
 
 				if (!validatorEntry) {
@@ -40,8 +42,13 @@ const controller = ({
 					);
 				}
 
+				const resolvedCategoryId = await resolveCategoryId(baseDependencies, categoryId);
+				if (resolvedCategoryId === undefined) {
+					throw new NotFound(`Category '${categoryId}' not found`);
+				}
+
 				const isValid = await validationSvc.existsRecord({
-					categoryId: Number(categoryId),
+					categoryId: resolvedCategoryId,
 					entityName,
 					field: validatorEntry.fieldName,
 					organization,

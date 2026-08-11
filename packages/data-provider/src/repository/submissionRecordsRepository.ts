@@ -7,7 +7,7 @@ import {
 	type NewSubmissionRecord,
 	submissionFiles,
 	type SubmissionRecord,
-	type SubmissionRecordErrors,
+	type SubmissionRecordError,
 	submissionRecords,
 } from '@overture-stack/lyric-data-model/models';
 
@@ -212,7 +212,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 			params: {
 				validRecordIds?: number[];
 				receivedRecordIds?: number[];
-				invalidRecords?: Array<{ id: number; errors?: SubmissionRecordErrors[] }>;
+				invalidRecords?: Array<{ id: number; errors?: SubmissionRecordError[] }>;
 			},
 			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmissionRecord, ExtractTablesWithRelations<SubmissionRecord>>,
 		): Promise<number[]> => {

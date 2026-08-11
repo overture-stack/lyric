@@ -1,6 +1,6 @@
 {
-  "id": "ab9dad09-40e7-4df3-9b6d-57aa9ae809cf",
-  "prevId": "e56be254-f558-4f3a-81ff-fcf6094ceb85",
+  "id": "2cfa9a03-57e5-4b57-874d-e72a094ef393",
+  "prevId": "f2fe7a66-f0e4-4a17-8f49-29fefb6f5809",
   "version": "5",
   "dialect": "pg",
   "tables": {
@@ -126,54 +126,54 @@
         "audit_submitted_data_dictionary_category_id_dictionary_categories_id_fk": {
           "name": "audit_submitted_data_dictionary_category_id_dictionary_categories_id_fk",
           "tableFrom": "audit_submitted_data",
+          "tableTo": "dictionary_categories",
           "columnsFrom": [
             "dictionary_category_id"
           ],
-          "tableTo": "dictionary_categories",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "audit_submitted_data_last_valid_schema_id_dictionaries_id_fk": {
           "name": "audit_submitted_data_last_valid_schema_id_dictionaries_id_fk",
           "tableFrom": "audit_submitted_data",
+          "tableTo": "dictionaries",
           "columnsFrom": [
             "last_valid_schema_id"
           ],
-          "tableTo": "dictionaries",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "audit_submitted_data_original_schema_id_dictionaries_id_fk": {
           "name": "audit_submitted_data_original_schema_id_dictionaries_id_fk",
           "tableFrom": "audit_submitted_data",
+          "tableTo": "dictionaries",
           "columnsFrom": [
             "original_schema_id"
           ],
-          "tableTo": "dictionaries",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "audit_submitted_data_submission_id_submissions_id_fk": {
           "name": "audit_submitted_data_submission_id_submissions_id_fk",
           "tableFrom": "audit_submitted_data",
+          "tableTo": "submissions",
           "columnsFrom": [
             "submission_id"
           ],
-          "tableTo": "submissions",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -242,6 +242,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "alias": {
+          "name": "alias",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
         "default_centric_entity": {
           "name": "default_centric_entity",
           "type": "varchar",
@@ -284,12 +290,19 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
+        "dictionary_categories_alias_unique": {
+          "name": "dictionary_categories_alias_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "alias"
+          ]
+        },
         "dictionary_categories_name_unique": {
           "name": "dictionary_categories_name_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "name"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       }
     },
@@ -399,54 +412,54 @@
         "dictionary_migration_category_id_dictionary_categories_id_fk": {
           "name": "dictionary_migration_category_id_dictionary_categories_id_fk",
           "tableFrom": "dictionary_migration",
+          "tableTo": "dictionary_categories",
           "columnsFrom": [
             "category_id"
           ],
-          "tableTo": "dictionary_categories",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "dictionary_migration_from_dictionary_id_dictionaries_id_fk": {
           "name": "dictionary_migration_from_dictionary_id_dictionaries_id_fk",
           "tableFrom": "dictionary_migration",
+          "tableTo": "dictionaries",
           "columnsFrom": [
             "from_dictionary_id"
           ],
-          "tableTo": "dictionaries",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "dictionary_migration_to_dictionary_id_dictionaries_id_fk": {
           "name": "dictionary_migration_to_dictionary_id_dictionaries_id_fk",
           "tableFrom": "dictionary_migration",
+          "tableTo": "dictionaries",
           "columnsFrom": [
             "to_dictionary_id"
           ],
-          "tableTo": "dictionaries",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "dictionary_migration_submission_id_submissions_id_fk": {
           "name": "dictionary_migration_submission_id_submissions_id_fk",
           "tableFrom": "dictionary_migration",
+          "tableTo": "submissions",
           "columnsFrom": [
             "submission_id"
           ],
-          "tableTo": "submissions",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -494,21 +507,30 @@
             "submission_id"
           ],
           "isUnique": false
+        },
+        "submission_files_submission_entity_file_index": {
+          "name": "submission_files_submission_entity_file_index",
+          "columns": [
+            "submission_id",
+            "entity_name",
+            "file_name"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
         "submission_files_submission_id_submissions_id_fk": {
           "name": "submission_files_submission_id_submissions_id_fk",
           "tableFrom": "submission_files",
+          "tableTo": "submissions",
           "columnsFrom": [
             "submission_id"
           ],
-          "tableTo": "submissions",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -562,21 +584,38 @@
             "file_id"
           ],
           "isUnique": false
+        },
+        "submission_records_file_id_action_type_index": {
+          "name": "submission_records_file_id_action_type_index",
+          "columns": [
+            "file_id",
+            "action_type"
+          ],
+          "isUnique": false
+        },
+        "submission_records_file_id_state_action_type_index": {
+          "name": "submission_records_file_id_state_action_type_index",
+          "columns": [
+            "file_id",
+            "state",
+            "action_type"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {
         "submission_records_file_id_submission_files_id_fk": {
           "name": "submission_records_file_id_submission_files_id_fk",
           "tableFrom": "submission_records",
+          "tableTo": "submission_files",
           "columnsFrom": [
             "file_id"
           ],
-          "tableTo": "submission_files",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -682,28 +721,28 @@
         "submissions_dictionary_category_id_dictionary_categories_id_fk": {
           "name": "submissions_dictionary_category_id_dictionary_categories_id_fk",
           "tableFrom": "submissions",
+          "tableTo": "dictionary_categories",
           "columnsFrom": [
             "dictionary_category_id"
           ],
-          "tableTo": "dictionary_categories",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "submissions_dictionary_id_dictionaries_id_fk": {
           "name": "submissions_dictionary_id_dictionaries_id_fk",
           "tableFrom": "submissions",
+          "tableTo": "dictionaries",
           "columnsFrom": [
             "dictionary_id"
           ],
-          "tableTo": "dictionaries",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -828,51 +867,51 @@
         "submitted_data_dictionary_category_id_dictionary_categories_id_fk": {
           "name": "submitted_data_dictionary_category_id_dictionary_categories_id_fk",
           "tableFrom": "submitted_data",
+          "tableTo": "dictionary_categories",
           "columnsFrom": [
             "dictionary_category_id"
           ],
-          "tableTo": "dictionary_categories",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "submitted_data_last_valid_schema_id_dictionaries_id_fk": {
           "name": "submitted_data_last_valid_schema_id_dictionaries_id_fk",
           "tableFrom": "submitted_data",
+          "tableTo": "dictionaries",
           "columnsFrom": [
             "last_valid_schema_id"
           ],
-          "tableTo": "dictionaries",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "submitted_data_original_schema_id_dictionaries_id_fk": {
           "name": "submitted_data_original_schema_id_dictionaries_id_fk",
           "tableFrom": "submitted_data",
+          "tableTo": "dictionaries",
           "columnsFrom": [
             "original_schema_id"
           ],
-          "tableTo": "dictionaries",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "submitted_data_system_id_unique": {
           "name": "submitted_data_system_id_unique",
+          "nullsNotDistinct": false,
           "columns": [
             "system_id"
-          ],
-          "nullsNotDistinct": false
+          ]
         }
       }
     }

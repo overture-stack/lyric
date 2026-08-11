@@ -20,11 +20,11 @@ import createSubmissionRecordsRepository from '../../repository/submissionRecord
 import createSubmittedDataRepository from '../../repository/submittedRepository.js';
 import { getDictionarySchemaRelations, type SchemaChildNode } from '../../utils/dictionarySchemaRelations.js';
 import { BadRequest } from '../../utils/errors.js';
-import { readTextFile } from '../../utils/fileUtils.js';
 import { convertRecordToString } from '../../utils/formatUtils.js';
 import { parseRecordsToInsert } from '../../utils/recordsParser.js';
 import {
 	extractSchemaDataFromMergedDataRecords,
+	type FileParseResult,
 	filterRelationsForPrimaryIdUpdate,
 	findInvalidRecordErrorsBySchemaName,
 	groupSchemaErrorsByEntity,
@@ -35,6 +35,7 @@ import {
 	parseToSchema,
 	segregateFieldChangeRecords,
 	type SubmissionErrors,
+	submissionInsertDataFromFiles,
 	validateSchemas,
 } from '../../utils/submissionUtils.js';
 import {
@@ -471,10 +472,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			});
 
 			return {
-				submissionId: submission.id,
-				organization: submission.organization,
+				categoryAlias: submission.dictionaryCategory.alias ?? undefined,
 				categoryId: submission.dictionaryCategory.id,
 				data: resultCommit,
+				organization: submission.organization,
+				submissionId: submission.id,
 			};
 		} catch (error) {
 			const message = error instanceof Error ? error.message : error;
@@ -879,23 +881,42 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		return updatedActiveSubmissionId;
 	};
 
+	const logFileResult = (result: FileParseResult) => {
+		if (result.status === 'error') {
+			logger.error(LOG_MODULE, `Failed to parse file`, {
+				fileName: result.fileName,
+				fileSize: bytes.format(result.fileSize, { decimalPlaces: 2 }),
+				entityName: result.entityName,
+				error: result.streamError,
+			});
+		} else if (result.status === 'invalid') {
+			// Log field names and line numbers only — not field values (OWASP A03).
+			logger.warn(LOG_MODULE, `File parsed with schema validation issues`, {
+				fileName: result.fileName,
+				fileSize: bytes.format(result.fileSize, { decimalPlaces: 2 }),
+				entityName: result.entityName,
+				errorCount: result.parseErrors.length,
+				issues: result.parseErrors.slice(0, 10).map((e) => ({
+					line: e.recordIndex,
+					fields: e.recordErrors.map((re) => re.fieldName),
+				})),
+			});
+		}
+	};
+
 	/**
-	 * Void function to process and validate uploaded files on an Active Submission.
-	 * Performs the schema data validation combined with all Submitted Data.
-	 * @param {FileSchemaMap} fileSchemaMap Mapping the files with a schema
-	 * @param {number} submissionId Submission ID
-	 * @param {string} username User who performs the action
-	 * @returns {void}
+	 * Processes and validates uploaded files on an Active Submission.
+	 * File parsing is fault-isolated per file. Schema validation runs in a background worker thread.
+	 * @param {FileSchemaMap} fileSchemaMap Mapping of files to their resolved entity and schema
+	 * @param {ValidateFilesParams} params categoryId, organization, username
+	 * @returns Per-file parse results, available immediately; validation results arrive later via the worker.
 	 */
-	const addFilesToSubmissionAsync = async (fileSchemaMap: FileSchemaMap, submissionId: number, username: string) => {
-		const fileSummaries = Object.entries(fileSchemaMap)
-			.flatMap(([_, { files, schema }]) =>
-				files.map(
-					(file) => `'${file.originalname}' (${bytes.format(file.size, { decimalPlaces: 2 })}, entity: ${schema.name})`,
-				),
-			)
-			.join(', ');
-		logger.info(LOG_MODULE, `Processing files: ${fileSummaries}`);
+	const addFilesToSubmissionAsync = async (
+		fileSchemaMap: FileSchemaMap,
+		submissionId: number,
+		username: string,
+	): Promise<FileParseResult[]> => {
+		const fileResult: FileParseResult[] = [];
 
 		try {
 			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
@@ -904,34 +925,56 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				status: 'VALIDATING',
 			});
 
-			for (const [entityName, { files, schema }] of Object.entries(fileSchemaMap)) {
-				for (const file of files) {
-					const parsedFileData = await readTextFile(file, schema);
+			// Parse file data — each file is isolated; a failure on one does not block others.
+			const parsingFileDataResult = await submissionInsertDataFromFiles(fileSchemaMap);
 
-					const fileId = await submissionFilesRepository.save({
-						entityName,
-						fileName: file.filename,
-						fileSize: file.size,
-						submissionId,
+			for (const fileProcessed of parsingFileDataResult) {
+				logFileResult(fileProcessed.fileResult);
+				const {
+					data,
+					fileResult: { entityName, fileName, fileSize, status },
+				} = fileProcessed;
+				fileResult.push(fileProcessed.fileResult);
+
+				if (status === 'ok') {
+					dependencies.db.transaction(async (tx) => {
+						const fileId = await submissionFilesRepository.save(
+							{
+								entityName,
+								fileName,
+								fileSize,
+								submissionId,
+							},
+							tx,
+						);
+
+						await submissionRecordsRepository.saveManyForFile(
+							fileId,
+							data.map((record) => ({
+								actionType: 'INSERT',
+								data: record,
+								state: 'RECEIVED',
+							})),
+							tx,
+						);
 					});
-
-					await submissionRecordsRepository.saveManyForFile(
-						fileId,
-						parsedFileData.records.map((record) => ({
-							actionType: 'INSERT',
-							data: record,
-							state: 'RECEIVED',
-						})),
-					);
 				}
 			}
 
 			// Perform Schema Data validation in a worker thread
 			dependencies.workerPool.dataValidation({ submissionId: submissionId });
 		} catch (error) {
-			logger.error(`There was an error processing submitted files: ${fileSummaries}`, JSON.stringify(error));
+			logger.error(LOG_MODULE, `Error processing submitted files`, {
+				error: error instanceof Error ? error.message : String(error),
+				errorType: error instanceof Error ? error.name : 'unknown',
+			});
 		}
-		logger.info(LOG_MODULE, `Finished addFilesToSubmissionAsync on submission "${submissionId}"`);
+		logger.info(
+			LOG_MODULE,
+			`Finished addFilesToSubmissionAsync for active submission with ID "${submissionId}" submitted by user "${username}"`,
+		);
+
+		return fileResult;
 	};
 
 	return {

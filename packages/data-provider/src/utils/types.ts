@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z as zod } from 'zod';
 
 import {
 	type DataRecord,
@@ -33,14 +33,14 @@ export const SUBMISSION_STATUS = {
 } as const;
 export type SubmissionStatus = ObjectValues<typeof SUBMISSION_STATUS>;
 
-export const MIGRATION_STATUS = z.enum(['IN_PROGRESS', 'COMPLETED', 'FAILED']);
-export type MigrationStatus = z.infer<typeof MIGRATION_STATUS>;
+export const MIGRATION_STATUS = zod.enum(['IN_PROGRESS', 'COMPLETED', 'FAILED']);
+export type MigrationStatus = zod.infer<typeof MIGRATION_STATUS>;
 
 /**
  * Enum matching Audit Action in database
  */
-export const AUDIT_ACTION = z.enum(['UPDATE', 'DELETE', 'MIGRATION']);
-export type AuditAction = z.infer<typeof AUDIT_ACTION>;
+export const AUDIT_ACTION = zod.enum(['UPDATE', 'DELETE', 'MIGRATION']);
+export type AuditAction = zod.infer<typeof AUDIT_ACTION>;
 
 /**
  * Audit Raw Data from Repository
@@ -119,6 +119,7 @@ export interface SubmitDataResult {
  */
 export interface SubmitFileResult extends SubmitDataResult {
 	batchErrors: BatchError[];
+	fileResults: import('./submissionUtils.js').FileParseResult[];
 	inProcessEntities: string[];
 }
 
@@ -138,7 +139,12 @@ export type CommitSubmissionResult = {
 
 export type DictionarySummary = Pick<Dictionary, 'name' | 'version'>;
 
-export type CategorySummary = Pick<Category, 'id' | 'name'>;
+/**
+ * Compact category identity: attached to submission-shaped responses, and used standalone by
+ * `GET /category` and the alias assign/unassign endpoints. `alias` is `undefined` (never
+ * `null`) when absent, distinct from `Category.alias`'s raw DB shape.
+ */
+export type CategorySummary = Pick<Category, 'id' | 'name'> & { alias?: string };
 
 export type DeleteSubmissionResult = {
 	status: string;
@@ -150,6 +156,7 @@ export type DeleteSubmissionResult = {
  * Response type on Register new Dictionary
  */
 export type RegisterDictionaryResult = {
+	alias?: string;
 	categoryId: number;
 	categoryName: string;
 	name: string;
@@ -164,17 +171,21 @@ export type { Schema, SchemasDictionary };
 /**
  * Enum matching Audit Action in database
  */
-export const SUBMISSION_ACTION_TYPE = z.enum(['INSERTS', 'UPDATES', 'DELETES']);
-export type SubmissionActionType = z.infer<typeof SUBMISSION_ACTION_TYPE>;
+export const SUBMISSION_ACTION_TYPE = zod.enum(['INSERTS', 'UPDATES', 'DELETES']);
+export type SubmissionActionType = zod.infer<typeof SUBMISSION_ACTION_TYPE>;
+
+/** Action field included in each Kafka message emitted after a successful commit. */
+export const KAFKA_ACTION = zod.enum(['delete', 'insert', 'update']);
+export type KafkaAction = zod.infer<typeof KAFKA_ACTION>;
 
 /**
  * Enum matching Submission Record state in database
  */
-export const SUBMISSION_RECORD_STATE = z.enum(['RECEIVED', 'VALID', 'INVALID']);
-export type SubmissionRecordState = z.infer<typeof SUBMISSION_RECORD_STATE>;
+export const SUBMISSION_RECORD_STATE = zod.enum(['RECEIVED', 'VALID', 'INVALID']);
+export type SubmissionRecordState = zod.infer<typeof SUBMISSION_RECORD_STATE>;
 
-export const SUBMISSION_RECORD_ACTION_TYPE = z.enum(['INSERT', 'UPDATE', 'DELETE']);
-export type SubmissionRecordActionType = z.infer<typeof SUBMISSION_RECORD_ACTION_TYPE>;
+export const SUBMISSION_RECORD_ACTION_TYPE = zod.enum(['INSERT', 'UPDATE', 'DELETE']);
+export type SubmissionRecordActionType = zod.infer<typeof SUBMISSION_RECORD_ACTION_TYPE>;
 
 /**
  * File upload validation error types
@@ -314,13 +325,18 @@ export type SubmissionWithDictionaryAndCategoryRepositoryRecord = {
 	updatedBy: string | null;
 };
 
+/**
+ * Response type for the Get Category Details endpoint.
+ */
 export type CategoryDetailsResponse = {
-	id: number;
-	dictionary?: DictionarySummary;
-	name: string;
-	organizations: string[];
+	/** Not present if the category has no alias assigned. */
+	alias?: string;
 	createdAt: string;
 	createdBy: string;
+	dictionary?: DictionarySummary;
+	id: number;
+	name: string;
+	organizations: string[];
 	updatedAt: string;
 	updatedBy: string;
 };
@@ -332,10 +348,11 @@ export type DeleteSubmittedData = {
 
 export type FieldNamesByPriorityMap = { required: string[]; optional: string[] };
 
-export type ListAllCategoriesResponse = {
-	id: number;
-	name: string;
-};
+/**
+ * Response type for the List All Categories endpoint. Kept as a distinct export for backward
+ * compatibility; structurally identical to `CategorySummary`.
+ */
+export type ListAllCategoriesResponse = CategorySummary;
 
 /**
  * Submitted Raw Data information
@@ -352,14 +369,16 @@ export type SubmittedDataResponse = {
  * Result type Post-Commit Submission
  */
 export type ResultOnCommit = {
-	submissionId: number;
-	organization: string;
+	/** Not present if the category has no alias assigned. */
+	categoryAlias?: string;
 	categoryId: number;
 	data?: {
+		deletes: SubmittedDataResponse[];
 		inserts: SubmittedDataResponse[];
 		updates: SubmittedDataResponse[];
-		deletes: SubmittedDataResponse[];
 	};
+	organization: string;
+	submissionId: number;
 };
 
 /**
@@ -475,17 +494,17 @@ export type Clean<T> = T extends infer U ? { [K in keyof U]: U[K] } : never;
 /**
  * Enum matching Schema relationships types
  */
-export const SCHEMA_RELATION_TYPE = z.enum(['parent', 'children']);
-export type SchemaRelationType = z.infer<typeof SCHEMA_RELATION_TYPE>;
+export const SCHEMA_RELATION_TYPE = zod.enum(['parent', 'children']);
+export type SchemaRelationType = zod.infer<typeof SCHEMA_RELATION_TYPE>;
 
 /**
  * Enum matching Schema relationships order types
  */
-export const ORDER_TYPE = z.enum(['asc', 'desc']);
-export type OrderType = z.infer<typeof ORDER_TYPE>;
+export const ORDER_TYPE = zod.enum(['asc', 'desc']);
+export type OrderType = zod.infer<typeof ORDER_TYPE>;
 
 /**
  * Enum matching Retrieve data views
  */
-export const VIEW_TYPE = z.enum(['flat', 'compound']);
-export type ViewType = z.infer<typeof VIEW_TYPE>;
+export const VIEW_TYPE = zod.enum(['flat', 'compound']);
+export type ViewType = zod.infer<typeof VIEW_TYPE>;

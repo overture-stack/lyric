@@ -6,6 +6,7 @@ import {
 	Dictionary as SchemasDictionary,
 	DictionaryValidationError,
 	parse,
+	type ParseSchemaError,
 	Schema,
 	TestResult,
 	validate,
@@ -13,7 +14,7 @@ import {
 import {
 	type SubmissionDeleteData,
 	type SubmissionInsertData,
-	type SubmissionRecordErrors,
+	type SubmissionRecordError,
 	type SubmissionUpdateData,
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
@@ -51,51 +52,6 @@ import {
 
 export const inProcessSubmissionStatus = [SUBMISSION_STATUS.VALIDATING, SUBMISSION_STATUS.COMMITTING] as const;
 export type InProcessSubmissionStatus = typeof inProcessSubmissionStatus;
-
-type SubmissionInsertBatch = {
-	batchName: string;
-	records: DataRecord[];
-};
-
-const FILE_PARSE_CONCURRENCY = 4;
-
-const parseEntityFiles = async (files: Express.Multer.File[], schema: Schema): Promise<DataRecord[][]> => {
-	const parsedRecordsByIndex: DataRecord[][] = new Array(files.length);
-	let nextFileIndex = 0;
-
-	const worker = async () => {
-		while (true) {
-			const fileIndex = nextFileIndex;
-			nextFileIndex++;
-
-			if (fileIndex >= files.length) {
-				return;
-			}
-
-			const file = files[fileIndex];
-			if (!file) {
-				continue;
-			}
-			const parsedFileData = await readTextFile(file, schema);
-
-			if (parsedFileData.errors && parsedFileData.errors.length > 0) {
-				throw new Error(
-					`File '${file.originalname}' has ${parsedFileData.errors.length} parsing ${plur(
-						'error',
-						parsedFileData.errors.length,
-					)}`,
-				);
-			}
-
-			parsedRecordsByIndex[fileIndex] = parsedFileData.records;
-		}
-	};
-
-	const workers = Array.from({ length: Math.min(FILE_PARSE_CONCURRENCY, files.length) }, () => worker());
-	await Promise.all(workers);
-
-	return parsedRecordsByIndex;
-};
 
 // Only "open", "valid", and "invalid" statuses are considered Active Submission
 export const openSubmissionStatus = [
@@ -380,7 +336,7 @@ export const filterRelationsForPrimaryIdUpdate = (
 };
 type SubmissionRecordErrorDetails = {
 	recordId: number;
-	errors: SubmissionRecordErrors[];
+	errors: SubmissionRecordError[];
 };
 
 export type SubmissionErrors = {
@@ -696,37 +652,58 @@ export const segregateFieldChangeRecords = (
 	);
 };
 
+/** Per-file outcome from `submissionInsertDataFromFiles`. */
+export type FileParseResult = { fileName: string; entityName: string; fileSize: number } & (
+	| { status: 'ok' }
+	| { status: 'invalid'; parseErrors: ParseSchemaError[] }
+	| { status: 'error'; streamError: string }
+);
+
+/** Return type of `submissionInsertDataFromFiles`. */
+export type FileInsertResult = {
+	data: DataRecord[];
+	fileResult: FileParseResult;
+};
+
 /**
- * Construct a SubmissionInsertData object per each file returning a Record type based on entityName
- * @param {FileSchemaMap} fileSchemaPairs
- * @returns {Promise<Record<string, SubmissionInsertData>>}
+ * Parses all files in the schema map into insertion records.
+ * Each file is processed independently: a stream or parse failure on one file is captured and
+ * reported without interrupting processing of the remaining files.
  */
-export const submissionInsertDataFromFiles = async (
-	fileSchemaMap: FileSchemaMap,
-): Promise<Record<string, SubmissionInsertBatch>> => {
-	const output: Record<string, SubmissionInsertBatch> = {};
+export const submissionInsertDataFromFiles = async (fileSchemaMap: FileSchemaMap): Promise<FileInsertResult[]> => {
+	const result: FileInsertResult[] = [];
 
 	for (const [entityName, { files, schema }] of Object.entries(fileSchemaMap)) {
-		if (files.length === 0) {
-			continue;
+		for (const file of files) {
+			try {
+				const parsedFileData = await readTextFile(file, schema);
+				result.push({
+					data: parsedFileData.records,
+					fileResult: {
+						entityName,
+						fileName: file.originalname,
+						fileSize: file.size,
+						...(parsedFileData.errors.length > 0
+							? { status: 'invalid', parseErrors: parsedFileData.errors }
+							: { status: 'ok' }),
+					},
+				});
+			} catch (err) {
+				result.push({
+					data: [],
+					fileResult: {
+						status: 'error',
+						fileName: file.originalname,
+						fileSize: file.size,
+						entityName,
+						streamError: err instanceof Error ? err.message : String(err),
+					},
+				});
+			}
 		}
-		const firstFile = files[0];
-		if (!firstFile) {
-			continue;
-		}
-
-		const outputEntityValue = output[entityName] ?? {
-			batchName: firstFile.originalname,
-			records: [],
-		};
-
-		const parsedRecordsByIndex = await parseEntityFiles(files, schema);
-		parsedRecordsByIndex.forEach((records) => outputEntityValue.records.push(...records));
-
-		output[entityName] = outputEntityValue;
 	}
 
-	return output;
+	return result;
 };
 
 /**

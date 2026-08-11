@@ -3,6 +3,7 @@ import { after, afterEach, before, beforeEach, describe, it } from 'mocha';
 import supertest from 'supertest';
 
 import submissionProcessorFactory from '../../../../src/services/submission/submissionProcessor.js';
+import type { FileParseResult } from '../../../../src/utils/submissionUtils.js';
 import { createTsvFileContent } from '../../../fixtures/createTsvContent.js';
 import { dictionarySportsData } from '../../../fixtures/dictionarySchemasTestData.js';
 import { assertExists } from '../../assertions.js';
@@ -49,7 +50,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 	let lyricProvider: LyricProvider;
 	let categoryId: number;
 	let originalCreate: typeof submissionProcessorFactory.create;
-	let pendingAsyncWork: Promise<void> | undefined;
+	let pendingAsyncWork: Promise<FileParseResult[]> | undefined;
 
 	before(async () => {
 		originalCreate = submissionProcessorFactory.create;

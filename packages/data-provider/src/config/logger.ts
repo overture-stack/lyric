@@ -1,4 +1,4 @@
-import { createLogger, format, LoggerOptions, transports } from 'winston';
+import { createLogger, format, transport, transports } from 'winston';
 
 import { LoggerConfig } from './config.js';
 
@@ -12,29 +12,72 @@ export type Logger = {
 };
 
 /**
- * Get a Logger instance for log messages
- * @param config logger configuration
- * @returns functions to log messages based on each log level
+ * Splits variadic logger arguments into a text message and an optional metadata object.
+ * If the last argument is a plain object it is treated as structured metadata; all preceding
+ * arguments are joined with ' - ' to form the message string.
+ */
+const splitArgs = (messages: unknown[]): { message: string; meta?: Record<string, unknown> } => {
+	const last = messages[messages.length - 1];
+	const isMetaObject =
+		last !== null && last !== undefined && typeof last === 'object' && !Array.isArray(last) && !(last instanceof Error);
+
+	if (isMetaObject && messages.length > 1) {
+		return {
+			message: messages.slice(0, -1).join(' - '),
+			meta: last as Record<string, unknown>,
+		};
+	}
+
+	return { message: messages.join(' - ') };
+};
+
+/** Renders a metadata object as space-separated key=value pairs for human-readable output. */
+const metaToString = (meta: Record<string, unknown>): string =>
+	Object.entries(meta)
+		.map(([k, v]) => `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`)
+		.join(' ');
+
+/**
+ * Get a Logger instance for log messages.
+ *
+ * Supports two transports:
+ * - Console: human-readable `timestamp [level]: message key=value ...` format, always active.
+ * - JSON file (`logs/app.json`): full structured JSON for log aggregators; enabled via `config.json`.
  */
 export const getLogger = (config: LoggerConfig): Logger => {
-	const transportList: LoggerOptions['transports'] = [];
+	const transportList: transport[] = [];
 
-	const { combine, timestamp, colorize, printf } = format;
+	const { combine, timestamp, colorize, printf, json, errors } = format;
 
-	// console transport
-	const consoleLog = new transports.Console({
-		format: combine(
-			timestamp(),
-			colorize(),
-			printf(({ timestamp, level, message }) => `${timestamp} [${level}]: ${message}`),
-		),
-	});
-	transportList.push(consoleLog);
+	// Console transport: human-readable with metadata rendered as key=value pairs.
+	transportList.push(
+		new transports.Console({
+			format: combine(
+				timestamp(),
+				colorize(),
+				errors({ stack: true }),
+				printf(({ timestamp, level, message, ...meta }) => {
+					const metaKeys = Object.keys(meta).filter((k) => k !== 'stack');
+					const metaStr = metaKeys.length ? ' ' + metaToString(meta as Record<string, unknown>) : '';
+					return `${timestamp} [${level}]: ${message}${metaStr}`;
+				}),
+			),
+		}),
+	);
 
-	// file transport
+	// Plain-text file transport for pre-Kubernetes deployments that relied on file-based log shipping.
 	if (config.file) {
-		const fileLog = new transports.File({ filename: 'logs.log' });
-		transportList.push(fileLog);
+		transportList.push(new transports.File({ filename: 'logs.log' }));
+	}
+
+	// JSON file transport for log aggregators (Kibana via Filebeat, etc.).
+	if (config.json) {
+		transportList.push(
+			new transports.File({
+				filename: 'logs/app.json',
+				format: combine(timestamp(), errors({ stack: true }), json()),
+			}),
+		);
 	}
 
 	const logger = createLogger({
@@ -42,23 +85,17 @@ export const getLogger = (config: LoggerConfig): Logger => {
 		transports: transportList,
 	});
 
-	const log = (...message: unknown[]) => {
-		const fullMessage = message.join(' - ');
-		return fullMessage;
-	};
+	const emit =
+		(fn: (message: string, meta?: object) => void) =>
+		(...messages: unknown[]) => {
+			const { message, meta } = splitArgs(messages);
+			fn(message, meta);
+		};
 
 	return {
-		debug: (...messages: unknown[]) => {
-			return logger.debug(log(...messages));
-		},
-		warn: (...messages: unknown[]) => {
-			return logger.warn(log(...messages));
-		},
-		info: (...messages: unknown[]) => {
-			return logger.info(log(...messages));
-		},
-		error: (...messages: unknown[]) => {
-			return logger.error(log(...messages));
-		},
+		debug: emit(logger.debug.bind(logger)),
+		warn: emit(logger.warn.bind(logger)),
+		info: emit(logger.info.bind(logger)),
+		error: emit(logger.error.bind(logger)),
 	};
 };

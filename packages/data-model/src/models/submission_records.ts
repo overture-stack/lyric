@@ -41,7 +41,7 @@ export type UnrecognizedValueReason = {
 
 export type RecordErrorInvalidValue = FieldDetails & UnrecognizedValueReason;
 
-export type SubmissionRecordErrors = DictionaryValidationRecordErrorDetails | RecordErrorInvalidValue;
+export type SubmissionRecordError = DictionaryValidationRecordErrorDetails | RecordErrorInvalidValue;
 
 export const submissionRecords = pgTable(
 	'submission_records',
@@ -52,7 +52,7 @@ export const submissionRecords = pgTable(
 			.notNull(),
 		data: jsonb('data').$type<SubmissionData>().notNull(),
 		actionType: submissionRecordType('action_type').notNull(),
-		errors: jsonb('errors').$type<SubmissionRecordErrors[]>(),
+		errors: jsonb('errors').$type<SubmissionRecordError[]>(),
 		state: submissionRecordState('state').notNull(),
 	},
 	(table) => {

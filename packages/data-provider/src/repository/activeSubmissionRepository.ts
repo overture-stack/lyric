@@ -39,11 +39,24 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 		},
 		dictionaryCategory: {
 			columns: {
+				alias: true,
 				id: true,
 				name: true,
 			},
 		},
 	} as const satisfies Record<string, { columns: BooleanTrueObject }>;
+
+	/**
+	 *  Normalizes a queried record's `dictionaryCategory.alias` from the DB's `string | null`
+	 * to the public `CategorySummary` contract's `string | undefined` (omitted, not null, when unset).
+	 */
+	const withAliasNormalized = <T extends { dictionaryCategory: { alias: string | null } }>(record: T) =>
+		({
+			...record,
+			dictionaryCategory: { ...record.dictionaryCategory, alias: record.dictionaryCategory.alias ?? undefined },
+		}) as Omit<T, 'dictionaryCategory'> & {
+			dictionaryCategory: Omit<T['dictionaryCategory'], 'alias'> & { alias?: string };
+		};
 
 	/**
 	 * SQL condition used to filter submissions that are in an active state.
@@ -100,7 +113,7 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 			organization: string;
 		}): Promise<SubmissionWithDictionaryAndCategoryRepositoryRecord | undefined> => {
 			try {
-				return await db.query.submissions.findFirst({
+				const result = await db.query.submissions.findFirst({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
 						eq(submissions.createdBy, username),
@@ -110,6 +123,7 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 					columns: submissionColumns,
 					with: submissionDictionaryRelationColumns,
 				});
+				return result ? withAliasNormalized(result) : undefined;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed getting active submission summary`, error);
 				throw new ServiceUnavailable();
@@ -127,11 +141,12 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 			submissionId: number,
 		): Promise<SubmissionWithDictionaryAndCategoryRepositoryRecord | undefined> => {
 			try {
-				return await db.query.submissions.findFirst({
+				const result = await db.query.submissions.findFirst({
 					where: and(eq(submissions.id, submissionId)),
 					columns: submissionColumns,
 					with: submissionDictionaryRelationColumns,
 				});
+				return result ? withAliasNormalized(result) : undefined;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed getting Submission with id '${submissionId}'`, error);
 				throw new ServiceUnavailable();
@@ -189,7 +204,7 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 		): Promise<SubmissionWithDictionaryAndCategoryRepositoryRecord[] | undefined> => {
 			const { page, pageSize } = paginationOptions;
 			try {
-				return await db.query.submissions.findMany({
+				const results = await db.query.submissions.findMany({
 					where: and(
 						eq(submissions.dictionaryCategoryId, categoryId),
 						filterOptions.username ? eq(submissions.createdBy, filterOptions.username) : undefined,
@@ -202,6 +217,7 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 					limit: pageSize,
 					offset: (page - 1) * pageSize,
 				});
+				return results.map(withAliasNormalized);
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying Submissions by category with relations`, error);
 				throw new ServiceUnavailable();

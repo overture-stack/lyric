@@ -2,9 +2,13 @@ import { NextFunction, Request, Response } from 'express';
 
 import { BaseDependencies } from '../config/config.js';
 import categorySvc from '../services/categoryService.js';
-import { BadRequest } from '../utils/errors.js';
+import { NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
-import { categoryDetailsRequestSchema } from '../utils/schemas.js';
+import {
+	categoryAliasAssignRequestSchema,
+	categoryAliasUnassignRequestSchema,
+	categoryDetailsRequestSchema,
+} from '../utils/schemas.js';
 
 const controller = (dependencies: BaseDependencies) => {
 	const categoryService = categorySvc(dependencies);
@@ -13,14 +17,14 @@ const controller = (dependencies: BaseDependencies) => {
 	return {
 		getDetails: validateRequest(categoryDetailsRequestSchema, async (req, res, next) => {
 			try {
-				const categoryId = Number(req.params.categoryId);
+				const categoryIdOrAlias = req.params.categoryId;
 
-				logger.info(LOG_MODULE, 'Request Get Category Details', `categoryId '${categoryId}'`);
+				logger.info(LOG_MODULE, 'Request Get Category Details', `categoryId '${categoryIdOrAlias}'`);
 
-				const details = await categoryService.getDetails(categoryId);
+				const details = await categoryService.getDetails(categoryIdOrAlias);
 
 				if (!details) {
-					throw new BadRequest('Category not found');
+					throw new NotFound(`Category '${categoryIdOrAlias}' not found`);
 				}
 				return res.send(details);
 			} catch (error) {
@@ -37,6 +41,31 @@ const controller = (dependencies: BaseDependencies) => {
 				next(error);
 			}
 		},
+		assignAlias: validateRequest(categoryAliasAssignRequestSchema, async (req, res, next) => {
+			try {
+				const categoryIdOrAlias = req.params.categoryId;
+				const alias = req.body.alias;
+
+				logger.info(LOG_MODULE, 'Request Assign Category Alias', `categoryId '${categoryIdOrAlias}'`);
+
+				const result = await categoryService.assignAlias(categoryIdOrAlias, alias, req.user?.username);
+				return res.send(result);
+			} catch (error) {
+				next(error);
+			}
+		}),
+		unassignAlias: validateRequest(categoryAliasUnassignRequestSchema, async (req, res, next) => {
+			try {
+				const categoryIdOrAlias = req.params.categoryId;
+
+				logger.info(LOG_MODULE, 'Request Unassign Category Alias', `categoryId '${categoryIdOrAlias}'`);
+
+				const result = await categoryService.unassignAlias(categoryIdOrAlias, req.user?.username);
+				return res.send(result);
+			} catch (error) {
+				next(error);
+			}
+		}),
 	};
 };
 

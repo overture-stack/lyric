@@ -1,6 +1,6 @@
 {
-  "id": "b363a43f-2207-44d0-9789-eaf16ea50064",
-  "prevId": "1155508a-258f-4040-b54e-f8a1df1181a1",
+  "id": "02b8e9d6-f2dc-4b13-9795-78b274688e7a",
+  "prevId": "d21aa03b-6754-4978-9209-7113bb3d5890",
   "version": "5",
   "dialect": "pg",
   "tables": {
@@ -242,6 +242,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "alias": {
+          "name": "alias",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
         "default_centric_entity": {
           "name": "default_centric_entity",
           "type": "varchar",
@@ -284,6 +290,13 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
+        "dictionary_categories_alias_unique": {
+          "name": "dictionary_categories_alias_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "alias"
+          ]
+        },
         "dictionary_categories_name_unique": {
           "name": "dictionary_categories_name_unique",
           "nullsNotDistinct": false,
