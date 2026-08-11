@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { createSubmissionSummaryResponse } from '../../../../src/utils/submissionUtils.js';
+import { createSubmissionSummaryResponse } from '../../../../src/utils/submissionResponseParser.js';
 import { SUBMISSION_STATUS, type SubmissionSummary } from '../../../../src/utils/types.js';
 
 describe('Submission Utils - Parse a Submission object to a Summary of the Active Submission', () => {
