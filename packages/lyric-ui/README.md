@@ -101,6 +101,14 @@ the project but may encounter unintented visual issues.
 
 ---
 
+## Adding new components from Shadcn
+
+From the component library from [shadcn](https://ui.shadcn.com/docs/components), select targeted component and run the command they give you for that component.
+For example, `pnpm dlx shadcn@latest add card` will add a card component. All components added through this method will be added to the path `components/ui/*`.
+
+NOTE: Some components may also install third-party libraries.
+For example `pnpm dlx shadcn@latest add popover` will add `@radix-ui/react-popover`.
+
 ## Installation
 
 <!--
