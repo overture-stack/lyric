@@ -31,7 +31,6 @@ Shared React component library for Lyric-based UIs.
 | [React 18](https://react.dev/)                                                                       | Component runtime                                 |
 | [TypeScript](https://www.typescriptlang.org/)                                                        | Authoring language; types shipped in `dist/`      |
 | [Tailwind CSS v4](https://tailwindcss.com/)                                                          | Utility-first styling                             |
-| [tailwindcss-animate](https://github.com/jamiebuilds/tailwindcss-animate)                            | Animation utilities                               |
 | [class-variance-authority](https://cva.style/)                                                       | Variant and slot management for components        |
 | [clsx](https://github.com/lukeed/clsx) + [tailwind-merge](https://github.com/dcastil/tailwind-merge) | Conditional class composition without conflicts   |
 | [Vite](https://vitejs.dev/)                                                                          | Library build (ESM + CJS, bundled CSS)            |
