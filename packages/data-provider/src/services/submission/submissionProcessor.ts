@@ -19,7 +19,7 @@ import createSubmissionRecordsRepository from '../../repository/submissionRecord
 import createSubmittedDataRepository from '../../repository/submittedRepository.js';
 import { getDictionarySchemaRelations, type SchemaChildNode } from '../../utils/dictionarySchemaRelations.js';
 import { BadRequest } from '../../utils/errors.js';
-import { formatByteSize, getSizeInBytes } from '../../utils/fileUtils.js';
+import { formatByteSize, genericSubmissionFileName, getSizeInBytes } from '../../utils/fileUtils.js';
 import { convertRecordToString } from '../../utils/formatUtils.js';
 import { parseRecordsToInsert } from '../../utils/recordsParser.js';
 import {
@@ -651,23 +651,27 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			const additions = await handleIdFieldChanges(idFieldChangeRecord);
 
 			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
-			await update(submission.id, {
-				updatedBy: username,
-				status: 'VALIDATING',
-			});
+			await dependencies.db.transaction(async (tx) => {
+				await update(
+					submission.id,
+					{
+						updatedBy: username,
+						status: 'VALIDATING',
+					},
+					tx,
+				);
 
-			const entityNames: Set<string> = new Set([
-				...Object.keys(additions.inserts),
-				...Object.keys(additions.deletes),
-				...Object.keys(updatedActiveSubmissionData),
-			]);
+				const entityNames: Set<string> = new Set([
+					...Object.keys(additions.inserts),
+					...Object.keys(additions.deletes),
+					...Object.keys(updatedActiveSubmissionData),
+				]);
 
-			for (const entityName of entityNames) {
-				dependencies.db.transaction(async (tx) => {
+				for (const entityName of entityNames) {
 					const savedFileId = await submissionFilesRepository.save(
 						{
 							entityName: entityName,
-							fileName: `${Date.now()}.json`,
+							fileName: genericSubmissionFileName(),
 							fileSize: getSizeInBytes(JSON.stringify(recordsParsed)),
 							submissionId: submission.id,
 						},
@@ -708,8 +712,8 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 							tx,
 						);
 					}
-				});
-			}
+				}
+			});
 
 			// Perform Schema Data validation in a worker thread
 			dependencies.workerPool.dataValidation({ submissionId: submission.id });
@@ -770,7 +774,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				Object.entries(insertRecords).map(async ([entityName, entityRecords]) => {
 					const savedFileId = await submissionFilesRepository.save({
 						entityName,
-						fileName: `${Date.now()}.json`, // default file name for adding JSON records
+						fileName: genericSubmissionFileName(),
 						fileSize: getSizeInBytes(JSON.stringify(entityRecords)),
 						submissionId,
 					});
@@ -817,7 +821,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		const newStatusSubmission =
 			Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
 
-		dependencies.db.transaction(async (tx) => {
+		await dependencies.db.transaction(async (tx) => {
 			// Update with new data
 			const updatedActiveSubmissionId = await submissionRepository.update(
 				idActiveSubmission,
@@ -898,25 +902,29 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		const fileResult: FileParseResult[] = [];
 
 		try {
-			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
-			await submissionRepository.update(submissionId, {
-				updatedBy: username,
-				status: 'VALIDATING',
-			});
+			await dependencies.db.transaction(async (tx) => {
+				// Updating the Submission with the new data and 'VALIDATING' status before validation starts
+				await submissionRepository.update(
+					submissionId,
+					{
+						updatedBy: username,
+						status: 'VALIDATING',
+					},
+					tx,
+				);
 
-			// Parse file data — each file is isolated; a failure on one does not block others.
-			const parsingFileDataResult = await submissionInsertDataFromFiles(fileSchemaMap);
+				// Parse file data — each file is isolated; a failure on one does not block others.
+				const parsingFileDataResult = await submissionInsertDataFromFiles(fileSchemaMap);
 
-			for (const fileProcessed of parsingFileDataResult) {
-				logFileResult(fileProcessed.fileResult);
-				const {
-					data,
-					fileResult: { entityName, fileName, fileSize, status },
-				} = fileProcessed;
-				fileResult.push(fileProcessed.fileResult);
+				for (const fileProcessed of parsingFileDataResult) {
+					logFileResult(fileProcessed.fileResult);
+					const {
+						data,
+						fileResult: { entityName, fileName, fileSize, status },
+					} = fileProcessed;
+					fileResult.push(fileProcessed.fileResult);
 
-				if (status === 'ok') {
-					dependencies.db.transaction(async (tx) => {
+					if (status === 'ok') {
 						const fileId = await submissionFilesRepository.save(
 							{
 								entityName,
@@ -936,12 +944,12 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 							})),
 							tx,
 						);
-					});
+					}
 				}
-			}
+			});
 
 			// Perform Schema Data validation in a worker thread
-			dependencies.workerPool.dataValidation({ submissionId: submissionId });
+			dependencies.workerPool.dataValidation({ submissionId });
 		} catch (error) {
 			logger.error(LOG_MODULE, `Error processing submitted files`, {
 				error: error instanceof Error ? error.message : String(error),

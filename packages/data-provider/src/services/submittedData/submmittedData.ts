@@ -133,7 +133,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		// but for now just insert the new records
 		const entitiesToProcess = Object.keys(recordsToDeleteMap);
 
-		dependencies.db.transaction(async (tx) => {
+		await dependencies.db.transaction(async (tx) => {
 			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
 			await udpateSubmission(
 				activeSubmissionId,
