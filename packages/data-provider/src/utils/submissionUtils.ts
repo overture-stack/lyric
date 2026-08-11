@@ -1,5 +1,5 @@
+import { pluralize } from 'inflection';
 import * as _ from 'lodash-es';
-import plur from 'plur';
 
 import {
 	type DataRecord,
@@ -687,7 +687,7 @@ export const createSubmissionSummaryResponse = (
 };
 
 export const pluralizeSchemaName = (schemaName: string) => {
-	return plur(schemaName);
+	return pluralize(schemaName);
 };
 
 export const removeItemsFromSubmission = (

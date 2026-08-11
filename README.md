@@ -88,13 +88,13 @@ A model-agnostic, tabular data submission system designed to manage and validate
 
 ## Documentation
 
-- **[Developer Documentation](https://docs.overture.bio/docs/under-development/lyric/):** Technical resources for developers working with or contributing to the project, located in the `/docs` folder and from our [developer docs website](https://docs.overture.bio/docs/under-development/lyric/).
+- **[Developer Documentation](https://docs.overture.bio/develop/Lyric/overview):** Technical resources for developers working with or contributing to the project. This content can also be read and updated within the `/docs` folder of this repository.
 
 ## Support & Contributions
 
 - For support, feature requests, and bug reports, please see our [Support Guide](https://docs.overture.bio/community/support).
 
-- For detailed information on how to contribute to this project, please see our [Contributing Guide](https://docs.overture.bio/docs/contribution).
+- For detailed information on how to contribute to this project, please see our [Contributing Guide](./CONTRIBUTING.md).
 
 ## Related Software
 
@@ -111,8 +111,6 @@ The Overture Platform includes the following Overture Components:
 | [Stage](https://github.com/overture-stack/stage)        | A React-based web portal scaffolding                                                      |
 | [Lyric](https://github.com/overture-stack/lyric)        | A model-agnostic, tabular data submission system                                          |
 | [Lectern](https://github.com/overture-stack/lectern)    | Schema Manager, designed to validate, store, and manage collections of data dictionaries. |
-
-If you'd like to get started using our platform [check out our quickstart guides](https://docs.overture.bio/guides/getting-started)
 
 ## Funding Acknowledgement
 
