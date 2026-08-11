@@ -12,6 +12,7 @@ import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelations.js';
 import { InternalServerError, StatusConflict } from '../../utils/errors.js';
+import { getSizeInBytes } from '../../utils/fileUtils.js';
 import type { PaginatedResult } from '../../utils/result.js';
 import {
 	fetchDataErrorResponse,
@@ -132,30 +133,40 @@ const submittedData = (dependencies: BaseDependencies) => {
 		// but for now just insert the new records
 		const entitiesToProcess = Object.keys(recordsToDeleteMap);
 
-		// Updating the Submission with the new data and 'VALIDATING' status before validation starts
-		await udpateSubmission(activeSubmissionId, {
-			updatedBy: username,
-			status: 'VALIDATING',
-		});
+		dependencies.db.transaction(async (tx) => {
+			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
+			await udpateSubmission(
+				activeSubmissionId,
+				{
+					updatedBy: username,
+					status: 'VALIDATING',
+				},
+				tx,
+			);
 
-		await Promise.all(
-			Object.entries(recordsToDeleteMap).map(async ([entityName, entityRecords]) => {
-				const savedFileId = await submissionFilesRepository.save({
-					entityName,
-					fileName: `update-${entityName}-${Date.now()}.json`, // default file name for adding JSON records
-					fileSize: JSON.stringify(entityRecords).length,
-					submissionId: activeSubmissionId,
-				});
-				await submissionRecordsRepository.saveManyForFile(
-					savedFileId,
-					entityRecords.map((record) => ({
-						actionType: 'DELETE',
-						data: record,
-						state: 'RECEIVED',
-					})),
-				);
-			}),
-		);
+			await Promise.all(
+				Object.entries(recordsToDeleteMap).map(async ([entityName, entityRecords]) => {
+					const savedFileId = await submissionFilesRepository.save(
+						{
+							entityName,
+							fileName: `${Date.now()}.json`,
+							fileSize: getSizeInBytes(JSON.stringify(entityRecords)),
+							submissionId: activeSubmissionId,
+						},
+						tx,
+					);
+					await submissionRecordsRepository.saveManyForFile(
+						savedFileId,
+						entityRecords.map((record) => ({
+							actionType: 'DELETE',
+							data: record,
+							state: 'RECEIVED',
+						})),
+						tx,
+					);
+				}),
+			);
+		});
 
 		// Perform Schema Data validation in a worker thread
 		dependencies.workerPool.dataValidation({ submissionId: activeSubmissionId });

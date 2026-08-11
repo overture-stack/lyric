@@ -1,9 +1,9 @@
 import { expect } from 'chai';
 import { writeFileSync } from 'fs';
 import { describe, it } from 'mocha';
+import { tmpdir } from 'os';
 import { join } from 'path';
 import { Readable } from 'stream';
-import { tmpdir } from 'os';
 
 import { type Schema } from '@overture-stack/lectern-client';
 
@@ -65,7 +65,7 @@ describe('submissionInsertDataFromFiles', () => {
 			items: { files: [makeFile(path, 'items.tsv')], schema: minimalSchema('items') },
 		};
 
-		const { fileResults } = await submissionInsertDataFromFiles(fileSchemaMap);
+		const fileResults = await submissionInsertDataFromFiles(fileSchemaMap);
 
 		expect(fileResults).to.have.length(1);
 		expect(fileResults[0]?.status).to.equal('ok');
@@ -78,7 +78,7 @@ describe('submissionInsertDataFromFiles', () => {
 			items: { files: [makeFile(path, 'items.tsv')], schema: integerSchema('items') },
 		};
 
-		const { fileResults } = await submissionInsertDataFromFiles(fileSchemaMap);
+		const fileResults = await submissionInsertDataFromFiles(fileSchemaMap);
 
 		expect(fileResults).to.have.length(1);
 		const result = fileResults[0];
@@ -93,7 +93,7 @@ describe('submissionInsertDataFromFiles', () => {
 			items: { files: [makeFile('/nonexistent/path/items.tsv', 'items.tsv')], schema: minimalSchema('items') },
 		};
 
-		const { fileResults } = await submissionInsertDataFromFiles(fileSchemaMap);
+		const fileResults = await submissionInsertDataFromFiles(fileSchemaMap);
 
 		expect(fileResults).to.have.length(1);
 		const result = fileResults[0];
@@ -107,15 +107,12 @@ describe('submissionInsertDataFromFiles', () => {
 		const validPath = writeTsv([['item_id'], ['A']]);
 		const fileSchemaMap: FileSchemaMap = {
 			items: {
-				files: [
-					makeFile('/nonexistent/path/missing.tsv', 'missing.tsv'),
-					makeFile(validPath, 'valid.tsv'),
-				],
+				files: [makeFile('/nonexistent/path/missing.tsv', 'missing.tsv'), makeFile(validPath, 'valid.tsv')],
 				schema: minimalSchema('items'),
 			},
 		};
 
-		const { fileResults } = await submissionInsertDataFromFiles(fileSchemaMap);
+		const fileResults = await submissionInsertDataFromFiles(fileSchemaMap);
 
 		expect(fileResults).to.have.length(2);
 		expect(fileResults.find((r) => r.fileName === 'missing.tsv')?.status).to.equal('error');
@@ -130,10 +127,10 @@ describe('submissionInsertDataFromFiles', () => {
 			items: { files: [makeFile(pathA, 'a.tsv'), makeFile(pathB, 'b.tsv')], schema },
 		};
 
-		const { data, fileResults } = await submissionInsertDataFromFiles(fileSchemaMap);
+		const fileResults = await submissionInsertDataFromFiles(fileSchemaMap);
 
 		expect(fileResults).to.have.length(2);
 		expect(fileResults.every((r) => r.status === 'ok')).to.be.true;
-		expect(data['items']?.records).to.have.length(2);
+		expect(fileResults.every((r) => r.status === 'ok' && r.data.length === 1)).to.be.true;
 	});
 });
