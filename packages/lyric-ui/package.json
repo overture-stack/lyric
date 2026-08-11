@@ -1,7 +1,7 @@
 {
 	"name": "@overture-stack/lyric-ui",
 	"version": "0.0.0-dev",
-	"description": "Shared React component library for Lyric-based UIs",
+	"description": "Shared React component library for Lyric-based UIs.",
 	"type": "module",
 	"main": "./dist/lyric-ui.cjs",
 	"module": "./dist/lyric-ui.js",
@@ -12,7 +12,7 @@
 			"import": "./dist/lyric-ui.js",
 			"require": "./dist/lyric-ui.cjs"
 		},
-		"./dist/style.css": "./dist/style.css"
+		"./dist/lyric-ui.css": "./dist/lyric-ui.css"
 	},
 	"files": [
 		"dist/"
@@ -21,7 +21,8 @@
 		"node": ">=20.0.0"
 	},
 	"scripts": {
-		"build:all": "rimraf dist && vite build && tsc -p tsconfig.build.json",
+		"nuke:build": "npx rimraf dist",
+		"build:all": "pnpm nuke:build && vite build && tsc -p tsconfig.build.json",
 		"storybook": "storybook dev -p 6006",
 		"build:storybook": "storybook build"
 	},

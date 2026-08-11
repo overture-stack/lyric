@@ -21,7 +21,7 @@ export default defineConfig({
 		rollupOptions: {
 			external: ['react', 'react-dom', 'react/jsx-runtime'],
 			output: {
-				banner: "import './style.css';",
+				banner: "import './lyric-ui.css';",
 			},
 		},
 		cssCodeSplit: false,
