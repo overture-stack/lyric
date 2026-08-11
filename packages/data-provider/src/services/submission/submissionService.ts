@@ -15,10 +15,9 @@ import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
 import type { PaginatedResult } from '../../utils/result.js';
 import type { FilenameEntityPair } from '../../utils/schemas.js';
-import { buildDataSummary } from '../../utils/submissionResponseParser.js';
+import { buildDataSummary, createSubmissionSummaryResponse } from '../../utils/submissionResponseParser.js';
 import {
 	checkEntityFieldNames,
-	createSubmissionSummaryResponse,
 	type FileParseResult,
 	isSubmissionActive,
 	resolveFileEntities,
