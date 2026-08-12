@@ -14,6 +14,7 @@ import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelati
 import { InternalServerError, StatusConflict } from '../../utils/errors.js';
 import { getSizeInBytes } from '../../utils/fileUtils.js';
 import type { PaginatedResult } from '../../utils/result.js';
+import { resolveDeleteStagingConflicts } from '../../utils/submissionUtils.js';
 import {
 	fetchDataErrorResponse,
 	getEntityNamesFromFilterOptions,
@@ -129,9 +130,51 @@ const submittedData = (dependencies: BaseDependencies) => {
 			throw error;
 		}
 
-		// TODO: get the existing entity names for a submission and merge with the new ones to avoid duplicates,
-		// but for now just insert the new records
-		const entitiesToProcess = Object.keys(recordsToDeleteMap);
+		// Check what the Active Submission already has pending for these systemIds before staging
+		// anything new: a pending UPDATE is a conflict (reject, consistent with how the same
+		// conflict is handled at validation time), a pending DELETE is a duplicate (skip it).
+		const existingSubmissionRecords = await submissionRecordsRepository.getBySubmissionId(
+			activeSubmissionId,
+			undefined,
+			{
+				actionTypes: ['UPDATE', 'DELETE'],
+			},
+		);
+
+		const { filteredRecordsToDeleteMap, conflictingSystemIds, duplicateSystemIds } = resolveDeleteStagingConflicts(
+			recordsToDeleteMap,
+			existingSubmissionRecords,
+		);
+
+		if (conflictingSystemIds.length > 0) {
+			logger.error(
+				LOG_MODULE,
+				`Cannot delete system ID(s) '${conflictingSystemIds.join(', ')}' on Submission '${activeSubmissionId}': a pending update already exists for the same system ID`,
+			);
+			return {
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				description: `System ID(s) '${conflictingSystemIds.join(', ')}' already have a pending update staged on Submission '${activeSubmissionId}'. Resolve the conflicting update before deleting.`,
+				inProcessEntities: [],
+			};
+		}
+
+		if (duplicateSystemIds.length > 0) {
+			logger.info(
+				LOG_MODULE,
+				`System ID(s) '${duplicateSystemIds.join(', ')}' are already staged for deletion on Submission '${activeSubmissionId}', skipping duplicate`,
+			);
+		}
+
+		const entitiesToProcess = Object.keys(filteredRecordsToDeleteMap);
+
+		if (entitiesToProcess.length === 0) {
+			return {
+				status: ACTIVE_SUBMISSION_STATUS.PROCESSING,
+				description: 'All requested records are already staged for deletion on the Active Submission',
+				submissionId: activeSubmissionId.toString(),
+				inProcessEntities: [],
+			};
+		}
 
 		await dependencies.db.transaction(async (tx) => {
 			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
@@ -145,7 +188,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 			);
 
 			await Promise.all(
-				Object.entries(recordsToDeleteMap).map(async ([entityName, entityRecords]) => {
+				Object.entries(filteredRecordsToDeleteMap).map(async ([entityName, entityRecords]) => {
 					const savedFileId = await submissionFilesRepository.save(
 						{
 							entityName,
