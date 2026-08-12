@@ -389,6 +389,75 @@ export const findUpdateDeleteConflicts = (submissionData: SubmissionRecordWithEn
 	return conflictErrors;
 };
 
+export type DeleteStagingConflicts = {
+	/** `recordsToDeleteMap` with systemIds that already have a pending DELETE removed, so they aren't staged twice */
+	filteredRecordsToDeleteMap: Record<string, SubmissionDeleteData[]>;
+	/** systemIds that already have a pending UPDATE staged for the same entity in the Active Submission */
+	conflictingSystemIds: string[];
+	/** systemIds that already have a pending DELETE staged for the same entity — skipped instead of duplicated */
+	duplicateSystemIds: string[];
+};
+
+/**
+ * Checks systemIds about to be staged for deletion against what the Active Submission already has
+ * pending for the same entity, before a new DELETE record is ever inserted. A systemId with a
+ * pending UPDATE is reported as a conflict — the caller should reject the delete rather than
+ * silently letting one action override the other, consistent with how `findUpdateDeleteConflicts`
+ * treats the same conflict at validation time. A systemId that already has a pending DELETE is
+ * treated as a duplicate and dropped from the result, instead of inserting a second DELETE record.
+ * @param {Record<string, SubmissionDeleteData[]>} recordsToDeleteMap New deletes, grouped by entity name
+ * @param {SubmissionRecordWithEntityName[]} existingSubmissionRecords The Active Submission's current UPDATE/DELETE records
+ * @returns {DeleteStagingConflicts}
+ */
+export const resolveDeleteStagingConflicts = (
+	recordsToDeleteMap: Record<string, SubmissionDeleteData[]>,
+	existingSubmissionRecords: SubmissionRecordWithEntityName[],
+): DeleteStagingConflicts => {
+	const existingUpdateSystemIds = new Map<string, Set<string>>();
+	const existingDeleteSystemIds = new Map<string, Set<string>>();
+
+	const trackSystemId = (bucket: Map<string, Set<string>>, entityName: string, systemId: string) => {
+		const systemIds = bucket.get(entityName) ?? new Set<string>();
+		systemIds.add(systemId);
+		bucket.set(entityName, systemIds);
+	};
+
+	existingSubmissionRecords.forEach((record) => {
+		if (isUpdateSubmissionRecord(record)) {
+			trackSystemId(existingUpdateSystemIds, record.entityName, record.data.systemId);
+		} else if (isDeleteSubmissionRecord(record)) {
+			trackSystemId(existingDeleteSystemIds, record.entityName, record.data.systemId);
+		}
+	});
+
+	const conflictingSystemIds: string[] = [];
+	const duplicateSystemIds: string[] = [];
+	const filteredRecordsToDeleteMap: Record<string, SubmissionDeleteData[]> = {};
+
+	Object.entries(recordsToDeleteMap).forEach(([entityName, records]) => {
+		const conflictingUpdateIds = existingUpdateSystemIds.get(entityName);
+		const duplicateDeleteIds = existingDeleteSystemIds.get(entityName);
+
+		const recordsToKeep = records.filter((record) => {
+			if (conflictingUpdateIds?.has(record.systemId)) {
+				conflictingSystemIds.push(record.systemId);
+				return false;
+			}
+			if (duplicateDeleteIds?.has(record.systemId)) {
+				duplicateSystemIds.push(record.systemId);
+				return false;
+			}
+			return true;
+		});
+
+		if (recordsToKeep.length > 0) {
+			filteredRecordsToDeleteMap[entityName] = recordsToKeep;
+		}
+	});
+
+	return { filteredRecordsToDeleteMap, conflictingSystemIds, duplicateSystemIds };
+};
+
 /**
  * Collects every `recordId` referenced across all buckets of a `SubmissionErrors` object.
  * @param {SubmissionErrors} errors
