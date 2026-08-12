@@ -23,14 +23,17 @@ import { formatByteSize, genericSubmissionFileName, getSizeInBytes } from '../..
 import { convertRecordToString } from '../../utils/formatUtils.js';
 import { parseRecordsToInsert } from '../../utils/recordsParser.js';
 import {
+	extractRecordIdsFromSubmissionErrors,
 	extractSchemaDataFromMergedDataRecords,
 	type FileParseResult,
 	filterRelationsForPrimaryIdUpdate,
 	findInvalidRecordErrorsBySchemaName,
+	findUpdateDeleteConflicts,
 	groupSchemaErrorsByEntity,
 	isSubmissionActive,
 	mapGroupedUpdateSubmissionData,
 	mergeAndReferenceEntityData,
+	mergeSubmissionErrors,
 	mergeUpdatesBySystemId,
 	parseToSchema,
 	segregateFieldChangeRecords,
@@ -522,10 +525,29 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 		const submissionRecords = await submissionRecordsRepository.getBySubmissionId(submissionId);
 
+		// Detect records where the same systemId has both an UPDATE and a DELETE staged, before
+		// running dictionary validation. Both sides of a conflict are rejected explicitly instead
+		// of letting one action silently win.
+		const conflictErrors = findUpdateDeleteConflicts(submissionRecords);
+		const conflictingRecordIds = extractRecordIdsFromSubmissionErrors(conflictErrors);
+
+		if (conflictingRecordIds.size > 0) {
+			logger.error(
+				LOG_MODULE,
+				`Detected '${conflictingRecordIds.size}' Submission Record(s) with conflicting UPDATE/DELETE actions on the same systemId in Submission '${submissionId}'`,
+				JSON.stringify(conflictErrors),
+			);
+		}
+
+		// Exclude conflicting records from validation; neither side of a conflict should be applied
+		const nonConflictingSubmissionRecords = conflictingRecordIds.size
+			? submissionRecords.filter((record) => !conflictingRecordIds.has(record.id))
+			: submissionRecords;
+
 		// Merge Submitted Data with Active Submission keepping reference of each record ID
 		const dataMergedByEntityName = mergeAndReferenceEntityData({
 			submissionId,
-			submissionData: submissionRecords,
+			submissionData: nonConflictingSubmissionRecords,
 			submittedData,
 		});
 
@@ -536,10 +558,12 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		const resultValidation = validateSchemas(currentDictionary, crossSchemasDataToValidate);
 
 		// Collect errors of the Active Submission
-		const submissionSchemaErrors = groupSchemaErrorsByEntity({
+		const schemaValidationErrors = groupSchemaErrorsByEntity({
 			resultValidation,
 			dataValidated: dataMergedByEntityName,
 		});
+
+		const submissionSchemaErrors = mergeSubmissionErrors(conflictErrors, schemaValidationErrors);
 
 		if (_.isEmpty(submissionSchemaErrors)) {
 			logger.info(LOG_MODULE, `No error found on data submission`);
