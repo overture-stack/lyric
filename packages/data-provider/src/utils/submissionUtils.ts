@@ -12,6 +12,7 @@ import {
 	validate,
 } from '@overture-stack/lectern-client';
 import {
+	type RecordErrorActionConflict,
 	type SubmissionDeleteData,
 	type SubmissionInsertData,
 	type SubmissionRecordError,
@@ -220,66 +221,6 @@ export const findInvalidRecordErrorsBySchemaName = (
 };
 
 /**
- * Generalized function to filter out conflicting records between two data sets based on `systemId`.
- *
- * This function can be used to either filter updates from deletes or deletes from updates, depending on the provided parameters.
- * It removes records from the `sourceData` that have a matching `systemId` in the `conflictData`.
- *
- * @param sourceData - A record of the primary data (e.g., updates or deletes) to be filtered, grouped by entity name.
- * @param conflictData - A record of data that might conflict (e.g., deletes or updates), grouped by entity name.
- * @param entitySelector - A function to select the `systemId` from the source records.
- * @param conflictSelector - A function to select the `systemId` from the conflict records.
- * @returns A record of filtered source data, excluding records that conflict based on `systemId`.
- */
-export const filterRecordsByConflicts = <SourceData, ConflictData>(
-	sourceData: Record<string, SourceData[]>,
-	conflictData: Record<string, ConflictData[]>,
-	entitySelector: (item: SourceData) => string,
-	conflictSelector: (item: ConflictData) => string,
-): Record<string, SourceData[]> => {
-	return Object.entries(sourceData).reduce<Record<string, SourceData[]>>((acc, [entityName, sourceItems]) => {
-		const conflicts = conflictData[entityName];
-
-		if (conflicts) {
-			// Create a Set of systemIds from conflict records for faster lookup
-			const conflictIdsSet = new Set(conflicts.map(conflictSelector));
-
-			// Filter source data that does not have a matching systemId in the conflict set
-			const filteredValues = sourceItems.filter((item) => !conflictIdsSet.has(entitySelector(item)));
-
-			if (filteredValues.length > 0) {
-				acc[entityName] = filteredValues;
-			}
-		} else {
-			// If no conflicts, keep the source data as is
-			acc[entityName] = sourceItems;
-		}
-
-		return acc;
-	}, {});
-};
-
-/**
- * Filters deletes from the provided `submissionDeleteData` based on conflicts found in the `submissionUpdateData`.
- * Conflicts are determined by matching the `systemId` of the items in both records.
- *
- * @param submissionDeleteData - A record containing arrays of `SubmissionDeleteData` to be filtered.
- * @param submissionUpdateData - A record containing arrays of `SubmissionUpdateData` that defines the conflicts.
- * @returns A filtered record of `SubmissionDeleteData[]` where no items conflict with those in `submissionUpdateData`.
- */
-export const filterDeletesFromUpdates = (
-	submissionDeleteData: Record<string, SubmissionDeleteData[]>,
-	submissionUpdateData: Record<string, SubmissionUpdateData[]>,
-): Record<string, SubmissionDeleteData[]> => {
-	return filterRecordsByConflicts(
-		submissionDeleteData,
-		submissionUpdateData,
-		(itemToDelete) => itemToDelete.systemId,
-		(itemToUpdate) => itemToUpdate.systemId,
-	);
-};
-
-/**
  * Returns a filter to query the database used to find dependents records when the update record involves changes of an primary ID field
  *
  * @param schemaRelations An array of `SchemaChildNode` representing the schema relations for the entity. Each node contains information about parent-child relationships.
@@ -374,6 +315,137 @@ export const groupSchemaErrorsByEntity = (input: {
 		});
 	});
 	return submissionSchemaErrors;
+};
+
+/**
+ * Scans the Active Submission for `systemId`s (scoped per entity) that have both an UPDATE and a
+ * DELETE record staged at the same time. This is meant to run *before* dictionary validation:
+ * detecting the conflict up front lets both conflicting records be rejected explicitly, instead of
+ * one action silently winning based on array-filtering order later in the validation/merge pipeline.
+ * @param {SubmissionRecordWithEntityName[]} submissionData The Active Submission data
+ * @returns {SubmissionErrors} Conflict errors under the 'updates' and 'deletes' buckets, grouped by entity name
+ */
+export const findUpdateDeleteConflicts = (submissionData: SubmissionRecordWithEntityName[]): SubmissionErrors => {
+	const updatesByEntity = new Map<string, Map<string, number[]>>();
+	const deletesByEntity = new Map<string, Map<string, number[]>>();
+
+	const trackRecordId = (
+		bucket: Map<string, Map<string, number[]>>,
+		entityName: string,
+		systemId: string,
+		recordId: number,
+	) => {
+		const bySystemId = bucket.get(entityName) ?? new Map<string, number[]>();
+		bySystemId.set(systemId, [...(bySystemId.get(systemId) ?? []), recordId]);
+		bucket.set(entityName, bySystemId);
+	};
+
+	submissionData.forEach((record) => {
+		if (isUpdateSubmissionRecord(record)) {
+			trackRecordId(updatesByEntity, record.entityName, record.data.systemId, record.id);
+		} else if (isDeleteSubmissionRecord(record)) {
+			trackRecordId(deletesByEntity, record.entityName, record.data.systemId, record.id);
+		}
+	});
+
+	const conflictErrorFor = (
+		systemId: string,
+		conflictingActionType: RecordErrorActionConflict['conflictingActionType'],
+	): RecordErrorActionConflict => ({
+		reason: 'CONFLICTING_ACTION',
+		systemId,
+		conflictingActionType,
+		message: `Record with systemId '${systemId}' has both an UPDATE and a DELETE staged in the same Active Submission`,
+	});
+
+	const conflictErrors: SubmissionErrors = {};
+
+	updatesByEntity.forEach((updateSystemIds, entityName) => {
+		const deleteSystemIds = deletesByEntity.get(entityName);
+		if (!deleteSystemIds) {
+			return;
+		}
+
+		updateSystemIds.forEach((updateRecordIds, systemId) => {
+			const deleteRecordIds = deleteSystemIds.get(systemId);
+			if (!deleteRecordIds) {
+				return;
+			}
+
+			conflictErrors.updates ??= {};
+			conflictErrors.updates[entityName] = [
+				...(conflictErrors.updates[entityName] ?? []),
+				...updateRecordIds.map((recordId) => ({ recordId, errors: [conflictErrorFor(systemId, 'DELETE')] })),
+			];
+
+			conflictErrors.deletes ??= {};
+			conflictErrors.deletes[entityName] = [
+				...(conflictErrors.deletes[entityName] ?? []),
+				...deleteRecordIds.map((recordId) => ({ recordId, errors: [conflictErrorFor(systemId, 'UPDATE')] })),
+			];
+		});
+	});
+
+	return conflictErrors;
+};
+
+/**
+ * Collects every `recordId` referenced across all buckets of a `SubmissionErrors` object.
+ * @param {SubmissionErrors} errors
+ * @returns {Set<number>}
+ */
+export const extractRecordIdsFromSubmissionErrors = (errors: SubmissionErrors): Set<number> => {
+	const recordIds = new Set<number>();
+	for (const entities of Object.values(errors)) {
+		if (!entities) {
+			continue;
+		}
+		for (const records of Object.values(entities)) {
+			records.forEach(({ recordId }) => recordIds.add(recordId));
+		}
+	}
+	return recordIds;
+};
+
+/**
+ * Merges two `SubmissionErrors` objects together, concatenating each entity's error array
+ * bucket-by-bucket instead of overwriting it.
+ * @param {SubmissionErrors} a
+ * @param {SubmissionErrors} b
+ * @returns {SubmissionErrors}
+ */
+export const mergeSubmissionErrors = (a: SubmissionErrors, b: SubmissionErrors): SubmissionErrors => {
+	const mergeBucket = (
+		bucketA?: Record<string, SubmissionRecordErrorDetails[]>,
+		bucketB?: Record<string, SubmissionRecordErrorDetails[]>,
+	): Record<string, SubmissionRecordErrorDetails[]> | undefined => {
+		if (!bucketA && !bucketB) {
+			return undefined;
+		}
+		const merged: Record<string, SubmissionRecordErrorDetails[]> = { ...bucketA };
+		for (const [entityName, records] of Object.entries(bucketB ?? {})) {
+			merged[entityName] = [...(merged[entityName] ?? []), ...records];
+		}
+		return merged;
+	};
+
+	// Only set a bucket key when it actually has content — callers rely on `Object.keys(...).length`
+	// (and `_.isEmpty`) to detect the "no errors" case, so an always-present `undefined` value would
+	// make every submission look like it has errors.
+	const merged: SubmissionErrors = {};
+	const inserts = mergeBucket(a.inserts, b.inserts);
+	if (inserts) {
+		merged.inserts = inserts;
+	}
+	const updates = mergeBucket(a.updates, b.updates);
+	if (updates) {
+		merged.updates = updates;
+	}
+	const deletes = mergeBucket(a.deletes, b.deletes);
+	if (deletes) {
+		merged.deletes = deletes;
+	}
+	return merged;
 };
 
 /**

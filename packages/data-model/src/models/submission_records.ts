@@ -41,7 +41,25 @@ export type UnrecognizedValueReason = {
 
 export type RecordErrorInvalidValue = FieldDetails & UnrecognizedValueReason;
 
-export type SubmissionRecordError = DictionaryValidationRecordErrorDetails | RecordErrorInvalidValue;
+export type ConflictingActionReason = {
+	reason: 'CONFLICTING_ACTION';
+};
+
+/**
+ * Raised when a record's `systemId` has both an UPDATE and a DELETE staged in the same
+ * Active Submission. `conflictingActionType` names the *other* action type this record
+ * conflicts with, so both sides of the conflict can be reported independently.
+ */
+export type RecordErrorActionConflict = ConflictingActionReason & {
+	systemId: string;
+	conflictingActionType: 'UPDATE' | 'DELETE';
+	message: string;
+};
+
+export type SubmissionRecordError =
+	| DictionaryValidationRecordErrorDetails
+	| RecordErrorInvalidValue
+	| RecordErrorActionConflict;
 
 export const submissionRecords = pgTable(
 	'submission_records',
