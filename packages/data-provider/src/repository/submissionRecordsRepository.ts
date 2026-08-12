@@ -54,7 +54,8 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 					filterOptions?.actionTypes ? inArray(submissionRecords.actionType, filterOptions.actionTypes) : undefined,
 					filterOptions?.states ? inArray(submissionRecords.state, filterOptions.states) : undefined,
 				),
-			);
+			)
+			.orderBy(submissionRecords.id);
 
 		if (paginationOptions) {
 			query.limit(paginationOptions.pageSize).offset((paginationOptions.page - 1) * paginationOptions.pageSize);
