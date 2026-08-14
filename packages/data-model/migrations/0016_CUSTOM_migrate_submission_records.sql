@@ -116,7 +116,7 @@ inserted_submission_files AS (
 		submission_id,
 		file_name,
 		entity_name,
-		0 AS file_size
+		octet_length(CAST(records AS text)) AS file_size
 	FROM source_submission_files
 	RETURNING id, submission_id, file_name, entity_name
 ),
