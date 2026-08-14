@@ -95,7 +95,7 @@ components:
               type:
                 type: string
                 description: Type of action
-                enum: ['INSERTS', 'UPDATES', 'DELETES']
+                enum: ['INSERT', 'UPDATE', 'DELETE']
               entity:
                 type: string
                 description: Name of the entity

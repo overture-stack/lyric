@@ -163,7 +163,9 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 					.where(
 						and(
 							eq(submissionFiles.submissionId, submissionId),
-							filterOptions?.entityNames ? inArray(submissionFiles.entityName, filterOptions.entityNames) : undefined,
+							filterOptions?.entityNames?.length
+								? inArray(submissionFiles.entityName, filterOptions.entityNames)
+								: undefined,
 						),
 					);
 				return await getByFileIds(

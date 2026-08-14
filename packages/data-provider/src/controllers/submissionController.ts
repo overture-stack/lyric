@@ -30,7 +30,7 @@ import {
 	BATCH_ERROR_TYPE,
 	BatchError,
 	type PaginatedResponse,
-	SUBMISSION_ACTION_TYPE,
+	SUBMISSION_RECORD_ACTION_TYPE,
 	type SubmissionSummaryResponse,
 } from '../utils/types.js';
 
@@ -296,7 +296,7 @@ const controller = ({
 				const submissionId = Number(req.params.submissionId);
 				const entityNames = asArray(req.query.entityNames || []);
 
-				const actionTypes = parseSubmissionActionTypes(req.query.actionTypes || SUBMISSION_ACTION_TYPE.options);
+				const actionTypes = parseSubmissionActionTypes(req.query.actionTypes || SUBMISSION_RECORD_ACTION_TYPE.options);
 
 				// query params
 				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
