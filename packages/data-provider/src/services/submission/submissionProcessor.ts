@@ -795,22 +795,28 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			const insertRecords = parseRecordsToInsert(records, schemasDictionary);
 
 			await Promise.all(
-				Object.entries(insertRecords).map(async ([entityName, entityRecords]) => {
-					const savedFileId = await submissionFilesRepository.save({
-						entityName,
-						fileName: genericSubmissionFileName(),
-						fileSize: getSizeInBytes(JSON.stringify(entityRecords)),
-						submissionId,
-					});
-					await submissionRecordsRepository.saveManyForFile(
-						savedFileId,
-						entityRecords.map((record) => ({
-							actionType: 'INSERT',
-							data: record,
-							state: 'RECEIVED',
-						})),
-					);
-				}),
+				Object.entries(insertRecords).map(([entityName, entityRecords]) =>
+					dependencies.db.transaction(async (tx) => {
+						const savedFileId = await submissionFilesRepository.save(
+							{
+								entityName,
+								fileName: genericSubmissionFileName(),
+								fileSize: getSizeInBytes(JSON.stringify(entityRecords)),
+								submissionId,
+							},
+							tx,
+						);
+						await submissionRecordsRepository.saveManyForFile(
+							savedFileId,
+							entityRecords.map((record) => ({
+								actionType: 'INSERT',
+								data: record,
+								state: 'RECEIVED',
+							})),
+							tx,
+						);
+					}),
+				),
 			);
 
 			// Perform Schema Data validation in a worker thread
