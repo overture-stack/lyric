@@ -12,7 +12,7 @@ import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelations.js';
 import { InternalServerError, StatusConflict } from '../../utils/errors.js';
-import { getSizeInBytes } from '../../utils/fileUtils.js';
+import { genericSubmissionFileName, getSizeInBytes } from '../../utils/fileUtils.js';
 import type { PaginatedResult } from '../../utils/result.js';
 import { resolveDeleteStagingConflicts } from '../../utils/submissionUtils.js';
 import {
@@ -192,7 +192,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 					const savedFileId = await submissionFilesRepository.save(
 						{
 							entityName,
-							fileName: `${Date.now()}.json`,
+							fileName: genericSubmissionFileName(),
 							fileSize: getSizeInBytes(JSON.stringify(entityRecords)),
 							submissionId: activeSubmissionId,
 						},
