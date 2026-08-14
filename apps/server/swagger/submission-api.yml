@@ -56,7 +56,7 @@
 
 /submission/{submissionId}/details:
   get:
-    summary: Fetch Submission Data records. Sorted in their original file order and grouped by `inserts`, `updates`, and `deletes`.
+    summary: Fetch Submission Data records. Sorted in their original file order and grouped by `insert`, `update`, and `delete`.
     tags:
       - Submission
     parameters:
@@ -67,9 +67,9 @@
           type: array
           items:
             type: string
-            enum: [inserts, updates, deletes]
+            enum: [insert, update, delete]
         uniqueItems: true
-        description: Filters the Submission Data records by action type. Valid values are `inserts`, `updates`, and `deletes` (case insensitive). If not provided, all action types are returned.
+        description: Filters the Submission Data records by action type. Valid values are `insert`, `update`, and `delete` (case insensitive). If not provided, all action types are returned.
       - name: entityNames
         in: query
         schema:

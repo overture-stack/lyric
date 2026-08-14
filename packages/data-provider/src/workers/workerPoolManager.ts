@@ -133,6 +133,10 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 			}
 		},
 		terminate: async (): Promise<void> => {
+			// Wait for the worker's startup handshake to settle before terminating the pool.
+			// Terminating while the child process is still registering closes the IPC channel
+			// out from under its own `process.send()`, which crashes the process with EPIPE.
+			await readyProxy.catch(() => undefined);
 			await pool.terminate();
 		},
 	};
