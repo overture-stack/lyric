@@ -169,12 +169,6 @@ export type MigrationAuditRecord = Omit<AuditRepositoryRecord, 'action' | 'submi
 
 export type { Schema, SchemasDictionary };
 
-/**
- * Enum matching Audit Action in database
- */
-export const SUBMISSION_ACTION_TYPE = zod.enum(['INSERTS', 'UPDATES', 'DELETES']);
-export type SubmissionActionType = zod.infer<typeof SUBMISSION_ACTION_TYPE>;
-
 /** Action field included in each Kafka message emitted after a successful commit. */
 export const KAFKA_ACTION = zod.enum(['delete', 'insert', 'update']);
 export type KafkaAction = zod.infer<typeof KAFKA_ACTION>;
