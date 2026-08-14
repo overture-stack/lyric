@@ -24,7 +24,8 @@ target_submissions AS (
 		s.id,
 		s.status,
 		s.data,
-		s.errors
+		s.errors,
+		s.created_at
 	FROM submissions s
 ),
 
@@ -37,7 +38,7 @@ insert_buckets AS (
 		'INSERT'::text AS action_type,
 		'inserts'::text AS error_bucket,
 		ins.key AS entity_name,
-		format('inserts_%s', COALESCE(NULLIF(ins.value ->> 'batchName', ''), ins.key)) AS file_name,
+		'submission-' || to_char(ts.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') || '.json' AS file_name,
 		CASE
 			WHEN jsonb_typeof(ins.value) = 'array' THEN ins.value
 			ELSE COALESCE(ins.value -> 'records', '[]'::jsonb)
@@ -61,7 +62,7 @@ update_buckets AS (
 		'UPDATE'::text AS action_type,
 		'updates'::text AS error_bucket,
 		upd.key AS entity_name,
-		format('updates_%s', upd.key) AS file_name,
+		'submission-' || to_char(ts.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') || '.json' AS file_name,
 		CASE
 			WHEN jsonb_typeof(upd.value) = 'array' THEN upd.value
 			ELSE COALESCE(upd.value -> 'records', '[]'::jsonb)
@@ -85,7 +86,7 @@ delete_buckets AS (
 		'DELETE'::text AS action_type,
 		'deletes'::text AS error_bucket,
 		del.key AS entity_name,
-		format('deletes_%s', del.key) AS file_name,
+		'submission-' || to_char(ts.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') || '.json' AS file_name,
 		CASE
 			WHEN jsonb_typeof(del.value) = 'array' THEN del.value
 			ELSE COALESCE(del.value -> 'records', '[]'::jsonb)
