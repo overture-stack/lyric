@@ -295,6 +295,7 @@ const controller = ({
 			try {
 				const submissionId = Number(req.params.submissionId);
 				const entityNames = asArray(req.query.entityNames || []);
+				const fileId = req.query.fileId ? parseInt(req.query.fileId) : undefined;
 
 				const actionTypes = parseSubmissionActionTypes(req.query.actionTypes || SUBMISSION_RECORD_ACTION_TYPE.options);
 
@@ -307,12 +308,8 @@ const controller = ({
 				const submission = await submissionService.getSubmissionDetailsById({
 					submissionId,
 					paginationOptions: { page, pageSize },
-					filterOptions: { entityNames, actionTypes },
+					filterOptions: { entityNames, actionTypes, fileId },
 				});
-
-				if (isEmpty(submission)) {
-					throw new NotFound('Submission not found');
-				}
 
 				return res.status(200).json(submission);
 			} catch (error) {

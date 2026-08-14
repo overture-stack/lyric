@@ -52,7 +52,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 				and(
 					inArray(submissionRecords.fileId, fileIds),
 					filterOptions?.actionTypes ? inArray(submissionRecords.actionType, filterOptions.actionTypes) : undefined,
-					filterOptions?.states ? inArray(submissionRecords.state, filterOptions.states) : undefined,
+					filterOptions?.states?.length ? inArray(submissionRecords.state, filterOptions.states) : undefined,
 				),
 			)
 			.orderBy(submissionRecords.id);
@@ -154,6 +154,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 				actionTypes?: SubmissionRecordActionType[];
 				states?: SubmissionRecordState[];
 				entityNames?: string[];
+				fileId?: number;
 			},
 		): Promise<SubmissionRecordWithEntityName[]> => {
 			try {
@@ -166,8 +167,18 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 							filterOptions?.entityNames?.length
 								? inArray(submissionFiles.entityName, filterOptions.entityNames)
 								: undefined,
+							filterOptions?.fileId ? eq(submissionFiles.id, filterOptions.fileId) : undefined,
 						),
 					);
+
+				if (submissionFileIds.length === 0) {
+					logger.info(
+						LOG_MODULE,
+						`No submission files found for submissionId '${submissionId}' with the provided filter options.`,
+					);
+					return [];
+				}
+
 				return await getByFileIds(
 					submissionFileIds.map((file) => file.id),
 					paginationOptions,
