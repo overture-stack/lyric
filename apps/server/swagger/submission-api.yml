@@ -54,7 +54,7 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
-/submission/{submissionId}/details:
+/submission/{submissionId}/data:
   get:
     summary: Fetch Submission Data records. Sorted in their original file order and grouped by `insert`, `update`, and `delete`.
     tags:
@@ -78,6 +78,12 @@
             type: string
         uniqueItems: true
         description: Filters the Submission Data records by entity name. Must match names listed in the Submission Summary endpoint. If not provided, all entity names are returned.
+      - name: fileId
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: An optional query parameter used to specify the file ID within the submission to be retrieved.
       - $ref: '#/components/parameters/query/Page'
       - $ref: '#/components/parameters/query/PageSize'
     responses:
@@ -98,7 +104,6 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
-/submission/{submissionId}/data:
   delete:
     summary: Clear Active Submission by entity name
     tags:

@@ -334,6 +334,7 @@ export const submissionByIdRequestSchema: RequestValidation<object, ParsedQs, su
 export interface SubmissionsDetailsQueryParams extends PaginationQueryParams {
 	entityNames?: string | string[];
 	actionTypes?: string | string[];
+	fileId?: string;
 }
 
 export const submissionDetailsRequestSchema: RequestValidation<
@@ -345,6 +346,7 @@ export const submissionDetailsRequestSchema: RequestValidation<
 		.object({
 			entityNames: zod.union([entityNameSchema, entityNameSchema.array()]).optional(),
 			actionTypes: zod.union([submissionActionTypeSchema, submissionActionTypeSchema.array()]).optional(),
+			fileId: positiveInteger.optional(),
 		})
 		.merge(paginationQuerySchema),
 	pathParams: submissionIdPathParamSchema,

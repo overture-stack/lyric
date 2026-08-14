@@ -330,7 +330,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 	}: {
 		submissionId: number;
 		paginationOptions: PaginationOptions;
-		filterOptions: { entityNames: string[]; actionTypes: SubmissionRecordActionType[] };
+		filterOptions: { entityNames: string[]; actionTypes: SubmissionRecordActionType[]; fileId?: number };
 	}): Promise<SubmissionRecordWithEntityName[]> => {
 		const submission = await submissionRepository.getSubmissionById(submissionId);
 		if (!submission) {
