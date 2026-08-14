@@ -71,9 +71,9 @@ const router = ({
 
 	router.get('/:submissionId', submissionController.getSubmissionById);
 
-	router.get('/:submissionId/details', submissionController.getSubmissionDetailsById);
-
 	router.delete('/:submissionId', submissionController.delete);
+
+	router.get('/:submissionId/data', submissionController.getSubmissionDetailsById);
 
 	router.delete('/:submissionId/data', submissionController.deleteByRecordIdOrFileId);
 
