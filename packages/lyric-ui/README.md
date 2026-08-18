@@ -36,7 +36,7 @@ Shared React component library for Lyric-based UIs.
 | [Vite](https://vitejs.dev/)                                                                          | Library build (ESM + CJS, bundled CSS)            |
 | [Storybook 8](https://storybook.js.org/)                                                             | Component development environment and visual docs |
 
-The theming system follows a similar [shadcn/ui](https://ui.shadcn.com/) convention: design tokens are declared as CSS custom properties in a `@layer base` block, then referenced by Tailwind via `@theme`. Shadcdn uses HSL to apply their themes by default, this implementation will also be able to support other formats. Ultimatly, callers can override the full palette simply by redefining the CSS variables in their own stylesheet which will be explained futher in the next section.
+The theming system follows a similar [shadcn/ui](https://ui.shadcn.com/) convention: design tokens are declared as CSS custom properties in a `@layer base` block, then referenced by Tailwind via `@theme`. shadcn uses HSL to apply their themes by default, this implementation will also be able to support other formats. Ultimately, callers can override the full palette simply by redefining the CSS variables in their own stylesheet which will be explained further in the next section.
 
 ### Theming
 
@@ -96,8 +96,7 @@ If you are using tailwind along side with lyric-ui, you can use tailwind css var
 }
 ```
 
-Because tailwind is being bundled with these exported components, its worth noting that a project also using tailwind may possible overlap on styles. Functionally will not effect
-the project but may encounter unintented visual issues.
+Because tailwind is being bundled with these exported components, it's worth noting that a project also using tailwind may possibly overlap on styles. This won't functionally affect the project, but may cause unintended visual issues.
 
 ---
 
