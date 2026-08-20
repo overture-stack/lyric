@@ -1,28 +1,32 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import type { SubmissionInsertData } from '@overture-stack/lyric-data-model/models';
-
+import type { SubmissionInsertRecordWithEntityName } from '../../../../index.js';
 import { mapInsertDataToRecordReferences } from '../../../../src/utils/submissionUtils.js';
 import { MERGE_REFERENCE_TYPE } from '../../../../src/utils/types.js';
+import { assertExists } from '../../../assertions.js';
 
 describe('Submission Utils - Transforms inserts from the Submission object into a Record grouped by entityName', () => {
 	it('should return an object grouped by entity name with 2 records', () => {
-		const submissionInsertData: SubmissionInsertData = {
-			batchName: 'cars.tsv',
-			records: [
-				{
+		const insertDataEntity: SubmissionInsertRecordWithEntityName[] = [
+			{
+				data: {
 					name: 'Lamborghini Murcielago',
 				},
-				{
+				entityName: 'cars',
+				recordId: 100,
+			},
+			{
+				data: {
 					name: 'Lamborghini Gallardo',
 				},
-			],
-		};
+				entityName: 'cars',
+				recordId: 101,
+			},
+		];
 
-		const response = mapInsertDataToRecordReferences(100, { cars: submissionInsertData });
-		expect(Object.keys(response)).to.eql(['cars']);
-		expect(response['cars'].length).to.eq(2);
+		const response = mapInsertDataToRecordReferences(100, insertDataEntity);
+		expect(Object.keys(response).length).to.eq(1);
 		expect(response['cars']).to.eql([
 			{
 				dataRecord: {
@@ -31,7 +35,7 @@ describe('Submission Utils - Transforms inserts from the Submission object into 
 				reference: {
 					submissionId: 100,
 					type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
-					index: 0,
+					recordId: 100,
 				},
 			},
 			{
@@ -41,41 +45,39 @@ describe('Submission Utils - Transforms inserts from the Submission object into 
 				reference: {
 					submissionId: 100,
 					type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
-					index: 1,
+					recordId: 101,
 				},
 			},
 		]);
 	});
-	it('should return 2 objects grouped by entity names with 2 records each one', () => {
-		const submissionInsertDataCars: SubmissionInsertData = {
-			batchName: 'cars.tsv',
-			records: [
-				{
-					name: 'Lamborghini Murcielago',
-				},
-				{
-					name: 'Lamborghini Gallardo',
-				},
-			],
-		};
+	it('should return an array of 4 record references', () => {
+		const submissionInsertRecords: SubmissionInsertRecordWithEntityName[] = [
+			{
+				data: { name: 'Lamborghini Murcielago' },
+				entityName: 'cars',
+				recordId: 100,
+			},
+			{
+				data: { name: 'Lamborghini Gallardo' },
+				entityName: 'cars',
+				recordId: 101,
+			},
+			{
+				data: { name: 'Cat' },
+				entityName: 'animals',
+				recordId: 102,
+			},
+			{
+				data: { name: 'Dog' },
+				entityName: 'animals',
+				recordId: 103,
+			},
+		];
 
-		const submissionInsertDataAnimals: SubmissionInsertData = {
-			batchName: 'animals.tsv',
-			records: [
-				{
-					name: 'Cat',
-				},
-				{
-					name: 'Dog',
-				},
-			],
-		};
-
-		const response = mapInsertDataToRecordReferences(100, {
-			cars: submissionInsertDataCars,
-			animals: submissionInsertDataAnimals,
-		});
-		expect(Object.keys(response)).to.eql(['cars', 'animals']);
+		const response = mapInsertDataToRecordReferences(100, submissionInsertRecords);
+		expect(Object.keys(response).length).to.eq(2);
+		assertExists(response['cars']);
+		assertExists(response['animals']);
 		expect(response['cars'].length).to.eq(2);
 		expect(response['animals'].length).to.eq(2);
 		expect(response['cars']).to.eql([
@@ -86,7 +88,7 @@ describe('Submission Utils - Transforms inserts from the Submission object into 
 				reference: {
 					submissionId: 100,
 					type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
-					index: 0,
+					recordId: 100,
 				},
 			},
 			{
@@ -96,7 +98,7 @@ describe('Submission Utils - Transforms inserts from the Submission object into 
 				reference: {
 					submissionId: 100,
 					type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
-					index: 1,
+					recordId: 101,
 				},
 			},
 		]);
@@ -108,7 +110,7 @@ describe('Submission Utils - Transforms inserts from the Submission object into 
 				reference: {
 					submissionId: 100,
 					type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
-					index: 0,
+					recordId: 102,
 				},
 			},
 			{
@@ -118,35 +120,15 @@ describe('Submission Utils - Transforms inserts from the Submission object into 
 				reference: {
 					submissionId: 100,
 					type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
-					index: 1,
+					recordId: 103,
 				},
 			},
 		]);
 	});
-	it('should return an objects grouped by entity names with zero records', () => {
-		const submissionInsertDataFruits: SubmissionInsertData = {
-			batchName: 'fruit.tsv',
-			records: [],
-		};
+	it('should return an empty array', () => {
+		const submissionInsertRecords: SubmissionInsertRecordWithEntityName[] = [];
 
-		const response = mapInsertDataToRecordReferences(101, {
-			fruit: submissionInsertDataFruits,
-		});
-		expect(Object.keys(response)).to.eql(['fruit']);
-		expect(response['fruit'].length).to.eq(0);
-		expect(response['fruit']).to.eql([]);
-	});
-	it('should return an empty object', () => {
-		const submissionInsertDataFruits: SubmissionInsertData = {
-			batchName: '',
-			records: [],
-		};
-
-		const response = mapInsertDataToRecordReferences(103, {
-			'': submissionInsertDataFruits,
-		});
-		expect(Object.keys(response)).to.eql(['']);
-		expect(response[''].length).to.eq(0);
-		expect(response['']).to.eql([]);
+		const response = mapInsertDataToRecordReferences(103, submissionInsertRecords);
+		expect(Object.keys(response).length).to.eql(0);
 	});
 });

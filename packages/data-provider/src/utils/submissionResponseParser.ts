@@ -1,163 +1,78 @@
-import type { DataRecord } from '@overture-stack/lectern-client';
-import type {
-	SubmissionData,
-	SubmissionDeleteData,
-	SubmissionErrors,
-	SubmissionInsertData,
-	SubmissionRecordErrorDetails,
-	SubmissionUpdateData,
-} from '@overture-stack/lyric-data-model/models';
+import * as _ from 'lodash-es';
 
-import { type PaginationOptions, type SubmissionActionType } from './types.js';
+import type { RecordsSummaryRepository } from '../repository/submissionRecordsRepository.js';
+import {
+	type DataDeletesSubmissionSummary,
+	type DataInsertsSubmissionSummary,
+	type DataUpdatesSubmissionSummary,
+	type SubmissionDataSummaryWithTotal,
+	type SubmissionSummary,
+	type SubmissionSummaryResponse,
+} from './types.js';
 
-export const createBatchResponse = (schemaName: string, records: DataRecord[]): SubmissionInsertData => {
-	return { batchName: schemaName, records };
-};
+// This function accepts a raw array of submission records from the database and builds a summary response.
+export const buildDataSummary = (rows: RecordsSummaryRepository[]): SubmissionDataSummaryWithTotal => {
+	const inserts: Record<string, DataInsertsSubmissionSummary[]> = {};
+	const updates: Record<string, DataUpdatesSubmissionSummary[]> = {};
+	const deletes: Record<string, DataDeletesSubmissionSummary> = {};
+	let totalRecords = 0;
+	let errors = 0;
 
-export type FlattenedSubmissionData =
-	| { type: 'INSERTS'; entity: string; value: DataRecord; index: number }
-	| { type: 'UPDATES'; entity: string; value: SubmissionUpdateData; index: number }
-	| { type: 'DELETES'; entity: string; value: SubmissionDeleteData; index: number };
+	for (const row of rows) {
+		const { actionType, entityName, totalRecords: rowTotalRecords, batchName, errors: rowErrors } = row;
+		const summaryItem = { batchName: batchName ?? '', recordsCount: rowTotalRecords, errors: rowErrors };
 
-/**
- * Filters and paginates submission `data` and `errors` based on specified action types and entity names.
- * Returns the paginated data along with the corresponding filtered errors.
- */
-export const filterAndPaginateSubmissionData = ({
-	data,
-	errors,
-	filterOptions,
-	paginationOptions,
-}: {
-	data: SubmissionData;
-	errors: SubmissionErrors;
-	filterOptions: {
-		actionTypes: SubmissionActionType[];
-		entityNames: string[];
+		totalRecords += rowTotalRecords;
+		errors += rowErrors;
+
+		switch (actionType) {
+			case 'INSERT': {
+				const entitySummaries = inserts[entityName] ?? [];
+				entitySummaries.push(summaryItem);
+				inserts[entityName] = entitySummaries;
+				break;
+			}
+			case 'UPDATE': {
+				const entitySummaries = updates[entityName] ?? [];
+				entitySummaries.push(summaryItem);
+				updates[entityName] = entitySummaries;
+				break;
+			}
+			case 'DELETE': {
+				const entitySummary = deletes[entityName] ?? { recordsCount: 0, errors: 0 };
+				entitySummary.recordsCount += rowTotalRecords;
+				entitySummary.errors += rowErrors;
+				deletes[entityName] = entitySummary;
+				break;
+			}
+		}
+	}
+
+	return {
+		inserts,
+		updates,
+		deletes,
+		totalRecords,
+		errors,
 	};
-	paginationOptions: PaginationOptions;
-}): { data: FlattenedSubmissionData[]; errors: SubmissionRecordErrorDetails[] } => {
-	const { page, pageSize } = paginationOptions;
-	const { actionTypes, entityNames } = filterOptions;
-
-	const flattenedRecords = flattenData(data, actionTypes, entityNames);
-
-	const startIndex = (page - 1) * pageSize;
-	const paginatedRecords = flattenedRecords.slice(startIndex, startIndex + pageSize);
-
-	// Extract indexes that belongs to paginated records
-	const paginatedRecordIndexes = paginatedRecords.map((record) => record.index);
-	const relevantErrors = getFilteredErrors({
-		errors: errors || {},
-		actionTypes,
-		entityNames,
-		indices: paginatedRecordIndexes,
-	});
-
-	return { data: paginatedRecords, errors: relevantErrors };
 };
 
 /**
- * Flattens submission data into a list of records based on specified action types and entity names.
+ * Utility to convert a raw Submission record to a Response type
+ * @param {SubmissionSummary} submission
+ * @returns {SubmissionSummaryResponse}
  */
-const flattenData = (
-	data: SubmissionData,
-	actionTypes: SubmissionActionType[],
-	entityNames: string[],
-): FlattenedSubmissionData[] => {
-	const list: FlattenedSubmissionData[] = [];
-
-	for (const action of actionTypes) {
-		const bucket = getActionData(data, action);
-
-		if (!bucket) {
-			continue;
-		}
-
-		for (const [entity, value] of Object.entries(bucket)) {
-			if ((entityNames.length > 0 && !entityNames.includes(entity)) || !value) {
-				continue;
-			}
-
-			if (action === 'INSERTS') {
-				for (const [index, record] of value.records.entries()) {
-					list.push({ type: 'INSERTS', entity, value: record, index });
-				}
-				continue;
-			}
-
-			for (const [index, record] of value.entries()) {
-				list.push({ type: action, entity, value: record, index });
-			}
-		}
-	}
-
-	return list;
-};
-
-/**
- * Retrieves the set of submission data corresponding to a specific action type.
- */
-export const getActionData = (data: SubmissionData, actionType: SubmissionActionType) => {
-	switch (actionType) {
-		case 'INSERTS':
-			return data.inserts ?? {};
-
-		case 'UPDATES':
-			return data.updates ?? {};
-
-		case 'DELETES':
-			return data.deletes ?? {};
-	}
-};
-
-/**
- * Retrieves the set of submission errors corresponding to a specific action type.
- */
-export const getActionErrors = (errors: SubmissionErrors, actionType: SubmissionActionType) => {
-	switch (actionType) {
-		case 'INSERTS':
-			return errors.inserts ?? {};
-
-		case 'UPDATES':
-			return errors.updates ?? {};
-
-		case 'DELETES':
-			return errors.deletes ?? {};
-	}
-};
-
-/**
- * Filters submission errors based on specified action types, entity names, and record indices.
- */
-export const getFilteredErrors = ({
-	errors,
-	actionTypes,
-	entityNames,
-	indices,
-}: {
-	errors: SubmissionErrors;
-	actionTypes: SubmissionActionType[];
-	entityNames: string[];
-	indices: number[];
-}): SubmissionRecordErrorDetails[] => {
-	const allErrors: SubmissionRecordErrorDetails[] = [];
-
-	for (const actionType of actionTypes) {
-		const bucket = getActionErrors(errors, actionType);
-
-		if (bucket) {
-			for (const [entityName, records] of Object.entries(bucket)) {
-				if (entityNames.length > 0 && !entityNames.includes(entityName)) {
-					continue;
-				}
-
-				for (const record of records) {
-					allErrors.push(record);
-				}
-			}
-		}
-	}
-
-	return allErrors.filter((err) => indices.includes(err.index));
+export const createSubmissionSummaryResponse = (submission: SubmissionSummary): SubmissionSummaryResponse => {
+	return {
+		id: submission.id,
+		data: submission.data,
+		dictionary: submission.dictionary,
+		dictionaryCategory: submission.dictionaryCategory,
+		organization: submission.organization,
+		status: submission.status,
+		createdAt: _.toString(submission.createdAt?.toISOString()),
+		createdBy: _.toString(submission.createdBy),
+		updatedAt: _.toString(submission.updatedAt?.toISOString()),
+		updatedBy: _.toString(submission.updatedBy),
+	};
 };

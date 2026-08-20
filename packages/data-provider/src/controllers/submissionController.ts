@@ -18,9 +18,9 @@ import {
 	submissionActiveByOrganizationRequestSchema,
 	submissionByIdRequestSchema,
 	submissionCommitRequestSchema,
-	submissionDeleteEntityNameRequestSchema,
 	submissionDeleteRequestSchema,
 	submissionDetailsRequestSchema,
+	submissionRecordDeleteRequestSchema,
 	submissionsByCategoryRequestSchema,
 	uploadSingleEntitySubmissionDataRequestSchema,
 	uploadSubmissionRequestSchema,
@@ -30,8 +30,8 @@ import {
 	BATCH_ERROR_TYPE,
 	BatchError,
 	type PaginatedResponse,
-	SUBMISSION_ACTION_TYPE,
-	type SubmissionSummary,
+	SUBMISSION_RECORD_ACTION_TYPE,
+	type SubmissionSummaryResponse,
 } from '../utils/types.js';
 
 const controller = ({
@@ -112,17 +112,22 @@ const controller = ({
 				next(error);
 			}
 		}),
-		deleteEntityName: validateRequest(submissionDeleteEntityNameRequestSchema, async (req, res, next) => {
+		deleteByRecordIdOrFileId: validateRequest(submissionRecordDeleteRequestSchema, async (req, res, next) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
-				const actionType = SUBMISSION_ACTION_TYPE.parse(req.params.actionType.toUpperCase());
-				const entityName = req.query.entityName;
-				const index = req.query.index ? parseInt(req.query.index) : null;
+				const recordId = req.query.recordId ? parseInt(req.query.recordId) : null;
+				const fileId = req.query.fileId ? parseInt(req.query.fileId) : null;
 				const user = req.user;
+
+				if (!recordId && !fileId) {
+					throw new BadRequest('Either "recordId" or "fileId" query parameter must be provided for deletion.');
+				} else if (recordId && fileId) {
+					throw new BadRequest('Only one of "recordId" or "fileId" query parameter can be provided for deletion.');
+				}
 
 				logger.info(
 					LOG_MODULE,
-					`Request Delete '${entityName ? entityName : 'all'}' records on '{${actionType}}' Active Submission '${submissionId}'`,
+					`Request Delete records with ${recordId ? `ID '${recordId}'` : ''}${fileId ? ` file ID '${fileId}'` : ''} on Submission '${submissionId}'`,
 				);
 
 				const submission = await submissionService.getSubmissionById(submissionId);
@@ -136,15 +141,10 @@ const controller = ({
 
 				const username = user?.username || '';
 
-				const deleteSubmissionEntityResult = await submissionService.deleteActiveSubmissionEntity(
-					submissionId,
-					username,
-					{
-						actionType,
-						entityName,
-						index,
-					},
-				);
+				const deleteSubmissionEntityResult = await submissionService.deleteByRecordIdOrFileId(submissionId, username, {
+					recordId,
+					fileId,
+				});
 
 				if (isEmpty(deleteSubmissionEntityResult)) {
 					throw new NotFound('Active Submission not found');
@@ -232,7 +232,7 @@ const controller = ({
 		}),
 		getSubmissionsByCategory: validateRequest(
 			submissionsByCategoryRequestSchema,
-			async (req, res: Response<PaginatedResponse<SubmissionSummary>>, next) => {
+			async (req, res: Response<PaginatedResponse<SubmissionSummaryResponse>>, next) => {
 				try {
 					const categoryId = await resolveCategoryId(baseDependencies, req.params.categoryId);
 					if (categoryId === undefined) {
@@ -258,7 +258,7 @@ const controller = ({
 						{ onlyActive, username, organization },
 					);
 
-					const response: PaginatedResponse<SubmissionSummary> = {
+					const response: PaginatedResponse<SubmissionSummaryResponse> = {
 						pagination: {
 							currentPage: page,
 							pageSize: pageSize,
@@ -295,8 +295,9 @@ const controller = ({
 			try {
 				const submissionId = Number(req.params.submissionId);
 				const entityNames = asArray(req.query.entityNames || []);
+				const fileId = req.query.fileId ? parseInt(req.query.fileId) : undefined;
 
-				const actionTypes = parseSubmissionActionTypes(req.query.actionTypes || SUBMISSION_ACTION_TYPE.options);
+				const actionTypes = parseSubmissionActionTypes(req.query.actionTypes || SUBMISSION_RECORD_ACTION_TYPE.options);
 
 				// query params
 				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
@@ -307,12 +308,8 @@ const controller = ({
 				const submission = await submissionService.getSubmissionDetailsById({
 					submissionId,
 					paginationOptions: { page, pageSize },
-					filterOptions: { entityNames, actionTypes },
+					filterOptions: { entityNames, actionTypes, fileId },
 				});
-
-				if (isEmpty(submission)) {
-					throw new NotFound('Submission not found');
-				}
 
 				return res.status(200).json(submission);
 			} catch (error) {

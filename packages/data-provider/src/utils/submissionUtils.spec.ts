@@ -1,9 +1,9 @@
 import { expect } from 'chai';
 import { writeFileSync } from 'fs';
 import { describe, it } from 'mocha';
+import { tmpdir } from 'os';
 import { join } from 'path';
 import { Readable } from 'stream';
-import { tmpdir } from 'os';
 
 import { type Schema } from '@overture-stack/lectern-client';
 
@@ -65,11 +65,11 @@ describe('submissionInsertDataFromFiles', () => {
 			items: { files: [makeFile(path, 'items.tsv')], schema: minimalSchema('items') },
 		};
 
-		const { fileResults } = await submissionInsertDataFromFiles(fileSchemaMap);
+		const fileResults = await submissionInsertDataFromFiles(fileSchemaMap);
 
 		expect(fileResults).to.have.length(1);
-		expect(fileResults[0]?.status).to.equal('ok');
-		expect(fileResults[0]?.fileName).to.equal('items.tsv');
+		expect(fileResults[0]?.fileResult.status).to.equal('ok');
+		expect(fileResults[0]?.fileResult.fileName).to.equal('items.tsv');
 	});
 
 	it('returns status invalid for a file with schema validation failures', async () => {
@@ -78,13 +78,13 @@ describe('submissionInsertDataFromFiles', () => {
 			items: { files: [makeFile(path, 'items.tsv')], schema: integerSchema('items') },
 		};
 
-		const { fileResults } = await submissionInsertDataFromFiles(fileSchemaMap);
+		const fileResults = await submissionInsertDataFromFiles(fileSchemaMap);
 
 		expect(fileResults).to.have.length(1);
 		const result = fileResults[0];
-		expect(result?.status).to.equal('invalid');
-		if (result?.status === 'invalid') {
-			expect(result.parseErrors).to.have.length.greaterThan(0);
+		expect(result?.fileResult.status).to.equal('invalid');
+		if (result?.fileResult.status === 'invalid') {
+			expect(result.fileResult.parseErrors).to.have.length.greaterThan(0);
 		}
 	});
 
@@ -93,13 +93,13 @@ describe('submissionInsertDataFromFiles', () => {
 			items: { files: [makeFile('/nonexistent/path/items.tsv', 'items.tsv')], schema: minimalSchema('items') },
 		};
 
-		const { fileResults } = await submissionInsertDataFromFiles(fileSchemaMap);
+		const fileResults = await submissionInsertDataFromFiles(fileSchemaMap);
 
 		expect(fileResults).to.have.length(1);
 		const result = fileResults[0];
-		expect(result?.status).to.equal('error');
-		if (result?.status === 'error') {
-			expect(result.streamError).to.be.a('string').and.not.be.empty;
+		expect(result?.fileResult.status).to.equal('error');
+		if (result?.fileResult.status === 'error') {
+			expect(result.fileResult.streamError).to.be.a('string').and.not.be.empty;
 		}
 	});
 
@@ -107,19 +107,16 @@ describe('submissionInsertDataFromFiles', () => {
 		const validPath = writeTsv([['item_id'], ['A']]);
 		const fileSchemaMap: FileSchemaMap = {
 			items: {
-				files: [
-					makeFile('/nonexistent/path/missing.tsv', 'missing.tsv'),
-					makeFile(validPath, 'valid.tsv'),
-				],
+				files: [makeFile('/nonexistent/path/missing.tsv', 'missing.tsv'), makeFile(validPath, 'valid.tsv')],
 				schema: minimalSchema('items'),
 			},
 		};
 
-		const { fileResults } = await submissionInsertDataFromFiles(fileSchemaMap);
+		const fileResults = await submissionInsertDataFromFiles(fileSchemaMap);
 
 		expect(fileResults).to.have.length(2);
-		expect(fileResults.find((r) => r.fileName === 'missing.tsv')?.status).to.equal('error');
-		expect(fileResults.find((r) => r.fileName === 'valid.tsv')?.status).to.equal('ok');
+		expect(fileResults.find((r) => r.fileResult.fileName === 'missing.tsv')?.fileResult.status).to.equal('error');
+		expect(fileResults.find((r) => r.fileResult.fileName === 'valid.tsv')?.fileResult.status).to.equal('ok');
 	});
 
 	it('accumulates records from multiple successful files for the same entity', async () => {
@@ -130,10 +127,10 @@ describe('submissionInsertDataFromFiles', () => {
 			items: { files: [makeFile(pathA, 'a.tsv'), makeFile(pathB, 'b.tsv')], schema },
 		};
 
-		const { data, fileResults } = await submissionInsertDataFromFiles(fileSchemaMap);
+		const fileResults = await submissionInsertDataFromFiles(fileSchemaMap);
 
 		expect(fileResults).to.have.length(2);
-		expect(fileResults.every((r) => r.status === 'ok')).to.be.true;
-		expect(data['items']?.records).to.have.length(2);
+		expect(fileResults.every((r) => r.fileResult.status === 'ok')).to.be.true;
+		expect(fileResults.flatMap((r) => r.data)).to.have.length(2);
 	});
 });
