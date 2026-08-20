@@ -195,5 +195,34 @@ describe('SQON utils', () => {
 			const result = toInlinedQuery(sqonWithInjectionAttempt);
 			expect(result).to.eql(`data ->> "x' OR '1'='1" IN ("a")`);
 		});
+
+		it('binds a fieldName containing a quote as a parameter for the gt operator too', () => {
+			// processFilterOperator builds the same jsonbField for in/gt/lt; cover a scalar operator
+			// as well since it shares the vulnerable construction, not just the array (in) branch.
+			const sqon: SQON = { op: 'gt', content: { fieldName: `x' OR '1'='1`, value: 197005 } };
+			const result = convertSqonToQuery(sqon);
+			const { sql, params } = dialect.sqlToQuery(result!);
+
+			expect(sql).to.eql(`data ->> $1 > $2`);
+			expect(params).to.eql([`x' OR '1'='1`, '197005']);
+		});
+
+		it('binds an "in" value array element containing SQL metacharacters as a parameter', () => {
+			const sqon: SQON = { op: 'in', content: { fieldName: 'player_id', value: [`NR-01' OR '1'='1`] } };
+			const result = convertSqonToQuery(sqon);
+			const { sql, params } = dialect.sqlToQuery(result!);
+
+			expect(sql).to.eql(`data ->> $1 IN ($2)`);
+			expect(params).to.eql(['player_id', `NR-01' OR '1'='1`]);
+		});
+
+		it('binds a statement-terminator and comment-marker payload as an inert parameter', () => {
+			const sqon: SQON = {
+				op: 'in',
+				content: { fieldName: `x'; DROP TABLE submitted_data; --`, value: ['a'] },
+			};
+			const result = toInlinedQuery(sqon);
+			expect(result).to.eql(`data ->> "x'; DROP TABLE submitted_data; --" IN ("a")`);
+		});
 	});
 });
