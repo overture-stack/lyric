@@ -12,7 +12,7 @@ describe('submittedRepository', () => {
 			const result = buildDataFieldFilter('submitter_donor_id', 'DO-01');
 			const { sql, params } = dialect.sqlToQuery(result);
 
-			expect(sql).to.eql('data ->> $1 IN ($2)');
+			expect(sql).to.eql('data ->> $1 in ($2)');
 			expect(params).to.eql(['submitter_donor_id', 'DO-01']);
 		});
 
@@ -23,7 +23,7 @@ describe('submittedRepository', () => {
 			const result = buildDataFieldFilter(`x' OR '1'='1`, 'a');
 			const { sql, params } = dialect.sqlToQuery(result);
 
-			expect(sql).to.eql('data ->> $1 IN ($2)');
+			expect(sql).to.eql('data ->> $1 in ($2)');
 			expect(params).to.eql([`x' OR '1'='1`, 'a']);
 		});
 
@@ -31,7 +31,7 @@ describe('submittedRepository', () => {
 			const result = buildDataFieldFilter('submitter_donor_id', `DO-01'; DROP TABLE submitted_data; --`);
 			const { sql, params } = dialect.sqlToQuery(result);
 
-			expect(sql).to.eql('data ->> $1 IN ($2)');
+			expect(sql).to.eql('data ->> $1 in ($2)');
 			expect(params).to.eql(['submitter_donor_id', `DO-01'; DROP TABLE submitted_data; --`]);
 		});
 
