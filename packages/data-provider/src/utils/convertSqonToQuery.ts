@@ -1,4 +1,4 @@
-import { and, not, or, SQL, sql } from 'drizzle-orm';
+import { and, inArray, not, or, SQL, sql } from 'drizzle-orm';
 import * as _ from 'lodash-es';
 import { ZodError } from 'zod';
 
@@ -31,9 +31,12 @@ const processFilterOperator = (operator: FilterOperator): SQL<unknown> => {
 	const jsonbField = sql`${sql.raw(jsonbColumnName)} ->> ${fieldName}`;
 
 	if (isArrayFilter(operator)) {
-		// op is in
+		// op is in; inArray matches the IN-clause convention already used elsewhere in this
+		// codebase (activeSubmissionRepository.ts, submittedRepository.ts) instead of a
+		// hand-rolled sql template, and rejects an empty array up front rather than emitting
+		// invalid `IN ()` SQL.
 		const values = (Array.isArray(value) ? value : [value]).map(String);
-		return sql`${jsonbField} IN ${values}`;
+		return inArray(jsonbField, values);
 	} else if (isGreaterThanFilter(operator)) {
 		// is an scalar filter op is gt
 		return sql`${jsonbField} > ${String(value)}`;

@@ -22,7 +22,8 @@ import { AUDIT_ACTION, BooleanTrueObject, PaginationOptions, SubmittedDataRespon
  * parameters rather than splicing them into the SQL text.
  */
 export const buildDataFieldFilter = (dataField: string, dataValue: string | undefined): SQL<unknown> => {
-	return sql`${sql.raw(submittedData.data.name)} ->> ${dataField} IN ${[String(dataValue)]}`;
+	const jsonbField = sql`${sql.raw(submittedData.data.name)} ->> ${dataField}`;
+	return inArray(jsonbField, [String(dataValue)]);
 };
 
 const repository = (dependencies: BaseDependencies) => {

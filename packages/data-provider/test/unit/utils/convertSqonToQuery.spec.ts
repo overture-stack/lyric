@@ -46,6 +46,25 @@ describe('SQON utils', () => {
 		});
 	});
 
+	describe('SQON with an "in" filter matching multiple values', () => {
+		// Regression coverage for a functional gap: every other "in" case in this file uses a
+		// single-element array, which cannot distinguish comma-expansion (one bound parameter per
+		// element, valid IN syntax) from binding the whole array as one parameter (invalid IN
+		// syntax in Postgres). Flagged by review; confirmed correct, this locks it in.
+		const sqonMultiValueInFilter: SQON = {
+			op: 'in',
+			content: { fieldName: 'player_id', value: ['NR-01', 'NR-02', 'NR-03'] },
+		};
+
+		it('binds each array element as its own parameter, not the array as a single parameter', () => {
+			const result = convertSqonToQuery(sqonMultiValueInFilter);
+			const { sql, params } = dialect.sqlToQuery(result!);
+
+			expect(sql).to.eql(`data ->> $1 in ($2, $3, $4)`);
+			expect(params).to.eql(['player_id', 'NR-01', 'NR-02', 'NR-03']);
+		});
+	});
+
 	describe('SQON with NOT filter', () => {
 		const sqonCombinedNOTFilterRawInput = {
 			op: 'not',
@@ -72,7 +91,7 @@ describe('SQON utils', () => {
 
 		it('should convert SQON with NOT filter into a database query', () => {
 			const result = toInlinedQuery(sqonCombinedNOTFilterParsed);
-			expect(result).to.eql(`not data ->> "player_id" IN ("NR-01")`);
+			expect(result).to.eql(`not data ->> "player_id" in ("NR-01")`);
 		});
 	});
 
@@ -112,7 +131,7 @@ describe('SQON utils', () => {
 
 		it('should convert SQON with AND filter into a database query', () => {
 			const result = toInlinedQuery(sqonCombinedANDFilterParsed);
-			expect(result).to.eql(`(data ->> "player_id" IN ("NR-01") and data ->> "team_id" IN ("XYZ"))`);
+			expect(result).to.eql(`(data ->> "player_id" in ("NR-01") and data ->> "team_id" in ("XYZ"))`);
 		});
 	});
 
@@ -152,7 +171,7 @@ describe('SQON utils', () => {
 
 		it('should convert SQON with OR filter into a database query', () => {
 			const result = toInlinedQuery(sqonCombinedORFilterParsed);
-			expect(result).to.eql(`(data ->> "player_id" IN ("NR-01") or data ->> "team_id" IN ("XYZ"))`);
+			expect(result).to.eql(`(data ->> "player_id" in ("NR-01") or data ->> "team_id" in ("XYZ"))`);
 		});
 	});
 
@@ -187,13 +206,13 @@ describe('SQON utils', () => {
 			const result = convertSqonToQuery(sqonWithInjectionAttempt);
 			const { sql, params } = dialect.sqlToQuery(result!);
 
-			expect(sql).to.eql(`data ->> $1 IN ($2)`);
+			expect(sql).to.eql(`data ->> $1 in ($2)`);
 			expect(params).to.eql([`x' OR '1'='1`, 'a']);
 		});
 
 		it('renders the malicious fieldName as inert literal text, not as SQL syntax', () => {
 			const result = toInlinedQuery(sqonWithInjectionAttempt);
-			expect(result).to.eql(`data ->> "x' OR '1'='1" IN ("a")`);
+			expect(result).to.eql(`data ->> "x' OR '1'='1" in ("a")`);
 		});
 
 		it('binds a fieldName containing a quote as a parameter for the gt operator too', () => {
@@ -212,7 +231,7 @@ describe('SQON utils', () => {
 			const result = convertSqonToQuery(sqon);
 			const { sql, params } = dialect.sqlToQuery(result!);
 
-			expect(sql).to.eql(`data ->> $1 IN ($2)`);
+			expect(sql).to.eql(`data ->> $1 in ($2)`);
 			expect(params).to.eql(['player_id', `NR-01' OR '1'='1`]);
 		});
 
@@ -222,7 +241,7 @@ describe('SQON utils', () => {
 				content: { fieldName: `x'; DROP TABLE submitted_data; --`, value: ['a'] },
 			};
 			const result = toInlinedQuery(sqon);
-			expect(result).to.eql(`data ->> "x'; DROP TABLE submitted_data; --" IN ("a")`);
+			expect(result).to.eql(`data ->> "x'; DROP TABLE submitted_data; --" in ("a")`);
 		});
 	});
 });
