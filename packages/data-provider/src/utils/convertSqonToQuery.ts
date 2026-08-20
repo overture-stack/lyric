@@ -130,8 +130,6 @@ export const parseSQON = (input: unknown): SQON | undefined => {
 		// Given any input, attempt to parse it as a SQON.
 		// An error will be thrown if the provided input is invalid.
 		return SQONBuilder.default.from(input);
-
-		// TODO: SQL sanitization (https://github.com/overture-stack/lyric/issues/43)
 	} catch (error: unknown) {
 		if (isZodError(error)) {
 			throw new BadRequest('Invalid SQON format', error.issues);
