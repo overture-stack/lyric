@@ -17,6 +17,14 @@ import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import { AUDIT_ACTION, BooleanTrueObject, PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
 
+/**
+ * Builds a filter comparing a JSONB data field against a value, binding both as query
+ * parameters rather than splicing them into the SQL text.
+ */
+export const buildDataFieldFilter = (dataField: string, dataValue: string | undefined): SQL<unknown> => {
+	return sql`${sql.raw(submittedData.data.name)} ->> ${dataField} IN ${[String(dataValue)]}`;
+};
+
 const repository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTEDDATA_REPOSITORY';
 	const { db, logger, features } = dependencies;
@@ -87,9 +95,6 @@ const repository = (dependencies: BaseDependencies) => {
 		};
 		return await (tx || db).insert(auditSubmittedData).values(newAudit);
 	};
-
-	// Column name on the database used to build JSONB query
-	const jsonbColumnName = submittedData.data.name;
 
 	const paginatedColumns: BooleanTrueObject = {
 		entityName: true,
@@ -524,7 +529,7 @@ const repository = (dependencies: BaseDependencies) => {
 		): Promise<SubmittedData[]> => {
 			const sqlDataFilter = filterData.map((filter) => {
 				return and(
-					sql.raw(`${jsonbColumnName} ->> '${filter.dataField}' IN ('${filter.dataValue}')`),
+					buildDataFieldFilter(filter.dataField, filter.dataValue),
 					eq(submittedData.entityName, filter.entityName),
 				);
 			});
