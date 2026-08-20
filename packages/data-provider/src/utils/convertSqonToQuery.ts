@@ -3,7 +3,6 @@ import * as _ from 'lodash-es';
 import { ZodError } from 'zod';
 
 import SQONBuilder, {
-	ArrayFilterValue,
 	CombinationKeys,
 	CombinationOperator,
 	FilterOperator,
@@ -27,44 +26,20 @@ const isGreaterThanFilter = (operator: Operator): operator is GreaterThanFilter 
 const isLesserThanFilter = (operator: Operator): operator is LesserThanFilter =>
 	LesserThanFilter.safeParse(operator).success;
 
-// Map the array and format each element based on its type
-const formatForSQL = (value: ArrayFilterValue) => {
-	if (Array.isArray(value)) {
-		// Handle array of strings or numbers
-		return value
-			.map((element) => {
-				if (typeof element === 'string') {
-					return `'${element}'`; // Surround strings with single quotes
-				} else if (typeof element === 'number') {
-					return element.toString(); // Numbers don't need quotes
-				} else {
-					throw new BadRequest(`Invalid SQON format. Unsupported data type: ${typeof element}`);
-				}
-			})
-			.join(', ');
-	} else if (typeof value === 'string') {
-		// Handle single string
-		return value;
-	} else if (typeof value === 'number') {
-		// Handle single number
-		return value;
-	}
-
-	throw new BadRequest(`Invalid SQON. Unsupported data type: ${typeof value}`);
-};
-
 const processFilterOperator = (operator: FilterOperator): SQL<unknown> => {
 	const { fieldName, value } = operator.content;
+	const jsonbField = sql`${sql.raw(jsonbColumnName)} ->> ${fieldName}`;
 
 	if (isArrayFilter(operator)) {
 		// op is in
-		return sql.raw(`${jsonbColumnName} ->> '${formatForSQL(fieldName)}' IN (${formatForSQL(value)})`);
+		const values = (Array.isArray(value) ? value : [value]).map(String);
+		return sql`${jsonbField} IN ${values}`;
 	} else if (isGreaterThanFilter(operator)) {
 		// is an scalar filter op is gt
-		return sql.raw(`${jsonbColumnName} ->> '${formatForSQL(fieldName)}' > '${formatForSQL(value)}'`);
+		return sql`${jsonbField} > ${String(value)}`;
 	} else if (isLesserThanFilter(operator)) {
 		// is an scalar filter op is lt
-		return sql.raw(`${jsonbColumnName} ->> '${formatForSQL(fieldName)}' < '${formatForSQL(value)}'`);
+		return sql`${jsonbField} < ${String(value)}`;
 	}
 
 	throw new BadRequest(`Invalid SQON format. Unsupported SQON filter operator`);
