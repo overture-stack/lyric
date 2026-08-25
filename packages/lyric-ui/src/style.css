@@ -26,8 +26,10 @@
 	--radius-sm: calc(var(--radius) - 4px);
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);
+
 	/*Select and Combobox*/
-	--color-popover-foreground: var(--color-popover);
+	--color-popover-text-color: var(--primary);
+	--color-popover-foreground: var(--popover);
 	--color-popover-border-color: var(--border);
 }
 
