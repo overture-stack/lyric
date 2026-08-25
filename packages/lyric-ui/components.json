@@ -5,7 +5,7 @@
 	"tsx": true,
 	"iconLibrary": "lucide",
 	"tailwind": {
-		"config": "new-york",
+		"config": "",
 		"css": "src/style.css",
 		"baseColor": "slate",
 		"cssVariables": true
