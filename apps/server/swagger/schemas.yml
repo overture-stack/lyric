@@ -127,6 +127,12 @@ components:
                   batchName:
                     type: string
                     description: Original filename  of the submission
+                  errors:
+                    type: number
+                    description: Number of errors in the submission
+                  fileId:
+                    type: string
+                    description: ID of the file in the submission
                   recordsCount:
                     type: number
                     description: Number Of Records

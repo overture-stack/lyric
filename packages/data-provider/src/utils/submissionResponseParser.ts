@@ -19,8 +19,8 @@ export const buildDataSummary = (rows: RecordsSummaryRepository[]): SubmissionDa
 	let errors = 0;
 
 	for (const row of rows) {
-		const { actionType, entityName, totalRecords: rowTotalRecords, batchName, errors: rowErrors } = row;
-		const summaryItem = { batchName: batchName ?? '', recordsCount: rowTotalRecords, errors: rowErrors };
+		const { actionType, entityName, totalRecords: rowTotalRecords, batchName, errors: rowErrors, fileId } = row;
+		const summaryItem = { batchName: batchName ?? '', errors: rowErrors, fileId, recordsCount: rowTotalRecords };
 
 		totalRecords += rowTotalRecords;
 		errors += rowErrors;
