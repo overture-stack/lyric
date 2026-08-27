@@ -33,12 +33,21 @@ const buttonVariants = cva(
 export interface ButtonProps
 	extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
 	asChild?: boolean;
+	icon?: React.ReactNode;
+	iconPosition?: 'left' | 'right';
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-	({ className, variant, size, asChild = false, ...props }, ref) => {
+	({ className, variant, size, asChild = false, icon, iconPosition = 'left', children, ...props }, ref) => {
 		const Comp = asChild ? Slot : 'button';
-		return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
+
+		return (
+			<Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props}>
+				{!asChild && icon && iconPosition === 'left' && icon}
+				{size !== 'icon' ? children : null}
+				{!asChild && icon && iconPosition === 'right' && icon}
+			</Comp>
+		);
 	},
 );
 Button.displayName = 'Button';
