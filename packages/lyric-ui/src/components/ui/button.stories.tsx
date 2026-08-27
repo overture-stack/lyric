@@ -39,6 +39,13 @@ export const DefaultWithIcon: Story = {
 	},
 };
 
+export const Disabled: Story = {
+	args: {
+		variant: 'default',
+		disabled: true,
+	},
+};
+
 export const Secondary: Story = {
 	args: {
 		variant: 'secondary',
