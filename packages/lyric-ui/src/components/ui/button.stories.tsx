@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import { Download } from 'lucide-react';
 
 import { Button } from './button';
 
@@ -28,6 +29,13 @@ type Story = StoryObj<typeof Button>;
 export const Default: Story = {
 	args: {
 		variant: 'default',
+	},
+};
+
+export const DefaultWithIcon: Story = {
+	args: {
+		variant: 'default',
+		icon: <Download />,
 	},
 };
 
