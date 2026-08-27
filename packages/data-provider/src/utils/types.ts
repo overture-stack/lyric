@@ -265,19 +265,21 @@ export type PaginationOptions = {
 
 export type DataInsertsSubmissionSummary = {
 	batchName: string;
-	recordsCount: number;
 	errors: number;
+	fileId: number;
+	recordsCount: number;
 };
 
 export type DataUpdatesSubmissionSummary = {
 	batchName: string;
-	recordsCount: number;
 	errors: number;
+	fileId: number;
+	recordsCount: number;
 };
 
 export type DataDeletesSubmissionSummary = {
-	recordsCount: number;
 	errors: number;
+	recordsCount: number;
 };
 
 export type SubmissionDataSummary = {

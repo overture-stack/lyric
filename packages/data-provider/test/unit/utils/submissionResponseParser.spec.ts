@@ -19,9 +19,9 @@ describe('buildDataSummary', () => {
 
 	it('should group insert and update rows by entity name and accumulate totals', () => {
 		const rows: RecordsSummaryRepository[] = [
-			{ actionType: 'INSERT', entityName: 'sport', totalRecords: 3, batchName: 'batch1.tsv', errors: 0 },
-			{ actionType: 'INSERT', entityName: 'sport', totalRecords: 2, batchName: 'batch2.tsv', errors: 1 },
-			{ actionType: 'UPDATE', entityName: 'player', totalRecords: 5, batchName: 'batch3.tsv', errors: 0 },
+			{ actionType: 'INSERT', entityName: 'sport', totalRecords: 3, batchName: 'batch1.tsv', errors: 0, fileId: 1 },
+			{ actionType: 'INSERT', entityName: 'sport', totalRecords: 2, batchName: 'batch2.tsv', errors: 1, fileId: 2 },
+			{ actionType: 'UPDATE', entityName: 'player', totalRecords: 5, batchName: 'batch3.tsv', errors: 0, fileId: 3 },
 		];
 
 		const result = buildDataSummary(rows);
@@ -29,12 +29,12 @@ describe('buildDataSummary', () => {
 		expect(result).to.eql({
 			inserts: {
 				sport: [
-					{ batchName: 'batch1.tsv', recordsCount: 3, errors: 0 },
-					{ batchName: 'batch2.tsv', recordsCount: 2, errors: 1 },
+					{ batchName: 'batch1.tsv', recordsCount: 3, errors: 0, fileId: 1 },
+					{ batchName: 'batch2.tsv', recordsCount: 2, errors: 1, fileId: 2 },
 				],
 			},
 			updates: {
-				player: [{ batchName: 'batch3.tsv', recordsCount: 5, errors: 0 }],
+				player: [{ batchName: 'batch3.tsv', recordsCount: 5, errors: 0, fileId: 3 }],
 			},
 			deletes: {},
 			totalRecords: 10,
@@ -44,8 +44,8 @@ describe('buildDataSummary', () => {
 
 	it('should aggregate delete rows for the same entity instead of listing them individually', () => {
 		const rows: RecordsSummaryRepository[] = [
-			{ actionType: 'DELETE', entityName: 'sport', totalRecords: 2, batchName: 'batch1.tsv', errors: 0 },
-			{ actionType: 'DELETE', entityName: 'sport', totalRecords: 1, batchName: 'batch2.tsv', errors: 1 },
+			{ actionType: 'DELETE', entityName: 'sport', totalRecords: 2, batchName: 'batch1.tsv', errors: 0, fileId: 1 },
+			{ actionType: 'DELETE', entityName: 'sport', totalRecords: 1, batchName: 'batch2.tsv', errors: 1, fileId: 2 },
 		];
 
 		const result = buildDataSummary(rows);
@@ -59,13 +59,13 @@ describe('buildDataSummary', () => {
 
 	it('should default a missing batchName to an empty string', () => {
 		const rows: RecordsSummaryRepository[] = [
-			{ actionType: 'INSERT', entityName: 'sport', totalRecords: 1, errors: 0 },
+			{ actionType: 'INSERT', entityName: 'sport', totalRecords: 1, errors: 0, fileId: 1 },
 		];
 
 		const result = buildDataSummary(rows);
 
 		expect(result.inserts).to.eql({
-			sport: [{ batchName: '', recordsCount: 1, errors: 0 }],
+			sport: [{ batchName: '', recordsCount: 1, errors: 0, fileId: 1 }],
 		});
 	});
 });

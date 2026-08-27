@@ -21,10 +21,11 @@ export type SubmissionRecordWithEntityName = SubmissionRecord & { entityName: st
 // Raw data returned from the database
 export type RecordsSummaryRepository = {
 	actionType: SubmissionRecordActionType;
-	entityName: string;
-	totalRecords: number;
 	batchName?: string;
+	entityName: string;
 	errors: number;
+	fileId: number;
+	totalRecords: number;
 };
 
 const submissionRecordsRepository = (dependencies: BaseDependencies) => {
@@ -200,13 +201,19 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 						actionType: submissionRecords.actionType,
 						batchName: submissionFiles.fileName,
 						entityName: submissionFiles.entityName,
-						totalRecords: count(),
 						errors: count(submissionRecords.errors),
+						fileId: submissionFiles.id,
+						totalRecords: count(),
 					})
 					.from(submissionRecords)
 					.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
 					.where(eq(submissionFiles.submissionId, submissionId))
-					.groupBy(submissionRecords.actionType, submissionFiles.fileName, submissionFiles.entityName);
+					.groupBy(
+						submissionFiles.id,
+						submissionRecords.actionType,
+						submissionFiles.entityName,
+						submissionFiles.fileName,
+					);
 
 				return submissionFileRecords;
 			} catch (error) {
