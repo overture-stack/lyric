@@ -39,13 +39,13 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 	): Promise<SubmissionRecordWithEntityName[]> => {
 		const query = db
 			.select({
-				id: submissionRecords.id,
 				actionType: submissionRecords.actionType,
-				state: submissionRecords.state,
-				fileId: submissionRecords.fileId,
 				data: submissionRecords.data,
-				errors: submissionRecords.errors,
 				entityName: submissionFiles.entityName,
+				errors: submissionRecords.errors,
+				fileId: submissionRecords.fileId,
+				id: submissionRecords.id,
+				state: submissionRecords.state,
 			})
 			.from(submissionRecords)
 			.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
