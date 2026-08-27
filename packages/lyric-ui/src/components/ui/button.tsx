@@ -43,9 +43,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
 		return (
 			<Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props}>
-				{!asChild && icon && iconPosition === 'left' && icon}
-				{size !== 'icon' ? children : null}
-				{!asChild && icon && iconPosition === 'right' && icon}
+				<>
+					{!asChild && icon && iconPosition === 'left' && icon}
+					{size !== 'icon' ? children : null}
+					{!asChild && icon && iconPosition === 'right' && icon}
+				</>
 			</Comp>
 		);
 	},
