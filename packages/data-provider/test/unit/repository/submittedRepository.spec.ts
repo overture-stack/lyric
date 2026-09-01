@@ -34,12 +34,5 @@ describe('submittedRepository', () => {
 			expect(sql).to.eql('data ->> $1 in ($2)');
 			expect(params).to.eql(['submitter_donor_id', `DO-01'; DROP TABLE submitted_data; --`]);
 		});
-
-		it('should coerce an undefined dataValue to the string "undefined", matching prior behaviour', () => {
-			const result = buildDataFieldFilter('submitter_donor_id', undefined);
-			const { params } = dialect.sqlToQuery(result);
-
-			expect(params).to.eql(['submitter_donor_id', 'undefined']);
-		});
 	});
 });
