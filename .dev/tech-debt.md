@@ -61,10 +61,6 @@ context: `dictionary_categories.id` is a plain auto-increment `serial`, used dir
 standalone: yes
 context: #43 lists three items: SQON `fieldName`/`value` sanitization on the query endpoint, TSV-data sanitization before DB insert, and a general other-endpoints input-parameter audit. Only the first is fixed in code today, via parameterized queries in `convertSqonToQuery.ts` and, for the same unescaped-splice-into-`sql.raw()` pattern, `submittedRepository.ts`'s `getSubmittedDataFiltered` (that path is FK-relationship resolution during compound-view reads/submission processing, not literally "the query endpoint" the item names). TSV sanitization and the broader endpoint audit remain untouched and unscoped. Fix: two further, separate efforts — (1) sanitize TSV data before inserting into the database, (2) audit other endpoints' input parameters (path params, query params, etc.) for the same class of issue. #43 should stay open until both land.
 
-### SQON `fieldName` has no allowlist against the dictionary schema
-standalone: yes
-context: `dataGetByQueryRequestSchema`'s `sqonSchema` only checks that a SQON parses structurally (`zod.custom` around `parseSQON`); sqon-builder's own `fieldName: zod.ZodString` accepts any non-empty string. Nothing compares it against the category's active dictionary schema, so a caller can query on any arbitrary key — harmless (an unmapped key just returns no matches; SQL injection via `fieldName` is closed separately, via parameterization in `convertSqonToQuery.ts`), but worth closing for correctness and to catch typo'd/renamed field names at request time. Fix: validate `fieldName` (and any nested path segments) against the active dictionary's actual field names before building the query, in `convertSqonToQuery.ts` or the controller layer above it; reject with a 400 rather than silently returning zero rows for an unknown field.
-
 ---
 
 ## Resolved
@@ -73,3 +69,6 @@ context: `dataGetByQueryRequestSchema`'s `sqonSchema` only checks that a SQON pa
 
 ### Kafka publish tracking: no unit tests for `createPublishTracker`
 resolved: tracker removed in PR #208 (published_at column dropped during review; tracking responsibility deferred)
+
+### SQON `fieldName` has no allowlist against the dictionary schema
+resolved: invalid, not tracked. A record's `fieldName`s can legitimately fall outside the *current* dictionary after a migration: `migrationService.ts`'s `performMigrationValidation` re-validates existing records against a new dictionary but never rewrites their stored `data`, so a field the new schema dropped stays present and queryable on old records. Rejecting an unrecognized `fieldName` at query time would break querying that legitimate historical data. Submission-time validation already rejects an unrecognized field on the way in, via Lectern's `UNRECOGNIZED_FIELD` check (`validateRecord.ts`), called from `submissionProcessor.ts` against the category's active dictionary; that's the correct and only place for this check.
