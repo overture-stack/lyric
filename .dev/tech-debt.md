@@ -57,6 +57,10 @@ fix: not scoped yet; would mean exposing categories only by alias externally, or
 standalone: yes
 context: `dictionary_categories.id` is a plain auto-increment `serial`, used directly in URLs and responses, a predictable-identifier smell. The alias feature is a step away from this but doesn't remove or restrict the id.
 
+### Issue #43 ("Sanitize JSON data") covers 3 items; only the SQON one is fixed
+standalone: yes
+context: #43 lists three items: SQON `fieldName`/`value` sanitization on the query endpoint, TSV-data sanitization before DB insert, and a general other-endpoints input-parameter audit. Only the first is fixed in code today, via parameterized queries in `convertSqonToQuery.ts` and, for the same unescaped-splice-into-`sql.raw()` pattern, `submittedRepository.ts`'s `getSubmittedDataFiltered` (that path is FK-relationship resolution during compound-view reads/submission processing, not literally "the query endpoint" the item names). TSV sanitization and the broader endpoint audit remain untouched and unscoped. Fix: two further, separate efforts — (1) sanitize TSV data before inserting into the database, (2) audit other endpoints' input parameters (path params, query params, etc.) for the same class of issue. #43 should stay open until both land.
+
 ---
 
 ## Resolved
@@ -65,3 +69,6 @@ context: `dictionary_categories.id` is a plain auto-increment `serial`, used dir
 
 ### Kafka publish tracking: no unit tests for `createPublishTracker`
 resolved: tracker removed in PR #208 (published_at column dropped during review; tracking responsibility deferred)
+
+### SQON `fieldName` has no allowlist against the dictionary schema
+resolved: invalid, not tracked. A record's `fieldName`s can legitimately fall outside the *current* dictionary after a migration: `migrationService.ts`'s `performMigrationValidation` re-validates existing records against a new dictionary but never rewrites their stored `data`, so a field the new schema dropped stays present and queryable on old records. Rejecting an unrecognized `fieldName` at query time would break querying that legitimate historical data. Submission-time validation already rejects an unrecognized field on the way in, via Lectern's `UNRECOGNIZED_FIELD` check (`validateRecord.ts`), called from `submissionProcessor.ts` against the category's active dictionary; that's the correct and only place for this check.
