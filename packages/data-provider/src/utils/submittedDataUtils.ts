@@ -21,6 +21,7 @@ import {
 	MERGE_REFERENCE_TYPE,
 	type MutableDataDiff,
 	type MutableDataRecord,
+	type SubmissionUpdateRecordWithEntityName,
 	VIEW_TYPE,
 	type ViewType,
 } from './types.js';
@@ -237,8 +238,8 @@ export const groupSchemaDataByEntityName = (data: {
  * Edits each record that is marked to be edited on the Submission
  * @param {object} params
  * @param {SubmittedData[] | undefined} params.submittedData An array of `SubmittedData` objects to be transformed.
- * @param {Record<string, SubmissionUpdateData[]>} params.editSubmittedData An Array of `SubmittedData` objects to be updated
- * @param {Rnumber} params.submissionId The ID of the Active Submission
+ * @param {SubmissionRecordWithEntityName[]} params.editSubmittedData An Array of `SubmittedData` objects to be updated
+ * @param {number} params.submissionId The ID of the Active Submission
  * @returns {Record<string, DataRecordReference[]>}
  */
 export const mapAndMergeSubmittedDataToRecordReferences = ({
@@ -247,26 +248,20 @@ export const mapAndMergeSubmittedDataToRecordReferences = ({
 	submissionId,
 }: {
 	submittedData?: SubmittedData[];
-	editSubmittedData?: Record<string, SubmissionUpdateData[]>;
+	editSubmittedData?: SubmissionUpdateRecordWithEntityName[];
 	submissionId: number;
 }): Record<string, DataRecordReference[]> => {
 	if (!submittedData) {
 		return {};
 	}
 	return submittedData.reduce<Record<string, DataRecordReference[]>>((acc, entityData) => {
-		const entityEditData = editSubmittedData?.[entityData.entityName];
-		const foundRecordToUpdateIndex = entityEditData
-			? entityEditData.findIndex((item) => item.systemId === entityData.systemId)
-			: -1;
+		const recordToUpdate = editSubmittedData?.find(
+			(item) => item.entityName === entityData.entityName && item.data.systemId === entityData.systemId,
+		);
+
 		let record: DataRecordReference;
-		if (entityEditData && foundRecordToUpdateIndex >= 0) {
-			const recordToUpdate = entityEditData[foundRecordToUpdateIndex];
-
-			if (!recordToUpdate) {
-				return acc;
-			}
-
-			const newDataToUpdate = updateEntityData(entityData.data, recordToUpdate);
+		if (recordToUpdate) {
+			const newDataToUpdate = updateEntityData(entityData.data, recordToUpdate.data);
 
 			record = {
 				dataRecord: newDataToUpdate,
@@ -274,7 +269,7 @@ export const mapAndMergeSubmittedDataToRecordReferences = ({
 					type: MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA,
 					systemId: entityData.systemId,
 					submissionId,
-					index: foundRecordToUpdateIndex,
+					recordId: recordToUpdate.recordId,
 				},
 			};
 		} else {

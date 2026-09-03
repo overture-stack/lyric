@@ -5,7 +5,7 @@ import {
 	AuditAction,
 	AuditDataResponse,
 	AuditRepositoryRecord,
-	SUBMISSION_ACTION_TYPE,
+	SUBMISSION_RECORD_ACTION_TYPE,
 } from './types.js';
 
 /**
@@ -18,7 +18,7 @@ export const isAuditEventValid = (value: unknown): boolean =>
 	typeof value === 'string' && AUDIT_ACTION.safeParse(value.toUpperCase()).success;
 
 export const isSubmissionActionTypeValid = (value: unknown): boolean =>
-	typeof value === 'string' && SUBMISSION_ACTION_TYPE.safeParse(value.toUpperCase()).success;
+	typeof value === 'string' && SUBMISSION_RECORD_ACTION_TYPE.safeParse(value.toUpperCase()).success;
 
 /**
  * Convert a value string into it's Audit event type if it matches.

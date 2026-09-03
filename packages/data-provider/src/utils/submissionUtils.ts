@@ -12,20 +12,21 @@ import {
 	validate,
 } from '@overture-stack/lectern-client';
 import {
-	SubmissionData,
+	type RecordErrorActionConflict,
 	type SubmissionDeleteData,
-	type SubmissionErrors,
 	type SubmissionInsertData,
+	type SubmissionRecordError,
 	type SubmissionUpdateData,
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
 
+import type { SubmissionRecordWithEntityName } from '../repository/submissionRecordsRepository.js';
 import { getSubmittedFileEntity } from '../services/submission/submissionFile.js';
 import { isSubmissionActionTypeValid } from './auditUtils.js';
 import type { SchemaChildNode } from './dictionarySchemaRelations.js';
 import { getSchemaFieldNames } from './dictionaryUtils.js';
 import { readHeaders, readTextFile } from './fileUtils.js';
-import { asArray, deepCompare } from './formatUtils.js';
+import { asArray } from './formatUtils.js';
 import type { FilenameEntityPair } from './schemas.js';
 import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
@@ -36,16 +37,12 @@ import {
 	type FileSchemaMap as FileSchemaMap,
 	MERGE_REFERENCE_TYPE,
 	type NewSubmittedDataReference,
-	SUBMISSION_ACTION_TYPE,
+	SUBMISSION_RECORD_ACTION_TYPE,
 	SUBMISSION_STATUS,
-	type SubmissionActionType,
-	type SubmissionDataDetailsRepositoryRecord,
-	type SubmissionDataSummary,
-	type SubmissionDataSummaryRepositoryRecord,
-	type SubmissionDetailsResponse,
-	type SubmissionErrorsSummary,
+	type SubmissionInsertRecordWithEntityName,
+	type SubmissionRecordActionType,
 	type SubmissionStatus,
-	type SubmissionSummary,
+	type SubmissionUpdateRecordWithEntityName,
 	SubmittedDataReference,
 } from './types.js';
 
@@ -224,86 +221,6 @@ export const findInvalidRecordErrorsBySchemaName = (
 };
 
 /**
- * Generalized function to filter out conflicting records between two data sets based on `systemId`.
- *
- * This function can be used to either filter updates from deletes or deletes from updates, depending on the provided parameters.
- * It removes records from the `sourceData` that have a matching `systemId` in the `conflictData`.
- *
- * @param sourceData - A record of the primary data (e.g., updates or deletes) to be filtered, grouped by entity name.
- * @param conflictData - A record of data that might conflict (e.g., deletes or updates), grouped by entity name.
- * @param entitySelector - A function to select the `systemId` from the source records.
- * @param conflictSelector - A function to select the `systemId` from the conflict records.
- * @returns A record of filtered source data, excluding records that conflict based on `systemId`.
- */
-export const filterRecordsByConflicts = <SourceData, ConflictData>(
-	sourceData: Record<string, SourceData[]>,
-	conflictData: Record<string, ConflictData[]>,
-	entitySelector: (item: SourceData) => string,
-	conflictSelector: (item: ConflictData) => string,
-): Record<string, SourceData[]> => {
-	return Object.entries(sourceData).reduce<Record<string, SourceData[]>>((acc, [entityName, sourceItems]) => {
-		const conflicts = conflictData[entityName];
-
-		if (conflicts) {
-			// Create a Set of systemIds from conflict records for faster lookup
-			const conflictIdsSet = new Set(conflicts.map(conflictSelector));
-
-			// Filter source data that does not have a matching systemId in the conflict set
-			const filteredValues = sourceItems.filter((item) => !conflictIdsSet.has(entitySelector(item)));
-
-			if (filteredValues.length > 0) {
-				acc[entityName] = filteredValues;
-			}
-		} else {
-			// If no conflicts, keep the source data as is
-			acc[entityName] = sourceItems;
-		}
-
-		return acc;
-	}, {});
-};
-
-/**
- * Filters updates from the provided `submissionUpdateData` based on conflicts found in the `submissionDeleteData`.
- * Conflicts are determined by matching the `systemId` of the items in both records.
- *
- * @param submissionUpdateData - A record containing arrays of `SubmissionUpdateData` to be filtered.
- * @param submissionDeleteData - A record containing arrays of `SubmissionDeleteData` that defines the conflicts.
- * @returns A filtered record of `SubmissionUpdateData[]` where no items conflict with those in `submissionDeleteData`.
- */
-export const filterUpdatesFromDeletes = (
-	submissionUpdateData: Record<string, SubmissionUpdateData[]>,
-	submissionDeleteData: Record<string, SubmissionDeleteData[]>,
-): Record<string, SubmissionUpdateData[]> => {
-	return filterRecordsByConflicts(
-		submissionUpdateData,
-		submissionDeleteData,
-		(itemToUpdate) => itemToUpdate.systemId,
-		(itemToDelete) => itemToDelete.systemId,
-	);
-};
-
-/**
- * Filters deletes from the provided `submissionDeleteData` based on conflicts found in the `submissionUpdateData`.
- * Conflicts are determined by matching the `systemId` of the items in both records.
- *
- * @param submissionDeleteData - A record containing arrays of `SubmissionDeleteData` to be filtered.
- * @param submissionUpdateData - A record containing arrays of `SubmissionUpdateData` that defines the conflicts.
- * @returns A filtered record of `SubmissionDeleteData[]` where no items conflict with those in `submissionUpdateData`.
- */
-export const filterDeletesFromUpdates = (
-	submissionDeleteData: Record<string, SubmissionDeleteData[]>,
-	submissionUpdateData: Record<string, SubmissionUpdateData[]>,
-): Record<string, SubmissionDeleteData[]> => {
-	return filterRecordsByConflicts(
-		submissionDeleteData,
-		submissionUpdateData,
-		(itemToDelete) => itemToDelete.systemId,
-		(itemToUpdate) => itemToUpdate.systemId,
-	);
-};
-
-/**
  * Returns a filter to query the database used to find dependents records when the update record involves changes of an primary ID field
  *
  * @param schemaRelations An array of `SchemaChildNode` representing the schema relations for the entity. Each node contains information about parent-child relationships.
@@ -331,6 +248,16 @@ export const filterRelationsForPrimaryIdUpdate = (
 				};
 			})
 	);
+};
+type SubmissionRecordErrorDetails = {
+	recordId: number;
+	errors: SubmissionRecordError[];
+};
+
+export type SubmissionErrors = {
+	inserts?: Record<string, SubmissionRecordErrorDetails[]>;
+	updates?: Record<string, SubmissionRecordErrorDetails[]>;
+	deletes?: Record<string, SubmissionRecordErrorDetails[]>;
 };
 
 /**
@@ -370,13 +297,8 @@ export const groupSchemaErrorsByEntity = (input: {
 				return;
 			}
 
-			const submissionIndex = mapping.reference.index;
+			const submissionRecordId = mapping.reference.recordId;
 			const actionType = mapping.reference.type === MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA ? 'inserts' : 'updates';
-
-			const mutableSchemaValidationErrors = schemaValidationErrors.map((errors) => ({
-				...errors,
-				index: submissionIndex,
-			}));
 
 			if (!submissionSchemaErrors[actionType]) {
 				submissionSchemaErrors[actionType] = {};
@@ -386,10 +308,213 @@ export const groupSchemaErrorsByEntity = (input: {
 				submissionSchemaErrors[actionType][entityName] = [];
 			}
 
-			submissionSchemaErrors[actionType][entityName].push(...mutableSchemaValidationErrors);
+			submissionSchemaErrors[actionType][entityName].push({
+				recordId: submissionRecordId,
+				errors: schemaValidationErrors,
+			});
 		});
 	});
 	return submissionSchemaErrors;
+};
+
+/**
+ * Scans the Active Submission for `systemId`s (scoped per entity) that have both an UPDATE and a
+ * DELETE record staged at the same time. This is meant to run *before* dictionary validation:
+ * detecting the conflict up front lets both conflicting records be rejected explicitly, instead of
+ * one action silently winning based on array-filtering order later in the validation/merge pipeline.
+ * @param {SubmissionRecordWithEntityName[]} submissionData The Active Submission data
+ * @returns {SubmissionErrors} Conflict errors under the 'updates' and 'deletes' buckets, grouped by entity name
+ */
+export const findUpdateDeleteConflicts = (submissionData: SubmissionRecordWithEntityName[]): SubmissionErrors => {
+	const updatesByEntity = new Map<string, Map<string, number[]>>();
+	const deletesByEntity = new Map<string, Map<string, number[]>>();
+
+	const trackRecordId = (
+		bucket: Map<string, Map<string, number[]>>,
+		entityName: string,
+		systemId: string,
+		recordId: number,
+	) => {
+		const bySystemId = bucket.get(entityName) ?? new Map<string, number[]>();
+		bySystemId.set(systemId, [...(bySystemId.get(systemId) ?? []), recordId]);
+		bucket.set(entityName, bySystemId);
+	};
+
+	submissionData.forEach((record) => {
+		if (isUpdateSubmissionRecord(record)) {
+			trackRecordId(updatesByEntity, record.entityName, record.data.systemId, record.id);
+		} else if (isDeleteSubmissionRecord(record)) {
+			trackRecordId(deletesByEntity, record.entityName, record.data.systemId, record.id);
+		}
+	});
+
+	const conflictErrorFor = (
+		systemId: string,
+		conflictingActionType: RecordErrorActionConflict['conflictingActionType'],
+	): RecordErrorActionConflict => ({
+		reason: 'CONFLICTING_ACTION',
+		systemId,
+		conflictingActionType,
+		message: `Record with systemId '${systemId}' has both an UPDATE and a DELETE staged in the same Active Submission`,
+	});
+
+	const conflictErrors: SubmissionErrors = {};
+
+	updatesByEntity.forEach((updateSystemIds, entityName) => {
+		const deleteSystemIds = deletesByEntity.get(entityName);
+		if (!deleteSystemIds) {
+			return;
+		}
+
+		updateSystemIds.forEach((updateRecordIds, systemId) => {
+			const deleteRecordIds = deleteSystemIds.get(systemId);
+			if (!deleteRecordIds) {
+				return;
+			}
+
+			conflictErrors.updates ??= {};
+			conflictErrors.updates[entityName] = [
+				...(conflictErrors.updates[entityName] ?? []),
+				...updateRecordIds.map((recordId) => ({ recordId, errors: [conflictErrorFor(systemId, 'DELETE')] })),
+			];
+
+			conflictErrors.deletes ??= {};
+			conflictErrors.deletes[entityName] = [
+				...(conflictErrors.deletes[entityName] ?? []),
+				...deleteRecordIds.map((recordId) => ({ recordId, errors: [conflictErrorFor(systemId, 'UPDATE')] })),
+			];
+		});
+	});
+
+	return conflictErrors;
+};
+
+export type DeleteStagingConflicts = {
+	/** `recordsToDeleteMap` with systemIds that already have a pending DELETE removed, so they aren't staged twice */
+	filteredRecordsToDeleteMap: Record<string, SubmissionDeleteData[]>;
+	/** systemIds that already have a pending UPDATE staged for the same entity in the Active Submission */
+	conflictingSystemIds: string[];
+	/** systemIds that already have a pending DELETE staged for the same entity — skipped instead of duplicated */
+	duplicateSystemIds: string[];
+};
+
+/**
+ * Checks systemIds about to be staged for deletion against what the Active Submission already has
+ * pending for the same entity, before a new DELETE record is ever inserted. A systemId with a
+ * pending UPDATE is reported as a conflict — the caller should reject the delete rather than
+ * silently letting one action override the other, consistent with how `findUpdateDeleteConflicts`
+ * treats the same conflict at validation time. A systemId that already has a pending DELETE is
+ * treated as a duplicate and dropped from the result, instead of inserting a second DELETE record.
+ * @param {Record<string, SubmissionDeleteData[]>} recordsToDeleteMap New deletes, grouped by entity name
+ * @param {SubmissionRecordWithEntityName[]} existingSubmissionRecords The Active Submission's current UPDATE/DELETE records
+ * @returns {DeleteStagingConflicts}
+ */
+export const resolveDeleteStagingConflicts = (
+	recordsToDeleteMap: Record<string, SubmissionDeleteData[]>,
+	existingSubmissionRecords: SubmissionRecordWithEntityName[],
+): DeleteStagingConflicts => {
+	const existingUpdateSystemIds = new Map<string, Set<string>>();
+	const existingDeleteSystemIds = new Map<string, Set<string>>();
+
+	const trackSystemId = (bucket: Map<string, Set<string>>, entityName: string, systemId: string) => {
+		const systemIds = bucket.get(entityName) ?? new Set<string>();
+		systemIds.add(systemId);
+		bucket.set(entityName, systemIds);
+	};
+
+	existingSubmissionRecords.forEach((record) => {
+		if (isUpdateSubmissionRecord(record)) {
+			trackSystemId(existingUpdateSystemIds, record.entityName, record.data.systemId);
+		} else if (isDeleteSubmissionRecord(record)) {
+			trackSystemId(existingDeleteSystemIds, record.entityName, record.data.systemId);
+		}
+	});
+
+	const conflictingSystemIds: string[] = [];
+	const duplicateSystemIds: string[] = [];
+	const filteredRecordsToDeleteMap: Record<string, SubmissionDeleteData[]> = {};
+
+	Object.entries(recordsToDeleteMap).forEach(([entityName, records]) => {
+		const conflictingUpdateIds = existingUpdateSystemIds.get(entityName);
+		const duplicateDeleteIds = existingDeleteSystemIds.get(entityName);
+
+		const recordsToKeep = records.filter((record) => {
+			if (conflictingUpdateIds?.has(record.systemId)) {
+				conflictingSystemIds.push(record.systemId);
+				return false;
+			}
+			if (duplicateDeleteIds?.has(record.systemId)) {
+				duplicateSystemIds.push(record.systemId);
+				return false;
+			}
+			return true;
+		});
+
+		if (recordsToKeep.length > 0) {
+			filteredRecordsToDeleteMap[entityName] = recordsToKeep;
+		}
+	});
+
+	return { filteredRecordsToDeleteMap, conflictingSystemIds, duplicateSystemIds };
+};
+
+/**
+ * Collects every `recordId` referenced across all buckets of a `SubmissionErrors` object.
+ * @param {SubmissionErrors} errors
+ * @returns {Set<number>}
+ */
+export const extractRecordIdsFromSubmissionErrors = (errors: SubmissionErrors): Set<number> => {
+	const recordIds = new Set<number>();
+	for (const entities of Object.values(errors)) {
+		if (!entities) {
+			continue;
+		}
+		for (const records of Object.values(entities)) {
+			records.forEach(({ recordId }) => recordIds.add(recordId));
+		}
+	}
+	return recordIds;
+};
+
+/**
+ * Merges two `SubmissionErrors` objects together, concatenating each entity's error array
+ * bucket-by-bucket instead of overwriting it.
+ * @param {SubmissionErrors} a
+ * @param {SubmissionErrors} b
+ * @returns {SubmissionErrors}
+ */
+export const mergeSubmissionErrors = (a: SubmissionErrors, b: SubmissionErrors): SubmissionErrors => {
+	const mergeBucket = (
+		bucketA?: Record<string, SubmissionRecordErrorDetails[]>,
+		bucketB?: Record<string, SubmissionRecordErrorDetails[]>,
+	): Record<string, SubmissionRecordErrorDetails[]> | undefined => {
+		if (!bucketA && !bucketB) {
+			return undefined;
+		}
+		const merged: Record<string, SubmissionRecordErrorDetails[]> = { ...bucketA };
+		for (const [entityName, records] of Object.entries(bucketB ?? {})) {
+			merged[entityName] = [...(merged[entityName] ?? []), ...records];
+		}
+		return merged;
+	};
+
+	// Only set a bucket key when it actually has content — callers rely on `Object.keys(...).length`
+	// (and `_.isEmpty`) to detect the "no errors" case, so an always-present `undefined` value would
+	// make every submission look like it has errors.
+	const merged: SubmissionErrors = {};
+	const inserts = mergeBucket(a.inserts, b.inserts);
+	if (inserts) {
+		merged.inserts = inserts;
+	}
+	const updates = mergeBucket(a.updates, b.updates);
+	if (updates) {
+		merged.updates = updates;
+	}
+	const deletes = mergeBucket(a.deletes, b.deletes);
+	if (deletes) {
+		merged.deletes = deletes;
+	}
+	return merged;
 };
 
 /**
@@ -397,24 +522,32 @@ export const groupSchemaErrorsByEntity = (input: {
  * and maps it to it's original reference Id
  * The result mapping is used to perform the cross schema validation
  * @param {number} activeSubmissionId
- * @param {Record<string, SubmissionInsertData>} activeSubmissionInsertDataEntities
+ * @param {SubmissionInsertRecordWithEntityName[]} activeSubmissionInsertDataEntities
  * @returns {Record<string, DataRecordReference[]>}
  */
 export const mapInsertDataToRecordReferences = (
 	activeSubmissionId: number,
-	activeSubmissionInsertDataEntities: Record<string, SubmissionInsertData>,
+	activeSubmissionInsertDataEntities: SubmissionInsertRecordWithEntityName[],
 ): Record<string, DataRecordReference[]> => {
-	return _.mapValues(activeSubmissionInsertDataEntities, (submissionInsertData) =>
-		submissionInsertData.records.map((record, index) => {
-			return {
-				dataRecord: record,
+	return activeSubmissionInsertDataEntities.reduce<Record<string, DataRecordReference[]>>(
+		(acc, submissionInsertData) => {
+			const entityName = submissionInsertData.entityName;
+			let entityRecords = acc[entityName];
+			if (!entityRecords) {
+				entityRecords = [];
+				acc[entityName] = entityRecords;
+			}
+			entityRecords.push({
+				dataRecord: submissionInsertData.data,
 				reference: {
 					submissionId: activeSubmissionId,
 					type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
-					index: index,
+					recordId: submissionInsertData.recordId,
 				},
-			};
-		}),
+			});
+			return acc;
+		},
+		{},
 	);
 };
 
@@ -455,15 +588,63 @@ export const mapGroupedUpdateSubmissionData = ({
 	);
 };
 
+export const isUpdateSubmissionRecord = (
+	item: SubmissionRecordWithEntityName,
+): item is SubmissionRecordWithEntityName & {
+	actionType: typeof SUBMISSION_RECORD_ACTION_TYPE.Values.UPDATE;
+	data: SubmissionUpdateData;
+} => item.actionType === SUBMISSION_RECORD_ACTION_TYPE.Values.UPDATE;
+
+export const isInsertSubmissionRecord = (
+	item: SubmissionRecordWithEntityName,
+): item is SubmissionRecordWithEntityName & {
+	actionType: typeof SUBMISSION_RECORD_ACTION_TYPE.Values.INSERT;
+	data: SubmissionInsertData;
+} => item.actionType === SUBMISSION_RECORD_ACTION_TYPE.Values.INSERT;
+
+export const isDeleteSubmissionRecord = (
+	item: SubmissionRecordWithEntityName,
+): item is SubmissionRecordWithEntityName & {
+	actionType: typeof SUBMISSION_RECORD_ACTION_TYPE.Values.DELETE;
+	data: SubmissionDeleteData;
+} => item.actionType === SUBMISSION_RECORD_ACTION_TYPE.Values.DELETE;
+
+export const createSubmissionUpdateRecords = (
+	submissionData: SubmissionRecordWithEntityName[],
+): SubmissionUpdateRecordWithEntityName[] => {
+	return submissionData.reduce<SubmissionUpdateRecordWithEntityName[]>((acc, item) => {
+		if (isUpdateSubmissionRecord(item)) {
+			acc.push({
+				recordId: item.id,
+				entityName: item.entityName,
+				data: item.data,
+			});
+		}
+		return acc;
+	}, []);
+};
+
+export const createSubmissionInsertRecords = (
+	submissionData: SubmissionRecordWithEntityName[],
+): SubmissionInsertRecordWithEntityName[] => {
+	return submissionData.reduce<SubmissionInsertRecordWithEntityName[]>((acc, item) => {
+		if (isInsertSubmissionRecord(item)) {
+			acc.push({
+				recordId: item.id,
+				entityName: item.entityName,
+				data: item.data,
+			});
+		}
+		return acc;
+	}, []);
+};
+
 /**
  * Combines **Active Submission** and the **Submitted Data** recevied as arguments.
  * Then, the Schema Data is extracted and mapped with its internal reference ID.
  * The returned Object is a collection of the raw Schema Data with it's reference ID grouped by entity name.
  * @param {number} submissionId ID of the Active Submission
- * @param {Object} submissionData
- * @param {Record<string, SubmissionInsertData>} submissionData.insertData Collection of Data records of the Active Submission
- * @param {Record<string, SubmissionUpdateData[]>} submissionData.updateData Collection of Data records of the Active Submission
- * @param {Record<string, SubmissionDeleteData[]>} submissionData.deleteData Collection of Data records of the Active Submission
+ * @param {SubmissionRecordWithEntityName[]} submissionData The Active Submission data
  * @param {SubmittedData[]} submittedData An array of Submitted Data
  * @returns {Record<string, DataRecordReference[]>}
  */
@@ -473,12 +654,10 @@ export const mergeAndReferenceEntityData = ({
 	submittedData,
 }: {
 	submissionId: number;
-	submissionData: SubmissionData;
+	submissionData: SubmissionRecordWithEntityName[];
 	submittedData: SubmittedData[];
 }): Record<string, DataRecordReference[]> => {
-	const systemsIdsToRemove = submissionData.deletes
-		? Object.values(submissionData.deletes).flatMap((entityData) => entityData.map(({ systemId }) => systemId))
-		: [];
+	const systemsIdsToRemove = submissionData.filter(isDeleteSubmissionRecord).map((item) => item.data.systemId);
 
 	// Exclude items that are marked for deletion
 	const submittedDataFiltered =
@@ -486,15 +665,17 @@ export const mergeAndReferenceEntityData = ({
 			? submittedData.filter(({ systemId }) => !systemsIdsToRemove.includes(systemId))
 			: submittedData;
 
+	const dataToUpdate = createSubmissionUpdateRecords(submissionData);
+
 	const submittedDataWithRef = mapAndMergeSubmittedDataToRecordReferences({
 		submittedData: submittedDataFiltered,
-		editSubmittedData: submissionData.updates,
+		editSubmittedData: dataToUpdate,
 		submissionId,
 	});
 
-	const insertDataWithRef = submissionData.inserts
-		? mapInsertDataToRecordReferences(submissionId, submissionData.inserts)
-		: {};
+	const dataToInsert = createSubmissionInsertRecords(submissionData);
+
+	const insertDataWithRef = dataToInsert.length > 0 ? mapInsertDataToRecordReferences(submissionId, dataToInsert) : {};
 
 	// This object will merge existing data + new data for validation (Submitted data + active Submission)
 	return _.mergeWith(submittedDataWithRef, insertDataWithRef, (objValue, srcValue) => {
@@ -503,90 +684,6 @@ export const mergeAndReferenceEntityData = ({
 			return objValue.concat(srcValue);
 		}
 	});
-};
-
-/**
- * Merges multiple `Record<string, SubmissionInsertData>` objects into a single object.
- * If there are duplicate keys between the objects, the `records` arrays of `SubmissionInsertData`
- * are concatenated for the matching keys, ensuring no duplicates.
- *
- * @param objects An array of objects where each object is a `Record<string, SubmissionInsertData>`.
- * Each key represents the entityName, and the value is an object of type `SubmissionInsertData`.
- *
- * @returns A new `Record<string, SubmissionInsertData>` where:
- * - If a key is unique across all objects, its value is directly included.
- * - If a key appears in multiple objects, the `records` arrays are concatenated for that key, avoiding duplicates.
- */
-export const mergeInsertsRecords = (
-	...objects: Record<string, SubmissionInsertData>[]
-): Record<string, SubmissionInsertData> => {
-	const result: Record<string, SubmissionInsertData> = {};
-
-	let seen: DataRecord[] = [];
-	// Iterate over all objects
-	objects.forEach((obj) => {
-		// Iterate over each key in the current object
-		Object.entries(obj).forEach(([key, value]) => {
-			if (result[key]) {
-				// The key already exists in the result, concatenate the `records` arrays, avoiding duplicates
-				let uniqueData: DataRecord[] = [];
-
-				result[key].records.concat(value.records).forEach((item) => {
-					if (!seen.some((existingItem) => deepCompare(existingItem, item))) {
-						uniqueData = uniqueData.concat(item);
-						seen = seen.concat(item);
-					}
-				});
-
-				result[key].records = uniqueData;
-				return;
-			} else {
-				// The key doesn't exists in the result, create as it comes
-				result[key] = value;
-				return;
-			}
-		});
-	});
-
-	return result;
-};
-
-/**
- * Merges multiple `Record<string, SubmissionDeleteData[]>` objects into a single object.
- * For each key, the `SubmissionDeleteData[]` arrays are concatenated, ensuring no duplicate
- * `SubmissionDeleteData` objects based on the `systemId` field.
- *
- * @param objects Multiple `Record<string, SubmissionDeleteData[]>` objects to be merged.
- * Each key represents an identifier, and the value is an array of `SubmissionDeleteData`.
- *
- * @returns
- */
-export const mergeDeleteRecords = (
-	...objects: Record<string, SubmissionDeleteData[]>[]
-): Record<string, SubmissionDeleteData[]> => {
-	const result: Record<string, SubmissionDeleteData[]> = {};
-
-	// Iterate over all objects
-	objects.forEach((obj) => {
-		// Iterate over each key in the current object
-		Object.entries(obj).forEach(([key, value]) => {
-			if (!result[key]) {
-				result[key] = [];
-			}
-			const uniqueRecords = new Map<string, SubmissionDeleteData>();
-
-			// Add existing records to the map
-			result[key].forEach((record) => uniqueRecords.set(record.systemId, record));
-
-			// Add new records, overriding duplicates based on systemId
-			value.forEach((record) => uniqueRecords.set(record.systemId, record));
-
-			// Convert the map back to an array
-			result[key] = Array.from(uniqueRecords.values());
-		});
-	});
-
-	return result;
 };
 
 /**
@@ -624,168 +721,8 @@ export const mergeUpdatesBySystemId = (
 	return result;
 };
 
-/**
- * Utility to convert a raw Submission record to a Response type
- * @param {SubmissionDataDetailsRepositoryRecord} submission
- * @returns {SubmissionDetailsResponse}
- */
-export const createSubmissionDetailsResponse = (
-	submission: SubmissionDataDetailsRepositoryRecord,
-): SubmissionDetailsResponse => {
-	return {
-		id: submission.id,
-		data: submission.data,
-		dictionary: submission.dictionary,
-		dictionaryCategory: submission.dictionaryCategory,
-		errors: submission.errors || {},
-		organization: submission.organization,
-		status: submission.status,
-		createdAt: _.toString(submission.createdAt?.toISOString()),
-		createdBy: _.toString(submission.createdBy),
-		updatedAt: _.toString(submission.updatedAt?.toISOString()),
-		updatedBy: _.toString(submission.updatedBy),
-	};
-};
-
-/**
- * Utility to sum the recordsCount from a SubmissionDataSummary or SubmissionErrorsSummary
- */
-const sumRecordsCount = (buckets: SubmissionDataSummary | SubmissionErrorsSummary): number => {
-	return Object.values(buckets)
-		.flatMap((bucket) => (bucket ? Object.values(bucket) : []))
-		.reduce((total, { recordsCount }) => total + recordsCount, 0);
-};
-
-/**
- * Utility to convert the raw SubmissionDataSummaryRepositoryRecord into a SubmissionSummaryResponse.
- * It includes a `total` value representing the sum of changes of each `data` and `errors`
- * @param {SubmissionDataSummaryRepositoryRecord} submission
- * @returns {SubmissionSummary}
- */
-export const createSubmissionSummaryResponse = (
-	submission: SubmissionDataSummaryRepositoryRecord,
-): SubmissionSummary => {
-	return {
-		id: submission.id,
-		data: {
-			...submission.data,
-			total: sumRecordsCount(submission.data),
-		},
-		dictionary: submission.dictionary,
-		dictionaryCategory: submission.dictionaryCategory,
-		errors: {
-			...submission.errors,
-			total: sumRecordsCount(submission.errors ?? {}),
-		},
-		organization: submission.organization,
-		status: submission.status,
-		createdAt: _.toString(submission.createdAt?.toISOString()),
-		createdBy: _.toString(submission.createdBy),
-		updatedAt: _.toString(submission.updatedAt?.toISOString()),
-		updatedBy: _.toString(submission.updatedBy),
-	};
-};
-
 export const pluralizeSchemaName = (schemaName: string) => {
 	return pluralize(schemaName);
-};
-
-export const removeItemsFromSubmission = (
-	submissionData: SubmissionData,
-	filter: { actionType: SubmissionActionType; entityName: string; index: number | null },
-): SubmissionData => {
-	const filteredSubmissionData = _.cloneDeep(submissionData);
-	switch (filter.actionType) {
-		case SUBMISSION_ACTION_TYPE.Values.INSERTS:
-			if (submissionData.inserts) {
-				const filteredInserts = Object.entries(submissionData.inserts).reduce<Record<string, SubmissionInsertData>>(
-					(acc, [insertsEntityName, insertsSubmissionData]) => {
-						if (insertsEntityName === filter.entityName && filter.index == null) {
-							// remove this whole entity
-							return acc;
-						} else if (insertsEntityName === filter.entityName && filter.index != null) {
-							// remove an item on records based on it's index
-							const filteredRecords = insertsSubmissionData.records.filter(
-								(_, recordIndex) => recordIndex !== filter.index,
-							);
-							if (filteredRecords.length > 0) {
-								acc[insertsEntityName] = {
-									batchName: insertsSubmissionData.batchName,
-									records: filteredRecords,
-								};
-							}
-						} else {
-							acc[insertsEntityName] = insertsSubmissionData;
-						}
-
-						return acc;
-					},
-					{},
-				);
-				if (Object.keys(filteredInserts).length === 0) {
-					delete filteredSubmissionData.inserts;
-				} else {
-					filteredSubmissionData.inserts = filteredInserts;
-				}
-			}
-			break;
-		case SUBMISSION_ACTION_TYPE.Values.UPDATES:
-			if (submissionData.updates) {
-				const filteredUpdates = Object.entries(submissionData.updates).reduce<Record<string, SubmissionUpdateData[]>>(
-					(acc, [updatesEntityName, updatesSubmissionData]) => {
-						if (updatesEntityName === filter.entityName && filter.index == null) {
-							// remove this whole entity
-							return acc;
-						} else if (updatesEntityName === filter.entityName && filter.index != null) {
-							// remove an item on records based on it's index
-							const filteredRecords = updatesSubmissionData.filter((_, recordIndex) => recordIndex !== filter.index);
-							if (filteredRecords.length > 0) {
-								acc[updatesEntityName] = filteredRecords;
-							}
-						} else {
-							acc[updatesEntityName] = updatesSubmissionData;
-						}
-
-						return acc;
-					},
-					{},
-				);
-				if (Object.keys(filteredUpdates).length === 0) {
-					delete filteredSubmissionData.updates;
-				} else {
-					filteredSubmissionData.updates = filteredUpdates;
-				}
-			}
-			break;
-		case SUBMISSION_ACTION_TYPE.Values.DELETES:
-			if (submissionData.deletes) {
-				const filteredDeletes = Object.entries(submissionData.deletes).reduce<Record<string, SubmissionDeleteData[]>>(
-					(acc, [deletesEntityName, deletesSubmissionData]) => {
-						if (deletesEntityName === filter.entityName && filter.index == null) {
-							// remove this whole entity
-							return acc;
-						} else if (deletesEntityName === filter.entityName && filter.index != null) {
-							// remove an item on records based on it's index
-							const filteredRecords = deletesSubmissionData.filter((_, recordIndex) => recordIndex !== filter.index);
-							if (filteredRecords.length > 0) {
-								acc[deletesEntityName] = filteredRecords;
-							}
-						} else {
-							acc[deletesEntityName] = deletesSubmissionData;
-						}
-						return acc;
-					},
-					{},
-				);
-				if (Object.keys(filteredDeletes).length === 0) {
-					delete filteredSubmissionData.deletes;
-				} else {
-					filteredSubmissionData.deletes = filteredDeletes;
-				}
-			}
-			break;
-	}
-	return filteredSubmissionData;
 };
 
 /**
@@ -833,7 +770,7 @@ export const segregateFieldChangeRecords = (
 };
 
 /** Per-file outcome from `submissionInsertDataFromFiles`. */
-export type FileParseResult = { fileName: string; entityName: string } & (
+export type FileParseResult = { fileName: string; entityName: string; fileSize: number } & (
 	| { status: 'ok' }
 	| { status: 'invalid'; parseErrors: ParseSchemaError[] }
 	| { status: 'error'; streamError: string }
@@ -841,8 +778,8 @@ export type FileParseResult = { fileName: string; entityName: string } & (
 
 /** Return type of `submissionInsertDataFromFiles`. */
 export type FileInsertResult = {
-	data: Record<string, SubmissionInsertData>;
-	fileResults: FileParseResult[];
+	data: DataRecord[];
+	fileResult: FileParseResult;
 };
 
 /**
@@ -850,33 +787,40 @@ export type FileInsertResult = {
  * Each file is processed independently: a stream or parse failure on one file is captured and
  * reported without interrupting processing of the remaining files.
  */
-export const submissionInsertDataFromFiles = async (fileSchemaMap: FileSchemaMap): Promise<FileInsertResult> => {
-	const data: Record<string, SubmissionInsertData> = {};
-	const fileResults: FileParseResult[] = [];
+export const submissionInsertDataFromFiles = async (fileSchemaMap: FileSchemaMap): Promise<FileInsertResult[]> => {
+	const result: FileInsertResult[] = [];
 
 	for (const [entityName, { files, schema }] of Object.entries(fileSchemaMap)) {
 		for (const file of files) {
 			try {
 				const parsedFileData = await readTextFile(file, schema);
-				const existing = data[schema.name] ?? { batchName: entityName, records: [] };
-				data[schema.name] = { ...existing, records: [...existing.records, ...parsedFileData.records] };
-				fileResults.push(
-					parsedFileData.errors.length > 0
-						? { status: 'invalid', fileName: file.originalname, entityName, parseErrors: parsedFileData.errors }
-						: { status: 'ok', fileName: file.originalname, entityName },
-				);
+				result.push({
+					data: parsedFileData.records,
+					fileResult: {
+						entityName,
+						fileName: file.originalname,
+						fileSize: file.size,
+						...(parsedFileData.errors.length > 0
+							? { status: 'invalid', parseErrors: parsedFileData.errors }
+							: { status: 'ok' }),
+					},
+				});
 			} catch (err) {
-				fileResults.push({
-					status: 'error',
-					fileName: file.originalname,
-					entityName,
-					streamError: err instanceof Error ? err.message : String(err),
+				result.push({
+					data: [],
+					fileResult: {
+						status: 'error',
+						fileName: file.originalname,
+						fileSize: file.size,
+						entityName,
+						streamError: err instanceof Error ? err.message : String(err),
+					},
 				});
 			}
 		}
 	}
 
-	return { data, fileResults };
+	return result;
 };
 
 /**
@@ -907,9 +851,9 @@ export const parseToSchema = (schema: Schema) => (record: Record<string, string>
 	return parsedRecord.data.record;
 };
 
-export const parseSubmissionActionTypes = (values: unknown): SubmissionActionType[] => {
+export const parseSubmissionActionTypes = (values: unknown): SubmissionRecordActionType[] => {
 	return asArray(values || [])
 		.map((value) => value.toString().toUpperCase())
 		.filter(isSubmissionActionTypeValid)
-		.map((value) => SUBMISSION_ACTION_TYPE.parse(value));
+		.map((value) => SUBMISSION_RECORD_ACTION_TYPE.parse(value));
 };
