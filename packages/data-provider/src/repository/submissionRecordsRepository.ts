@@ -223,17 +223,18 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * This function updates the validation state of submission records based on the provided parameters.
-		 * It can update records to 'VALID', 'RECEIVED', or 'INVALID' states, and also set errors for invalid records.
-		 * @param params
-		 * @param tx
-		 * @returns
+		 * Sets the validation state for multiple submission records. IDs are grouped by their target `VALID`,
+		 * `RECEIVED`, or `INVALID` states; invalid records can also include validation errors. Omitted or empty
+		 * groups are ignored. When an ID appears in multiple groups, the groups are applied in this order:
+		 * `VALID`, then `RECEIVED`, and finally `INVALID`, so `INVALID` takes precedence.
+		 *
+		 * @throws {ServiceUnavailable} when the records cannot be updated.
 		 */
 		updateValidationState: async (
 			params: {
 				validRecordIds?: number[];
 				receivedRecordIds?: number[];
-				invalidRecords?: Array<{ id: number; errors?: SubmissionRecordError[] }>;
+				invalidRecords?: { id: number; errors?: SubmissionRecordError[] }[];
 			},
 			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmissionRecord, ExtractTablesWithRelations<SubmissionRecord>>,
 		): Promise<number[]> => {

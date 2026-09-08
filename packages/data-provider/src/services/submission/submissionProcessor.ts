@@ -532,7 +532,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		const conflictingRecordIds = extractRecordIdsFromSubmissionErrors(conflictErrors);
 
 		if (conflictingRecordIds.size > 0) {
-			logger.error(
+			logger.info(
 				LOG_MODULE,
 				`Detected '${conflictingRecordIds.size}' Submission Record(s) with conflicting UPDATE/DELETE actions on the same systemId in Submission '${submissionId}'`,
 				JSON.stringify(conflictErrors),
@@ -666,7 +666,6 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// Aggegates all Update changes on Submission
 			// Note: We do not include records involving primary ID fields changes in here. We would rather do a DELETE and an INSERT
 			const updatedActiveSubmissionData: Record<string, SubmissionUpdateData[]> = mergeUpdatesBySystemId(
-				// formattedSubmissionRecordsToUpdate,
 				totalDependants,
 				nonIdFieldChangeRecord,
 			);

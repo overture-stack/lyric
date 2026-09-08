@@ -149,18 +149,21 @@ const submissionService = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Function to remove specific records from an Active Submission
-	 * If fileID is provided, all records associated with that file will be removed from the Submission
-	 * If recordID is provided, only that specific record will be removed from the Submission
-	 * If both fileID and recordID are provided, only the recordID will be removed from the Submission
-	 * If neither fileID nor recordID are provided, an error will be thrown
-	 * The function will check if the Submission is Active and if the record or file belongs to the Submission
-	 * It validates resulting Active Submission running cross schema validation along with the existing Submitted Data
-	 * Returns the resulting ID of the Active Submission
-	 * @param {number} submissionId - Submission ID
-	 * @param {string} username - User name performing the action
-	 * @param {object} filter - Filter to identify the entity to be removed
-	 * @returns { Promise<SubmitDataResult>}
+	 * Removes records or a file from an active submission and starts validation of the updated submission.
+	 *
+	 * The `filter` determines what is removed:
+	 * - `recordId`: removes the specified record.
+	 * - `fileId`: removes the specified file and all records associated with it.
+	 * - When both IDs are provided, `recordId` takes precedence.
+	 * - When neither ID is provided, the operation fails.
+	 *
+	 * The submission must be active, and the specified record or file must belong to the submission. The updated
+	 * submission is validated asynchronously against its schemas and existing submitted data.
+	 *
+	 * @param submissionId - Submission ID.
+	 * @param username - User name performing the action.
+	 * @param filter - IDs identifying the record or file to remove.
+	 * @returns A result indicating that the updated submission is being processed.
 	 */
 	const deleteByRecordIdOrFileId = async (
 		submissionId: number,
@@ -292,10 +295,12 @@ const submissionService = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Get Submission by Submission ID
-	 * Returns the submission general information and includes the summary of the data and errors
-	 * @param {number} submissionId A Submission ID
-	 * @returns One Submission
+	 * Gets a submission by ID.
+	 *
+	 * The result includes the submission's general information and a summary of its data and errors.
+	 *
+	 * @param submissionId - The submission ID.
+	 * @returns The submission summary, or `undefined` if the submission does not exist.
 	 */
 	const getSubmissionById = async (submissionId: number) => {
 		const submission = await submissionRepository.getSubmissionById(submissionId);
@@ -313,15 +318,17 @@ const submissionService = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Get Submission Records paginated
-	 * @param {number} submissionId A Submission ID
-	 * @param {Object} paginationOptions - Pagination properties
-	 * @param {number} paginationOptions.page - Page number
-	 * @param {number} paginationOptions.pageSize - Items per page
-	 * @param {Object} filterOptions
-	 * @param {string} filterOptions.entityName - Filter by Entity name
-	 * @param {string} filterOptions.actionType - Filter by Action type
-	 * @returns One Submission
+	 * Gets submission records using the provided pagination settings and filter options.
+	 *
+	 * @param submissionId - Submission ID.
+	 * @param paginationOptions.page - Page number.
+	 * @param paginationOptions.pageSize - Maximum number of records per page.
+	 * @param filterOptions.entityNames - Entity names to include.
+	 * @param filterOptions.actionTypes - Action types to include.
+	 * @param filterOptions.fileId - Optional file ID to include.
+	 * @returns The matching submission records, ordered and paginated according to the provided options.
+	 * @throws {BadRequest} If the submission does not exist or any requested entity name is invalid.
+	 * @throws {InternalServerError} If the dictionary associated with the submission cannot be found.
 	 */
 	const getSubmissionDetailsById = async ({
 		submissionId,
