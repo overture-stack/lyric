@@ -318,12 +318,13 @@ export const groupSchemaErrorsByEntity = (input: {
 };
 
 /**
- * Scans the Active Submission for `systemId`s (scoped per entity) that have both an UPDATE and a
- * DELETE record staged at the same time. This is meant to run *before* dictionary validation:
- * detecting the conflict up front lets both conflicting records be rejected explicitly, instead of
- * one action silently winning based on array-filtering order later in the validation/merge pipeline.
- * @param {SubmissionRecordWithEntityName[]} submissionData The Active Submission data
- * @returns {SubmissionErrors} Conflict errors under the 'updates' and 'deletes' buckets, grouped by entity name
+ * Finds entity-scoped system IDs that have both an `UPDATE` and a `DELETE` record staged in the Active Submission.
+ *
+ * This check runs before dictionary validation so both conflicting records can be rejected explicitly instead of
+ * allowing one action to silently override the other during the validation or merge process.
+ *
+ * @param submissionData - The Active Submission records to inspect.
+ * @returns Conflict errors grouped by entity name under the `updates` and `deletes` buckets.
  */
 export const findUpdateDeleteConflicts = (submissionData: SubmissionRecordWithEntityName[]): SubmissionErrors => {
 	const updatesByEntity = new Map<string, Map<string, number[]>>();
@@ -389,7 +390,10 @@ export const findUpdateDeleteConflicts = (submissionData: SubmissionRecordWithEn
 	return conflictErrors;
 };
 
-export type DeleteStagingConflicts = {
+/**
+ * Represents the result of resolving conflicts when staging delete records in an Active Submission.
+ */
+type DeleteStagingConflictResolution = {
 	/** `recordsToDeleteMap` with systemIds that already have a pending DELETE removed, so they aren't staged twice */
 	filteredRecordsToDeleteMap: Record<string, SubmissionDeleteData[]>;
 	/** systemIds that already have a pending UPDATE staged for the same entity in the Active Submission */
@@ -399,20 +403,20 @@ export type DeleteStagingConflicts = {
 };
 
 /**
- * Checks systemIds about to be staged for deletion against what the Active Submission already has
- * pending for the same entity, before a new DELETE record is ever inserted. A systemId with a
- * pending UPDATE is reported as a conflict — the caller should reject the delete rather than
- * silently letting one action override the other, consistent with how `findUpdateDeleteConflicts`
- * treats the same conflict at validation time. A systemId that already has a pending DELETE is
- * treated as a duplicate and dropped from the result, instead of inserting a second DELETE record.
- * @param {Record<string, SubmissionDeleteData[]>} recordsToDeleteMap New deletes, grouped by entity name
- * @param {SubmissionRecordWithEntityName[]} existingSubmissionRecords The Active Submission's current UPDATE/DELETE records
- * @returns {DeleteStagingConflicts}
+ * Resolves conflicts between deletes being staged and records already pending in the Active Submission.
+ *
+ * A system ID with a pending `UPDATE` is reported as a conflict so the caller can reject the delete instead of
+ * allowing one action to override the other. A system ID with a pending `DELETE` is treated as a duplicate and
+ * removed from the result, preventing a second delete record from being inserted.
+ *
+ * @param recordsToDeleteMap - New delete records grouped by entity name.
+ * @param existingSubmissionRecords - The Active Submission's existing `UPDATE` and `DELETE` records.
+ * @returns The delete records to stage, along with conflicting and duplicate system IDs.
  */
 export const resolveDeleteStagingConflicts = (
 	recordsToDeleteMap: Record<string, SubmissionDeleteData[]>,
 	existingSubmissionRecords: SubmissionRecordWithEntityName[],
-): DeleteStagingConflicts => {
+): DeleteStagingConflictResolution => {
 	const existingUpdateSystemIds = new Map<string, Set<string>>();
 	const existingDeleteSystemIds = new Map<string, Set<string>>();
 
@@ -477,13 +481,18 @@ export const extractRecordIdsFromSubmissionErrors = (errors: SubmissionErrors): 
 };
 
 /**
- * Merges two `SubmissionErrors` objects together, concatenating each entity's error array
- * bucket-by-bucket instead of overwriting it.
- * @param {SubmissionErrors} a
- * @param {SubmissionErrors} b
- * @returns {SubmissionErrors}
+ * Merges two `SubmissionErrors` objects by concatenating error arrays for matching entities within each action bucket.
+ *
+ * Existing errors are preserved instead of being overwritten. Empty action buckets are omitted from the result.
+ *
+ * @param existingErrors - The existing submission errors.
+ * @param additionalErrors - Additional submission errors to merge.
+ * @returns The combined submission errors.
  */
-export const mergeSubmissionErrors = (a: SubmissionErrors, b: SubmissionErrors): SubmissionErrors => {
+export const mergeSubmissionErrors = (
+	existingErrors: SubmissionErrors,
+	additionalErrors: SubmissionErrors,
+): SubmissionErrors => {
 	const mergeBucket = (
 		bucketA?: Record<string, SubmissionRecordErrorDetails[]>,
 		bucketB?: Record<string, SubmissionRecordErrorDetails[]>,
@@ -502,15 +511,15 @@ export const mergeSubmissionErrors = (a: SubmissionErrors, b: SubmissionErrors):
 	// (and `_.isEmpty`) to detect the "no errors" case, so an always-present `undefined` value would
 	// make every submission look like it has errors.
 	const merged: SubmissionErrors = {};
-	const inserts = mergeBucket(a.inserts, b.inserts);
+	const inserts = mergeBucket(existingErrors.inserts, additionalErrors.inserts);
 	if (inserts) {
 		merged.inserts = inserts;
 	}
-	const updates = mergeBucket(a.updates, b.updates);
+	const updates = mergeBucket(existingErrors.updates, additionalErrors.updates);
 	if (updates) {
 		merged.updates = updates;
 	}
-	const deletes = mergeBucket(a.deletes, b.deletes);
+	const deletes = mergeBucket(existingErrors.deletes, additionalErrors.deletes);
 	if (deletes) {
 		merged.deletes = deletes;
 	}
@@ -784,6 +793,7 @@ export type FileInsertResult = {
 
 /**
  * Parses all files in the schema map into insertion records.
+ *
  * Each file is processed independently: a stream or parse failure on one file is captured and
  * reported without interrupting processing of the remaining files.
  */

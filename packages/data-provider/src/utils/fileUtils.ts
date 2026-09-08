@@ -126,9 +126,7 @@ function formatForExcelCompatibility(data: string) {
 }
 
 /**
- * Generates a generic file name for submission files with `.json` extension.
- * Based on the current date and time in ISO format.
- * @returns
+ * Generates a generic file name for submission files with `.json` extension based on the current date and time in ISO format.
  */
 export const genericSubmissionFileName = () => `submission-${new Date().toISOString()}.json`;
 

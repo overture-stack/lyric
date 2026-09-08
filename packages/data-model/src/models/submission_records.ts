@@ -46,9 +46,11 @@ export type ConflictingActionReason = {
 };
 
 /**
- * Raised when a record's `systemId` has both an UPDATE and a DELETE staged in the same
- * Active Submission. `conflictingActionType` names the *other* action type this record
- * conflicts with, so both sides of the conflict can be reported independently.
+ * Describes a conflict when a record's `systemId` has both an `UPDATE` and a `DELETE` staged in the same Active
+ * Submission.
+ *
+ * The `conflictingActionType` property identifies the other action type involved in the conflict, allowing both
+ * sides of the conflict to be reported independently.
  */
 export type RecordErrorActionConflict = ConflictingActionReason & {
 	systemId: string;
