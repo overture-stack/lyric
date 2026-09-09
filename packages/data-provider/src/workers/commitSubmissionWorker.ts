@@ -1,4 +1,4 @@
-import type { SubmissionUpdateData } from '@overture-stack/lyric-data-model/models';
+import type { SubmissionDeleteData, SubmissionUpdateData } from '@overture-stack/lyric-data-model/models';
 
 import systemIdGenerator from '../external/systemIdGenerator.js';
 import createSubmissionRepository from '../repository/activeSubmissionRepository.js';
@@ -82,7 +82,15 @@ export const processCommitSubmission = async (message: CommitWorkerInput): Promi
 		actionTypes: ['DELETE'],
 	});
 
-	const deleteDataArray = recordsToDelete.filter(isDeleteSubmissionRecord).map(({ data }) => data);
+	const deleteDataByEntityName = recordsToDelete
+		.filter(isDeleteSubmissionRecord)
+		.reduce<Record<string, SubmissionDeleteData[]>>((acc, { entityName, data }) => {
+			if (!acc[entityName]) {
+				acc[entityName] = [];
+			}
+			acc[entityName].push(data);
+			return acc;
+		}, {});
 
 	const recordsToUpdate = await submissionRecordsRepo.getBySubmissionId(submissionId, undefined, {
 		actionTypes: ['UPDATE'],
@@ -100,7 +108,7 @@ export const processCommitSubmission = async (message: CommitWorkerInput): Promi
 			dataToValidate: {
 				inserts: insertsToValidate,
 				submittedData: submittedDataToValidate,
-				deletes: deleteDataArray,
+				deletes: deleteDataByEntityName,
 				updates: updatesBySystemId,
 			},
 			submissionId: submission.id,

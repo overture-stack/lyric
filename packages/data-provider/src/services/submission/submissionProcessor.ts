@@ -301,7 +301,9 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 			// Merge Submitted Data with items to be inserted, updated or deleted consist on 3 steps
 			// Step 1: Exclude items that are marked for deletion
-			const systemIdsToDelete = new Set<string>(dataToValidate?.deletes?.map((item) => item.systemId) || []);
+			const systemIdsToDelete = new Set<string>(
+				Object.values(dataToValidate.deletes).flatMap((items) => items.map((item) => item.systemId)),
+			);
 			logger.info(LOG_MODULE, `Found '${systemIdsToDelete.size}' Records to delete on Submission '${submission.id}'`);
 			const submittedData = systemIdsToDelete.size
 				? dataToValidate.submittedData?.filter((item) => !systemIdsToDelete.has(item.systemId))
@@ -429,22 +431,24 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			});
 
 			// iterate if there are any record to be deleted
-			dataToValidate?.deletes?.forEach((item) => {
-				const { data, isValid, organization, systemId } = item;
+			Object.entries(dataToValidate?.deletes ?? {}).forEach(([entityName, items]) => {
+				items.forEach((item) => {
+					const { data, isValid, organization, systemId } = item;
 
-				deletesToProcess.push({
-					submissionId: submission.id,
-					systemId,
-					diff: computeDataDiff(data, null),
-					username,
-				});
+					deletesToProcess.push({
+						submissionId: submission.id,
+						systemId,
+						diff: computeDataDiff(data, null),
+						username,
+					});
 
-				resultCommit.deletes.push({
-					data,
-					entityName: '', // TODO: need to fetch the entityName
-					isValid,
-					organization,
-					systemId,
+					resultCommit.deletes.push({
+						data,
+						entityName,
+						isValid,
+						organization,
+						systemId,
+					});
 				});
 			});
 
