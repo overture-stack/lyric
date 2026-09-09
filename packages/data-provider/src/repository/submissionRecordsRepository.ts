@@ -86,9 +86,12 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		}
 	};
 
-	const deleteByFileIds = async (fileIds: number[], tx?: RepositoryTransaction<SubmissionRecord>): Promise<number> => {
+	const deleteByFileIds = async (
+		fileIds: number[],
+		tx?: RepositoryTransaction<SubmissionRecord>,
+	): Promise<{ id: number }[]> => {
 		if (!fileIds.length) {
-			return 0;
+			return [];
 		}
 		try {
 			const deletedRecords = await (tx || db)
@@ -96,7 +99,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 				.where(inArray(submissionRecords.fileId, fileIds))
 				.returning({ id: submissionRecords.id });
 			logger.info(LOG_MODULE, `Deleted '${deletedRecords.length}' Submission Record records by fileIds`);
-			return deletedRecords.length;
+			return deletedRecords;
 		} catch (error) {
 			logger.error(LOG_MODULE, `Failed deleting Submission Records by fileIds`, error);
 			throw new ServiceUnavailable();
@@ -313,6 +316,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 					updatedIds.push(...receivedUpdates.map((record) => record.id));
 				}
 
+				// TODO: Batch or chunk invalid record updates to avoid one concurrent query per record.
 				if (invalidRecords.length) {
 					const invalidUpdates = await Promise.all(
 						invalidRecords.map(async ({ id, errors }) => {
@@ -379,6 +383,10 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		},
 
 		deleteByIds: async (ids: number[], tx?: RepositoryTransaction<SubmissionRecord>): Promise<number> => {
+			if (ids.length === 0) {
+				return 0;
+			}
+
 			try {
 				return await (tx || db).delete(submissionRecords).where(inArray(submissionRecords.id, ids));
 			} catch (error) {
@@ -392,7 +400,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		deleteBySubmissionId: async (
 			submissionId: number,
 			tx?: RepositoryTransaction<SubmissionRecord>,
-		): Promise<number> => {
+		): Promise<{ id: number }[]> => {
 			try {
 				const submissionFileIds = await (tx || db)
 					.select({ id: submissionFiles.id })
