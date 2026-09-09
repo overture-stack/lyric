@@ -32,6 +32,123 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_RECORDS_REPOSITORY';
 	const { db, logger } = dependencies;
 
+	const countBySubmissionId = async (
+		submissionId: number,
+	): Promise<Array<{ actionType: SubmissionRecordActionType; total: number }>> => {
+		try {
+			return await db
+				.select({ actionType: submissionRecords.actionType, total: count() })
+				.from(submissionRecords)
+				.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
+				.where(eq(submissionFiles.submissionId, submissionId))
+				.groupBy(submissionRecords.actionType);
+		} catch (error) {
+			logger.error(
+				LOG_MODULE,
+				`Failed counting Submission Records by action for submissionId '${submissionId}'`,
+				error,
+			);
+			throw new ServiceUnavailable();
+		}
+	};
+
+	const countInvalidBySubmissionId = async (
+		submissionId: number,
+	): Promise<Array<{ actionType: SubmissionRecordActionType; total: number }>> => {
+		try {
+			return await db
+				.select({ actionType: submissionRecords.actionType, total: count() })
+				.from(submissionRecords)
+				.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
+				.where(and(eq(submissionFiles.submissionId, submissionId), eq(submissionRecords.state, 'INVALID')))
+				.groupBy(submissionRecords.actionType);
+		} catch (error) {
+			logger.error(
+				LOG_MODULE,
+				`Failed counting invalid Submission Records by action for submissionId '${submissionId}'`,
+				error,
+			);
+			throw new ServiceUnavailable();
+		}
+	};
+
+	const deleteByFileIds = async (
+		fileIds: number[],
+		tx?: RepositoryTransaction<SubmissionRecord>,
+	): Promise<{ id: number }[]> => {
+		if (!fileIds.length) {
+			return [];
+		}
+		try {
+			const deletedRecords = await (tx || db)
+				.delete(submissionRecords)
+				.where(inArray(submissionRecords.fileId, fileIds))
+				.returning({ id: submissionRecords.id });
+			logger.info(LOG_MODULE, `Deleted '${deletedRecords.length}' Submission Record records by fileIds`);
+			return deletedRecords;
+		} catch (error) {
+			logger.error(LOG_MODULE, `Failed deleting Submission Records by fileIds`, error);
+			throw new ServiceUnavailable();
+		}
+	};
+
+	const deleteByIds = async (ids: number[], tx?: RepositoryTransaction<SubmissionRecord>): Promise<number> => {
+		if (ids.length === 0) {
+			return 0;
+		}
+
+		try {
+			return await (tx || db).delete(submissionRecords).where(inArray(submissionRecords.id, ids));
+		} catch (error) {
+			logger.error(LOG_MODULE, `Failed deleting Submission Record by ids '${ids}'`, error);
+			throw new ServiceUnavailable();
+		}
+	};
+
+	const deleteBySubmissionId = async (
+		submissionId: number,
+		tx?: RepositoryTransaction<SubmissionRecord>,
+	): Promise<{ id: number }[]> => {
+		try {
+			const submissionFileIds = await (tx || db)
+				.select({ id: submissionFiles.id })
+				.from(submissionFiles)
+				.where(eq(submissionFiles.submissionId, submissionId));
+			const fileIds = submissionFileIds.map((file) => file.id);
+			return await deleteByFileIds(fileIds, tx);
+		} catch (error) {
+			logger.error(LOG_MODULE, `Failed deleting Submission Records by submissionId '${submissionId}'`, error);
+			throw new ServiceUnavailable();
+		}
+	};
+
+	const getById = async (id: number): Promise<SubmissionRecordWithEntityName | undefined> => {
+		try {
+			const query = await db
+				.select({
+					id: submissionRecords.id,
+					actionType: submissionRecords.actionType,
+					state: submissionRecords.state,
+					fileId: submissionRecords.fileId,
+					data: submissionRecords.data,
+					errors: submissionRecords.errors,
+					entityName: submissionFiles.entityName,
+				})
+				.from(submissionRecords)
+				.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
+				.where(eq(submissionRecords.id, id))
+				.limit(1);
+
+			if (query.length === 0) {
+				return undefined;
+			}
+			return query[0];
+		} catch (error) {
+			logger.error(LOG_MODULE, `Failed getting Submission Record by id '${id}'`, error);
+			throw new ServiceUnavailable();
+		}
+	};
+
 	const getByFileIds = async (
 		fileIds: number[],
 		paginationOptions?: PaginationOptions,
@@ -65,6 +182,128 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		return await query;
 	};
 
+	const getBySubmissionId = async (
+		submissionId: number,
+		paginationOptions?: PaginationOptions,
+		filterOptions?: {
+			actionTypes?: SubmissionRecordActionType[];
+			states?: SubmissionRecordState[];
+			entityNames?: string[];
+			fileId?: number;
+		},
+	): Promise<SubmissionRecordWithEntityName[]> => {
+		try {
+			const submissionFileIds = await db
+				.select({ id: submissionFiles.id, entityName: submissionFiles.entityName })
+				.from(submissionFiles)
+				.where(
+					and(
+						eq(submissionFiles.submissionId, submissionId),
+						filterOptions?.entityNames?.length
+							? inArray(submissionFiles.entityName, filterOptions.entityNames)
+							: undefined,
+						filterOptions?.fileId ? eq(submissionFiles.id, filterOptions.fileId) : undefined,
+					),
+				);
+
+			if (submissionFileIds.length === 0) {
+				logger.info(
+					LOG_MODULE,
+					`No submission files found for submissionId '${submissionId}' with the provided filter options.`,
+				);
+				return [];
+			}
+
+			return await getByFileIds(
+				submissionFileIds.map((file) => file.id),
+				paginationOptions,
+				{
+					actionTypes: filterOptions?.actionTypes,
+					states: filterOptions?.states,
+				},
+			);
+		} catch (error) {
+			logger.error(LOG_MODULE, `Failed getting Submission Records by submissionId '${submissionId}'`, error);
+			throw new ServiceUnavailable();
+		}
+	};
+
+	const getRecordsSummaryBySubmissionId = async (submissionId: number): Promise<SubmissionRecordAggregate[]> => {
+		try {
+			const submissionFileRecords = await db
+				.select({
+					actionType: submissionRecords.actionType,
+					batchName: submissionFiles.fileName,
+					entityName: submissionFiles.entityName,
+					errors: count(submissionRecords.errors),
+					fileId: submissionFiles.id,
+					totalRecords: count(),
+				})
+				.from(submissionRecords)
+				.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
+				.where(eq(submissionFiles.submissionId, submissionId))
+				.groupBy(
+					submissionFiles.id,
+					submissionRecords.actionType,
+					submissionFiles.entityName,
+					submissionFiles.fileName,
+				);
+
+			return submissionFileRecords;
+		} catch (error) {
+			logger.error(LOG_MODULE, `Failed getting Submission Records summary by submissionId '${submissionId}'`, error);
+			throw new ServiceUnavailable();
+		}
+	};
+
+	const getRecordsSummaryBySubmissionIds = async (
+		submissionIds: number[],
+	): Promise<Record<number, SubmissionRecordAggregate[]>> => {
+		if (submissionIds.length === 0) {
+			return {};
+		}
+
+		try {
+			const submissionFileRecords = await db
+				.select({
+					actionType: submissionRecords.actionType,
+					batchName: submissionFiles.fileName,
+					entityName: submissionFiles.entityName,
+					errors: count(submissionRecords.errors),
+					fileId: submissionFiles.id,
+					submissionId: submissionFiles.submissionId,
+					totalRecords: count(),
+				})
+				.from(submissionRecords)
+				.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
+				.where(inArray(submissionFiles.submissionId, submissionIds))
+				.groupBy(
+					submissionFiles.submissionId,
+					submissionFiles.id,
+					submissionRecords.actionType,
+					submissionFiles.entityName,
+					submissionFiles.fileName,
+				);
+
+			return submissionFileRecords.reduce<Record<number, SubmissionRecordAggregate[]>>((summaries, record) => {
+				const records = summaries[record.submissionId] ?? [];
+				records.push({
+					actionType: record.actionType,
+					batchName: record.batchName,
+					entityName: record.entityName,
+					errors: record.errors,
+					fileId: record.fileId,
+					totalRecords: record.totalRecords,
+				});
+				summaries[record.submissionId] = records;
+				return summaries;
+			}, {});
+		} catch (error) {
+			logger.error(LOG_MODULE, `Failed getting Submission Records summaries by submission IDs`, error);
+			throw new ServiceUnavailable();
+		}
+	};
+
 	const saveMany = async (
 		inputs: NewSubmissionRecord[],
 		tx?: RepositoryTransaction<SubmissionRecord>,
@@ -86,333 +325,114 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		}
 	};
 
-	const deleteByFileIds = async (
-		fileIds: number[],
+	const saveManyForFile = async (
+		fileId: number,
+		records: Omit<NewSubmissionRecord, 'fileId'>[],
 		tx?: RepositoryTransaction<SubmissionRecord>,
-	): Promise<{ id: number }[]> => {
-		if (!fileIds.length) {
+	): Promise<number[]> => {
+		// TODO: Batch insert records
+		const inputs: NewSubmissionRecord[] = records.map((record) => ({ ...record, fileId }));
+		return await saveMany(inputs, tx);
+	};
+
+	/**
+	 * Sets the validation state for multiple submission records. IDs are grouped by their target `VALID`,
+	 * `RECEIVED`, or `INVALID` states; invalid records can also include validation errors. Omitted or empty
+	 * groups are ignored. When an ID appears in multiple groups, the groups are applied in this order:
+	 * `VALID`, then `RECEIVED`, and finally `INVALID`, so `INVALID` takes precedence.
+	 *
+	 * @throws {ServiceUnavailable} when the records cannot be updated.
+	 */
+	const updateValidationState = async (
+		params: {
+			validRecordIds?: number[];
+			receivedRecordIds?: number[];
+			invalidRecords?: { id: number; errors?: SubmissionRecordError[] }[];
+		},
+		tx?: RepositoryTransaction<SubmissionRecord>,
+	): Promise<number[]> => {
+		const executor = tx || db;
+
+		const validRecordIds = params.validRecordIds ?? [];
+		const receivedRecordIds = params.receivedRecordIds ?? [];
+		const invalidRecords = params.invalidRecords ?? [];
+		if (!validRecordIds.length && !receivedRecordIds.length && !invalidRecords.length) {
 			return [];
 		}
+
 		try {
-			const deletedRecords = await (tx || db)
-				.delete(submissionRecords)
-				.where(inArray(submissionRecords.fileId, fileIds))
-				.returning({ id: submissionRecords.id });
-			logger.info(LOG_MODULE, `Deleted '${deletedRecords.length}' Submission Record records by fileIds`);
-			return deletedRecords;
+			const updatedIds: number[] = [];
+
+			if (validRecordIds.length) {
+				const validUpdates = await executor
+					.update(submissionRecords)
+					.set({ state: 'VALID', errors: null })
+					.where(inArray(submissionRecords.id, validRecordIds))
+					.returning({ id: submissionRecords.id });
+				updatedIds.push(...validUpdates.map((record) => record.id));
+			}
+
+			if (receivedRecordIds.length) {
+				const receivedUpdates = await executor
+					.update(submissionRecords)
+					.set({ state: 'RECEIVED', errors: null })
+					.where(inArray(submissionRecords.id, receivedRecordIds))
+					.returning({ id: submissionRecords.id });
+				updatedIds.push(...receivedUpdates.map((record) => record.id));
+			}
+
+			// TODO: Batch or chunk invalid record updates to avoid one concurrent query per record.
+			if (invalidRecords.length) {
+				const invalidUpdates = await Promise.all(
+					invalidRecords.map(async ({ id, errors }) => {
+						const [updatedRecord] = await executor
+							.update(submissionRecords)
+							.set({ state: 'INVALID', errors: errors ?? null })
+							.where(eq(submissionRecords.id, id))
+							.returning({ id: submissionRecords.id });
+						return updatedRecord?.id;
+					}),
+				);
+				updatedIds.push(...invalidUpdates.filter((id): id is number => id !== undefined));
+			}
+
+			logger.info(
+				LOG_MODULE,
+				`Updated Submission Record states: VALID='${validRecordIds.length}', RECEIVED='${receivedRecordIds.length}', INVALID='${invalidRecords.length}'`,
+			);
+			return [...new Set(updatedIds)];
 		} catch (error) {
-			logger.error(LOG_MODULE, `Failed deleting Submission Records by fileIds`, error);
+			logger.error(LOG_MODULE, `Failed updating Submission Record validation state`, error);
 			throw new ServiceUnavailable();
 		}
 	};
 
 	return {
-		saveMany,
+		countBySubmissionId,
 
-		saveManyForFile: async (
-			fileId: number,
-			records: Omit<NewSubmissionRecord, 'fileId'>[],
-			tx?: RepositoryTransaction<SubmissionRecord>,
-		): Promise<number[]> => {
-			// TODO: Batch insert records
-			const inputs: NewSubmissionRecord[] = records.map((record) => ({ ...record, fileId }));
-			return await saveMany(inputs, tx);
-		},
+		countInvalidBySubmissionId,
 
-		getById: async (id: number): Promise<SubmissionRecordWithEntityName | undefined> => {
-			try {
-				const query = await db
-					.select({
-						id: submissionRecords.id,
-						actionType: submissionRecords.actionType,
-						state: submissionRecords.state,
-						fileId: submissionRecords.fileId,
-						data: submissionRecords.data,
-						errors: submissionRecords.errors,
-						entityName: submissionFiles.entityName,
-					})
-					.from(submissionRecords)
-					.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
-					.where(eq(submissionRecords.id, id))
-					.limit(1);
-
-				if (query.length === 0) {
-					return undefined;
-				}
-				return query[0];
-			} catch (error) {
-				logger.error(LOG_MODULE, `Failed getting Submission Record by id '${id}'`, error);
-				throw new ServiceUnavailable();
-			}
-		},
-
-		getByFileIds,
-
-		getBySubmissionId: async (
-			submissionId: number,
-			paginationOptions?: PaginationOptions,
-			filterOptions?: {
-				actionTypes?: SubmissionRecordActionType[];
-				states?: SubmissionRecordState[];
-				entityNames?: string[];
-				fileId?: number;
-			},
-		): Promise<SubmissionRecordWithEntityName[]> => {
-			try {
-				const submissionFileIds = await db
-					.select({ id: submissionFiles.id, entityName: submissionFiles.entityName })
-					.from(submissionFiles)
-					.where(
-						and(
-							eq(submissionFiles.submissionId, submissionId),
-							filterOptions?.entityNames?.length
-								? inArray(submissionFiles.entityName, filterOptions.entityNames)
-								: undefined,
-							filterOptions?.fileId ? eq(submissionFiles.id, filterOptions.fileId) : undefined,
-						),
-					);
-
-				if (submissionFileIds.length === 0) {
-					logger.info(
-						LOG_MODULE,
-						`No submission files found for submissionId '${submissionId}' with the provided filter options.`,
-					);
-					return [];
-				}
-
-				return await getByFileIds(
-					submissionFileIds.map((file) => file.id),
-					paginationOptions,
-					{
-						actionTypes: filterOptions?.actionTypes,
-						states: filterOptions?.states,
-					},
-				);
-			} catch (error) {
-				logger.error(LOG_MODULE, `Failed getting Submission Records by submissionId '${submissionId}'`, error);
-				throw new ServiceUnavailable();
-			}
-		},
-
-		getRecordsSummaryBySubmissionId: async (submissionId: number): Promise<SubmissionRecordAggregate[]> => {
-			try {
-				const submissionFileRecords = await db
-					.select({
-						actionType: submissionRecords.actionType,
-						batchName: submissionFiles.fileName,
-						entityName: submissionFiles.entityName,
-						errors: count(submissionRecords.errors),
-						fileId: submissionFiles.id,
-						totalRecords: count(),
-					})
-					.from(submissionRecords)
-					.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
-					.where(eq(submissionFiles.submissionId, submissionId))
-					.groupBy(
-						submissionFiles.id,
-						submissionRecords.actionType,
-						submissionFiles.entityName,
-						submissionFiles.fileName,
-					);
-
-				return submissionFileRecords;
-			} catch (error) {
-				logger.error(LOG_MODULE, `Failed getting Submission Records summary by submissionId '${submissionId}'`, error);
-				throw new ServiceUnavailable();
-			}
-		},
-
-		getRecordsSummaryBySubmissionIds: async (
-			submissionIds: number[],
-		): Promise<Record<number, SubmissionRecordAggregate[]>> => {
-			if (submissionIds.length === 0) {
-				return {};
-			}
-
-			try {
-				const submissionFileRecords = await db
-					.select({
-						actionType: submissionRecords.actionType,
-						batchName: submissionFiles.fileName,
-						entityName: submissionFiles.entityName,
-						errors: count(submissionRecords.errors),
-						fileId: submissionFiles.id,
-						submissionId: submissionFiles.submissionId,
-						totalRecords: count(),
-					})
-					.from(submissionRecords)
-					.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
-					.where(inArray(submissionFiles.submissionId, submissionIds))
-					.groupBy(
-						submissionFiles.submissionId,
-						submissionFiles.id,
-						submissionRecords.actionType,
-						submissionFiles.entityName,
-						submissionFiles.fileName,
-					);
-
-				return submissionFileRecords.reduce<Record<number, SubmissionRecordAggregate[]>>((summaries, record) => {
-					const records = summaries[record.submissionId] ?? [];
-					records.push({
-						actionType: record.actionType,
-						batchName: record.batchName,
-						entityName: record.entityName,
-						errors: record.errors,
-						fileId: record.fileId,
-						totalRecords: record.totalRecords,
-					});
-					summaries[record.submissionId] = records;
-					return summaries;
-				}, {});
-			} catch (error) {
-				logger.error(LOG_MODULE, `Failed getting Submission Records summaries by submission IDs`, error);
-				throw new ServiceUnavailable();
-			}
-		},
-
-		/**
-		 * Sets the validation state for multiple submission records. IDs are grouped by their target `VALID`,
-		 * `RECEIVED`, or `INVALID` states; invalid records can also include validation errors. Omitted or empty
-		 * groups are ignored. When an ID appears in multiple groups, the groups are applied in this order:
-		 * `VALID`, then `RECEIVED`, and finally `INVALID`, so `INVALID` takes precedence.
-		 *
-		 * @throws {ServiceUnavailable} when the records cannot be updated.
-		 */
-		updateValidationState: async (
-			params: {
-				validRecordIds?: number[];
-				receivedRecordIds?: number[];
-				invalidRecords?: { id: number; errors?: SubmissionRecordError[] }[];
-			},
-			tx?: RepositoryTransaction<SubmissionRecord>,
-		): Promise<number[]> => {
-			const executor = tx || db;
-
-			const validRecordIds = params.validRecordIds ?? [];
-			const receivedRecordIds = params.receivedRecordIds ?? [];
-			const invalidRecords = params.invalidRecords ?? [];
-			if (!validRecordIds.length && !receivedRecordIds.length && !invalidRecords.length) {
-				return [];
-			}
-
-			try {
-				const updatedIds: number[] = [];
-
-				if (validRecordIds.length) {
-					const validUpdates = await executor
-						.update(submissionRecords)
-						.set({ state: 'VALID', errors: null })
-						.where(inArray(submissionRecords.id, validRecordIds))
-						.returning({ id: submissionRecords.id });
-					updatedIds.push(...validUpdates.map((record) => record.id));
-				}
-
-				if (receivedRecordIds.length) {
-					const receivedUpdates = await executor
-						.update(submissionRecords)
-						.set({ state: 'RECEIVED', errors: null })
-						.where(inArray(submissionRecords.id, receivedRecordIds))
-						.returning({ id: submissionRecords.id });
-					updatedIds.push(...receivedUpdates.map((record) => record.id));
-				}
-
-				// TODO: Batch or chunk invalid record updates to avoid one concurrent query per record.
-				if (invalidRecords.length) {
-					const invalidUpdates = await Promise.all(
-						invalidRecords.map(async ({ id, errors }) => {
-							const [updatedRecord] = await executor
-								.update(submissionRecords)
-								.set({ state: 'INVALID', errors: errors ?? null })
-								.where(eq(submissionRecords.id, id))
-								.returning({ id: submissionRecords.id });
-							return updatedRecord?.id;
-						}),
-					);
-					updatedIds.push(...invalidUpdates.filter((id): id is number => id !== undefined));
-				}
-
-				logger.info(
-					LOG_MODULE,
-					`Updated Submission Record states: VALID='${validRecordIds.length}', RECEIVED='${receivedRecordIds.length}', INVALID='${invalidRecords.length}'`,
-				);
-				return [...new Set(updatedIds)];
-			} catch (error) {
-				logger.error(LOG_MODULE, `Failed updating Submission Record validation state`, error);
-				throw new ServiceUnavailable();
-			}
-		},
-
-		countBySubmissionId: async (
-			submissionId: number,
-		): Promise<Array<{ actionType: SubmissionRecordActionType; total: number }>> => {
-			try {
-				return await db
-					.select({ actionType: submissionRecords.actionType, total: count() })
-					.from(submissionRecords)
-					.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
-					.where(eq(submissionFiles.submissionId, submissionId))
-					.groupBy(submissionRecords.actionType);
-			} catch (error) {
-				logger.error(
-					LOG_MODULE,
-					`Failed counting Submission Records by action for submissionId '${submissionId}'`,
-					error,
-				);
-				throw new ServiceUnavailable();
-			}
-		},
-
-		countInvalidBySubmissionId: async (
-			submissionId: number,
-		): Promise<Array<{ actionType: SubmissionRecordActionType; total: number }>> => {
-			try {
-				return await db
-					.select({ actionType: submissionRecords.actionType, total: count() })
-					.from(submissionRecords)
-					.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
-					.where(and(eq(submissionFiles.submissionId, submissionId), eq(submissionRecords.state, 'INVALID')))
-					.groupBy(submissionRecords.actionType);
-			} catch (error) {
-				logger.error(
-					LOG_MODULE,
-					`Failed counting invalid Submission Records by action for submissionId '${submissionId}'`,
-					error,
-				);
-				throw new ServiceUnavailable();
-			}
-		},
-
-		deleteByIds: async (ids: number[], tx?: RepositoryTransaction<SubmissionRecord>): Promise<number> => {
-			if (ids.length === 0) {
-				return 0;
-			}
-
-			try {
-				return await (tx || db).delete(submissionRecords).where(inArray(submissionRecords.id, ids));
-			} catch (error) {
-				logger.error(LOG_MODULE, `Failed deleting Submission Record by ids '${ids}'`, error);
-				throw new ServiceUnavailable();
-			}
-		},
+		deleteByIds,
 
 		deleteByFileIds,
 
-		deleteBySubmissionId: async (
-			submissionId: number,
-			tx?: RepositoryTransaction<SubmissionRecord>,
-		): Promise<{ id: number }[]> => {
-			try {
-				const submissionFileIds = await (tx || db)
-					.select({ id: submissionFiles.id })
-					.from(submissionFiles)
-					.where(eq(submissionFiles.submissionId, submissionId));
-				const fileIds = submissionFileIds.map((file) => file.id);
-				return await deleteByFileIds(fileIds, tx);
-			} catch (error) {
-				logger.error(LOG_MODULE, `Failed deleting Submission Records by submissionId '${submissionId}'`, error);
-				throw new ServiceUnavailable();
-			}
-		},
+		deleteBySubmissionId,
+
+		getById,
+
+		getByFileIds,
+
+		getBySubmissionId,
+
+		getRecordsSummaryBySubmissionId,
+
+		getRecordsSummaryBySubmissionIds,
+
+		saveMany,
+
+		saveManyForFile,
+
+		updateValidationState,
 	};
 };
 
