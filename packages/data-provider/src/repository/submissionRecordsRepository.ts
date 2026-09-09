@@ -18,8 +18,10 @@ import type { PaginationOptions, SubmissionRecordActionType, SubmissionRecordSta
 // This is the information stored about each individual submission record in the database, including it's entity name.
 export type SubmissionRecordWithEntityName = SubmissionRecord & { entityName: string };
 
-// Raw data returned from the database
-export type RecordsSummaryRepository = {
+/**
+ * Represents submission records aggregated by file and action type, including the total record and error counts for each group.
+ */
+export type SubmissionRecordAggregate = {
 	actionType: SubmissionRecordActionType;
 	batchName?: string;
 	entityName: string;
@@ -194,7 +196,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 			}
 		},
 
-		getRecordsSummaryBySubmissionId: async (submissionId: number): Promise<RecordsSummaryRepository[]> => {
+		getRecordsSummaryBySubmissionId: async (submissionId: number): Promise<SubmissionRecordAggregate[]> => {
 			try {
 				const submissionFileRecords = await db
 					.select({
@@ -224,7 +226,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 
 		getRecordsSummaryBySubmissionIds: async (
 			submissionIds: number[],
-		): Promise<Record<number, RecordsSummaryRepository[]>> => {
+		): Promise<Record<number, SubmissionRecordAggregate[]>> => {
 			if (submissionIds.length === 0) {
 				return {};
 			}
@@ -251,7 +253,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 						submissionFiles.fileName,
 					);
 
-				return submissionFileRecords.reduce<Record<number, RecordsSummaryRepository[]>>((summaries, record) => {
+				return submissionFileRecords.reduce<Record<number, SubmissionRecordAggregate[]>>((summaries, record) => {
 					const records = summaries[record.submissionId] ?? [];
 					records.push({
 						actionType: record.actionType,
