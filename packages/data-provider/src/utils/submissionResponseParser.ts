@@ -1,6 +1,6 @@
 import * as _ from 'lodash-es';
 
-import type { RecordsSummaryRepository } from '../repository/submissionRecordsRepository.js';
+import type { SubmissionRecordAggregate } from '../repository/submissionRecordsRepository.js';
 import {
 	type DataDeletesSubmissionSummary,
 	type DataInsertsSubmissionSummary,
@@ -11,7 +11,7 @@ import {
 } from './types.js';
 
 // This function accepts a raw array of submission records from the database and builds a summary response.
-export const buildDataSummary = (rows: RecordsSummaryRepository[]): SubmissionDataSummaryWithTotal => {
+export const buildDataSummary = (rows: SubmissionRecordAggregate[]): SubmissionDataSummaryWithTotal => {
 	const inserts: Record<string, DataInsertsSubmissionSummary[]> = {};
 	const updates: Record<string, DataUpdatesSubmissionSummary[]> = {};
 	const deletes: Record<string, DataDeletesSubmissionSummary> = {};
