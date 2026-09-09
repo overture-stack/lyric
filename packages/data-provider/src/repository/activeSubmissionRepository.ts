@@ -1,6 +1,4 @@
-import type { ExtractTablesWithRelations, SQL } from 'drizzle-orm';
-import type { PgTransaction } from 'drizzle-orm/pg-core';
-import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
+import type { SQL } from 'drizzle-orm';
 import { and, count, eq, inArray } from 'drizzle-orm/sql';
 
 import { type NewSubmission, type Submission, submissions } from '@overture-stack/lyric-data-model/models';
@@ -14,6 +12,7 @@ import type {
 	PartialColumns,
 	SubmissionWithDictionaryAndCategoryRepositoryRecord,
 } from '../utils/types.js';
+import type { RepositoryTransaction } from './types.js';
 
 const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
@@ -163,7 +162,7 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 		update: async (
 			submissionId: number,
 			newData: Partial<Submission>,
-			tx?: PgTransaction<PostgresJsQueryResultHKT, Submission, ExtractTablesWithRelations<Submission>>,
+			tx?: RepositoryTransaction<Submission>,
 		): Promise<number> => {
 			try {
 				const [resultUpdate] = await (tx || db)
