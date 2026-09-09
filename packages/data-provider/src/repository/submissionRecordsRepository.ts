@@ -222,6 +222,54 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 			}
 		},
 
+		getRecordsSummaryBySubmissionIds: async (
+			submissionIds: number[],
+		): Promise<Record<number, RecordsSummaryRepository[]>> => {
+			if (submissionIds.length === 0) {
+				return {};
+			}
+
+			try {
+				const submissionFileRecords = await db
+					.select({
+						actionType: submissionRecords.actionType,
+						batchName: submissionFiles.fileName,
+						entityName: submissionFiles.entityName,
+						errors: count(submissionRecords.errors),
+						fileId: submissionFiles.id,
+						submissionId: submissionFiles.submissionId,
+						totalRecords: count(),
+					})
+					.from(submissionRecords)
+					.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
+					.where(inArray(submissionFiles.submissionId, submissionIds))
+					.groupBy(
+						submissionFiles.submissionId,
+						submissionFiles.id,
+						submissionRecords.actionType,
+						submissionFiles.entityName,
+						submissionFiles.fileName,
+					);
+
+				return submissionFileRecords.reduce<Record<number, RecordsSummaryRepository[]>>((summaries, record) => {
+					const records = summaries[record.submissionId] ?? [];
+					records.push({
+						actionType: record.actionType,
+						batchName: record.batchName,
+						entityName: record.entityName,
+						errors: record.errors,
+						fileId: record.fileId,
+						totalRecords: record.totalRecords,
+					});
+					summaries[record.submissionId] = records;
+					return summaries;
+				}, {});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed getting Submission Records summaries by submission IDs`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
 		/**
 		 * Sets the validation state for multiple submission records. IDs are grouped by their target `VALID`,
 		 * `RECEIVED`, or `INVALID` states; invalid records can also include validation errors. Omitted or empty

@@ -274,17 +274,18 @@ const submissionService = (dependencies: BaseDependencies) => {
 		}
 
 		const totalSubmissions = await submissionRepository.getTotalSubmissionsByCategory(categoryId, filterOptions);
-		const result = await Promise.all(
-			recordsPaginated.map(async (response) => {
-				const submissionRecordsSummary = await submissionRecordsRepository.getRecordsSummaryBySubmissionId(response.id);
-				const formattedDataSummary = buildDataSummary(submissionRecordsSummary);
-
-				return createSubmissionSummaryResponse({
-					...response,
-					data: formattedDataSummary,
-				});
-			}),
+		const submissionRecordsSummaries = await submissionRecordsRepository.getRecordsSummaryBySubmissionIds(
+			recordsPaginated.map((submission) => submission.id),
 		);
+		const result: SubmissionSummaryResponse[] = recordsPaginated.map((response) => {
+			const submissionRecordsSummary = submissionRecordsSummaries[response.id] ?? [];
+			const formattedDataSummary = buildDataSummary(submissionRecordsSummary);
+
+			return createSubmissionSummaryResponse({
+				...response,
+				data: formattedDataSummary,
+			});
+		});
 
 		return {
 			metadata: {
