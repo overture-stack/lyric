@@ -1,6 +1,3 @@
-import { type ExtractTablesWithRelations } from 'drizzle-orm';
-import type { PgTransaction } from 'drizzle-orm/pg-core';
-import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
 import { and, count, eq, inArray } from 'drizzle-orm/sql';
 
 import {
@@ -14,6 +11,7 @@ import {
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import type { PaginationOptions, SubmissionRecordActionType, SubmissionRecordState } from '../utils/types.js';
+import type { RepositoryTransaction } from './types.js';
 
 // This is the information stored about each individual submission record in the database, including it's entity name.
 export type SubmissionRecordWithEntityName = SubmissionRecord & { entityName: string };
@@ -69,7 +67,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 
 	const saveMany = async (
 		inputs: NewSubmissionRecord[],
-		tx?: PgTransaction<PostgresJsQueryResultHKT, SubmissionRecord, ExtractTablesWithRelations<SubmissionRecord>>,
+		tx?: RepositoryTransaction<SubmissionRecord>,
 	): Promise<number[]> => {
 		if (!inputs.length) {
 			return [];
@@ -88,10 +86,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		}
 	};
 
-	const deleteByFileIds = async (
-		fileIds: number[],
-		tx?: PgTransaction<PostgresJsQueryResultHKT, SubmissionRecord, ExtractTablesWithRelations<SubmissionRecord>>,
-	): Promise<number> => {
+	const deleteByFileIds = async (fileIds: number[], tx?: RepositoryTransaction<SubmissionRecord>): Promise<number> => {
 		if (!fileIds.length) {
 			return 0;
 		}
@@ -114,7 +109,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		saveManyForFile: async (
 			fileId: number,
 			records: Omit<NewSubmissionRecord, 'fileId'>[],
-			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmissionRecord, ExtractTablesWithRelations<SubmissionRecord>>,
+			tx?: RepositoryTransaction<SubmissionRecord>,
 		): Promise<number[]> => {
 			// TODO: Batch insert records
 			const inputs: NewSubmissionRecord[] = records.map((record) => ({ ...record, fileId }));
@@ -286,7 +281,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 				receivedRecordIds?: number[];
 				invalidRecords?: { id: number; errors?: SubmissionRecordError[] }[];
 			},
-			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmissionRecord, ExtractTablesWithRelations<SubmissionRecord>>,
+			tx?: RepositoryTransaction<SubmissionRecord>,
 		): Promise<number[]> => {
 			const executor = tx || db;
 
@@ -383,10 +378,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 			}
 		},
 
-		deleteByIds: async (
-			ids: number[],
-			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmissionRecord, ExtractTablesWithRelations<SubmissionRecord>>,
-		): Promise<number> => {
+		deleteByIds: async (ids: number[], tx?: RepositoryTransaction<SubmissionRecord>): Promise<number> => {
 			try {
 				return await (tx || db).delete(submissionRecords).where(inArray(submissionRecords.id, ids));
 			} catch (error) {
@@ -399,7 +391,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 
 		deleteBySubmissionId: async (
 			submissionId: number,
-			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmissionRecord, ExtractTablesWithRelations<SubmissionRecord>>,
+			tx?: RepositoryTransaction<SubmissionRecord>,
 		): Promise<number> => {
 			try {
 				const submissionFileIds = await (tx || db)

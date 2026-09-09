@@ -1,22 +1,17 @@
-import type { ExtractTablesWithRelations } from 'drizzle-orm';
-import type { PgTransaction } from 'drizzle-orm/pg-core';
-import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
 import { eq } from 'drizzle-orm/sql';
 
 import { type NewSubmissionFile, type SubmissionFile, submissionFiles } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
+import type { RepositoryTransaction } from './types.js';
 
 const submissionFilesRepository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_FILES_REPOSITORY';
 	const { db, logger } = dependencies;
 
 	return {
-		save: async (
-			input: NewSubmissionFile,
-			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmissionFile, ExtractTablesWithRelations<SubmissionFile>>,
-		): Promise<number> => {
+		save: async (input: NewSubmissionFile, tx?: RepositoryTransaction<SubmissionFile>): Promise<number> => {
 			try {
 				const [savedSubmissionFile] = await (tx || db)
 					.insert(submissionFiles)
@@ -55,10 +50,7 @@ const submissionFilesRepository = (dependencies: BaseDependencies) => {
 			}
 		},
 
-		deleteById: async (
-			fileId: number,
-			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmissionFile, ExtractTablesWithRelations<SubmissionFile>>,
-		): Promise<number | undefined> => {
+		deleteById: async (fileId: number, tx?: RepositoryTransaction<SubmissionFile>): Promise<number | undefined> => {
 			try {
 				const deletedFiles = await (tx || db)
 					.delete(submissionFiles)
@@ -82,7 +74,7 @@ const submissionFilesRepository = (dependencies: BaseDependencies) => {
 		 */
 		deleteBySubmissionId: async (
 			submissionId: number,
-			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmissionFile, ExtractTablesWithRelations<SubmissionFile>>,
+			tx?: RepositoryTransaction<SubmissionFile>,
 		): Promise<number[]> => {
 			try {
 				const deletedFiles = await (tx || db)
