@@ -220,7 +220,7 @@ export interface CommitSubmissionParams {
 	dataToValidate: {
 		inserts: NewSubmittedData[];
 		submittedData: SubmittedData[];
-		deletes: SubmissionDeleteData[];
+		deletes: Record<string, SubmissionDeleteData[]>;
 		updates?: Record<string, SubmissionUpdateData>;
 	};
 	dictionary: SchemasDictionary & { id: number };
