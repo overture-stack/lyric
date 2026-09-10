@@ -14,7 +14,7 @@ import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelati
 import { InternalServerError, StatusConflict } from '../../utils/errors.js';
 import { genericSubmissionFileName, getSizeInBytes } from '../../utils/fileUtils.js';
 import type { PaginatedResult } from '../../utils/result.js';
-import { resolveDeleteStagingConflicts } from '../../utils/submissionUtils.js';
+import { resolveDeleteStagingConflicts } from '../../utils/submissionRecordUtils.js';
 import {
 	fetchDataErrorResponse,
 	getEntityNamesFromFilterOptions,

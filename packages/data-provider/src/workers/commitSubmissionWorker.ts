@@ -10,7 +10,7 @@ import {
 	isDeleteSubmissionRecord,
 	isInsertSubmissionRecord,
 	isUpdateSubmissionRecord,
-} from '../utils/submissionUtils.js';
+} from '../utils/submissionRecordUtils.js';
 import { type ResultOnCommit, SUBMISSION_STATUS } from '../utils/types.js';
 import type { CommitWorkerInput } from './types.js';
 import { getWorkerDependencies } from './workerContext.js';

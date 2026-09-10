@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
 import type { SubmissionRecordWithEntityName } from '../../../../src/repository/submissionRecordsRepository.js';
-import { createSubmissionInsertRecords } from '../../../../src/utils/submissionUtils.js';
+import { createSubmissionInsertRecords } from '../../../../src/utils/submissionRecordUtils.js';
 
 describe('createSubmissionInsertRecords', () => {
 	it('should map insert records to SubmissionInsertRecordWithEntityName, dropping non-insert records', () => {

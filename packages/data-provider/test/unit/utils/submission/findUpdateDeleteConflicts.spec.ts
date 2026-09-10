@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
 import type { SubmissionRecordWithEntityName } from '../../../../src/repository/submissionRecordsRepository.js';
-import { findUpdateDeleteConflicts } from '../../../../src/utils/submissionUtils.js';
+import { findUpdateDeleteConflicts } from '../../../../src/utils/submissionRecordUtils.js';
 
 describe('Submission Utils - Find Update/Delete Conflicts', () => {
 	it('returns no conflicts when there are no Submission records', () => {

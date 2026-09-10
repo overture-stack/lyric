@@ -4,7 +4,7 @@ import { describe, it } from 'mocha';
 import type { SubmissionDeleteData } from '@overture-stack/lyric-data-model/models';
 
 import type { SubmissionRecordWithEntityName } from '../../../../src/repository/submissionRecordsRepository.js';
-import { resolveDeleteStagingConflicts } from '../../../../src/utils/submissionUtils.js';
+import { resolveDeleteStagingConflicts } from '../../../../src/utils/submissionRecordUtils.js';
 
 const deleteRecord = (systemId: string): SubmissionDeleteData => ({
 	systemId,

@@ -24,20 +24,22 @@ import { convertRecordToString } from '../../utils/formatUtils.js';
 import { parseRecordsToInsert } from '../../utils/recordsParser.js';
 import {
 	extractRecordIdsFromSubmissionErrors,
+	findUpdateDeleteConflicts,
+	mergeSubmissionErrors,
+	type SubmissionErrors,
+} from '../../utils/submissionRecordUtils.js';
+import {
 	extractSchemaDataFromMergedDataRecords,
 	type FileParseResult,
 	filterRelationsForPrimaryIdUpdate,
 	findInvalidRecordErrorsBySchemaName,
-	findUpdateDeleteConflicts,
 	groupSchemaErrorsByEntity,
 	isSubmissionActive,
 	mapGroupedUpdateSubmissionData,
 	mergeAndReferenceEntityData,
-	mergeSubmissionErrors,
 	mergeUpdatesBySystemId,
 	parseToSchema,
 	segregateFieldChangeRecords,
-	type SubmissionErrors,
 	submissionInsertDataFromFiles,
 	validateSchemas,
 } from '../../utils/submissionUtils.js';

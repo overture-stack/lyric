@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
 import type { SubmissionRecordWithEntityName } from '../../../../src/repository/submissionRecordsRepository.js';
-import { isDeleteSubmissionRecord } from '../../../../src/utils/submissionUtils.js';
+import { isDeleteSubmissionRecord } from '../../../../src/utils/submissionRecordUtils.js';
 
 describe('isDeleteSubmissionRecord', () => {
 	it('should return true when actionType is DELETE', () => {
