@@ -1,7 +1,10 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { extractRecordIdsFromSubmissionErrors, type SubmissionErrors } from '../../../../src/utils/submissionUtils.js';
+import {
+	extractRecordIdsFromSubmissionErrors,
+	type SubmissionErrors,
+} from '../../../../src/utils/submissionRecordUtils.js';
 
 describe('Submission Utils - Extract Record Ids From Submission Errors', () => {
 	it('returns an empty Set when there are no errors', () => {

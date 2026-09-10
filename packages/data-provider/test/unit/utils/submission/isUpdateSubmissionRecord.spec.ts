@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
 import type { SubmissionRecordWithEntityName } from '../../../../src/repository/submissionRecordsRepository.js';
-import { isUpdateSubmissionRecord } from '../../../../src/utils/submissionUtils.js';
+import { isUpdateSubmissionRecord } from '../../../../src/utils/submissionRecordUtils.js';
 
 describe('isUpdateSubmissionRecord', () => {
 	it('should return true when actionType is UPDATE', () => {
