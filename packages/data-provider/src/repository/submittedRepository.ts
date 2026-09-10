@@ -12,8 +12,8 @@ import {
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
-import { AUDIT_ACTION, BooleanTrueObject, PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
-import type { RepositoryTransaction } from './types.js';
+import { AUDIT_ACTION, PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
+import type { BooleanTrueObject, RepositoryTransaction } from './types.js';
 
 /**
  * Builds a filter comparing a JSONB data field against a value, binding both as query

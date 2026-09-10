@@ -12,7 +12,12 @@ describe('Submission Utils - Extract Record Ids From Submission Errors', () => {
 	it('collects recordIds across every bucket and entity', () => {
 		const errors: SubmissionErrors = {
 			inserts: { plants: [{ recordId: 1, errors: [] }] },
-			updates: { animals: [{ recordId: 2, errors: [] }, { recordId: 3, errors: [] }] },
+			updates: {
+				animals: [
+					{ recordId: 2, errors: [] },
+					{ recordId: 3, errors: [] },
+				],
+			},
 			deletes: { animals: [{ recordId: 4, errors: [] }] },
 		};
 		const response = extractRecordIdsFromSubmissionErrors(errors);

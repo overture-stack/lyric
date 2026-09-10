@@ -15,7 +15,12 @@ import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
 import type { PaginatedResult } from '../../utils/result.js';
 import type { FilenameEntityPair } from '../../utils/schemas.js';
-import { buildDataSummary, createSubmissionSummaryResponse } from '../../utils/submissionResponseParser.js';
+import {
+	buildDataSummary,
+	createSubmissionSummaryResponse,
+	type SubmissionSummaryResponse,
+} from '../../utils/submissionResponseParser.js';
+import type { SubmissionRecordActionType } from '../../utils/submissionTypes.js';
 import {
 	checkEntityFieldNames,
 	type FileParseResult,
@@ -29,8 +34,6 @@ import {
 	type EntityData,
 	type PaginationOptions,
 	SUBMISSION_STATUS,
-	type SubmissionRecordActionType,
-	type SubmissionSummaryResponse,
 	type SubmitDataResult,
 	type SubmitFileResult,
 } from '../../utils/types.js';

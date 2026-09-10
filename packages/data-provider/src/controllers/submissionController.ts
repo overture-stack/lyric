@@ -25,14 +25,10 @@ import {
 	uploadSingleEntitySubmissionDataRequestSchema,
 	uploadSubmissionRequestSchema,
 } from '../utils/schemas.js';
+import type { SubmissionSummaryResponse } from '../utils/submissionResponseParser.js';
+import { SUBMISSION_RECORD_ACTION_TYPE } from '../utils/submissionTypes.js';
 import { isSubmissionActive, parseSubmissionActionTypes } from '../utils/submissionUtils.js';
-import {
-	BATCH_ERROR_TYPE,
-	BatchError,
-	type PaginatedResponse,
-	SUBMISSION_RECORD_ACTION_TYPE,
-	type SubmissionSummaryResponse,
-} from '../utils/types.js';
+import { BATCH_ERROR_TYPE, BatchError, type PaginatedResponse } from '../utils/types.js';
 
 const controller = ({
 	baseDependencies,
