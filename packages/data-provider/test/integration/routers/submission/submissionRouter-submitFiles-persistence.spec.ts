@@ -9,9 +9,12 @@ import { assertExists } from '../../assertions.js';
 import { createLyricProvider, type LyricProvider } from '../../dependencies/lyricProvider.js';
 import { createTestApp } from '../../dependencies/testServer.js';
 import { getContainers } from '../../globalSetup.js';
+import { delay } from '../../utils.js';
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
+/**
+ * Waits for the submission to stop being in the 'VALIDATING' status, retrying up to a maximum number of
+ * attempts with a delay between each attempt.
+ */
 const waitForSubmissionToStopValidating = async ({
 	lyricProvider,
 	categoryId,
@@ -28,7 +31,7 @@ const waitForSubmissionToStopValidating = async ({
 	let attempt = 0;
 	let submission;
 	do {
-		await sleep(delayMs);
+		await delay(delayMs);
 		submission = await lyricProvider.repositories.submission.getActiveSubmission({
 			categoryId,
 			username: '',

@@ -6,6 +6,7 @@ import { dictionarySportsData, updatedSportSchema } from '../../../fixtures/dict
 import { createLyricProvider, type LyricProvider } from '../../dependencies/lyricProvider.js';
 import { createTestApp } from '../../dependencies/testServer.js';
 import { getContainers } from '../../globalSetup.js';
+import { delay } from '../../utils.js';
 import {
 	NEW_DICTIONARY_VERSION,
 	type RegisterPayload,
@@ -13,8 +14,6 @@ import {
 	VALID_DICTIONARY_NAME,
 	VALID_DICTIONARY_VERSION,
 } from './fixtures.js';
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('Integration - Dictionary Migration', () => {
 	let appDictionary: supertest.Agent;
@@ -54,7 +53,7 @@ describe('Integration - Dictionary Migration', () => {
 		let attempts = 0;
 
 		while (response.body.status === 'IN_PROGRESS' && attempts < maxRetries) {
-			await sleep(delayMs);
+			await delay(delayMs);
 			response = await appMigration.get(`/${migrationId}`);
 			attempts += 1;
 		}
