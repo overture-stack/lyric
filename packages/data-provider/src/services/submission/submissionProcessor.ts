@@ -594,6 +594,17 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	/**
 	 * Void function to process and validate uploaded records on an Active Submission.
 	 * Performs the schema data validation of data to be edited combined with all Submitted Data.
+	 *
+	 * Although `records` belongs to a single `schema`, edits can affect more than that one entity:
+	 * - A primary ID field change on a record produces a DELETE + INSERT pair, scoped to `schema.name`.
+	 * - A primary ID field change can also cascade to dependent entities that reference the old ID via
+	 *   a foreign key; those cascading updates are scoped to the dependent's own entity name, not `schema.name`.
+	 *
+	 * Side effect: for every entity touched by the above (not just `schema.name`), this creates one
+	 * `submission_files` row scoped to that entity and attaches its INSERT/UPDATE/DELETE records to it.
+	 * These rows are a bookkeeping construct required by the data model (`submissionRecords` must
+	 * reference a `fileId`) rather than a record of an actual uploaded file — there was only one file
+	 * (or none, for programmatic edits) in the original request.
 	 * @param records Records to be processed
 	 * @param params
 	 * @param params.schema Schema to parse data with
@@ -696,12 +707,26 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 					...Object.keys(updatedActiveSubmissionData),
 				]);
 
+				/**
+				 * Submission files are entity-scoped: the file's entity name identifies the schema used to
+				 * validate and process its records. Create one file per affected entity so records from
+				 * different entities are never mixed in the same file.
+				 */
 				for (const entityName of entityNames) {
+					// fileSize reflects only the records actually attached to this entity's file below —
+					// not the full `recordsParsed` input, which belongs to `schema.name` and may be
+					// unrelated to a cascading dependent entity's file.
+					const entityRecords = [
+						...(updatedActiveSubmissionData[entityName] ?? []),
+						...(additions.inserts[entityName] ?? []),
+						...(additions.deletes[entityName] ?? []),
+					];
+
 					const savedFileId = await submissionFilesRepository.save(
 						{
 							entityName: entityName,
 							fileName: genericSubmissionFileName(),
-							fileSize: getSizeInBytes(JSON.stringify(recordsParsed)),
+							fileSize: getSizeInBytes(JSON.stringify(entityRecords)),
 							submissionId: submission.id,
 						},
 						tx,
