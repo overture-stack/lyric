@@ -10,7 +10,8 @@ import {
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
-import type { PaginationOptions, SubmissionRecordActionType, SubmissionRecordState } from '../utils/types.js';
+import type { SubmissionRecordActionType, SubmissionRecordState } from '../utils/submissionTypes.js';
+import type { PaginationOptions } from '../utils/types.js';
 import type { RepositoryTransaction } from './types.js';
 
 // This is the information stored about each individual submission record in the database, including it's entity name.

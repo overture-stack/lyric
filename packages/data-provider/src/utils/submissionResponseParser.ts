@@ -1,14 +1,30 @@
 import * as _ from 'lodash-es';
 
+import type { SubmissionWithDictionaryAndCategoryRepositoryRecord } from '../repository/activeSubmissionRepository.js';
 import type { SubmissionRecordAggregate } from '../repository/submissionRecordsRepository.js';
 import {
 	type DataDeletesSubmissionSummary,
 	type DataInsertsSubmissionSummary,
 	type DataUpdatesSubmissionSummary,
-	type SubmissionDataSummaryWithTotal,
-	type SubmissionSummary,
-	type SubmissionSummaryResponse,
+	type SubmissionDataSummary,
 } from './types.js';
+
+export type SubmissionDataSummaryWithTotal = SubmissionDataSummary & {
+	totalRecords: number;
+	errors: number;
+};
+
+/**
+ * Shortened submission data with aggregate counts for each entity type.
+ */
+export type SubmissionSummary = SubmissionWithDictionaryAndCategoryRepositoryRecord & {
+	data: SubmissionDataSummaryWithTotal;
+};
+
+export type SubmissionSummaryResponse = Omit<SubmissionSummary, 'createdAt' | 'updatedAt'> & {
+	createdAt: string;
+	updatedAt: string;
+};
 
 // This function accepts a raw array of submission records from the database and builds a summary response.
 export const buildDataSummary = (rows: SubmissionRecordAggregate[]): SubmissionDataSummaryWithTotal => {

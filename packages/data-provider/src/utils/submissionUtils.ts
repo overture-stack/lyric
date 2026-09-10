@@ -28,6 +28,8 @@ import { getSchemaFieldNames } from './dictionaryUtils.js';
 import { readHeaders, readTextFile } from './fileUtils.js';
 import { asArray } from './formatUtils.js';
 import type { FilenameEntityPair } from './schemas.js';
+import type { SubmissionInsertRecordWithEntityName, SubmissionUpdateRecordWithEntityName } from './submissionTypes.js';
+import { SUBMISSION_RECORD_ACTION_TYPE, type SubmissionRecordActionType } from './submissionTypes.js';
 import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
 	BATCH_ERROR_TYPE,
@@ -37,12 +39,8 @@ import {
 	type FileSchemaMap as FileSchemaMap,
 	MERGE_REFERENCE_TYPE,
 	type NewSubmittedDataReference,
-	SUBMISSION_RECORD_ACTION_TYPE,
 	SUBMISSION_STATUS,
-	type SubmissionInsertRecordWithEntityName,
-	type SubmissionRecordActionType,
 	type SubmissionStatus,
-	type SubmissionUpdateRecordWithEntityName,
 	SubmittedDataReference,
 } from './types.js';
 

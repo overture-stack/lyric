@@ -13,7 +13,6 @@ import {
 	type Dictionary,
 	NewSubmittedData,
 	type SubmissionDeleteData,
-	type SubmissionInsertData,
 	type SubmissionUpdateData,
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
@@ -174,15 +173,6 @@ export const KAFKA_ACTION = zod.enum(['delete', 'insert', 'update']);
 export type KafkaAction = zod.infer<typeof KAFKA_ACTION>;
 
 /**
- * Enum matching Submission Record state in database
- */
-export const SUBMISSION_RECORD_STATE = zod.enum(['RECEIVED', 'VALID', 'INVALID']);
-export type SubmissionRecordState = zod.infer<typeof SUBMISSION_RECORD_STATE>;
-
-export const SUBMISSION_RECORD_ACTION_TYPE = zod.enum(['INSERT', 'UPDATE', 'DELETE']);
-export type SubmissionRecordActionType = zod.infer<typeof SUBMISSION_RECORD_ACTION_TYPE>;
-
-/**
  * File upload validation error types
  */
 export const BATCH_ERROR_TYPE = {
@@ -237,24 +227,6 @@ export type GroupedDataSubmission = {
 	schemaDataByEntityName: Record<string, DataRecord[]>;
 };
 
-export type BooleanTrueObject = {
-	[key: string]: true;
-};
-
-/**
- * Specifies which columns of a table to select in a Drizzle query
- * Used in the `columns` property of a Drizzle query
- */
-export type PartialColumns<T> = Partial<Record<keyof T, boolean>>;
-
-/**
- * Specifies additional columns to select in a Drizzle query for a related table.
- * Used in the `with` property of a Drizzle query
- */
-export type WithColumns<T> = {
-	columns: PartialColumns<T>;
-};
-
 /**
  * Pagination Query Params
  */
@@ -286,40 +258,6 @@ export type SubmissionDataSummary = {
 	inserts?: Record<string, DataInsertsSubmissionSummary[]>;
 	updates?: Record<string, DataUpdatesSubmissionSummary[]>;
 	deletes?: Record<string, DataDeletesSubmissionSummary>;
-};
-
-export type SubmissionDataSummaryWithTotal = SubmissionDataSummary & {
-	totalRecords: number;
-	errors: number;
-};
-
-/**
- * Shortened version of the Submission record that omits the data changes and error details
- * in favour of the count of records changed and errors for each entity type.
- */
-export type SubmissionSummary = SubmissionWithDictionaryAndCategoryRepositoryRecord & {
-	data: SubmissionDataSummaryWithTotal;
-};
-
-export type SubmissionSummaryResponse = Omit<SubmissionSummary, 'createdAt' | 'updatedAt'> & {
-	createdAt: string;
-	updatedAt: string;
-};
-
-/**
- * Retrieve Submission object with Dictionary and Category from repository
- */
-
-export type SubmissionWithDictionaryAndCategoryRepositoryRecord = {
-	id: number;
-	dictionary: DictionarySummary;
-	dictionaryCategory: CategorySummary;
-	organization: string;
-	status: SubmissionStatus;
-	createdAt: Date | null;
-	createdBy: string | null;
-	updatedAt: Date | null;
-	updatedBy: string | null;
 };
 
 /**
@@ -455,17 +393,6 @@ export type DataRecordReference = {
 export interface DataRecordNested {
 	[key: string]: DataRecordValue | DataRecordNested | DataRecordNested[];
 }
-
-export type SubmissionInsertRecordWithEntityName = {
-	recordId: number;
-	entityName: string;
-	data: SubmissionInsertData;
-};
-export type SubmissionUpdateRecordWithEntityName = {
-	recordId: number;
-	entityName: string;
-	data: SubmissionUpdateData;
-};
 
 /**
  * Keys of an object type as a union

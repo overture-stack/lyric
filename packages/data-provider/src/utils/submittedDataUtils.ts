@@ -14,6 +14,7 @@ import {
 	SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
 
+import { type SubmissionUpdateRecordWithEntityName } from './submissionTypes.js';
 import {
 	DataRecordNested,
 	DataRecordReference,
@@ -21,7 +22,6 @@ import {
 	MERGE_REFERENCE_TYPE,
 	type MutableDataDiff,
 	type MutableDataRecord,
-	type SubmissionUpdateRecordWithEntityName,
 	VIEW_TYPE,
 	type ViewType,
 } from './types.js';

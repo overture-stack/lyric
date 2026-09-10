@@ -1,12 +1,7 @@
 import * as _ from 'lodash-es';
 
-import {
-	AUDIT_ACTION,
-	AuditAction,
-	AuditDataResponse,
-	AuditRepositoryRecord,
-	SUBMISSION_RECORD_ACTION_TYPE,
-} from './types.js';
+import { SUBMISSION_RECORD_ACTION_TYPE } from './submissionTypes.js';
+import { AUDIT_ACTION, AuditAction, AuditDataResponse, AuditRepositoryRecord } from './types.js';
 
 /**
  * Returns `true` if input value matches with a valid Audit Event type.

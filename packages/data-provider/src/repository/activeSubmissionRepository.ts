@@ -6,13 +6,20 @@ import { type NewSubmission, type Submission, submissions } from '@overture-stac
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import { inProcessSubmissionStatus, openSubmissionStatus } from '../utils/submissionUtils.js';
-import type {
-	BooleanTrueObject,
-	PaginationOptions,
-	PartialColumns,
-	SubmissionWithDictionaryAndCategoryRepositoryRecord,
-} from '../utils/types.js';
-import type { RepositoryTransaction } from './types.js';
+import type { CategorySummary, DictionarySummary, PaginationOptions, SubmissionStatus } from '../utils/types.js';
+import type { BooleanTrueObject, PartialColumns, RepositoryTransaction } from './types.js';
+
+export type SubmissionWithDictionaryAndCategoryRepositoryRecord = {
+	id: number;
+	dictionary: DictionarySummary;
+	dictionaryCategory: CategorySummary;
+	organization: string;
+	status: SubmissionStatus;
+	createdAt: Date | null;
+	createdBy: string | null;
+	updatedAt: Date | null;
+	updatedBy: string | null;
+};
 
 const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
@@ -49,13 +56,14 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 	 * Normalizes a queried record's `dictionaryCategory.alias` from the DB's `string | null`
 	 * to the public `CategorySummary` contract's `string | undefined` (omitted, not null, when unset).
 	 */
-	const withAliasNormalized = <T extends { dictionaryCategory: { alias: string | null } }>(record: T) =>
-		({
-			...record,
-			dictionaryCategory: { ...record.dictionaryCategory, alias: record.dictionaryCategory.alias ?? undefined },
-		}) as Omit<T, 'dictionaryCategory'> & {
-			dictionaryCategory: Omit<T['dictionaryCategory'], 'alias'> & { alias?: string };
-		};
+	const withAliasNormalized = (
+		record: Omit<SubmissionWithDictionaryAndCategoryRepositoryRecord, 'dictionaryCategory'> & {
+			dictionaryCategory: Omit<CategorySummary, 'alias'> & { alias: string | null };
+		},
+	): SubmissionWithDictionaryAndCategoryRepositoryRecord => ({
+		...record,
+		dictionaryCategory: { ...record.dictionaryCategory, alias: record.dictionaryCategory.alias ?? undefined },
+	});
 
 	/**
 	 * SQL condition used to filter submissions that are in an active state.
