@@ -220,14 +220,8 @@ const submissionService = (dependencies: BaseDependencies) => {
 			throw new BadRequest('Either recordId or fileId must be provided to delete a record or file from the Submission');
 		}
 
-		// Updating the Submission with the new data and 'VALIDATING' status before validation starts
-		await submissionRepository.update(submission.id, {
-			updatedBy: username,
-			status: 'VALIDATING',
-		});
-
 		// Perform Schema Data validation in a worker thread
-		dependencies.workerPool.dataValidation({ submissionId: submission.id });
+		dependencies.workerPool.dataValidation({ submissionId: submission.id, username });
 
 		logger.info(
 			LOG_MODULE,
