@@ -7,8 +7,8 @@ import { Readable } from 'stream';
 
 import { type Schema } from '@overture-stack/lectern-client';
 
-import { submissionInsertDataFromFiles } from './submissionUtils.js';
-import { type FileSchemaMap } from './types.js';
+import { submissionInsertDataFromFiles } from '../../../../src/utils/submissionUtils.js';
+import { type FileSchemaMap } from '../../../../src/utils/types.js';
 
 const makeFile = (path: string, originalname: string): Express.Multer.File => ({
 	path,
