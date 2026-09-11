@@ -591,6 +591,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			idActiveSubmission: submissionId,
 			schemaErrors: submissionSchemaErrors,
 			dictionaryId: currentDictionary.id,
+			validatedRecordIds: submissionRecords.map((record) => record.id),
 		});
 	};
 
@@ -851,24 +852,30 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	/**
 	 * Update Active Submission in database
 	 * Updates the Submission status to 'VALID' if there is no errors, otherwise updates it to 'INVALID'
-	 * Updates all the records of the submission with the validation state, marking records with errors as 'INVALID'
-	 * and records without errors as 'VALID'
+	 * Updates the validation state of the records considered during validation, marking records with errors
+	 * as 'INVALID' and the rest of `validatedRecordIds` as 'VALID'.
+	 *
+	 * Only records present in `validatedRecordIds` are touched. Records that were added to the submission
+	 * after the validation snapshot was taken are intentionally left untouched (they remain 'RECEIVED')
+	 * rather than being inferred as valid from a fresh read of the submission's current records.
 	 * @param {Object} input
 	 * @param {number} input.dictionaryId The Dictionary ID of the Submission
 	 * @param {number} input.idActiveSubmission ID of the Submission
 	 * @param {SubmissionErrors} input.schemaErrors Array of errors on the submission
+	 * @param {number[]} input.validatedRecordIds IDs of the Submission Records that were actually validated
 	 * @returns {Promise<number>} The ID of the updated Submission
 	 */
 	const updateActiveSubmission = async (input: {
 		dictionaryId: number;
 		idActiveSubmission: number;
 		schemaErrors: SubmissionErrors;
+		validatedRecordIds: number[];
 	}): Promise<number> => {
-		const { dictionaryId, idActiveSubmission, schemaErrors } = input;
+		const { dictionaryId, idActiveSubmission, schemaErrors, validatedRecordIds } = input;
 		const newStatusSubmission =
 			Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
 
-		await dependencies.db.transaction(async (tx) => {
+		return await dependencies.db.transaction(async (tx) => {
 			// Update with new data
 			const updatedActiveSubmissionId = await submissionRepository.update(
 				idActiveSubmission,
@@ -888,10 +895,9 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				),
 			);
 
-			const submissionRecords = await submissionRecordsRepository.getBySubmissionId(idActiveSubmission);
-			const recordsWithoutError = submissionRecords
-				.filter((record) => !invalidRecords.some((invalidRecord) => invalidRecord.id === record.id))
-				.map((record) => record.id);
+			const recordsWithoutError = validatedRecordIds.filter(
+				(id) => !invalidRecords.some((invalidRecord) => invalidRecord.id === id),
+			);
 
 			// Update records with validation state, marking records with errors as 'INVALID' and records without errors as 'VALID'
 			await submissionRecordsRepository.updateValidationState(
@@ -905,10 +911,9 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				LOG_MODULE,
 				`Updated Active submission '${updatedActiveSubmissionId}' with status '${newStatusSubmission}'`,
 			);
+
 			return updatedActiveSubmissionId;
 		});
-
-		return 0;
 	};
 
 	const logFileResult = (result: FileParseResult) => {
