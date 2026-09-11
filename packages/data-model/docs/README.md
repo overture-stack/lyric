@@ -39,13 +39,9 @@ Stores data submissions, each associated with a dictionary category and dictiona
 
 Key fields in the submissions table include:
 
-- `data`: This field contains the actual submission data stored as a JSON object. The use of JSON allows for flexible and dynamic data structures, accommodating varying submission formats while preserving the integrity of the information.
-
 - `dictionary_category_id`: This field establishes a link to the corresponding dictionary category, which defines the schema against which the submission data will be validated. By referencing the dictionary category, the submission ensures compliance with the rules and structures outlined in the associated dictionary.
 
 - `dictionary_id`: This field links the submission directly to the specific dictionary version being utilized for validation. This connection ensures that the submission is aligned with the correct schema version, enabling consistent validation and data integrity.
-
-- `errors`: This field captures any validation errors encountered during the submission process. It allows for detailed tracking of issues, providing insights into why certain data may not conform to the expected schema.
 
 - `organization`: This field indicates the organization responsible for the submission. This contextual information is essential for data management and auditing purposes, allowing for the tracking of submissions by different entities.
 

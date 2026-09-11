@@ -35,7 +35,10 @@ const categoryIdSchema = zod
 const categoryAliasSchema = zod
 	.string()
 	.trim()
-	.refine((value) => value === '' || isValidCategoryAlias(value), 'alias must contain only letters, numbers, hyphens, and underscores');
+	.refine(
+		(value) => value === '' || isValidCategoryAlias(value),
+		'alias must contain only letters, numbers, hyphens, and underscores',
+	);
 
 const endDateSchema = zod
 	.string()
@@ -63,17 +66,6 @@ const pageSizeSchema = zod.string().superRefine((value, ctx) => {
 			minimum: 1,
 			inclusive: true,
 			type: 'number',
-		});
-	}
-});
-
-const indexIntegerSchema = zod.string().superRefine((value, ctx) => {
-	const parsed = parseInt(value);
-	if (isNaN(parsed)) {
-		ctx.addIssue({
-			code: zod.ZodIssueCode.invalid_type,
-			expected: 'number',
-			received: 'nan',
 		});
 	}
 });
@@ -342,6 +334,7 @@ export const submissionByIdRequestSchema: RequestValidation<object, ParsedQs, su
 export interface SubmissionsDetailsQueryParams extends PaginationQueryParams {
 	entityNames?: string | string[];
 	actionTypes?: string | string[];
+	fileId?: string;
 }
 
 export const submissionDetailsRequestSchema: RequestValidation<
@@ -353,6 +346,7 @@ export const submissionDetailsRequestSchema: RequestValidation<
 		.object({
 			entityNames: zod.union([entityNameSchema, entityNameSchema.array()]).optional(),
 			actionTypes: zod.union([submissionActionTypeSchema, submissionActionTypeSchema.array()]).optional(),
+			fileId: positiveInteger.optional(),
 		})
 		.merge(paginationQuerySchema),
 	pathParams: submissionIdPathParamSchema,
@@ -393,27 +387,25 @@ export const submissionDeleteRequestSchema: RequestValidation<
 	}),
 };
 
-export interface SubmissionDeleteEntityNameParams extends ParamsDictionary {
-	actionType: string;
+export interface SubmissionRecordDeleteParams extends ParamsDictionary {
 	submissionId: string;
 }
 
-export interface SubmissionDeleteEntityNameQueryParams extends ParsedQs {
-	entityName: string;
-	index?: string;
+export interface SubmissionRecordDeleteQueryParams extends ParsedQs {
+	recordId?: string;
+	fileId?: string;
 }
 
-export const submissionDeleteEntityNameRequestSchema: RequestValidation<
+export const submissionRecordDeleteRequestSchema: RequestValidation<
 	object,
-	SubmissionDeleteEntityNameQueryParams,
-	SubmissionDeleteEntityNameParams
+	SubmissionRecordDeleteQueryParams,
+	SubmissionRecordDeleteParams
 > = {
 	query: zod.object({
-		entityName: entityNameSchema,
-		index: indexIntegerSchema.optional(),
+		recordId: positiveInteger.optional(),
+		fileId: positiveInteger.optional(),
 	}),
 	pathParams: zod.object({
-		actionType: submissionActionTypeSchema,
 		submissionId: submissionIdSchema,
 	}),
 };

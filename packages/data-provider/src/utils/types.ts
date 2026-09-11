@@ -12,9 +12,7 @@ import {
 	type DataDiff,
 	type Dictionary,
 	NewSubmittedData,
-	SubmissionData,
 	type SubmissionDeleteData,
-	type SubmissionErrors,
 	type SubmissionUpdateData,
 	type SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
@@ -170,12 +168,6 @@ export type MigrationAuditRecord = Omit<AuditRepositoryRecord, 'action' | 'submi
 
 export type { Schema, SchemasDictionary };
 
-/**
- * Enum matching Audit Action in database
- */
-export const SUBMISSION_ACTION_TYPE = zod.enum(['INSERTS', 'UPDATES', 'DELETES']);
-export type SubmissionActionType = zod.infer<typeof SUBMISSION_ACTION_TYPE>;
-
 /** Action field included in each Kafka message emitted after a successful commit. */
 export const KAFKA_ACTION = zod.enum(['delete', 'insert', 'update']);
 export type KafkaAction = zod.infer<typeof KAFKA_ACTION>;
@@ -218,7 +210,7 @@ export interface CommitSubmissionParams {
 	dataToValidate: {
 		inserts: NewSubmittedData[];
 		submittedData: SubmittedData[];
-		deletes: SubmissionDeleteData[];
+		deletes: Record<string, SubmissionDeleteData[]>;
 		updates?: Record<string, SubmissionUpdateData>;
 	};
 	dictionary: SchemasDictionary & { id: number };
@@ -235,24 +227,6 @@ export type GroupedDataSubmission = {
 	schemaDataByEntityName: Record<string, DataRecord[]>;
 };
 
-export type BooleanTrueObject = {
-	[key: string]: true;
-};
-
-/**
- * Specifies which columns of a table to select in a Drizzle query
- * Used in the `columns` property of a Drizzle query
- */
-export type PartialColumns<T> = Partial<Record<keyof T, boolean>>;
-
-/**
- * Specifies additional columns to select in a Drizzle query for a related table.
- * Used in the `with` property of a Drizzle query
- */
-export type WithColumns<T> = {
-	columns: PartialColumns<T>;
-};
-
 /**
  * Pagination Query Params
  */
@@ -263,92 +237,27 @@ export type PaginationOptions = {
 
 export type DataInsertsSubmissionSummary = {
 	batchName: string;
+	errors: number;
+	fileId: number;
 	recordsCount: number;
 };
 
 export type DataUpdatesSubmissionSummary = {
+	batchName: string;
+	errors: number;
+	fileId: number;
 	recordsCount: number;
 };
 
 export type DataDeletesSubmissionSummary = {
+	errors: number;
 	recordsCount: number;
-};
-
-export type DataErrorsSubmissionSummary = {
-	recordsCount: number;
-};
-
-/**
- * Response type for Get Submission by Submission ID endpoint
- */
-export type SubmissionDetailsResponse = {
-	id: number;
-	data: SubmissionData;
-	dictionary: DictionarySummary;
-	dictionaryCategory: CategorySummary;
-	errors: SubmissionErrors;
-	organization: string;
-	status: SubmissionStatus;
-	createdAt: string;
-	createdBy: string;
-	updatedAt: string;
-	updatedBy: string;
 };
 
 export type SubmissionDataSummary = {
-	inserts?: Record<string, DataInsertsSubmissionSummary>;
-	updates?: Record<string, DataUpdatesSubmissionSummary>;
+	inserts?: Record<string, DataInsertsSubmissionSummary[]>;
+	updates?: Record<string, DataUpdatesSubmissionSummary[]>;
 	deletes?: Record<string, DataDeletesSubmissionSummary>;
-};
-
-export type SubmissionErrorsSummary = {
-	inserts?: Record<string, DataErrorsSubmissionSummary>;
-	updates?: Record<string, DataErrorsSubmissionSummary>;
-	deletes?: Record<string, DataErrorsSubmissionSummary>;
-};
-
-/**
- * Shortened version of the Submission record that omits the data changes and error details
- * in favour of the count of records changed and errors for each entity type.
- */
-export type SubmissionSummary = Omit<SubmissionDetailsResponse, 'data' | 'errors'> & {
-	data: SubmissionDataSummary & { total: number };
-} & {
-	errors: SubmissionErrorsSummary & { total: number };
-};
-
-/**
- * Retrieve Submission object with data summary from repository
- */
-export type SubmissionDataSummaryRepositoryRecord = {
-	id: number;
-	data: SubmissionDataSummary;
-	dictionary: DictionarySummary;
-	dictionaryCategory: CategorySummary;
-	errors: SubmissionErrorsSummary | null;
-	organization: string;
-	status: SubmissionStatus;
-	createdAt: Date | null;
-	createdBy: string | null;
-	updatedAt: Date | null;
-	updatedBy: string | null;
-};
-
-/**
- * Retrieve Submission object with data details from repository
- */
-export type SubmissionDataDetailsRepositoryRecord = {
-	id: number;
-	data: SubmissionData;
-	dictionary: DictionarySummary;
-	dictionaryCategory: CategorySummary;
-	errors: SubmissionErrors | null;
-	organization: string;
-	status: SubmissionStatus;
-	createdAt: Date | null;
-	createdBy: string | null;
-	updatedAt: Date | null;
-	updatedBy: string | null;
 };
 
 /**
@@ -464,13 +373,13 @@ export interface SubmittedDataReference {
 }
 
 export interface NewSubmittedDataReference {
-	index: number;
+	recordId: number;
 	submissionId: number;
 	type: typeof MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA;
 }
 
 export interface EditSubmittedDataReference {
-	index: number;
+	recordId: number;
 	systemId?: string;
 	submissionId: number;
 	type: typeof MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA;

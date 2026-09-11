@@ -85,30 +85,34 @@ components:
             $ref: '#/components/schemas/SubmissionResult'
 
     SubmissionDetailsResult:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
+      type: array
+      items:
+        type: object
+        properties:
+          actionType:
+            type: string
+            description: Type of action
+            enum: ['INSERT', 'UPDATE', 'DELETE']
+          data:
             type: object
-            properties:
-              type:
-                type: string
-                description: Type of action
-                enum: ['INSERTS', 'UPDATES', 'DELETES']
-              entity:
-                type: string
-                description: Name of the entity
-              value:
-                type: object
-                description: Content of the record in JSON format
-              index:
-                type: number
-                description: Index of the record in the submission
-        errors:
-          type: array
-          items:
-            $ref: '#/components/schemas/ValidationError'
+            description: Content of the record in JSON format
+          entityName:
+            type: string
+            description: Name of the entity
+          errors:
+            type: array
+            items:
+              $ref: '#/components/schemas/ValidationError'
+          fileId:
+            type: string
+            description: ID of the file in the submission
+          id:
+            type: number
+            description: ID of the record in the submission
+          state:
+            type: string
+            description: State of the record in the submission
+            enum: ['VALID', 'INVALID', 'RECEIVED']
 
     SubmissionResult:
       type: object
@@ -127,6 +131,12 @@ components:
                   batchName:
                     type: string
                     description: Original filename  of the submission
+                  errors:
+                    type: number
+                    description: Number of errors in the submission
+                  fileId:
+                    type: string
+                    description: ID of the file in the submission
                   recordsCount:
                     type: number
                     description: Number Of Records

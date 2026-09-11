@@ -286,7 +286,7 @@ const migrationService = (dependencies: BaseDependencies) => {
 					dataToValidate: {
 						inserts: [],
 						submittedData: submittedDataToValidate,
-						deletes: [],
+						deletes: {},
 						updates: {},
 					},
 					submissionId,
