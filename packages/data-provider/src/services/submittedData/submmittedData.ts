@@ -4,7 +4,6 @@ import type { Dictionary as SchemasDictionary } from '@overture-stack/lectern-cl
 import { SQON } from '@overture-stack/sqon-builder';
 
 import { BaseDependencies } from '../../config/config.js';
-import submissionRepository from '../../repository/activeSubmissionRepository.js';
 import categoryRepository from '../../repository/categoryRepository.js';
 import createSubmissionFilesRepository from '../../repository/submissionFilesRepository.js';
 import createSubmissionRecordsRepository from '../../repository/submissionRecordsRepository.js';
@@ -61,7 +60,6 @@ const submittedData = (dependencies: BaseDependencies) => {
 	}> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepo;
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { update: udpateSubmission } = submissionRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
 
 		// get SubmittedData by SystemId
@@ -177,16 +175,6 @@ const submittedData = (dependencies: BaseDependencies) => {
 		}
 
 		await dependencies.db.transaction(async (tx) => {
-			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
-			await udpateSubmission(
-				activeSubmissionId,
-				{
-					updatedBy: username,
-					status: 'VALIDATING',
-				},
-				tx,
-			);
-
 			await Promise.all(
 				Object.entries(filteredRecordsToDeleteMap).map(async ([entityName, entityRecords]) => {
 					const savedFileId = await submissionFilesRepository.save(
@@ -212,7 +200,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 		});
 
 		// Perform Schema Data validation in a worker thread
-		dependencies.workerPool.dataValidation({ submissionId: activeSubmissionId });
+		dependencies.workerPool.dataValidation({ submissionId: activeSubmissionId, username });
 
 		logger.info(LOG_MODULE, `Added '${entitiesToProcess.length}' records to be deleted on the Active Submission`);
 

@@ -506,10 +506,10 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	 * @param {number} submissionId Active Submission
 	 * @returns {Promise<number>} ID of the Submission updated
 	 */
-	const performDataValidation = async (submissionId: number): Promise<number> => {
+	const performDataValidation = async (submissionId: number, username: string): Promise<number> => {
 		const { getActiveDictionaryByCategory } = categoryRepository;
 		const { getSubmittedDataByCategoryIdAndOrganization } = submittedDataRepository;
-		const { getSubmissionById } = submissionRepository;
+		const { getSubmissionById, update } = submissionRepository;
 
 		// Get Active Submission from database
 		const activeSubmission = await getSubmissionById(submissionId);
@@ -517,6 +517,9 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		if (!activeSubmission) {
 			throw new Error(`Submission '${submissionId}' not found`);
 		}
+
+		// Mark the Submission as 'VALIDATING' now that validation is actually starting
+		await update(submissionId, { status: SUBMISSION_STATUS.VALIDATING, updatedBy: username });
 
 		// Get Submitted Data from database
 		const submittedData = await getSubmittedDataByCategoryIdAndOrganization(
@@ -624,7 +627,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		},
 	): Promise<void> => {
 		const { getDictionary } = dictionaryRepository;
-		const { getSubmissionById, update } = submissionRepository;
+		const { getSubmissionById } = submissionRepository;
 
 		try {
 			// Parse file data
@@ -690,17 +693,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// Creates insert and delete records based on primary ID field change records.
 			const additions = await handleIdFieldChanges(idFieldChangeRecord);
 
-			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
 			await dependencies.db.transaction(async (tx) => {
-				await update(
-					submission.id,
-					{
-						updatedBy: username,
-						status: 'VALIDATING',
-					},
-					tx,
-				);
-
 				const entityNames: Set<string> = new Set([
 					...Object.keys(additions.inserts),
 					...Object.keys(additions.deletes),
@@ -769,8 +762,8 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				}
 			});
 
-			// Perform Schema Data validation in a worker thread
-			dependencies.workerPool.dataValidation({ submissionId: submission.id });
+			// Updates the submission to VALIDATING, runs Schema Data validation in a worker thread, then marks it VALID or INVALID based on the result
+			dependencies.workerPool.dataValidation({ submissionId: submission.id, username });
 		} catch (error) {
 			logger.error(
 				LOG_MODULE,
@@ -803,7 +796,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		submissionId: number;
 		username: string;
 	}) => {
-		const { getSubmissionById, update } = submissionRepository;
+		const { getSubmissionById } = submissionRepository;
 
 		try {
 			// Get Active Submission from database
@@ -815,12 +808,6 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			if (!isSubmissionActive(activeSubmission.status)) {
 				throw new Error(`Submission '${activeSubmission.id}' is not active`);
 			}
-
-			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
-			await update(activeSubmission.id, {
-				updatedBy: username,
-				status: 'VALIDATING',
-			});
 
 			const insertRecords = parseRecordsToInsert(records, schemasDictionary);
 
@@ -849,8 +836,8 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				),
 			);
 
-			// Perform Schema Data validation in a worker thread
-			dependencies.workerPool.dataValidation({ submissionId: activeSubmission.id });
+			// Updates the submission to VALIDATING, runs Schema Data validation in a worker thread, then marks it VALID or INVALID based on the result
+			dependencies.workerPool.dataValidation({ submissionId: activeSubmission.id, username });
 		} catch (error) {
 			logger.error(
 				LOG_MODULE,
@@ -971,16 +958,6 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 		try {
 			await dependencies.db.transaction(async (tx) => {
-				// Updating the Submission with the new data and 'VALIDATING' status before validation starts
-				await submissionRepository.update(
-					submissionId,
-					{
-						updatedBy: username,
-						status: 'VALIDATING',
-					},
-					tx,
-				);
-
 				// Parse file data — each file is isolated; a failure on one does not block others.
 				const parsingFileDataResult = await submissionInsertDataFromFiles(fileSchemaMap);
 
@@ -1016,8 +993,8 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				}
 			});
 
-			// Perform Schema Data validation in a worker thread
-			dependencies.workerPool.dataValidation({ submissionId });
+			// Updates the submission to VALIDATING, runs Schema Data validation in a worker thread, then marks it VALID or INVALID based on the result
+			dependencies.workerPool.dataValidation({ submissionId, username });
 		} catch (error) {
 			logger.error(LOG_MODULE, `Error processing submitted files`, {
 				files: fileSummaries,
