@@ -15,7 +15,7 @@ import {
 	ComboboxList,
 	ComboboxSeparator,
 	useComboboxAnchor,
-} from './combobox';
+} from './combobox.js';
 
 const meta: Meta<typeof Combobox> = {
 	title: 'Components/Combobox',
