@@ -16,11 +16,12 @@ export default defineConfig({
 			entry: resolve(__dirname, 'src/index.ts'),
 			name: 'LyricUI',
 			fileName: 'lyric-ui',
+			cssFileName: 'style',
 			formats: ['es', 'cjs'],
 		},
 		rolldownOptions: {
 			output: {
-				banner: "import './lyric-ui.css';",
+				banner: "import './style.css';",
 			},
 			plugins: [
 				esmExternalRequirePlugin({

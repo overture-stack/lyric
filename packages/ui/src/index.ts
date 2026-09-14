@@ -1,4 +1,4 @@
-import '@/style.css';
+import './style.css';
 
 export { Button, buttonVariants } from './components/ui/button';
 export {
