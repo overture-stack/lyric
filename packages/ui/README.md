@@ -60,6 +60,10 @@ Tailoring lyric-ui components to a target application is done by overriding CSS 
 | `--color-input`                  | `hsl(214.3 31.8% 91.4%)` | Input field border color                                            |
 | `--color-ring`                   | `hsl(222.2 84% 4.9%)`    | Focus ring color for interactive elements                           |
 | `--radius`                       | `0.5rem`                 | Base border-radius used across components                           |
+| `--color-pill-error`             | `#ffccc7`                | Background color for error/failed pill badges                       |
+| `--color-pill-success`           | `#52c41a`                | Background color for success pill badges                            |
+| `--color-pill-warning`           | `#ffff7a`                | Background color for warning pill badges                            |
+| `--color-pill-default`           | `#f9fafb`                | Background color for default/neutral pill badges                    |
 
 Your main css file should look something like this:
 
