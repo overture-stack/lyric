@@ -1,6 +1,11 @@
 import { z as zod } from 'zod';
 
-import type { SubmissionInsertData, SubmissionUpdateData } from '@overture-stack/lyric-data-model/models';
+import type { DataRecordValue } from '@overture-stack/lectern-client';
+import type {
+	SubmissionInsertData,
+	SubmissionRecordError,
+	SubmissionUpdateData,
+} from '@overture-stack/lyric-data-model/models';
 
 /** Enum matching the states of submission records in the database. */
 export const SUBMISSION_RECORD_STATE = zod.enum(['RECEIVED', 'VALID', 'INVALID']);
@@ -19,4 +24,16 @@ export type SubmissionUpdateRecordWithEntityName = {
 	recordId: number;
 	entityName: string;
 	data: SubmissionUpdateData;
+};
+
+/**
+ * A single Submission Record validation error, normalized to a flat, field-level shape regardless of
+ * which underlying error variant (`SubmissionRecordError`) produced it. `fieldName`/`fieldValue` are
+ * omitted for error reasons that aren't scoped to a single field (e.g. `CONFLICTING_ACTION`).
+ */
+export type SubmissionRecordFieldError = {
+	fieldName?: string;
+	fieldValue?: DataRecordValue;
+	message: string;
+	reason: SubmissionRecordError['reason'];
 };
