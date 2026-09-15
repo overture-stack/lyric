@@ -20,7 +20,7 @@ type Story = StoryObj<typeof HeaderText>;
 
 export const ValidationInProgress: Story = {
 	args: {
-		title: 'Submission PCGL-12456',
+		title: 'Submission TEST-12456',
 		status: 'default',
 	},
 };
@@ -41,7 +41,7 @@ export const ActionRequired: Story = {
 
 export const Error: Story = {
 	args: {
-		title: 'Submission PCGL-12456',
+		title: 'Submission TEST-12456',
 		status: 'error',
 	},
 };

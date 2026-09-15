@@ -27,11 +27,11 @@
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);
 
-	/* Pill */
+	/* Pill CUSTOM*/
 	--color-pill-error: #ffccc7;
 	--color-pill-success: #52c41a;
 	--color-pill-warning: #ffff7a;
-	--color-pill-default: #f9fafb;
+	--color-pill-default: #d0d2d3;
 }
 
 @layer base {

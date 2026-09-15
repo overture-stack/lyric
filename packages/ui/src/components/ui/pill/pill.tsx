@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 const pillVariants = cva('inline-flex items-center rounded-md border bg-transparent px-3 py-1 text-xs font-medium', {
 	variants: {
 		status: {
-			default: 'bg-pill-grey/25 border-pill-grey',
+			default: 'bg-pill-default/25 border-pill-default',
 			success: 'bg-pill-success/25 border-pill-success',
 			warning: 'bg-pill-warning/25 border-pill-warning',
 			error: 'bg-pill-error/25 border-pill-error',
@@ -26,6 +26,7 @@ const pillStatusLabels: Record<PillStatus, string> = {
 export interface PillProps extends React.HTMLAttributes<HTMLSpanElement> {
 	status: PillStatus;
 	customStatus?: string;
+	className?: string;
 }
 
 const Pill = React.forwardRef<HTMLSpanElement, PillProps>(({ className, status, customStatus, ...props }, ref) => (
