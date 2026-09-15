@@ -41,7 +41,7 @@ export const Default: Story = {
 			<ComboboxContent>
 				<ComboboxEmpty>No items found.</ComboboxEmpty>
 				<ComboboxList>
-					{(item) => (
+					{(item: string) => (
 						<ComboboxItem key={item} value={item}>
 							{item}
 						</ComboboxItem>
@@ -59,7 +59,7 @@ export const Placeholder: Story = {
 			<ComboboxContent>
 				<ComboboxEmpty>No items found.</ComboboxEmpty>
 				<ComboboxList>
-					{(item) => (
+					{(item: string) => (
 						<ComboboxItem key={item} value={item}>
 							{item}
 						</ComboboxItem>
@@ -77,7 +77,7 @@ export const WithClear: Story = {
 			<ComboboxContent>
 				<ComboboxEmpty>No items found.</ComboboxEmpty>
 				<ComboboxList>
-					{(item) => (
+					{(item: string) => (
 						<ComboboxItem key={item} value={item}>
 							{item}
 						</ComboboxItem>
@@ -95,7 +95,7 @@ export const EmptyState: Story = {
 			<ComboboxContent>
 				<ComboboxEmpty>No results found.</ComboboxEmpty>
 				<ComboboxList>
-					{(item) => (
+					{(item: string) => (
 						<ComboboxItem key={item} value={item}>
 							{item}
 						</ComboboxItem>
@@ -138,7 +138,7 @@ export const Disabled: Story = {
 			<ComboboxContent>
 				<ComboboxEmpty>No items found.</ComboboxEmpty>
 				<ComboboxList>
-					{(item) => (
+					{(item: string) => (
 						<ComboboxItem key={item} value={item}>
 							{item}
 						</ComboboxItem>
@@ -156,7 +156,7 @@ export const WithDisabledItem: Story = {
 			<ComboboxContent>
 				<ComboboxEmpty>No items found.</ComboboxEmpty>
 				<ComboboxList>
-					{(item) => (
+					{(item: string) => (
 						<ComboboxItem key={item} value={item} disabled={item === 'Date'}>
 							{item}
 						</ComboboxItem>
@@ -183,7 +183,7 @@ export const MultiSelect: Story = {
 				<ComboboxContent anchor={anchorRef}>
 					<ComboboxEmpty>No results found.</ComboboxEmpty>
 					<ComboboxList>
-						{(item) => (
+						{(item: string) => (
 							<ComboboxItem key={item} value={item}>
 								{item}
 							</ComboboxItem>
@@ -201,12 +201,12 @@ export const Controlled: Story = {
 
 		return (
 			<div className="flex flex-col gap-4">
-				<Combobox items={fruits} value={value} onInputValueChange={(e) => setValue(e)}>
+				<Combobox items={fruits} value={value} onInputValueChange={(e: string) => setValue(e)}>
 					<ComboboxInput placeholder="Search fruit..." showClear />
 					<ComboboxContent>
 						<ComboboxEmpty>No items found.</ComboboxEmpty>
 						<ComboboxList>
-							{(item) => (
+							{(item: string) => (
 								<ComboboxItem key={item} value={item}>
 									{item}
 								</ComboboxItem>
