@@ -20,6 +20,7 @@ import {
 	submissionCommitRequestSchema,
 	submissionDeleteRequestSchema,
 	submissionDetailsRequestSchema,
+	submissionErrorsRequestSchema,
 	submissionRecordDeleteRequestSchema,
 	submissionsByCategoryRequestSchema,
 	uploadSingleEntitySubmissionDataRequestSchema,
@@ -308,6 +309,20 @@ const controller = ({
 				});
 
 				return res.status(200).json(submission);
+			} catch (error) {
+				next(error);
+			}
+		}),
+		getSubmissionErrorsByFileId: validateRequest(submissionErrorsRequestSchema, async (req, res, next) => {
+			try {
+				const submissionId = Number(req.params.submissionId);
+				const fileId = parseInt(req.query.fileId);
+
+				logger.info(LOG_MODULE, `Request Submission errors for fileId '${fileId}' on Submission '${submissionId}'`);
+
+				const errors = await submissionService.getSubmissionErrorsByFileId({ submissionId, fileId });
+
+				return res.status(200).json(errors);
 			} catch (error) {
 				next(error);
 			}

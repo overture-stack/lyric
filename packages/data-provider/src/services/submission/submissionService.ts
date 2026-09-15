@@ -12,7 +12,7 @@ import createSubmissionRecordsRepository, {
 	type SubmissionRecordWithEntityName,
 } from '../../repository/submissionRecordsRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
-import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
+import { BadRequest, InternalServerError, NotFound, StatusConflict } from '../../utils/errors.js';
 import type { PaginatedResult } from '../../utils/result.js';
 import type { FilenameEntityPair } from '../../utils/schemas.js';
 import {
@@ -20,11 +20,12 @@ import {
 	createSubmissionSummaryResponse,
 	type SubmissionSummaryResponse,
 } from '../../utils/submissionResponseParser.js';
-import type { SubmissionRecordActionType } from '../../utils/submissionTypes.js';
+import type { SubmissionRecordActionType, SubmissionRecordFieldError } from '../../utils/submissionTypes.js';
 import {
 	checkEntityFieldNames,
 	type FileParseResult,
 	isSubmissionActive,
+	mapSubmissionRecordErrorsToFieldErrors,
 	resolveFileEntities,
 } from '../../utils/submissionUtils.js';
 import {
@@ -377,6 +378,30 @@ const submissionService = (dependencies: BaseDependencies) => {
 	};
 
 	/**
+	 * Get the field-level validation errors for a single file within a Submission
+	 * @param {Object} params
+	 * @param {number} params.submissionId A Submission ID
+	 * @param {number} params.fileId The ID of the file within the Submission
+	 * @returns The file's Submission Record errors, normalized to a flat field-level shape
+	 */
+	const getSubmissionErrorsByFileId = async ({
+		submissionId,
+		fileId,
+	}: {
+		submissionId: number;
+		fileId: number;
+	}): Promise<SubmissionRecordFieldError[]> => {
+		const submissionFile = await submissionFilesRepository.getById(fileId);
+		if (!submissionFile || submissionFile.submissionId !== submissionId) {
+			throw new NotFound(`File '${fileId}' not found in Submission '${submissionId}'`);
+		}
+
+		const submissionRecords = await submissionRecordsRepository.getByFileIds([fileId]);
+
+		return submissionRecords.flatMap((record) => mapSubmissionRecordErrorsToFieldErrors(record.errors));
+	};
+
+	/**
 	 * Get an active Submission by Organization
 	 * @param {Object} params
 	 * @param {number} params.categoryId
@@ -675,6 +700,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		getSubmissionsByCategory,
 		getSubmissionById,
 		getSubmissionDetailsById,
+		getSubmissionErrorsByFileId,
 		getActiveSubmissionByOrganization,
 		getOrCreateActiveSubmission,
 		submit,
