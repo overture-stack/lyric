@@ -110,6 +110,15 @@ You could theoretically add values directly into `:root`, but defining them in `
 
 > NOTE: Because tailwind is being bundled with these exported components, it's worth noting that a project also using tailwind may possibly overlap on styles. This won't functionally affect the project, but may cause unintended visual issues.
 
+#### Custom Components
+
+Some components are not exported from shadcn and are custom. As a result, the consumer cannot change the color from their own .css file. If they wish to change the styles of a custom component, use the customStyles that are provided as props.
+
+Custom Components
+
+- pill
+- headertext
+
 ---
 
 ## Adding new components from Shadcn
