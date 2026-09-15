@@ -6,10 +6,10 @@ import { cn } from '@/lib/utils';
 const pillVariants = cva('inline-flex items-center rounded-md border bg-transparent px-3 py-1 text-xs font-medium', {
 	variants: {
 		status: {
-			default: 'border-gray-400 bg-gray-100',
-			success: 'border-green-500 bg-green-100',
-			warning: 'border-yellow-400 bg-yellow-100',
-			error: 'border-red-400 bg-red-100',
+			default: 'bg-pill-grey/25 border-pill-grey',
+			success: 'bg-pill-success/25 border-pill-success',
+			warning: 'bg-pill-warning/25 border-pill-warning',
+			error: 'bg-pill-error/25 border-pill-error',
 		},
 	},
 });
