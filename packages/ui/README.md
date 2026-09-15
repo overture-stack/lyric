@@ -60,6 +60,10 @@ Tailoring lyric-ui components to a target application is done by overriding CSS 
 | `--color-input`                  | `hsl(214.3 31.8% 91.4%)` | Input field border color                                            |
 | `--color-ring`                   | `hsl(222.2 84% 4.9%)`    | Focus ring color for interactive elements                           |
 | `--radius`                       | `0.5rem`                 | Base border-radius used across components                           |
+| `--color-pill-error`             | `#ffccc7`                | Background color for error/failed pill badges                       |
+| `--color-pill-success`           | `#52c41a`                | Background color for success pill badges                            |
+| `--color-pill-warning`           | `#ffff7a`                | Background color for warning pill badges                            |
+| `--color-pill-default`           | `#f9fafb`                | Background color for default/neutral pill badges                    |
 
 Your main css file should look something like this:
 
@@ -105,6 +109,15 @@ Your main css file should look something like this:
 You could theoretically add values directly into `:root`, but defining them in `@theme` exposes the custom variables across Tailwind's utility classes, making them applicable to a broader set of components beyond the shadcn defaults.
 
 > NOTE: Because tailwind is being bundled with these exported components, it's worth noting that a project also using tailwind may possibly overlap on styles. This won't functionally affect the project, but may cause unintended visual issues.
+
+#### Custom Components
+
+Some components are not exported from shadcn and are custom. As a result, the consumer cannot change the color from their own .css file. If they wish to change the styles of a custom component, use the customStyles that are provided as props.
+
+Custom Components
+
+- pill
+- headertext
 
 ---
 
