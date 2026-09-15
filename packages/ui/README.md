@@ -42,61 +42,69 @@ The theming system follows a similar [shadcn/ui](https://ui.shadcn.com/) convent
 
 Tailoring lyric-ui components to a target application is done by overriding CSS variables in your application's main `.css` file. The following tokens control the full palette:
 
-| Variable                   | Default value            | Description                                                         |
-| -------------------------- | ------------------------ | ------------------------------------------------------------------- |
-| `--background`             | `hsl(0 0% 100%)`         | Page/surface background                                             |
-| `--foreground`             | `hsl(222.2 84% 4.9%)`    | Default text and icon color                                         |
-| `--primary`                | `hsl(222.2 47.4% 11.2%)` | Primary action color (buttons, links)                               |
-| `--primary-foreground`     | `hsl(210 40% 98%)`       | Text/icons rendered on a primary-colored surface                    |
-| `--secondary`              | `hsl(210 40% 96.1%)`     | Secondary action or surface color                                   |
-| `--secondary-foreground`   | `hsl(222.2 47.4% 11.2%)` | Text/icons rendered on a secondary-colored surface                  |
-| `--muted`                  | `hsl(210 40% 96.1%)`     | Subdued background for non-interactive areas (badges, placeholders) |
-| `--muted-foreground`       | `hsl(215.4 16.3% 46.9%)` | Text/icons rendered on a muted surface                              |
-| `--accent`                 | `hsl(210 40% 96.1%)`     | Highlight or hover state background                                 |
-| `--accent-foreground`      | `hsl(222.2 47.4% 11.2%)` | Text/icons rendered on an accent-colored surface                    |
-| `--destructive`            | `hsl(0 84.2% 60.2%)`     | Destructive/error action color (delete, error states)               |
-| `--destructive-foreground` | `hsl(210 40% 98%)`       | Text/icons rendered on a destructive-colored surface                |
-| `--border`                 | `hsl(214.3 31.8% 91.4%)` | Default border color for cards, inputs, and dividers                |
-| `--input`                  | `hsl(214.3 31.8% 91.4%)` | Input field border color                                            |
-| `--ring`                   | `hsl(222.2 84% 4.9%)`    | Focus ring color for interactive elements                           |
-| `--radius`                 | `0.5rem`                 | Base border-radius used across components                           |
+| Variable                         | Default value            | Description                                                         |
+| -------------------------------- | ------------------------ | ------------------------------------------------------------------- |
+| `--color-background`             | `hsl(0 0% 100%)`         | Page/surface background                                             |
+| `--color-foreground`             | `hsl(222.2 84% 4.9%)`    | Default text and icon color                                         |
+| `--color-primary`                | `hsl(222.2 47.4% 11.2%)` | Primary action color (buttons, links)                               |
+| `--color-primary-foreground`     | `hsl(210 40% 98%)`       | Text/icons rendered on a primary-colored surface                    |
+| `--color-secondary`              | `hsl(210 40% 96.1%)`     | Secondary action or surface color                                   |
+| `--color-secondary-foreground`   | `hsl(222.2 47.4% 11.2%)` | Text/icons rendered on a secondary-colored surface                  |
+| `--color-muted`                  | `hsl(210 40% 96.1%)`     | Subdued background for non-interactive areas (badges, placeholders) |
+| `--color-muted-foreground`       | `hsl(215.4 16.3% 46.9%)` | Text/icons rendered on a muted surface                              |
+| `--color-accent`                 | `hsl(210 40% 96.1%)`     | Highlight or hover state background                                 |
+| `--color-accent-foreground`      | `hsl(222.2 47.4% 11.2%)` | Text/icons rendered on an accent-colored surface                    |
+| `--color-destructive`            | `hsl(0 84.2% 60.2%)`     | Destructive/error action color (delete, error states)               |
+| `--color-destructive-foreground` | `hsl(210 40% 98%)`       | Text/icons rendered on a destructive-colored surface                |
+| `--color-border`                 | `hsl(214.3 31.8% 91.4%)` | Default border color for cards, inputs, and dividers                |
+| `--color-input`                  | `hsl(214.3 31.8% 91.4%)` | Input field border color                                            |
+| `--color-ring`                   | `hsl(222.2 84% 4.9%)`    | Focus ring color for interactive elements                           |
+| `--radius`                       | `0.5rem`                 | Base border-radius used across components                           |
 
 Your main css file should look something like this:
 
 ```css
+@theme {
+	--color-background: hsl(0 0% 100%);
+	--color-foreground: hsl(222.2 84% 4.9%);
+	--color-primary: hsl(222.2 47.4% 11.2%);
+	--color-primary-foreground: hsl(210 40% 98%);
+	--color-secondary: hsl(210 40% 96.1%);
+	--color-secondary-foreground: hsl(222.2 47.4% 11.2%);
+	--color-muted: hsl(210 40% 96.1%);
+	--color-muted-foreground: hsl(215.4 16.3% 46.9%);
+	--color-accent: hsl(210 40% 96.1%);
+	--color-accent-foreground: hsl(222.2 47.4% 11.2%);
+	--color-destructive: hsl(0 84.2% 60.2%);
+	--color-destructive-foreground: hsl(210 40% 98%);
+	--color-border: hsl(214.3 31.8% 91.4%);
+	--color-input: hsl(214.3 31.8% 91.4%);
+	--color-ring: hsl(222.2 84% 4.9%);
+}
+
 :root {
-	--background: hsl(0 0% 100%);
-	--foreground: hsl(222.2 84% 4.9%);
-	--primary: hsl(222.2 47.4% 11.2%);
-	--primary-foreground: hsl(210 40% 98%);
-	--secondary: hsl(210 40% 96.1%);
-	--secondary-foreground: hsl(222.2 47.4% 11.2%);
-	--muted: hsl(210 40% 96.1%);
-	--muted-foreground: hsl(215.4 16.3% 46.9%);
-	--accent: hsl(210 40% 96.1%);
-	--accent-foreground: hsl(222.2 47.4% 11.2%);
-	--destructive: hsl(0 84.2% 60.2%);
-	--destructive-foreground: hsl(210 40% 98%);
-	--border: hsl(214.3 31.8% 91.4%);
-	--input: hsl(214.3 31.8% 91.4%);
-	--ring: hsl(222.2 84% 4.9%);
+	--background: var(--color-background);
+	--foreground: var(--color-foreground);
+	--primary: var(--color-primary);
+	--primary-foreground: var(--color-primary-foreground);
+	--secondary: var(--color-secondary);
+	--secondary-foreground: var(--color-secondary-foreground);
+	--muted: var(--color-muted);
+	--muted-foreground: var(--color-muted-foreground);
+	--accent: var(--color-accent);
+	--accent-foreground: var(--color-accent-foreground);
+	--destructive: var(--color-destructive);
+	--destructive-foreground: var(--color-destructive-foreground);
+	--border: var(--color-border);
+	--input: var(--color-input);
+	--ring: var(--color-ring);
 	--radius: 0.5rem;
 }
 ```
 
-If you are using tailwind along side with lyric-ui, you can use tailwind css variable to populate lyric-ui as a source of truth:
+You could theoretically add values directly into `:root`, but defining them in `@theme` exposes the custom variables across Tailwind's utility classes, making them applicable to a broader set of components beyond the shadcn defaults.
 
-```css
-@theme {
-	--color-primary-900: #054a74;
-}
-
-:root {
-	--primary: var(--color-primary-900);
-}
-```
-
-Because tailwind is being bundled with these exported components, it's worth noting that a project also using tailwind may possibly overlap on styles. This won't functionally affect the project, but may cause unintended visual issues.
+> NOTE: Because tailwind is being bundled with these exported components, it's worth noting that a project also using tailwind may possibly overlap on styles. This won't functionally affect the project, but may cause unintended visual issues.
 
 ---
 
