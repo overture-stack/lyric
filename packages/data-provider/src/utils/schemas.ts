@@ -352,6 +352,21 @@ export const submissionDetailsRequestSchema: RequestValidation<
 	pathParams: submissionIdPathParamSchema,
 };
 
+export interface SubmissionErrorsQueryParams extends ParsedQs {
+	fileId: string;
+}
+
+export const submissionErrorsRequestSchema: RequestValidation<
+	object,
+	SubmissionErrorsQueryParams,
+	submissionIdPathParam
+> = {
+	query: zod.object({
+		fileId: positiveInteger,
+	}),
+	pathParams: submissionIdPathParamSchema,
+};
+
 export const submissionActiveByOrganizationRequestSchema: RequestValidation<
 	object,
 	ParsedQs,

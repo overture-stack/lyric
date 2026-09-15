@@ -11,7 +11,11 @@ import {
 	TestResult,
 	validate,
 } from '@overture-stack/lectern-client';
-import { type SubmissionUpdateData, type SubmittedData } from '@overture-stack/lyric-data-model/models';
+import {
+	type SubmissionRecordError,
+	type SubmissionUpdateData,
+	type SubmittedData,
+} from '@overture-stack/lyric-data-model/models';
 
 import type { SubmissionRecordWithEntityName } from '../repository/submissionRecordsRepository.js';
 import { getSubmittedFileEntity } from '../services/submission/submissionFile.js';
@@ -27,8 +31,12 @@ import {
 	isDeleteSubmissionRecord,
 	type SubmissionErrors,
 } from './submissionRecordUtils.js';
-import type { SubmissionInsertRecordWithEntityName } from './submissionTypes.js';
-import { SUBMISSION_RECORD_ACTION_TYPE, type SubmissionRecordActionType } from './submissionTypes.js';
+import {
+	SUBMISSION_RECORD_ACTION_TYPE,
+	type SubmissionInsertRecordWithEntityName,
+	type SubmissionRecordActionType,
+	type SubmissionRecordFieldError,
+} from './submissionTypes.js';
 import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
 	BATCH_ERROR_TYPE,
@@ -593,3 +601,85 @@ export const parseSubmissionActionTypes = (values: unknown): SubmissionRecordAct
 		.filter(isSubmissionActionTypeValid)
 		.map((value) => SUBMISSION_RECORD_ACTION_TYPE.parse(value));
 };
+
+/**
+ * Normalizes one `SubmissionRecordError` into one or more flat, field-level errors. Most reasons map to a
+ * single entry; `INVALID_BY_RESTRICTION` carries its own array of per-restriction failures and is expanded
+ * into one entry per failed restriction, each keeping that restriction's own message.
+ */
+const toFieldErrors = (error: SubmissionRecordError): SubmissionRecordFieldError[] => {
+	switch (error.reason) {
+		case 'UNRECOGNIZED_FIELD':
+			return [
+				{
+					fieldName: error.fieldName,
+					fieldValue: error.fieldValue,
+					message: `Field '${error.fieldName}' is not recognized in the schema`,
+					reason: error.reason,
+				},
+			];
+		case 'UNRECOGNIZED_VALUE':
+			return [
+				{
+					fieldName: error.fieldName,
+					fieldValue: error.fieldValue,
+					message: `Value '${error.fieldValue}' for field '${error.fieldName}' is not recognized`,
+					reason: error.reason,
+				},
+			];
+		case 'INVALID_VALUE_TYPE':
+			return [
+				{
+					fieldName: error.fieldName,
+					fieldValue: error.fieldValue,
+					message: `Field '${error.fieldName}' expected a value of type '${error.valueType}'${error.isArray ? ' (array)' : ''}, but got '${error.fieldValue}'`,
+					reason: error.reason,
+				},
+			];
+		case 'INVALID_BY_UNIQUE':
+			return [
+				{
+					fieldName: error.fieldName,
+					fieldValue: error.fieldValue,
+					message: `Field '${error.fieldName}' value '${error.fieldValue}' must be unique; conflicts with record(s) '${error.matchingRecords.join(', ')}'`,
+					reason: error.reason,
+				},
+			];
+		case 'INVALID_BY_UNIQUE_KEY':
+			return [
+				{
+					message: `Unique key '${JSON.stringify(error.uniqueKey)}' conflicts with record(s) '${error.matchingRecords.join(', ')}'`,
+					reason: error.reason,
+				},
+			];
+		case 'INVALID_BY_FOREIGNKEY':
+			return [
+				{
+					fieldName: error.fieldName,
+					fieldValue: error.fieldValue,
+					message: `Field '${error.fieldName}' value '${error.fieldValue}' does not match any record in schema '${error.foreignSchema.schemaName}' field '${error.foreignSchema.fieldName}'`,
+					reason: error.reason,
+				},
+			];
+		case 'INVALID_BY_RESTRICTION':
+			return error.errors.map((restrictionError) => ({
+				fieldName: error.fieldName,
+				fieldValue: error.fieldValue,
+				message: restrictionError.message,
+				reason: error.reason,
+			}));
+		case 'CONFLICTING_ACTION':
+			return [{ message: error.message, reason: error.reason }];
+		default: {
+			const unreachable: never = error;
+			return unreachable;
+		}
+	}
+};
+
+/**
+ * Flattens a Submission Record's `errors` column into a flat array of field-level errors.
+ */
+export const mapSubmissionRecordErrorsToFieldErrors = (
+	errors: SubmissionRecordError[] | null | undefined,
+): SubmissionRecordFieldError[] => (errors ?? []).flatMap(toFieldErrors);

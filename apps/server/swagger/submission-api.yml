@@ -146,6 +146,37 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
+/submission/{submissionId}/errors:
+  get:
+    summary: Fetch the field-level validation errors for a single file within a Submission
+    tags:
+      - Submission
+    parameters:
+      - $ref: '#/components/parameters/path/SubmissionId'
+      - name: fileId
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: The ID of the file within the Submission to retrieve errors for
+    responses:
+      200:
+        description: Field-level errors for the file
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissionErrorsResult'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
 /submission/category/{categoryId}:
   get:
     summary: Retrieve the Submissions for a category in this user session
