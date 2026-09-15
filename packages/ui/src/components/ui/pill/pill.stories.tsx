@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
-import { HeaderText } from './headertext';
+import { Pill } from './pill';
 
-const meta: Meta<typeof HeaderText> = {
-	title: 'Components/HeaderText',
-	component: HeaderText,
+const meta: Meta<typeof Pill> = {
+	title: 'Components/Pill',
+	component: Pill,
 	tags: ['autodocs'],
 	argTypes: {
 		status: {
@@ -16,38 +16,28 @@ const meta: Meta<typeof HeaderText> = {
 
 export default meta;
 
-type Story = StoryObj<typeof HeaderText>;
+type Story = StoryObj<typeof Pill>;
 
 export const ValidationInProgress: Story = {
 	args: {
-		title: 'Submission PCGL-12456',
 		status: 'default',
 	},
 };
 
 export const ReadyForValidation: Story = {
 	args: {
-		title: 'New Submission',
 		status: 'success',
 	},
 };
 
 export const ActionRequired: Story = {
 	args: {
-		title: 'New Submission',
 		status: 'warning',
 	},
 };
 
 export const Error: Story = {
 	args: {
-		title: 'Submission PCGL-12456',
 		status: 'error',
-	},
-};
-
-export const NoStatus: Story = {
-	args: {
-		title: 'New Submission',
 	},
 };
