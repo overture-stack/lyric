@@ -326,6 +326,26 @@ components:
           description: The value of the field that caused the error. Absent for `INVALID_BY_UNIQUE_KEY`.
       additionalProperties: true
 
+    SubmissionErrorsResult:
+      type: array
+      items:
+        type: object
+        required:
+          - reason
+          - message
+        properties:
+          fieldName:
+            type: string
+            description: Name of the field the error is related to. Omitted for errors that aren't scoped to a single field.
+          fieldValue:
+            description: Value of the field that failed validation. Omitted for errors that aren't scoped to a single field.
+          reason:
+            type: string
+            description: Machine-readable reason code for the error
+          message:
+            type: string
+            description: Human-readable description of the error
+
     SubmissionResult:
       type: object
       required:
