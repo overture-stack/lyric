@@ -134,6 +134,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 					data: submissionRecords.data,
 					errors: submissionRecords.errors,
 					entityName: submissionFiles.entityName,
+					lineNumber: submissionRecords.lineNumber,
 				})
 				.from(submissionRecords)
 				.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
@@ -164,6 +165,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 				fileId: submissionRecords.fileId,
 				id: submissionRecords.id,
 				state: submissionRecords.state,
+				lineNumber: submissionRecords.lineNumber,
 			})
 			.from(submissionRecords)
 			.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
