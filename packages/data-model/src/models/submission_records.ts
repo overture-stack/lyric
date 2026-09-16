@@ -62,7 +62,7 @@ export const submissionRecords = pgTable(
 		actionType: submissionRecordType('action_type').notNull(),
 		errors: jsonb('errors').$type<SubmissionRecordError[]>(),
 		state: submissionRecordState('state').notNull(),
-		lineNumber: integer('line_number').notNull(),
+		lineNumber: integer('line_number'),
 	},
 	(table) => {
 		return {

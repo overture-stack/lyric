@@ -1,5 +1,5 @@
 {
-  "id": "a84da766-cd5b-4884-b780-16e6305e06c4",
+  "id": "b1c53dd3-3586-4589-88c0-db69ccceb67c",
   "prevId": "f2fe7a66-f0e4-4a17-8f49-29fefb6f5809",
   "version": "5",
   "dialect": "pg",
@@ -580,7 +580,7 @@
           "name": "line_number",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
