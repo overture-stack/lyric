@@ -179,8 +179,10 @@ aggregated_errors AS (
 	GROUP BY ee.file_id, ee.error_bucket, ee.entity_name, ee.record_index
 )
 
--- Step 8: insert records with mapped errors and derived state.
-INSERT INTO submission_records (file_id, data, action_type, errors, state)
+-- Step 8: insert records with mapped errors, derived state, and the 1-based line number
+-- (header row + 1-based, matching fileUtils.ts's readTextFile) of the record within the
+-- original file it came from.
+INSERT INTO submission_records (file_id, data, action_type, errors, state, line_number)
 SELECT
 	er.file_id,
 	er.record_data AS data,
@@ -190,7 +192,8 @@ SELECT
 		WHEN er.submission_status::text IN ('OPEN', 'VALIDATING') THEN 'RECEIVED'::submission_record_state
 		WHEN er.submission_status = 'INVALID' OR ae.error_data IS NOT NULL THEN 'INVALID'::submission_record_state
 		ELSE 'VALID'::submission_record_state
-	END AS state
+	END AS state,
+	er.record_index + 2 AS line_number
 FROM expanded_records er
 LEFT JOIN aggregated_errors ae
 	ON ae.file_id = er.file_id

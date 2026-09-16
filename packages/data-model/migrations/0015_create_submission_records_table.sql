@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS "submission_records" (
 	"data" jsonb NOT NULL,
 	"action_type" "submission_record_type" NOT NULL,
 	"errors" jsonb,
-	"state" "submission_record_state" NOT NULL
+	"state" "submission_record_state" NOT NULL,
+	"line_number" integer NOT NULL
 );
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "submission_files_submission_id_index" ON "submission_files" ("submission_id");--> statement-breakpoint

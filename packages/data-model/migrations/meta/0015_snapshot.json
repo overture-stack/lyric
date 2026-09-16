@@ -1,5 +1,5 @@
 {
-  "id": "2cfa9a03-57e5-4b57-874d-e72a094ef393",
+  "id": "a84da766-cd5b-4884-b780-16e6305e06c4",
   "prevId": "f2fe7a66-f0e4-4a17-8f49-29fefb6f5809",
   "version": "5",
   "dialect": "pg",
@@ -573,6 +573,12 @@
         "state": {
           "name": "state",
           "type": "submission_record_state",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_number": {
+          "name": "line_number",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true
         }

@@ -1,6 +1,6 @@
 {
-  "id": "d21aa03b-6754-4978-9209-7113bb3d5890",
-  "prevId": "2cfa9a03-57e5-4b57-874d-e72a094ef393",
+  "id": "a2a72b96-0018-4d9b-84d5-08f8cffa4a33",
+  "prevId": "a84da766-cd5b-4884-b780-16e6305e06c4",
   "version": "5",
   "dialect": "pg",
   "tables": {
@@ -573,6 +573,12 @@
         "state": {
           "name": "state",
           "type": "submission_record_state",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_number": {
+          "name": "line_number",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true
         }
