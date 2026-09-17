@@ -188,10 +188,11 @@ const submittedData = (dependencies: BaseDependencies) => {
 					);
 					await submissionRecordsRepository.saveManyForFile(
 						savedFileId,
-						entityRecords.map((record) => ({
+						entityRecords.map((record, index) => ({
 							actionType: 'DELETE',
 							data: record,
 							state: 'RECEIVED',
+							lineNumber: index + 1,
 						})),
 						tx,
 					);

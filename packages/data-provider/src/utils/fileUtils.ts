@@ -84,10 +84,13 @@ const collectRows = (filePath: string, separator: string): Promise<string[][]> =
  * Returns all records (valid or not) and a separate list of per-row schema validation errors.
  * Supported file types: .tsv and .csv
  */
+/** One parsed data row paired with its 1-based line number in the original uploaded file. */
+export type ParsedRecordWithLineNumber = { record: DataRecord; lineNumber: number };
+
 export const readTextFile = async (
 	file: Express.Multer.File,
 	schema: Schema,
-): Promise<{ records: DataRecord[]; errors: ParseSchemaError[] }> => {
+): Promise<{ records: ParsedRecordWithLineNumber[]; errors: ParseSchemaError[] }> => {
 	const separator = getSeparatorCharacter(file);
 	if (!separator) {
 		throw new Error('Invalid file extension');
@@ -104,11 +107,11 @@ export const readTextFile = async (
 		const lineNumber = index + 2; // +1 for header row, +1 for 1-based line numbers
 		const result = parse.parseRecordValues(mapRecordToHeaders(headers, row), schema);
 		const error = result.success ? undefined : { recordErrors: result.data.errors, recordIndex: lineNumber };
-		return { record: result.data.record, error };
+		return { record: result.data.record, lineNumber, error };
 	});
 
 	return {
-		records: parsed.map((p) => p.record),
+		records: parsed.map(({ record, lineNumber }) => ({ record, lineNumber })),
 		errors: parsed.flatMap((p) => (p.error ? [p.error] : [])),
 	};
 };

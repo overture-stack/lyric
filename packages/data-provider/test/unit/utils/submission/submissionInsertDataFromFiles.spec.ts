@@ -133,4 +133,16 @@ describe('submissionInsertDataFromFiles', () => {
 		expect(fileResults.every((r) => r.fileResult.status === 'ok')).to.be.true;
 		expect(fileResults.every((r) => r.fileResult.status === 'ok' && r.data.length === 1)).to.be.true;
 	});
+
+	it('pairs each record with its 1-based line number in the file (header + 1-based)', async () => {
+		const path = writeTsv([['item_id'], ['A'], ['B'], ['C']]);
+		const fileSchemaMap: FileSchemaMap = {
+			items: { files: [makeFile(path, 'items.tsv')], schema: minimalSchema('items') },
+		};
+
+		const fileResults = await submissionInsertDataFromFiles(fileSchemaMap);
+
+		expect(fileResults[0]?.data.map((d) => d.lineNumber)).to.eql([2, 3, 4]);
+		expect(fileResults[0]?.data.map((d) => d.record)).to.eql([{ item_id: 'A' }, { item_id: 'B' }, { item_id: 'C' }]);
+	});
 });

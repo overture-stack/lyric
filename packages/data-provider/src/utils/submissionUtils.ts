@@ -18,7 +18,7 @@ import { getSubmittedFileEntity } from '../services/submission/submissionFile.js
 import { isSubmissionActionTypeValid } from './auditUtils.js';
 import type { SchemaChildNode } from './dictionarySchemaRelations.js';
 import { getSchemaFieldNames } from './dictionaryUtils.js';
-import { readHeaders, readTextFile } from './fileUtils.js';
+import { type ParsedRecordWithLineNumber, readHeaders, readTextFile } from './fileUtils.js';
 import { asArray } from './formatUtils.js';
 import type { FilenameEntityPair } from './schemas.js';
 import {
@@ -513,7 +513,7 @@ export type FileParseResult = { fileName: string; entityName: string; fileSize: 
 
 /** Return type of `submissionInsertDataFromFiles`. */
 export type FileInsertResult = {
-	data: DataRecord[];
+	data: ParsedRecordWithLineNumber[];
 	fileResult: FileParseResult;
 };
 

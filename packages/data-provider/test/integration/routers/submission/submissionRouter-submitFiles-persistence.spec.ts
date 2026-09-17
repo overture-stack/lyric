@@ -118,7 +118,33 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 		assertExists(submissionRecords[0]);
 		expect(submissionRecords[0].entityName).to.eql('sport');
 		expect(submissionRecords[0].actionType).to.eql('INSERT');
+		expect(submissionRecords[0].lineNumber).to.eql(2);
 		expect(submissionRecords[0].data).to.eql({ sport_id: '1', name: 'Soccer' });
+	});
+
+	it('should persist each record with its 1-based line number in the uploaded file', async () => {
+		const sportTsv = createTsvFileContent(
+			['sport_id', 'name'],
+			[
+				['1', 'Soccer'],
+				['2', 'Basketball'],
+				['3', 'Hockey'],
+			],
+		);
+
+		const submitResponse = await app
+			.post(`/category/${categoryId}/files?organization=testOrg`)
+			.attach('files', sportTsv, 'sport.tsv');
+
+		await pendingAsyncWork;
+
+		const submissionRecords = await lyricProvider.repositories.submissionRecords.getBySubmissionId(
+			submitResponse.body.submissionId,
+		);
+
+		expect(submissionRecords.length).to.eq(3);
+		// Line 1 is the header, so the first data row is line 2.
+		expect(submissionRecords.map((record) => record.lineNumber)).to.eql([2, 3, 4]);
 	});
 
 	it('should save records for each entity when multiple files are submitted', async () => {

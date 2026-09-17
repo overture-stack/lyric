@@ -729,10 +729,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 					if (updatedActiveSubmissionData[entityName]) {
 						await submissionRecordsRepository.saveManyForFile(
 							savedFileId,
-							updatedActiveSubmissionData[entityName].map((record) => ({
+							updatedActiveSubmissionData[entityName].map((record, index) => ({
 								actionType: 'UPDATE',
 								data: record,
 								state: 'RECEIVED',
+								lineNumber: index + 1,
 							})),
 							tx,
 						);
@@ -741,10 +742,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 					if (additions.inserts[entityName]) {
 						await submissionRecordsRepository.saveManyForFile(
 							savedFileId,
-							additions.inserts[entityName].map((record) => ({
+							additions.inserts[entityName].map((record, index) => ({
 								actionType: 'INSERT',
 								data: record,
 								state: 'RECEIVED',
+								lineNumber: index + 1,
 							})),
 							tx,
 						);
@@ -752,10 +754,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 					if (additions.deletes[entityName]) {
 						await submissionRecordsRepository.saveManyForFile(
 							savedFileId,
-							additions.deletes[entityName]?.map((record) => ({
+							additions.deletes[entityName]?.map((record, index) => ({
 								actionType: 'DELETE',
 								data: record,
 								state: 'RECEIVED',
+								lineNumber: index + 1,
 							})),
 							tx,
 						);
@@ -826,10 +829,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 						);
 						await submissionRecordsRepository.saveManyForFile(
 							savedFileId,
-							entityRecords.map((record) => ({
+							entityRecords.map((record, index) => ({
 								actionType: 'INSERT',
 								data: record,
 								state: 'RECEIVED',
+								lineNumber: index + 1,
 							})),
 							tx,
 						);
@@ -987,10 +991,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 						await submissionRecordsRepository.saveManyForFile(
 							fileId,
-							data.map((record) => ({
+							data.map(({ record, lineNumber }) => ({
 								actionType: 'INSERT',
 								data: record,
 								state: 'RECEIVED',
+								lineNumber,
 							})),
 							tx,
 						);
