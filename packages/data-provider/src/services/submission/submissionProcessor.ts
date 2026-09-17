@@ -978,7 +978,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 					} = fileProcessed;
 					fileResult.push(fileProcessed.fileResult);
 
-					if (status === 'ok') {
+					if (status === 'ok' || status === 'invalid') {
 						const fileId = await submissionFilesRepository.save(
 							{
 								entityName,

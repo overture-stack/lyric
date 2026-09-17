@@ -1,3 +1,4 @@
+import { stringify } from 'csv-stringify/sync';
 import { pluralize } from 'inflection';
 import * as _ from 'lodash-es';
 
@@ -11,7 +12,11 @@ import {
 	TestResult,
 	validate,
 } from '@overture-stack/lectern-client';
-import { type SubmissionUpdateData, type SubmittedData } from '@overture-stack/lyric-data-model/models';
+import {
+	type SubmissionRecordError,
+	type SubmissionUpdateData,
+	type SubmittedData,
+} from '@overture-stack/lyric-data-model/models';
 
 import type { SubmissionRecordWithEntityName } from '../repository/submissionRecordsRepository.js';
 import { getSubmittedFileEntity } from '../services/submission/submissionFile.js';
@@ -27,8 +32,13 @@ import {
 	isDeleteSubmissionRecord,
 	type SubmissionErrors,
 } from './submissionRecordUtils.js';
-import type { SubmissionInsertRecordWithEntityName } from './submissionTypes.js';
-import { SUBMISSION_RECORD_ACTION_TYPE, type SubmissionRecordActionType } from './submissionTypes.js';
+import {
+	SUBMISSION_RECORD_ACTION_TYPE,
+	type SubmissionErrorFieldReasonCount,
+	type SubmissionInsertRecordWithEntityName,
+	type SubmissionRecordActionType,
+	type SubmissionRecordFieldError,
+} from './submissionTypes.js';
 import { groupErrorsByIndex, mapAndMergeSubmittedDataToRecordReferences } from './submittedDataUtils.js';
 import {
 	BATCH_ERROR_TYPE,
@@ -593,3 +603,155 @@ export const parseSubmissionActionTypes = (values: unknown): SubmissionRecordAct
 		.filter(isSubmissionActionTypeValid)
 		.map((value) => SUBMISSION_RECORD_ACTION_TYPE.parse(value));
 };
+
+/**
+ * Normalizes one `SubmissionRecordError` into one or more flat, field-level errors. Most reasons map to a
+ * single entry; `INVALID_BY_RESTRICTION` carries its own array of per-restriction failures and is expanded
+ * into one entry per failed restriction, each keeping that restriction's own message.
+ */
+type FieldErrorWithoutRowNumber = Omit<SubmissionRecordFieldError, 'rowNumber'>;
+
+const toFieldErrors = (error: SubmissionRecordError): FieldErrorWithoutRowNumber[] => {
+	switch (error.reason) {
+		case 'UNRECOGNIZED_FIELD':
+			return [
+				{
+					fieldName: error.fieldName,
+					fieldValue: error.fieldValue,
+					message: `Field '${error.fieldName}' is not recognized in the schema`,
+					reason: error.reason,
+				},
+			];
+		case 'UNRECOGNIZED_VALUE':
+			return [
+				{
+					fieldName: error.fieldName,
+					fieldValue: error.fieldValue,
+					message: `Value '${error.fieldValue}' for field '${error.fieldName}' is not recognized`,
+					reason: error.reason,
+				},
+			];
+		case 'INVALID_VALUE_TYPE':
+			return [
+				{
+					fieldName: error.fieldName,
+					fieldValue: error.fieldValue,
+					message: `Field '${error.fieldName}' expected a value of type '${error.valueType}'${error.isArray ? ' (array)' : ''}, but got '${error.fieldValue}'`,
+					reason: error.reason,
+				},
+			];
+		case 'INVALID_BY_UNIQUE':
+			return [
+				{
+					fieldName: error.fieldName,
+					fieldValue: error.fieldValue,
+					message: `Field '${error.fieldName}' value '${error.fieldValue}' must be unique; conflicts with record(s) '${error.matchingRecords.join(', ')}'`,
+					reason: error.reason,
+				},
+			];
+		case 'INVALID_BY_UNIQUE_KEY':
+			return [
+				{
+					message: `Unique key '${JSON.stringify(error.uniqueKey)}' conflicts with record(s) '${error.matchingRecords.join(', ')}'`,
+					reason: error.reason,
+				},
+			];
+		case 'INVALID_BY_FOREIGNKEY':
+			return [
+				{
+					fieldName: error.fieldName,
+					fieldValue: error.fieldValue,
+					message: `Field '${error.fieldName}' value '${error.fieldValue}' does not match any record in schema '${error.foreignSchema.schemaName}' field '${error.foreignSchema.fieldName}'`,
+					reason: error.reason,
+				},
+			];
+		case 'INVALID_BY_RESTRICTION':
+			return error.errors.map((restrictionError) => ({
+				fieldName: error.fieldName,
+				fieldValue: error.fieldValue,
+				message: restrictionError.message,
+				reason: error.reason,
+				restrictionType: restrictionError.restriction.type,
+			}));
+		case 'CONFLICTING_ACTION':
+			return [{ message: error.message, reason: error.reason }];
+		default: {
+			const unreachable: never = error;
+			return unreachable;
+		}
+	}
+};
+
+/**
+ * Flattens a Submission Record's `errors` column into a flat array of field-level errors, each carrying
+ * back the record's `rowNumber` (its line number in the file it was uploaded from, or `undefined` when
+ * the record has none, e.g. it was added via a JSON edit rather than a file upload).
+ */
+export const mapSubmissionRecordErrorsToFieldErrors = (
+	errors: SubmissionRecordError[] | null | undefined,
+	rowNumber: number | null,
+): SubmissionRecordFieldError[] =>
+	(errors ?? []).flatMap(toFieldErrors).map((fieldError) => ({ ...fieldError, rowNumber: rowNumber ?? undefined }));
+
+type FieldErrorGroupAccumulator = Omit<SubmissionErrorFieldReasonCount, 'rowNumbers'> & { rowNumbers: Set<number> };
+
+/**
+ * Aggregates field-level errors into a count per distinct `fieldName`/`reason`/`restrictionType`, for a
+ * dashboard-style summary rather than the full per-record error list. `restrictionType` further splits
+ * `INVALID_BY_RESTRICTION` errors by which specific restriction failed (e.g. `required` vs. `range`)
+ * instead of lumping every restriction violation on a field into one bucket; it has no effect on grouping
+ * for any other reason, since only `INVALID_BY_RESTRICTION` errors carry it. `rowNumbers` collects the
+ * distinct file line numbers contributing to each group, deduped in case one record fails the same check
+ * twice; a contributing record with no line number (see `mapSubmissionRecordErrorsToFieldErrors`) still
+ * counts toward `count` but contributes no entry to `rowNumbers`.
+ */
+export const groupFieldErrorsByFieldAndReason = (
+	fieldErrors: SubmissionRecordFieldError[],
+): SubmissionErrorFieldReasonCount[] => {
+	const groupsByKey = fieldErrors.reduce((groups, fieldError) => {
+		const key = JSON.stringify([fieldError.fieldName ?? null, fieldError.reason, fieldError.restrictionType ?? null]);
+		const existing = groups.get(key);
+		const rowNumbers = existing?.rowNumbers ?? new Set<number>();
+		if (fieldError.rowNumber !== undefined) {
+			rowNumbers.add(fieldError.rowNumber);
+		}
+		groups.set(key, {
+			fieldName: fieldError.fieldName,
+			reason: fieldError.reason,
+			restrictionType: fieldError.restrictionType,
+			message: existing?.message ?? fieldError.message,
+			count: (existing?.count ?? 0) + 1,
+			rowNumbers,
+		});
+		return groups;
+	}, new Map<string, FieldErrorGroupAccumulator>());
+
+	return [...groupsByKey.values()].map(({ rowNumbers, ...group }) => ({
+		...group,
+		rowNumbers: [...rowNumbers].sort((a, b) => a - b),
+	}));
+};
+
+const FIELD_ERROR_DELIMITED_COLUMNS = ['rowNumber', 'fieldName', 'reason', 'fieldValue', 'message'] as const;
+
+/**
+ * Serializes field-level errors as CSV/TSV text (header row included), for the errors-by-fileId download.
+ * A multi-value `fieldValue` is joined with `; ` since neither format supports a nested array cell.
+ * `rowNumber` is blank for a record with no line number (see `mapSubmissionRecordErrorsToFieldErrors`).
+ */
+export const formatFieldErrorsAsDelimitedText = (
+	fieldErrors: SubmissionRecordFieldError[],
+	delimiter: ',' | '\t',
+): string =>
+	stringify(
+		fieldErrors.map((fieldError) => ({
+			rowNumber: fieldError.rowNumber ?? '',
+			fieldName: fieldError.fieldName ?? '',
+			reason: fieldError.reason,
+			fieldValue: Array.isArray(fieldError.fieldValue)
+				? fieldError.fieldValue.join('; ')
+				: (fieldError.fieldValue ?? ''),
+			message: fieldError.message,
+		})),
+		{ header: true, columns: [...FIELD_ERROR_DELIMITED_COLUMNS], delimiter },
+	);

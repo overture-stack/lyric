@@ -146,6 +146,79 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
+/submission/{submissionId}/errors/summary:
+  get:
+    summary: Fetch a dashboard-style summary of a single file's validation errors within a Submission
+    tags:
+      - Submission
+    parameters:
+      - $ref: '#/components/parameters/path/SubmissionId'
+      - name: fileId
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: The ID of the file within the Submission to summarize errors for
+    responses:
+      200:
+        description: Error summary for the file
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissionErrorsSummaryResult'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
+/submission/{submissionId}/errors/download:
+  get:
+    summary: Download a single file's validation errors within a Submission as a CSV or TSV file
+    tags:
+      - Submission
+    parameters:
+      - $ref: '#/components/parameters/path/SubmissionId'
+      - name: fileId
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: The ID of the file within the Submission to download errors for
+      - name: fileType
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [csv, tsv]
+          default: csv
+        description: The delimited format to download the error report as
+    responses:
+      200:
+        description: The error report as an attachment
+        content:
+          text/csv:
+            schema:
+              type: string
+          text/tab-separated-values:
+            schema:
+              type: string
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
 /submission/category/{categoryId}:
   get:
     summary: Retrieve the Submissions for a category in this user session

@@ -114,6 +114,55 @@ components:
             description: State of the record in the submission
             enum: ['VALID', 'INVALID', 'RECEIVED']
 
+    SubmissionErrorsSummaryResult:
+      type: object
+      required:
+        - recordsWithErrors
+        - errorsByFieldAndReason
+      properties:
+        recordsWithErrors:
+          type: number
+          description: Number of Submission Records for the file that have at least one error
+        errorsByFieldAndReason:
+          type: array
+          items:
+            type: object
+            required:
+              - reason
+              - message
+              - count
+              - rowNumbers
+            properties:
+              fieldName:
+                type: string
+                description: Name of the field the errors are related to. Omitted for errors that aren't scoped to a single field.
+              reason:
+                type: string
+                description: Machine-readable reason code shared by this group of errors
+              restrictionType:
+                type: string
+                description: >-
+                  Which specific restriction failed (e.g. `required`, `range`, `regex`), splitting
+                  `INVALID_BY_RESTRICTION` errors on the same field by restriction kind. Present only when
+                  reason is `INVALID_BY_RESTRICTION`.
+              message:
+                type: string
+                description: >-
+                  Human-readable description of the error. Exact for every error in the group when reason is
+                  `UNRECOGNIZED_FIELD` or `INVALID_BY_RESTRICTION`; a representative example otherwise, since
+                  other reasons' messages embed the specific invalid value.
+              count:
+                type: number
+                description: Number of errors sharing this fieldName, reason, and restrictionType
+              rowNumbers:
+                type: array
+                items:
+                  type: number
+                description: >-
+                  Line numbers, in ascending order, of the rows in the uploaded file that contributed to this
+                  group. A record with no line number (e.g. added via a JSON edit rather than a file upload)
+                  is counted in `count` but contributes no entry here.
+
     SubmissionResult:
       type: object
       properties:
