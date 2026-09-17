@@ -110,6 +110,7 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 				// This ensures the main thread is not affected by worker errors and can continue processing other tasks.
 			}
 		},
+		// Updates the submission to VALIDATING, runs Schema Data validation in a worker thread, then marks it VALID or INVALID based on the result
 		dataValidation: async (input: DataValidationWorkerInput): Promise<void> => {
 			const proxy = await readyProxy; // wait for worker to initialize before using
 			try {
@@ -133,6 +134,10 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 			}
 		},
 		terminate: async (): Promise<void> => {
+			// Wait for the worker's startup handshake to settle before terminating the pool.
+			// Terminating while the child process is still registering closes the IPC channel
+			// out from under its own `process.send()`, which crashes the process with EPIPE.
+			await readyProxy.catch(() => undefined);
 			await pool.terminate();
 		},
 	};

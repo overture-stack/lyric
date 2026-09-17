@@ -1,6 +1,6 @@
 # Agent collaboration conventions
 
-**For AI agents:** this file is instructions your agent reads and follows; it is not documentation written for people. If you're a person looking for how this project works, see this project's own `README.md` or `DEVELOPMENT.md` instead.
+**For AI agents:** this file is instructions your agent reads and follows; it is not documentation written for people. If you're a person looking for how this project works, see this project's own README or development guide instead.
 
 Adapted from [softeng/agentics](https://github.com/oicr-softeng/agentics).
 

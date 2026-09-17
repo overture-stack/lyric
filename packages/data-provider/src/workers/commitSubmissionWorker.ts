@@ -1,12 +1,17 @@
-import type { SubmissionUpdateData } from '@overture-stack/lyric-data-model/models';
+import type { SubmissionDeleteData, SubmissionUpdateData } from '@overture-stack/lyric-data-model/models';
 
 import systemIdGenerator from '../external/systemIdGenerator.js';
 import createSubmissionRepository from '../repository/activeSubmissionRepository.js';
 import createCategoryRepository from '../repository/categoryRepository.js';
-import submittedRepository from '../repository/submittedRepository.js';
+import createSubmissionRecordsRepository from '../repository/submissionRecordsRepository.js';
+import createSubmittedRepository from '../repository/submittedRepository.js';
 import submissionProcessorFactory from '../services/submission/submissionProcessor.js';
-import type { ResultOnCommit } from '../utils/types.js';
-import { SUBMISSION_STATUS } from '../utils/types.js';
+import {
+	isDeleteSubmissionRecord,
+	isInsertSubmissionRecord,
+	isUpdateSubmissionRecord,
+} from '../utils/submissionRecordUtils.js';
+import { type ResultOnCommit, SUBMISSION_STATUS } from '../utils/types.js';
 import type { CommitWorkerInput } from './types.js';
 import { getWorkerDependencies } from './workerContext.js';
 
@@ -23,12 +28,13 @@ export const processCommitSubmission = async (message: CommitWorkerInput): Promi
 
 	const submissionRepo = createSubmissionRepository(dependencies);
 	const categoryRepo = createCategoryRepository(dependencies);
-	const submittedDataRepo = submittedRepository(dependencies);
+	const submittedDataRepo = createSubmittedRepository(dependencies);
+	const submissionRecordsRepo = createSubmissionRecordsRepository(dependencies);
 
 	const submissionProcessor = submissionProcessorFactory.create(dependencies);
 
 	// Fetch submission
-	const submission = await submissionRepo.getSubmissionDetailsById(submissionId);
+	const submission = await submissionRepo.getSubmissionById(submissionId);
 	if (!submission) {
 		throw new Error(`Submission '${submissionId}' not found`);
 	}
@@ -54,47 +60,56 @@ export const processCommitSubmission = async (message: CommitWorkerInput): Promi
 
 	const { generateIdentifier } = systemIdGenerator(dependencies);
 
+	const recordsToInsert = await submissionRecordsRepo.getBySubmissionId(submissionId, undefined, {
+		actionTypes: ['INSERT'],
+	});
+
 	// Build inserts for validation
-	const insertsToValidate = submission.data?.inserts
-		? Object.entries(submission.data.inserts).flatMap(([entityName, submissionData]) => {
-				return submissionData.records.map((record) => ({
-					data: record,
-					dictionaryCategoryId: categoryId,
-					entityName,
-					isValid: false, // By default, New Submitted Data is created as invalid until validation proves otherwise
-					organization: submission.organization,
-					originalSchemaId: currentDictionary.id,
-					systemId: generateIdentifier(entityName, record),
-					createdBy: username,
-				}));
-			})
-		: [];
+	const insertsToValidate = recordsToInsert.filter(isInsertSubmissionRecord).map(({ entityName, data }) => {
+		return {
+			data,
+			dictionaryCategoryId: categoryId,
+			entityName,
+			isValid: false, // By default, New Submitted Data is created as invalid until validation proves otherwise
+			organization: submission.organization,
+			originalSchemaId: currentDictionary.id,
+			systemId: generateIdentifier(entityName, data),
+			createdBy: username,
+		};
+	});
 
-	const deleteDataArray = submission.data?.deletes
-		? Object.entries(submission.data.deletes).flatMap(([_entityName, submissionDeleteData]) => {
-				return submissionDeleteData;
-			})
-		: [];
+	const recordsToDelete = await submissionRecordsRepo.getBySubmissionId(submissionId, undefined, {
+		actionTypes: ['DELETE'],
+	});
 
-	const updateDataArray =
-		submission.data?.updates &&
-		Object.entries(submission.data.updates).reduce<Record<string, SubmissionUpdateData>>(
-			(acc, [_entityName, submissionUpdateData]) => {
-				submissionUpdateData.forEach((record) => {
-					acc[record.systemId] = record;
-				});
-				return acc;
-			},
-			{},
-		);
+	const deleteDataByEntityName = recordsToDelete
+		.filter(isDeleteSubmissionRecord)
+		.reduce<Record<string, SubmissionDeleteData[]>>((acc, { entityName, data }) => {
+			if (!acc[entityName]) {
+				acc[entityName] = [];
+			}
+			acc[entityName].push(data);
+			return acc;
+		}, {});
+
+	const recordsToUpdate = await submissionRecordsRepo.getBySubmissionId(submissionId, undefined, {
+		actionTypes: ['UPDATE'],
+	});
+
+	const updatesBySystemId = recordsToUpdate
+		.filter(isUpdateSubmissionRecord)
+		.reduce<Record<string, SubmissionUpdateData>>((acc, { data }) => {
+			acc[data.systemId] = data;
+			return acc;
+		}, {});
 
 	try {
 		return await submissionProcessor.performCommitSubmissionAsync({
 			dataToValidate: {
 				inserts: insertsToValidate,
 				submittedData: submittedDataToValidate,
-				deletes: deleteDataArray,
-				updates: updateDataArray,
+				deletes: deleteDataByEntityName,
+				updates: updatesBySystemId,
 			},
 			submissionId: submission.id,
 			dictionary: currentDictionary,

@@ -6,6 +6,7 @@ import { dictionarySportsData, updatedSportSchema } from '../../../fixtures/dict
 import { createLyricProvider, type LyricProvider } from '../../dependencies/lyricProvider.js';
 import { createTestApp } from '../../dependencies/testServer.js';
 import { getContainers } from '../../globalSetup.js';
+import { delay } from '../../utils.js';
 import {
 	NEW_DICTIONARY_VERSION,
 	type RegisterPayload,
@@ -42,6 +43,23 @@ describe('Integration - Dictionary Migration', () => {
 
 	const registerDictionary = async (payload: RegisterPayload, force = false) =>
 		appDictionary.post(`/register${force ? '?force=true' : ''}`).send(payload);
+
+	// The migration itself runs in a background worker (fired without being awaited by
+	// `registerDictionary`), so a test that mutates a migration's status directly must first wait
+	// for that worker to reach a terminal status — otherwise the manual override races with the
+	// worker's own status transition.
+	const waitForMigrationToFinish = async (migrationId: number, maxRetries = 20, delayMs = 300) => {
+		let response = await appMigration.get(`/${migrationId}`);
+		let attempts = 0;
+
+		while (response.body.status === 'IN_PROGRESS' && attempts < maxRetries) {
+			await delay(delayMs);
+			response = await appMigration.get(`/${migrationId}`);
+			attempts += 1;
+		}
+
+		return response;
+	};
 
 	before(async () => {
 		schemaServiceUrl = getContainers().providerConfig.schemaService.url;
@@ -159,6 +177,10 @@ describe('Integration - Dictionary Migration', () => {
 		expect(migrationResponse.body).to.have.property('migrationId');
 
 		const migrationId = migrationResponse.body.migrationId;
+
+		// Wait for the background migration worker to finish before overriding its status below,
+		// otherwise the worker's own status write can race with this test's manual override.
+		await waitForMigrationToFinish(migrationId);
 
 		// Making the migration fail by force registering the same new version again
 		await lyricProvider.repositories.migration.update(migrationId, {
