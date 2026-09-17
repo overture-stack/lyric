@@ -367,6 +367,23 @@ export const submissionErrorsRequestSchema: RequestValidation<
 	pathParams: submissionIdPathParamSchema,
 };
 
+export interface SubmissionErrorsDownloadQueryParams extends ParsedQs {
+	fileId: string;
+	fileType?: 'csv' | 'tsv';
+}
+
+export const submissionErrorsDownloadRequestSchema: RequestValidation<
+	object,
+	SubmissionErrorsDownloadQueryParams,
+	submissionIdPathParam
+> = {
+	query: zod.object({
+		fileId: positiveInteger,
+		fileType: zod.enum(['csv', 'tsv']).optional(),
+	}),
+	pathParams: submissionIdPathParamSchema,
+};
+
 export const submissionActiveByOrganizationRequestSchema: RequestValidation<
 	object,
 	ParsedQs,

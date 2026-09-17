@@ -20,10 +20,15 @@ import {
 	createSubmissionSummaryResponse,
 	type SubmissionSummaryResponse,
 } from '../../utils/submissionResponseParser.js';
-import type { SubmissionRecordActionType, SubmissionRecordFieldError } from '../../utils/submissionTypes.js';
+import type {
+	SubmissionErrorsSummary,
+	SubmissionRecordActionType,
+	SubmissionRecordFieldError,
+} from '../../utils/submissionTypes.js';
 import {
 	checkEntityFieldNames,
 	type FileParseResult,
+	groupFieldErrorsByFieldAndReason,
 	isSubmissionActive,
 	mapSubmissionRecordErrorsToFieldErrors,
 	resolveFileEntities,
@@ -378,6 +383,16 @@ const submissionService = (dependencies: BaseDependencies) => {
 	};
 
 	/**
+	 * Throws NotFound unless `fileId` names a file belonging to `submissionId`.
+	 */
+	const assertFileBelongsToSubmission = async (submissionId: number, fileId: number): Promise<void> => {
+		const submissionFile = await submissionFilesRepository.getById(fileId);
+		if (!submissionFile || submissionFile.submissionId !== submissionId) {
+			throw new NotFound(`File '${fileId}' not found in Submission '${submissionId}'`);
+		}
+	};
+
+	/**
 	 * Get the field-level validation errors for a single file within a Submission
 	 * @param {Object} params
 	 * @param {number} params.submissionId A Submission ID
@@ -391,14 +406,43 @@ const submissionService = (dependencies: BaseDependencies) => {
 		submissionId: number;
 		fileId: number;
 	}): Promise<SubmissionRecordFieldError[]> => {
-		const submissionFile = await submissionFilesRepository.getById(fileId);
-		if (!submissionFile || submissionFile.submissionId !== submissionId) {
-			throw new NotFound(`File '${fileId}' not found in Submission '${submissionId}'`);
-		}
+		await assertFileBelongsToSubmission(submissionId, fileId);
 
 		const submissionRecords = await submissionRecordsRepository.getByFileIds([fileId]);
 
-		return submissionRecords.flatMap((record) => mapSubmissionRecordErrorsToFieldErrors(record.errors));
+		return submissionRecords.flatMap((record) =>
+			mapSubmissionRecordErrorsToFieldErrors(record.errors, record.lineNumber),
+		);
+	};
+
+	/**
+	 * Get a dashboard-style summary of a single file's validation errors within a Submission: how many
+	 * records have at least one error, and error counts grouped by field name and reason.
+	 * @param {Object} params
+	 * @param {number} params.submissionId A Submission ID
+	 * @param {number} params.fileId The ID of the file within the Submission
+	 * @returns The file's error summary
+	 */
+	const getSubmissionErrorsSummaryByFileId = async ({
+		submissionId,
+		fileId,
+	}: {
+		submissionId: number;
+		fileId: number;
+	}): Promise<SubmissionErrorsSummary> => {
+		await assertFileBelongsToSubmission(submissionId, fileId);
+
+		const recordErrors = await submissionRecordsRepository.getErrorsByFileId(fileId);
+
+		const recordsWithErrors = recordErrors.filter((record) => record.errors && record.errors.length > 0).length;
+		const fieldErrors = recordErrors.flatMap((record) =>
+			mapSubmissionRecordErrorsToFieldErrors(record.errors, record.lineNumber),
+		);
+
+		return {
+			recordsWithErrors,
+			errorsByFieldAndReason: groupFieldErrorsByFieldAndReason(fieldErrors),
+		};
 	};
 
 	/**
@@ -701,6 +745,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		getSubmissionById,
 		getSubmissionDetailsById,
 		getSubmissionErrorsByFileId,
+		getSubmissionErrorsSummaryByFileId,
 		getActiveSubmissionByOrganization,
 		getOrCreateActiveSubmission,
 		submit,

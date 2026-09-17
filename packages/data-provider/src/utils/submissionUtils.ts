@@ -1,3 +1,4 @@
+import { stringify } from 'csv-stringify/sync';
 import { pluralize } from 'inflection';
 import * as _ from 'lodash-es';
 
@@ -33,6 +34,7 @@ import {
 } from './submissionRecordUtils.js';
 import {
 	SUBMISSION_RECORD_ACTION_TYPE,
+	type SubmissionErrorFieldReasonCount,
 	type SubmissionInsertRecordWithEntityName,
 	type SubmissionRecordActionType,
 	type SubmissionRecordFieldError,
@@ -607,7 +609,9 @@ export const parseSubmissionActionTypes = (values: unknown): SubmissionRecordAct
  * single entry; `INVALID_BY_RESTRICTION` carries its own array of per-restriction failures and is expanded
  * into one entry per failed restriction, each keeping that restriction's own message.
  */
-const toFieldErrors = (error: SubmissionRecordError): SubmissionRecordFieldError[] => {
+type FieldErrorWithoutRowNumber = Omit<SubmissionRecordFieldError, 'rowNumber'>;
+
+const toFieldErrors = (error: SubmissionRecordError): FieldErrorWithoutRowNumber[] => {
 	switch (error.reason) {
 		case 'UNRECOGNIZED_FIELD':
 			return [
@@ -667,6 +671,7 @@ const toFieldErrors = (error: SubmissionRecordError): SubmissionRecordFieldError
 				fieldValue: error.fieldValue,
 				message: restrictionError.message,
 				reason: error.reason,
+				restrictionType: restrictionError.restriction.type,
 			}));
 		case 'CONFLICTING_ACTION':
 			return [{ message: error.message, reason: error.reason }];
@@ -678,8 +683,75 @@ const toFieldErrors = (error: SubmissionRecordError): SubmissionRecordFieldError
 };
 
 /**
- * Flattens a Submission Record's `errors` column into a flat array of field-level errors.
+ * Flattens a Submission Record's `errors` column into a flat array of field-level errors, each carrying
+ * back the record's `rowNumber` (its line number in the file it was uploaded from, or `undefined` when
+ * the record has none, e.g. it was added via a JSON edit rather than a file upload).
  */
 export const mapSubmissionRecordErrorsToFieldErrors = (
 	errors: SubmissionRecordError[] | null | undefined,
-): SubmissionRecordFieldError[] => (errors ?? []).flatMap(toFieldErrors);
+	rowNumber: number | null,
+): SubmissionRecordFieldError[] =>
+	(errors ?? []).flatMap(toFieldErrors).map((fieldError) => ({ ...fieldError, rowNumber: rowNumber ?? undefined }));
+
+type FieldErrorGroupAccumulator = Omit<SubmissionErrorFieldReasonCount, 'rowNumbers'> & { rowNumbers: Set<number> };
+
+/**
+ * Aggregates field-level errors into a count per distinct `fieldName`/`reason`/`restrictionType`, for a
+ * dashboard-style summary rather than the full per-record error list. `restrictionType` further splits
+ * `INVALID_BY_RESTRICTION` errors by which specific restriction failed (e.g. `required` vs. `range`)
+ * instead of lumping every restriction violation on a field into one bucket; it has no effect on grouping
+ * for any other reason, since only `INVALID_BY_RESTRICTION` errors carry it. `rowNumbers` collects the
+ * distinct file line numbers contributing to each group, deduped in case one record fails the same check
+ * twice; a contributing record with no line number (see `mapSubmissionRecordErrorsToFieldErrors`) still
+ * counts toward `count` but contributes no entry to `rowNumbers`.
+ */
+export const groupFieldErrorsByFieldAndReason = (
+	fieldErrors: SubmissionRecordFieldError[],
+): SubmissionErrorFieldReasonCount[] => {
+	const groupsByKey = fieldErrors.reduce((groups, fieldError) => {
+		const key = JSON.stringify([fieldError.fieldName ?? null, fieldError.reason, fieldError.restrictionType ?? null]);
+		const existing = groups.get(key);
+		const rowNumbers = existing?.rowNumbers ?? new Set<number>();
+		if (fieldError.rowNumber !== undefined) {
+			rowNumbers.add(fieldError.rowNumber);
+		}
+		groups.set(key, {
+			fieldName: fieldError.fieldName,
+			reason: fieldError.reason,
+			restrictionType: fieldError.restrictionType,
+			message: existing?.message ?? fieldError.message,
+			count: (existing?.count ?? 0) + 1,
+			rowNumbers,
+		});
+		return groups;
+	}, new Map<string, FieldErrorGroupAccumulator>());
+
+	return [...groupsByKey.values()].map(({ rowNumbers, ...group }) => ({
+		...group,
+		rowNumbers: [...rowNumbers].sort((a, b) => a - b),
+	}));
+};
+
+const FIELD_ERROR_DELIMITED_COLUMNS = ['rowNumber', 'fieldName', 'reason', 'fieldValue', 'message'] as const;
+
+/**
+ * Serializes field-level errors as CSV/TSV text (header row included), for the errors-by-fileId download.
+ * A multi-value `fieldValue` is joined with `; ` since neither format supports a nested array cell.
+ * `rowNumber` is blank for a record with no line number (see `mapSubmissionRecordErrorsToFieldErrors`).
+ */
+export const formatFieldErrorsAsDelimitedText = (
+	fieldErrors: SubmissionRecordFieldError[],
+	delimiter: ',' | '\t',
+): string =>
+	stringify(
+		fieldErrors.map((fieldError) => ({
+			rowNumber: fieldError.rowNumber ?? '',
+			fieldName: fieldError.fieldName ?? '',
+			reason: fieldError.reason,
+			fieldValue: Array.isArray(fieldError.fieldValue)
+				? fieldError.fieldValue.join('; ')
+				: (fieldError.fieldValue ?? ''),
+			message: fieldError.message,
+		})),
+		{ header: true, columns: [...FIELD_ERROR_DELIMITED_COLUMNS], delimiter },
+	);

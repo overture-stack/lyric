@@ -77,7 +77,9 @@ const router = ({
 
 	router.delete('/:submissionId/data', submissionController.deleteByRecordIdOrFileId);
 
-	router.get('/:submissionId/errors', submissionController.getSubmissionErrorsByFileId);
+	router.get('/:submissionId/errors/summary', submissionController.getSubmissionErrorsSummaryByFileId);
+
+	router.get('/:submissionId/errors/download', submissionController.downloadSubmissionErrorsByFileId);
 
 	router.get('/category/:categoryId', submissionController.getSubmissionsByCategory);
 

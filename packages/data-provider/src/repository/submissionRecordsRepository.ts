@@ -231,6 +231,24 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		}
 	};
 
+	/**
+	 * Fetches only the `lineNumber` and `errors` columns for a file's Submission Records, skipping `data` and the
+	 * join to `submissionFiles`, for callers that need to aggregate or export errors without the full record.
+	 */
+	const getErrorsByFileId = async (
+		fileId: number,
+	): Promise<Array<{ lineNumber: number | null; errors: SubmissionRecordError[] | null }>> => {
+		try {
+			return await db
+				.select({ lineNumber: submissionRecords.lineNumber, errors: submissionRecords.errors })
+				.from(submissionRecords)
+				.where(eq(submissionRecords.fileId, fileId));
+		} catch (error) {
+			logger.error(LOG_MODULE, `Failed getting Submission Record errors by fileId '${fileId}'`, error);
+			throw new ServiceUnavailable();
+		}
+	};
+
 	const getRecordsSummaryBySubmissionId = async (submissionId: number): Promise<SubmissionRecordAggregate[]> => {
 		try {
 			const submissionFileRecords = await db
@@ -426,6 +444,8 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		getByFileIds,
 
 		getBySubmissionId,
+
+		getErrorsByFileId,
 
 		getRecordsSummaryBySubmissionId,
 

@@ -172,6 +172,9 @@ importers:
       csv-parse:
         specifier: ^6.1.0
         version: 6.1.0
+      csv-stringify:
+        specifier: ^6.8.3
+        version: 6.8.3
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -1548,6 +1551,9 @@ packages:
 
   csv-parse@6.1.0:
     resolution: {integrity: sha512-CEE+jwpgLn+MmtCpVcPtiCZpVtB6Z2OKPTr34pycYYoL7sxdOkXDdQ4lRiw6ioC0q6BLqhc6cKweCVvral8yhw==}
+
+  csv-stringify@6.8.3:
+    resolution: {integrity: sha512-gIeSCvq5F4VtXV3naV3VAewLhBkiZBz+PPhTOA8H3Y8h/ELa+R1ml0GZck/4/Nzo9ep2lvOluilJ6MJlbZsKMA==}
 
   d@1.0.2:
     resolution: {integrity: sha512-MOqHvMWF9/9MX6nza0KgvFH4HpMU0EF5uUDXqX/BtxtU8NfB0QzRtJ8Oe/6SuS4kbhyzVJwjd97EA4PKrzJ8bw==}
@@ -4346,6 +4352,8 @@ snapshots:
       which: 2.0.2
 
   csv-parse@6.1.0: {}
+
+  csv-stringify@6.8.3: {}
 
   d@1.0.2:
     dependencies:
