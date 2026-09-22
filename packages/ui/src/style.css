@@ -26,10 +26,16 @@
 	--radius-sm: calc(var(--radius) - 4px);
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);
+
+	/*Select and Combobox*/
+	--color-popover: oklch(1 0 0);
+	--color-popover-foreground: oklch(0.145 0 0);
 }
 
 @layer base {
 	:root {
+		--popover: var(--color-popover);
+		--popover-foreground: var(--color-popover-foreground);
 		--background: var(--color-background);
 		--foreground: var(--color-foreground);
 		--primary: var(--color-primary);
