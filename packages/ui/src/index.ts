@@ -28,4 +28,3 @@ export {
 	InputGroupTextarea,
 } from './components/ui/input/input-group';
 export { Textarea } from './components/ui/input/textarea';
-export { cn } from './lib/utils';
