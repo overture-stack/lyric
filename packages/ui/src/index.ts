@@ -13,4 +13,3 @@ export {
 	DialogTitle,
 	DialogTrigger,
 } from './components/ui/dialog/dialog';
-export { cn } from './lib/utils';
