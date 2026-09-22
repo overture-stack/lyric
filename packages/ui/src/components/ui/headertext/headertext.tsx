@@ -1,7 +1,7 @@
+import { cn } from 'cn';
 import * as React from 'react';
 
 import { Pill, type PillStatus } from '@/components/ui/pill/pill';
-import { cn } from '@/lib/utils';
 
 export interface HeaderTextProps extends React.HTMLAttributes<HTMLDivElement> {
 	title: string;

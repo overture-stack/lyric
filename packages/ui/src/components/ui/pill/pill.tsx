@@ -1,7 +1,6 @@
 import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from 'cn';
 import * as React from 'react';
-
-import { cn } from '@/lib/utils';
 
 const pillVariants = cva('inline-flex items-center rounded-md border bg-transparent px-3 py-1 text-xs font-medium', {
 	variants: {
