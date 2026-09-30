@@ -56,7 +56,7 @@
 
 /submission/{submissionId}/data:
   get:
-    summary: Fetch Submission Data records. Sorted in their original file order and grouped by `insert`, `update`, and `delete`.
+    summary: Fetch a paginated list of Submission Data records, ordered by record ID (the order they were added to the Submission).
     tags:
       - Submission
     parameters:
@@ -77,7 +77,7 @@
           items:
             type: string
         uniqueItems: true
-        description: Filters the Submission Data records by entity name. Must match names listed in the Submission Summary endpoint. If not provided, all entity names are returned.
+        description: Filters the Submission Data records by entity name. Must match schema names in the Submission's dictionary. If not provided, all entity names are returned.
       - name: fileId
         in: query
         required: false
@@ -88,7 +88,7 @@
       - $ref: '#/components/parameters/query/PageSize'
     responses:
       200:
-        description: Full submission payload
+        description: Paginated Submission Data records
         content:
           application/json:
             schema:
@@ -97,38 +97,32 @@
         $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
-      404:
-        $ref: '#/components/responses/NotFound'
       500:
         $ref: '#/components/responses/ServerError'
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
   delete:
-    summary: Clear Active Submission by entity name
+    summary: Remove a single record, or a file and all of its records, from an Active Submission. The Active Submission is then validated again in the background.
     tags:
       - Submission
     parameters:
-      - name: submissionId
-        in: path
-        type: string
-        required: true
-        description: The ID of the Submission
+      - $ref: '#/components/parameters/path/SubmissionId'
       - name: recordId
         in: query
         required: false
         schema:
           type: integer
-        description: An optional query parameter used to specify the record ID within the submission to be deleted. <br />Only one of `recordId` or `fileId` can be provided
+        description: The ID of the record to remove from the Submission. <br />Exactly one of `recordId` or `fileId` must be provided.
       - name: fileId
         in: query
         required: false
         schema:
           type: integer
-        description: An optional query parameter used to specify the file ID within the submission to be deleted. <br />Only one of `recordId` or `fileId` can be provided
+        description: The ID of the file to remove from the Submission, along with all of its records. <br />Exactly one of `recordId` or `fileId` must be provided.
     responses:
       200:
-        description: Submission cleared successfully. Returns the current Active Submission
+        description: Removal accepted. Validation of the Active Submission runs in the background.
         content:
           application/json:
             schema:
@@ -137,8 +131,6 @@
         $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
-      404:
-        $ref: '#/components/responses/NotFound'
       409:
         $ref: '#/components/responses/StatusConflict'
       500:
