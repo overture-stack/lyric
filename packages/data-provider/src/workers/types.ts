@@ -8,6 +8,7 @@ export type CommitWorkerInput = {
 
 export type DataValidationWorkerInput = {
 	submissionId: number;
+	username: string;
 };
 
 export type DictionaryMigrationWorkerInput = {

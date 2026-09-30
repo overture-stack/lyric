@@ -87,28 +87,180 @@ components:
     SubmissionDetailsResult:
       type: object
       properties:
-        data:
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        records:
           type: array
           items:
-            type: object
-            properties:
-              type:
-                type: string
-                description: Type of action
-                enum: ['INSERTS', 'UPDATES', 'DELETES']
-              entity:
-                type: string
-                description: Name of the entity
-              value:
-                type: object
-                description: Content of the record in JSON format
-              index:
-                type: number
-                description: Index of the record in the submission
+            $ref: '#/components/schemas/SubmissionRecord'
+
+    SubmissionRecord:
+      oneOf:
+        - $ref: '#/components/schemas/SubmissionInsertRecord'
+        - $ref: '#/components/schemas/SubmissionUpdateRecord'
+        - $ref: '#/components/schemas/SubmissionDeleteRecord'
+      discriminator:
+        propertyName: actionType
+        mapping:
+          INSERT: '#/components/schemas/SubmissionInsertRecord'
+          UPDATE: '#/components/schemas/SubmissionUpdateRecord'
+          DELETE: '#/components/schemas/SubmissionDeleteRecord'
+
+    SubmissionInsertRecord:
+      allOf:
+        - $ref: '#/components/schemas/SubmissionRecordBase'
+        - type: object
+          required:
+            - actionType
+            - data
+          properties:
+            actionType:
+              type: string
+              enum: ['INSERT']
+            data:
+              $ref: '#/components/schemas/SubmissionInsertData'
+
+    SubmissionUpdateRecord:
+      allOf:
+        - $ref: '#/components/schemas/SubmissionRecordBase'
+        - type: object
+          required:
+            - actionType
+            - data
+          properties:
+            actionType:
+              type: string
+              enum: ['UPDATE']
+            data:
+              $ref: '#/components/schemas/SubmissionUpdateData'
+
+    SubmissionDeleteRecord:
+      allOf:
+        - $ref: '#/components/schemas/SubmissionRecordBase'
+        - type: object
+          required:
+            - actionType
+            - data
+          properties:
+            actionType:
+              type: string
+              enum: ['DELETE']
+            data:
+              $ref: '#/components/schemas/SubmissionDeleteData'
+
+    SubmissionInsertData:
+      type: object
+      description: Content of the record to insert, keyed by field name
+      additionalProperties: true
+
+    SubmissionUpdateData:
+      type: object
+      required:
+        - systemId
+        - old
+        - new
+      properties:
+        systemId:
+          type: string
+          description: System ID of the Submitted Data record to update
+        old:
+          type: object
+          description: Current values of the fields being changed, keyed by field name
+          additionalProperties: true
+        new:
+          type: object
+          description: New values of the fields being changed, keyed by field name
+          additionalProperties: true
+
+    SubmissionDeleteData:
+      type: object
+      required:
+        - systemId
+        - data
+        - isValid
+        - organization
+      properties:
+        systemId:
+          type: string
+          description: System ID of the Submitted Data record to delete
+        data:
+          type: object
+          description: Content of the Submitted Data record to delete, keyed by field name
+          additionalProperties: true
+        isValid:
+          type: boolean
+          description: Whether the Submitted Data record to delete is currently valid
+        organization:
+          type: string
+          description: Organization the Submitted Data record belongs to
+
+    SubmissionRecordBase:
+      type: object
+      required:
+        - entityName
+        - fileId
+        - id
+        - state
+      properties:
+        entityName:
+          type: string
+          description: Name of the entity
         errors:
           type: array
+          nullable: true
+          description: Validation errors for this record. `null` when the record has no errors.
           items:
-            $ref: '#/components/schemas/ValidationError'
+            $ref: '#/components/schemas/SubmissionRecordError'
+        fileId:
+          type: integer
+          description: ID of the file in the submission
+        id:
+          type: integer
+          description: ID of the record in the submission
+        lineNumber:
+          type: integer
+          nullable: true
+          description: >
+            Line number of the record in its uploaded file, counting the header as line 1, so the first data row is line 2.
+            For records submitted as JSON or created by edit and delete requests, this is the 1-based position of the record in the request.
+        state:
+          type: string
+          description: State of the record in the submission
+          enum: ['VALID', 'INVALID', 'RECEIVED']
+
+    SubmissionRecordError:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          description: The type of error
+          enum:
+            - CONFLICTING_ACTION
+            - INVALID_BY_FOREIGNKEY
+            - INVALID_BY_RESTRICTION
+            - INVALID_BY_UNIQUE
+            - INVALID_BY_UNIQUE_KEY
+            - INVALID_VALUE_TYPE
+            - UNRECOGNIZED_FIELD
+            - UNRECOGNIZED_VALUE
+        fieldName:
+          type: string
+          description: The field name that the error is related to
+        fieldValue:
+          description: The value of the field that caused the error
+        conflictingActionType:
+          type: string
+          enum: ['UPDATE', 'DELETE']
+          description: Only for `CONFLICTING_ACTION`. The other action type staged for the same `systemId`.
+        systemId:
+          type: string
+          description: Only for `CONFLICTING_ACTION`. The System ID that has both an `UPDATE` and a `DELETE` staged.
+        message:
+          type: string
+          description: Details of the error
+      additionalProperties: true
 
     SubmissionResult:
       type: object
@@ -118,35 +270,40 @@ components:
           description: ID of the Submission
         data:
           type: object
+          description: Summary of the Submission records, grouped by action type and entity name
           properties:
             inserts:
               type: object
+              description: Insert records, keyed by entity name. Each entity lists one summary per file.
               additionalProperties:
-                type: object
-                properties:
-                  batchName:
-                    type: string
-                    description: Original filename  of the submission
-                  recordsCount:
-                    type: number
-                    description: Number Of Records
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubmissionFileSummary'
             updates:
               type: object
+              description: Update records, keyed by entity name. Each entity lists one summary per file.
               additionalProperties:
-                type: object
-                properties:
-                  recordsCount:
-                    type: number
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubmissionFileSummary'
             deletes:
               type: object
+              description: Delete records, keyed by entity name, with counts combined across files.
               additionalProperties:
                 type: object
                 properties:
+                  errors:
+                    type: integer
+                    description: Number of records with errors
                   recordsCount:
-                    type: number
-            total:
-              type: number
+                    type: integer
+                    description: Number of records
+            totalRecords:
+              type: integer
               description: Total number of records in the submission
+            errors:
+              type: integer
+              description: Total number of records with errors in the submission
         dictionary:
           type: object
           description: Dictionary used to validate the submission
@@ -163,40 +320,16 @@ components:
               type: number
             name:
               type: string
-        errors:
-          type: object
-          properties:
-            inserts:
-              type: object
-              additionalProperties:
-                type: object
-                properties:
-                  recordsCount:
-                    type: number
-            updates:
-              type: object
-              additionalProperties:
-                type: object
-                properties:
-                  recordsCount:
-                    type: number
-            deletes:
-              type: object
-              additionalProperties:
-                type: object
-                properties:
-                  recordsCount:
-                    type: number
-            total:
-              type: number
-              description: Total number of error records in the submission
+            alias:
+              type: string
+              description: Category alias. Omitted when the category has no alias.
         organization:
           type: string
           description: Organization the Submission belongs to
         status:
           type: string
           description: Status of the Submission
-          enum: ['OPEN', 'VALID', 'INVALID', 'CLOSED', 'COMMITTED']
+          enum: ['OPEN', 'VALIDATING', 'VALID', 'INVALID', 'CLOSED', 'COMMITTING', 'COMMITTED']
         createdAt:
           type: string
           description: Date and time of creation
@@ -209,6 +342,22 @@ components:
         updatedBy:
           type: string
           description: Name of user who last updated the submission
+
+    SubmissionFileSummary:
+      type: object
+      properties:
+        batchName:
+          type: string
+          description: Original filename of the file in the submission
+        errors:
+          type: integer
+          description: Number of records with errors in the file
+        fileId:
+          type: integer
+          description: ID of the file in the submission
+        recordsCount:
+          type: integer
+          description: Number of records in the file
 
     FilenameEntityPair:
       type: object
@@ -423,7 +572,7 @@ components:
           description: Result of deleting Submission data
           enum: ['PROCESSING']
         submissionId:
-          type: string
+          type: integer
           description: ID of the Submission
 
     GetSubmittedDataResult:
