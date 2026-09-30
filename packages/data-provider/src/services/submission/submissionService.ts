@@ -32,6 +32,7 @@ import {
 	CommitSubmissionResult,
 	type DeleteSubmissionResult,
 	type EntityData,
+	PaginatedResponse,
 	type PaginationOptions,
 	SUBMISSION_STATUS,
 	type SubmitDataResult,
@@ -336,7 +337,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		submissionId: number;
 		paginationOptions: PaginationOptions;
 		filterOptions: { entityNames: string[]; actionTypes: SubmissionRecordActionType[]; fileId?: number };
-	}): Promise<SubmissionRecordWithEntityName[]> => {
+	}): Promise<PaginatedResponse<SubmissionRecordWithEntityName>> => {
 		const submission = await submissionRepository.getSubmissionById(submissionId);
 		if (!submission) {
 			throw new BadRequest(`Submission '${submissionId}' not found`);

@@ -141,7 +141,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 
 		const { filteredRecordsToDeleteMap, conflictingSystemIds, duplicateSystemIds } = resolveDeleteStagingConflicts(
 			recordsToDeleteMap,
-			existingSubmissionRecords,
+			existingSubmissionRecords.records,
 		);
 
 		if (conflictingSystemIds.length > 0) {

@@ -52,7 +52,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 	let lyricProvider: LyricProvider;
 	let categoryId: number;
 	let originalCreate: typeof submissionProcessorFactory.create;
-	let pendingAsyncWork: Promise<void> | undefined;
+	let pendingAsyncWork: Promise<unknown> | undefined;
 
 	before(async () => {
 		originalCreate = submissionProcessorFactory.create;
@@ -114,12 +114,12 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 			submitResponse.body.submissionId,
 		);
 
-		expect(submissionRecords.length).to.eq(1);
-		assertExists(submissionRecords[0]);
-		expect(submissionRecords[0].entityName).to.eql('sport');
-		expect(submissionRecords[0].actionType).to.eql('INSERT');
-		expect(submissionRecords[0].lineNumber).to.eql(2);
-		expect(submissionRecords[0].data).to.eql({ sport_id: '1', name: 'Soccer' });
+		expect(submissionRecords.records.length).to.eq(1);
+		assertExists(submissionRecords.records[0]);
+		expect(submissionRecords.records[0].entityName).to.eql('sport');
+		expect(submissionRecords.records[0].actionType).to.eql('INSERT');
+		expect(submissionRecords.records[0].lineNumber).to.eql(2);
+		expect(submissionRecords.records[0].data).to.eql({ sport_id: '1', name: 'Soccer' });
 	});
 
 	it('should persist each record with its 1-based line number in the uploaded file', async () => {
@@ -142,9 +142,9 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 			submitResponse.body.submissionId,
 		);
 
-		expect(submissionRecords.length).to.eq(3);
+		expect(submissionRecords.records.length).to.eq(3);
 		// Line 1 is the header, so the first data row is line 2.
-		expect(submissionRecords.map((record) => record.lineNumber)).to.eql([2, 3, 4]);
+		expect(submissionRecords.records.map((record) => record.lineNumber)).to.eql([2, 3, 4]);
 	});
 
 	it('should save records for each entity when multiple files are submitted', async () => {
@@ -163,10 +163,10 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 		);
 
 		expect(submissionRecords).to.exist;
-		expect(submissionRecords.length).to.eq(2);
-		expect(submissionRecords.map((record) => record.entityName)).to.eql(['sport', 'team']);
-		expect(submissionRecords.map((record) => record.actionType)).to.eql(['INSERT', 'INSERT']);
-		expect(submissionRecords.map((record) => record.data)).to.eql([
+		expect(submissionRecords.records.length).to.eq(2);
+		expect(submissionRecords.records.map((record) => record.entityName)).to.eql(['sport', 'team']);
+		expect(submissionRecords.records.map((record) => record.actionType)).to.eql(['INSERT', 'INSERT']);
+		expect(submissionRecords.records.map((record) => record.data)).to.eql([
 			{ sport_id: '1', name: 'Soccer' },
 			{ team_id: '1', sport_id: '1', name: 'Team A' },
 		]);
@@ -193,10 +193,10 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 		);
 
 		expect(submissionRecords).to.exist;
-		expect(submissionRecords.length).to.eq(2);
-		expect(submissionRecords.map((record) => record.entityName)).to.eql(['sport', 'sport']);
-		expect(submissionRecords.map((record) => record.actionType)).to.eql(['INSERT', 'INSERT']);
-		expect(submissionRecords.map((record) => record.data)).to.eql([
+		expect(submissionRecords.records.length).to.eq(2);
+		expect(submissionRecords.records.map((record) => record.entityName)).to.eql(['sport', 'sport']);
+		expect(submissionRecords.records.map((record) => record.actionType)).to.eql(['INSERT', 'INSERT']);
+		expect(submissionRecords.records.map((record) => record.data)).to.eql([
 			{ sport_id: '1', name: 'Soccer' },
 			{ sport_id: '2', name: 'Basketball' },
 		]);
@@ -243,10 +243,10 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 		);
 
 		expect(submissionRecords).to.exist;
-		expect(submissionRecords.length).to.eq(2);
-		expect(submissionRecords.map((record) => record.entityName)).to.eql(['sport', 'team']);
-		expect(submissionRecords.map((record) => record.actionType)).to.eql(['INSERT', 'INSERT']);
-		expect(submissionRecords.map((record) => record.data)).to.eql([
+		expect(submissionRecords.records.length).to.eq(2);
+		expect(submissionRecords.records.map((record) => record.entityName)).to.eql(['sport', 'team']);
+		expect(submissionRecords.records.map((record) => record.actionType)).to.eql(['INSERT', 'INSERT']);
+		expect(submissionRecords.records.map((record) => record.data)).to.eql([
 			{ sport_id: '1', name: 'Soccer' },
 			{ team_id: '1', sport_id: '1', name: 'Team A' },
 		]);

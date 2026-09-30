@@ -11,7 +11,7 @@ import {
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import type { SubmissionRecordActionType, SubmissionRecordState } from '../utils/submissionTypes.js';
-import type { PaginationOptions } from '../utils/types.js';
+import type { PaginatedResponse, PaginationOptions } from '../utils/types.js';
 import type { RepositoryTransaction } from './types.js';
 
 // This is the information stored about each individual submission record in the database, including it's entity name.
@@ -155,34 +155,48 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		fileIds: number[],
 		paginationOptions?: PaginationOptions,
 		filterOptions?: { actionTypes?: SubmissionRecordActionType[]; states?: SubmissionRecordState[] },
-	): Promise<SubmissionRecordWithEntityName[]> => {
-		const query = db
-			.select({
-				actionType: submissionRecords.actionType,
-				data: submissionRecords.data,
-				entityName: submissionFiles.entityName,
-				errors: submissionRecords.errors,
-				fileId: submissionRecords.fileId,
-				id: submissionRecords.id,
-				state: submissionRecords.state,
-				lineNumber: submissionRecords.lineNumber,
-			})
-			.from(submissionRecords)
-			.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
-			.where(
-				and(
-					inArray(submissionRecords.fileId, fileIds),
-					filterOptions?.actionTypes ? inArray(submissionRecords.actionType, filterOptions.actionTypes) : undefined,
-					filterOptions?.states?.length ? inArray(submissionRecords.state, filterOptions.states) : undefined,
-				),
-			)
-			.orderBy(submissionRecords.id);
+	): Promise<PaginatedResponse<SubmissionRecordWithEntityName>> => {
+		const whereClause = and(
+			inArray(submissionRecords.fileId, fileIds),
+			filterOptions?.actionTypes ? inArray(submissionRecords.actionType, filterOptions.actionTypes) : undefined,
+			filterOptions?.states?.length ? inArray(submissionRecords.state, filterOptions.states) : undefined,
+		);
 
-		if (paginationOptions) {
-			query.limit(paginationOptions.pageSize).offset((paginationOptions.page - 1) * paginationOptions.pageSize);
-		}
+		const [totalRecords, records] = await db.transaction(async (tx) => {
+			const query = tx
+				.select({
+					actionType: submissionRecords.actionType,
+					data: submissionRecords.data,
+					entityName: submissionFiles.entityName,
+					errors: submissionRecords.errors,
+					fileId: submissionRecords.fileId,
+					id: submissionRecords.id,
+					state: submissionRecords.state,
+					lineNumber: submissionRecords.lineNumber,
+				})
+				.from(submissionRecords)
+				.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
+				.where(whereClause)
+				.orderBy(submissionRecords.id);
 
-		return await query;
+			if (paginationOptions) {
+				query.limit(paginationOptions.pageSize).offset((paginationOptions.page - 1) * paginationOptions.pageSize);
+			}
+
+			return Promise.all([tx.select({ count: count() }).from(submissionRecords).where(whereClause), query]);
+		});
+
+		const recordCount = totalRecords[0]?.count || 0;
+
+		return {
+			records,
+			pagination: {
+				currentPage: paginationOptions?.page ?? 1,
+				pageSize: paginationOptions?.pageSize ?? records.length,
+				totalPages: paginationOptions?.pageSize ? Math.ceil(recordCount / paginationOptions.pageSize) : 1,
+				totalRecords: recordCount,
+			},
+		};
 	};
 
 	const getBySubmissionId = async (
@@ -194,7 +208,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 			entityNames?: string[];
 			fileId?: number;
 		},
-	): Promise<SubmissionRecordWithEntityName[]> => {
+	): Promise<PaginatedResponse<SubmissionRecordWithEntityName>> => {
 		try {
 			const submissionFileIds = await db
 				.select({ id: submissionFiles.id, entityName: submissionFiles.entityName })
@@ -214,7 +228,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 					LOG_MODULE,
 					`No submission files found for submissionId '${submissionId}' with the provided filter options.`,
 				);
-				return [];
+				return { records: [], pagination: { currentPage: 1, pageSize: 0, totalPages: 0, totalRecords: 0 } };
 			}
 
 			return await getByFileIds(

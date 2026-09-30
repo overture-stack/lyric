@@ -537,7 +537,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		// Detect records where the same systemId has both an UPDATE and a DELETE staged, before
 		// running dictionary validation. Both sides of a conflict are rejected explicitly instead
 		// of letting one action silently win.
-		const conflictErrors = findUpdateDeleteConflicts(submissionRecords);
+		const conflictErrors = findUpdateDeleteConflicts(submissionRecords.records);
 		const conflictingRecordIds = extractRecordIdsFromSubmissionErrors(conflictErrors);
 
 		if (conflictingRecordIds.size > 0) {
@@ -550,8 +550,8 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 		// Exclude conflicting records from validation; neither side of a conflict should be applied
 		const nonConflictingSubmissionRecords = conflictingRecordIds.size
-			? submissionRecords.filter((record) => !conflictingRecordIds.has(record.id))
-			: submissionRecords;
+			? submissionRecords.records.filter((record) => !conflictingRecordIds.has(record.id))
+			: submissionRecords.records;
 
 		// Merge Submitted Data with Active Submission keepping reference of each record ID
 		const dataMergedByEntityName = mergeAndReferenceEntityData({
@@ -591,7 +591,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			idActiveSubmission: submissionId,
 			schemaErrors: submissionSchemaErrors,
 			dictionaryId: currentDictionary.id,
-			validatedRecordIds: submissionRecords.map((record) => record.id),
+			validatedRecordIds: submissionRecords.records.map((record) => record.id),
 		});
 	};
 

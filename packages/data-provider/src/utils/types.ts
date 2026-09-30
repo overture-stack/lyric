@@ -227,14 +227,6 @@ export type GroupedDataSubmission = {
 	schemaDataByEntityName: Record<string, DataRecord[]>;
 };
 
-/**
- * Pagination Query Params
- */
-export type PaginationOptions = {
-	page: number;
-	pageSize: number;
-};
-
 export type DataInsertsSubmissionSummary = {
 	batchName: string;
 	errors: number;
@@ -316,9 +308,21 @@ export type ResultOnCommit = {
 	submissionId: number;
 };
 
+/*
+ * Pagination Query Params
+ *
+ * Pages are 1-indexed, so the first page of results is page = 1.
+ */
+export type PaginationOptions = {
+	page: number;
+	pageSize: number;
+};
+
 /**
  * Pagination Summary Information
  * Provides details about the result of pagination
+ *
+ * Pages are 1-indexed, so the first page of results is page 1.
  */
 export type PaginationMetadata = {
 	currentPage: number;

@@ -65,7 +65,7 @@ export const processCommitSubmission = async (message: CommitWorkerInput): Promi
 	});
 
 	// Build inserts for validation
-	const insertsToValidate = recordsToInsert.filter(isInsertSubmissionRecord).map(({ entityName, data }) => {
+	const insertsToValidate = recordsToInsert.records.filter(isInsertSubmissionRecord).map(({ entityName, data }) => {
 		return {
 			data,
 			dictionaryCategoryId: categoryId,
@@ -82,7 +82,7 @@ export const processCommitSubmission = async (message: CommitWorkerInput): Promi
 		actionTypes: ['DELETE'],
 	});
 
-	const deleteDataByEntityName = recordsToDelete
+	const deleteDataByEntityName = recordsToDelete.records
 		.filter(isDeleteSubmissionRecord)
 		.reduce<Record<string, SubmissionDeleteData[]>>((acc, { entityName, data }) => {
 			if (!acc[entityName]) {
@@ -96,7 +96,7 @@ export const processCommitSubmission = async (message: CommitWorkerInput): Promi
 		actionTypes: ['UPDATE'],
 	});
 
-	const updatesBySystemId = recordsToUpdate
+	const updatesBySystemId = recordsToUpdate.records
 		.filter(isUpdateSubmissionRecord)
 		.reduce<Record<string, SubmissionUpdateData>>((acc, { data }) => {
 			acc[data.systemId] = data;
