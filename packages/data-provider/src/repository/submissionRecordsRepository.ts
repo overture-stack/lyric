@@ -35,7 +35,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 
 	const countBySubmissionId = async (
 		submissionId: number,
-	): Promise<Array<{ actionType: SubmissionRecordActionType; total: number }>> => {
+	): Promise<{ actionType: SubmissionRecordActionType; total: number }[]> => {
 		try {
 			return await db
 				.select({ actionType: submissionRecords.actionType, total: count() })
@@ -55,7 +55,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 
 	const countInvalidBySubmissionId = async (
 		submissionId: number,
-	): Promise<Array<{ actionType: SubmissionRecordActionType; total: number }>> => {
+	): Promise<{ actionType: SubmissionRecordActionType; total: number }[]> => {
 		try {
 			return await db
 				.select({ actionType: submissionRecords.actionType, total: count() })
