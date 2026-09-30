@@ -412,27 +412,19 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 
 	return {
 		countBySubmissionId,
-
 		countInvalidBySubmissionId,
 
 		deleteByIds,
-
 		deleteByFileIds,
-
 		deleteBySubmissionId,
 
 		getById,
-
 		getByFileIds,
-
 		getBySubmissionId,
-
 		getRecordsSummaryBySubmissionId,
-
 		getRecordsSummaryBySubmissionIds,
 
 		saveMany,
-
 		saveManyForFile,
 
 		updateValidationState,
