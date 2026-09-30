@@ -94,7 +94,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			const foundSubmittedData = await getSubmittedDataBySystemId(systemId);
 			if (foundSubmittedData?.data) {
 				if (foundSubmittedData.entityName !== schemaName) {
-					logger.error(
+					logger.info(
 						LOG_MODULE,
 						`Entity name mismatch for system ID '${systemId}': expected '${schemaName}', found '${foundSubmittedData.entityName}'`,
 					);
@@ -115,7 +115,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 					});
 				}
 			} else {
-				logger.error(LOG_MODULE, `No submitted data found for system ID '${systemId}'`);
+				logger.info(LOG_MODULE, `No submitted data found for system ID '${systemId}'`);
 				results.push({
 					systemId: systemId,
 					old: {},
