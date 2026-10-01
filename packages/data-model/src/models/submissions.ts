@@ -27,8 +27,9 @@ export const submissions = pgTable(
 			.notNull(),
 		organization: varchar('organization').notNull(),
 		status: submissionStatusEnum('status').notNull(),
-		// Incremented every time records are staged in or removed from the Submission. Validation and commit
-		// jobs carry the version they were queued for, so results computed from an outdated snapshot are discarded.
+		
+		// `version` represents the number of data changes added to this submission. It should be incremented every 
+		// time records are staged in or removed from the Submission.
 		version: integer('version').notNull().default(0),
 		createdAt: timestamp('created_at').defaultNow(),
 		createdBy: varchar('created_by'),
