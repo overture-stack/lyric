@@ -3,6 +3,7 @@ import { after, afterEach, before, beforeEach, describe, it } from 'mocha';
 import supertest from 'supertest';
 
 import submissionProcessorFactory from '../../../../src/services/submission/submissionProcessor.js';
+import type { WorkerFunctions } from '../../../../src/workers/types.js';
 import { createTsvFileContent } from '../../../fixtures/createTsvContent.js';
 import { dictionarySportsData } from '../../../fixtures/dictionarySchemasTestData.js';
 import { assertExists } from '../../assertions.js';
@@ -12,8 +13,8 @@ import { getContainers } from '../../globalSetup.js';
 import { delay } from '../../utils.js';
 
 /**
- * Waits for the submission to stop being in the 'VALIDATING' status, retrying up to a maximum number of
- * attempts with a delay between each attempt.
+ * Waits for the submission to stop being in the 'OPEN' (validation queued) or 'VALIDATING' status, retrying up
+ * to a maximum number of attempts with a delay between each attempt.
  */
 const waitForSubmissionToStopValidating = async ({
 	lyricProvider,
@@ -38,7 +39,7 @@ const waitForSubmissionToStopValidating = async ({
 			organization,
 		});
 		attempt += 1;
-	} while (submission?.status === 'VALIDATING' && attempt < maxRetries);
+	} while ((submission?.status === 'OPEN' || submission?.status === 'VALIDATING') && attempt < maxRetries);
 
 	return submission;
 };
@@ -53,6 +54,8 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 	let categoryId: number;
 	let originalCreate: typeof submissionProcessorFactory.create;
 	let pendingAsyncWork: Promise<unknown> | undefined;
+	let originalDataValidation: WorkerFunctions['dataValidation'];
+	let pendingValidations: Promise<void>[];
 
 	before(async () => {
 		originalCreate = submissionProcessorFactory.create;
@@ -73,10 +76,21 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 
 		lyricProvider = await createLyricProvider(getContainers().providerConfig);
 		app = createTestApp(lyricProvider.routers.submission);
+
+		// Validation jobs queued by addFilesToSubmissionAsync are not awaited either; track them so each test can
+		// wait for them before the database is reset
+		const workerPool = lyricProvider.configs.workerPool;
+		originalDataValidation = workerPool.dataValidation;
+		workerPool.dataValidation = (input) => {
+			const promise = originalDataValidation(input);
+			pendingValidations.push(promise);
+			return promise;
+		};
 	});
 
 	beforeEach(async () => {
 		pendingAsyncWork = undefined;
+		pendingValidations = [];
 
 		const dictionary = await lyricProvider.repositories.dictionary.save({
 			name: 'sports',
@@ -93,10 +107,13 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 	});
 
 	afterEach(async () => {
+		await pendingAsyncWork;
+		await Promise.allSettled(pendingValidations);
 		await getContainers().resetDatabases();
 	});
 
 	after(async () => {
+		lyricProvider.configs.workerPool.dataValidation = originalDataValidation;
 		submissionProcessorFactory.create = originalCreate;
 		await lyricProvider.shutdown();
 	});

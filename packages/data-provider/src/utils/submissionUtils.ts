@@ -46,13 +46,23 @@ import {
 export const inProcessSubmissionStatus = [SUBMISSION_STATUS.VALIDATING, SUBMISSION_STATUS.COMMITTING] as const;
 export type InProcessSubmissionStatus = typeof inProcessSubmissionStatus;
 
-// Only "open", "valid", and "invalid" statuses are considered Active Submission
+/**
+ * Statuses of an Active Submission that can accept changes (staging new records, or removing staged ones).
+ * - `OPEN`: newly created, or records were staged or removed since the last validation and a validation job is queued
+ * - `VALID` / `INVALID`: the result of the last validation
+ */
 export const openSubmissionStatus = [
 	SUBMISSION_STATUS.OPEN,
 	SUBMISSION_STATUS.VALID,
 	SUBMISSION_STATUS.INVALID,
 ] as const;
 export type OpenSubmissionStatus = typeof openSubmissionStatus;
+
+/**
+ * Statuses a Submission must have for a queued validation job to start. Staging records always sets the status to
+ * `OPEN`, so together with the version check a job is only started for the Submission's latest staged changes.
+ */
+export const validationStartSubmissionStatus = [SUBMISSION_STATUS.OPEN] as const;
 
 /** Determines if a Submission status is considered active based on its status
  * @param {SubmissionStatus} status Status of a Submission

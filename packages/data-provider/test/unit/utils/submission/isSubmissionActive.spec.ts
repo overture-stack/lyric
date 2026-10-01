@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { isSubmissionActive } from '../../../../src/utils/submissionUtils.js';
+import { isSubmissionActive, validationStartSubmissionStatus } from '../../../../src/utils/submissionUtils.js';
 
 describe('Submission Utils - isSubmissionActive', () => {
 	describe('Determine if a Submission is considered active by its status', () => {
@@ -32,6 +32,17 @@ describe('Submission Utils - isSubmissionActive', () => {
 		it('should return false if a Submission status is COMMITTED', () => {
 			const response = isSubmissionActive('COMMITTED');
 			expect(response).to.be.false;
+		});
+	});
+
+	describe('Statuses a validation job can start from', () => {
+		it('should only allow validation to start from OPEN', () => {
+			expect(validationStartSubmissionStatus).to.eql(['OPEN']);
+		});
+		it('should only include statuses of an active Submission', () => {
+			validationStartSubmissionStatus.forEach((status) => {
+				expect(isSubmissionActive(status)).to.be.true;
+			});
 		});
 	});
 });

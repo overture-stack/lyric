@@ -216,6 +216,12 @@ export interface CommitSubmissionParams {
 	dictionary: SchemasDictionary & { id: number };
 	submissionId: number;
 	username: string;
+	/**
+	 * Submission version verified when its status moved to `COMMITTING`. When provided, the commit is only applied
+	 * if the Submission still has status `COMMITTING` and this version. Omitted by dictionary migrations, which
+	 * commit their own Submission directly without the `COMMITTING` step.
+	 */
+	version?: number;
 	isMigration?: boolean;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }

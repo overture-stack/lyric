@@ -21,7 +21,8 @@ export type SubmissionSummary = SubmissionWithDictionaryAndCategoryRepositoryRec
 	data: SubmissionDataSummaryWithTotal;
 };
 
-export type SubmissionSummaryResponse = Omit<SubmissionSummary, 'createdAt' | 'updatedAt'> & {
+// The Submission `version` is internal, used to discard outdated validation and commit jobs, and is not exposed in responses
+export type SubmissionSummaryResponse = Omit<SubmissionSummary, 'createdAt' | 'updatedAt' | 'version'> & {
 	createdAt: string;
 	updatedAt: string;
 };
