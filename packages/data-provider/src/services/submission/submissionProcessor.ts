@@ -3,10 +3,13 @@ import * as _ from 'lodash-es';
 import type { DataRecord, DictionaryValidationRecordErrorDetails, Schema } from '@overture-stack/lectern-client';
 import type {
 	DataDiff,
+	NewSubmissionRecord,
 	NewSubmittedData,
 	Submission,
+	SubmissionData,
 	SubmissionDeleteData,
 	SubmissionInsertData,
+	SubmissionRecord,
 	SubmissionUpdateData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
@@ -27,9 +30,11 @@ import { formatByteSize, genericSubmissionFileName, getSizeInBytes } from '../..
 import { convertRecordToString } from '../../utils/formatUtils.js';
 import { parseRecordsToInsert } from '../../utils/recordsParser.js';
 import {
+	addInvalidConsequenceErrorsToParents,
 	extractRecordIdsFromSubmissionErrors,
 	findUpdateDeleteConflicts,
 	mergeSubmissionErrors,
+	resolveEditStagingConflicts,
 	type SubmissionErrors,
 } from '../../utils/submissionRecordUtils.js';
 import {
@@ -66,6 +71,16 @@ import {
 	SUBMISSION_STATUS,
 } from '../../utils/types.js';
 import createSubmittedDataRelationsSearch from '../submittedData/searchDataRelations.js';
+
+/**
+ * An edit that changes an ID field, together with the `DELETE` of the original record and the `INSERT` of its
+ * replacement that are staged as its consequence.
+ */
+type IdFieldChange = {
+	update: SubmissionUpdateData;
+	deleteRecord: SubmissionDeleteData;
+	insertRecord: SubmissionInsertData;
+};
 
 const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_PROCESSOR_SERVICE';
@@ -136,18 +151,17 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	 * Processes a list of data records and compares them with previously submitted data.
 	 * @param {DataRecord[]} records An array of data records to be processed
 	 * @param {string} schemaName The name of the schema associated with the records
-	 * @returns {Promise<SubmissionUpdateData[]>} An array of `SubmissionUpdateData` objects. Each object
-	 *          contains the `systemId`, `old` data, and `new` data representing the differences
+	 * @returns {Promise<SubmissionUpdateData[]>} An array of `SubmissionUpdateData` objects, in the order of `records`.
+	 *          Each object contains the `systemId`, `old` data, and `new` data representing the differences
 	 *          between the previously submitted data and the updated record.
 	 */
 	const compareUpdatedData = async (records: DataRecord[], schemaName: string): Promise<SubmissionUpdateData[]> => {
-		const results: SubmissionUpdateData[] = [];
 		const { getSubmittedDataBySystemId } = submittedDataRepository;
 
-		const promises = records.map(async (record) => {
+		const promises = records.map(async (record): Promise<SubmissionUpdateData | undefined> => {
 			const systemId = record['systemId']?.toString();
 			if (!systemId) {
-				return;
+				return undefined;
 			}
 
 			const foundSubmittedData = await getSubmittedDataBySystemId(systemId);
@@ -157,37 +171,36 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 						LOG_MODULE,
 						`Entity name mismatch for system ID '${systemId}': expected '${schemaName}', found '${foundSubmittedData.entityName}'`,
 					);
-					results.push({
+					return {
 						systemId: systemId,
 						old: {},
 						new: {},
-					});
-					return;
+					};
 				}
 				const changeData = _.omit(record, 'systemId');
 				const diffData = computeDataDiff(foundSubmittedData.data, changeData);
 				if (!_.isEmpty(diffData.old) && !_.isEmpty(diffData.new)) {
-					results.push({
+					return {
 						systemId: systemId,
 						old: diffData.old,
 						new: diffData.new,
-					});
+					};
 				}
-			} else {
-				logger.info(LOG_MODULE, `No submitted data found for system ID '${systemId}'`);
-				results.push({
-					systemId: systemId,
-					old: {},
-					new: {},
-				});
+				return undefined;
 			}
-			return;
+			logger.info(LOG_MODULE, `No submitted data found for system ID '${systemId}'`);
+			return {
+				systemId: systemId,
+				old: {},
+				new: {},
+			};
 		});
 
-		// Wait for all records to be processed
-		await Promise.all(promises);
+		// Wait for all records to be processed. Results keep the order of the records so the last edit of a
+		// systemId in the request is the one that wins
+		const results = await Promise.all(promises);
 
-		return results;
+		return results.filter((result): result is SubmissionUpdateData => result !== undefined);
 	};
 
 	/**
@@ -275,61 +288,41 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 	/**
 	 * This function iterates over records that are changing ID fields and fetches existing submitted data by `systemId`,
-	 * then generates a record to be deleted and to be inserted.
-	 * The resulting inserts and deletes are organized by entity names.
+	 * then generates a record to be deleted and to be inserted for each of them.
+	 * The result keeps each ID field change together with its delete and insert records, organized by entity names.
+	 * Records with no Submitted Data found are left out.
 	 * @param idFieldChangeRecord Records that are changing ID fields
 	 * @returns
 	 */
-	const handleIdFieldChanges = async (idFieldChangeRecord: Record<string, SubmissionUpdateData[]>) => {
+	const handleIdFieldChanges = async (
+		idFieldChangeRecord: Record<string, SubmissionUpdateData[]>,
+	): Promise<Record<string, IdFieldChange[]>> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepository;
 
-		return Object.entries(idFieldChangeRecord).reduce<
-			Promise<{
-				inserts: Record<string, SubmissionInsertData[]>;
-				deletes: Record<string, SubmissionDeleteData[]>;
-			}>
-		>(
-			async (accPromise, [entityName, updRecord]) => {
-				const acc = await accPromise;
+		const idFieldChangesByEntity: Record<string, IdFieldChange[]> = {};
+		for (const [entityName, updateRecords] of Object.entries(idFieldChangeRecord)) {
+			const idFieldChanges: IdFieldChange[] = [];
+			for (const updateRecord of updateRecords) {
+				const foundSubmittedData = await getSubmittedDataBySystemId(updateRecord.systemId);
 
-				// iterate each record on this entity
-				const result = await updRecord.reduce<
-					Promise<{
-						inserts: SubmissionInsertData[];
-						deletes: SubmissionDeleteData[];
-					}>
-				>(
-					async (acc2Promise, u) => {
-						const acc2 = await acc2Promise;
-						const foundSubmittedData = await getSubmittedDataBySystemId(u.systemId);
+				if (!foundSubmittedData) {
+					continue;
+				}
 
-						if (!foundSubmittedData) {
-							return acc2;
-						}
-
-						const deleteRecord: SubmissionDeleteData = {
-							systemId: foundSubmittedData.systemId,
-							data: foundSubmittedData.data,
-							isValid: foundSubmittedData.isValid,
-							organization: foundSubmittedData.organization,
-						};
-
-						const insertDataRecord: SubmissionInsertData = { ...foundSubmittedData.data, ...u.new };
-
-						acc2.inserts.push(insertDataRecord);
-						acc2.deletes.push(deleteRecord);
-						return acc2;
+				idFieldChanges.push({
+					update: updateRecord,
+					deleteRecord: {
+						systemId: foundSubmittedData.systemId,
+						data: foundSubmittedData.data,
+						isValid: foundSubmittedData.isValid,
+						organization: foundSubmittedData.organization,
 					},
-					Promise.resolve({ inserts: [], deletes: [] }),
-				);
-
-				acc.deletes[entityName] = result.deletes;
-				acc.inserts[entityName] = result.inserts;
-
-				return acc;
-			},
-			Promise.resolve({ inserts: {}, deletes: {} }),
-		);
+					insertRecord: { ...foundSubmittedData.data, ...updateRecord.new },
+				});
+			}
+			idFieldChangesByEntity[entityName] = idFieldChanges;
+		}
+		return idFieldChangesByEntity;
 	};
 
 	/**
@@ -713,7 +706,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			dataValidated: dataMergedByEntityName,
 		});
 
-		const submissionSchemaErrors = mergeSubmissionErrors(conflictErrors, schemaValidationErrors);
+		// An `idFieldChange` UPDATE is not validated itself; it is invalid when any of its consequence records is
+		const submissionSchemaErrors = addInvalidConsequenceErrorsToParents(
+			mergeSubmissionErrors(conflictErrors, schemaValidationErrors),
+			submissionRecords.records,
+		);
 
 		if (_.isEmpty(submissionSchemaErrors)) {
 			logger.info(LOG_MODULE, `No error found on data submission`);
@@ -738,13 +735,152 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	};
 
 	/**
+	 * Saves the records staged by an edit request, in one generic `submission_files` row per affected entity.
+	 *
+	 * Edits that do not change an ID field are saved as UPDATEs. Each ID field change is saved as an UPDATE with
+	 * `idFieldChange` set, followed by its consequence records referencing it through `parentRecord`: the DELETE of the
+	 * original record, the INSERT of its replacement and the foreign key UPDATEs of its dependents.
+	 * @param params
+	 * @param params.dependentUpdatesBySystemId Foreign key updates of the dependents of each edited record, by its systemId
+	 * @param params.idFieldChanges Edits changing an ID field, by entity name
+	 * @param params.nonIdFieldChanges Edits not changing an ID field, by entity name
+	 * @param params.submissionId ID of the Active Submission
+	 * @param tx The transaction to save the records in
+	 */
+	const saveEditRecords = async (
+		{
+			dependentUpdatesBySystemId,
+			idFieldChanges,
+			nonIdFieldChanges,
+			submissionId,
+		}: {
+			dependentUpdatesBySystemId: Map<string, Record<string, SubmissionUpdateData[]>>;
+			idFieldChanges: Record<string, IdFieldChange[]>;
+			nonIdFieldChanges: Record<string, SubmissionUpdateData[]>;
+			submissionId: number;
+		},
+		tx: RepositoryTransaction<SubmissionRecord>,
+	): Promise<void> => {
+		// Records of each entity, used to size its file
+		const recordsByEntity: Record<string, SubmissionData[]> = {};
+		const addEntityRecords = (entityName: string, entityRecords: SubmissionData[]): void => {
+			if (entityRecords.length > 0) {
+				recordsByEntity[entityName] = [...(recordsByEntity[entityName] ?? []), ...entityRecords];
+			}
+		};
+		Object.entries(nonIdFieldChanges).forEach(([entityName, updates]) => addEntityRecords(entityName, updates));
+		Object.entries(idFieldChanges).forEach(([entityName, entityIdFieldChanges]) => {
+			entityIdFieldChanges.forEach(({ update, deleteRecord, insertRecord }) => {
+				addEntityRecords(entityName, [update, deleteRecord, insertRecord]);
+				Object.entries(dependentUpdatesBySystemId.get(update.systemId) ?? {}).forEach(
+					([dependentEntityName, dependentUpdates]) => addEntityRecords(dependentEntityName, dependentUpdates),
+				);
+			});
+		});
+
+		/**
+		 * Submission files are entity-scoped: the file's entity name identifies the schema used to
+		 * validate and process its records. Create one file per affected entity so records from
+		 * different entities are never mixed in the same file.
+		 */
+		const fileIdsByEntity = new Map<string, number>();
+		for (const [entityName, entityRecords] of Object.entries(recordsByEntity)) {
+			// fileSize reflects only the records actually attached to this entity's file below —
+			// not the full request input, which belongs to the edited entity and may be
+			// unrelated to a cascading dependent entity's file.
+			const savedFileId = await submissionFilesRepository.save(
+				{
+					entityName: entityName,
+					fileName: genericSubmissionFileName(),
+					fileSize: getSizeInBytes(JSON.stringify(entityRecords)),
+					submissionId,
+				},
+				tx,
+			);
+			fileIdsByEntity.set(entityName, savedFileId);
+		}
+
+		// Line numbers count each action type separately within each entity's file
+		const lineNumbers = new Map<string, number>();
+		const saveRecords = async (
+			entityName: string,
+			entityRecords: Omit<NewSubmissionRecord, 'fileId' | 'lineNumber' | 'state'>[],
+		): Promise<number[]> => {
+			const fileId = fileIdsByEntity.get(entityName);
+			if (fileId === undefined) {
+				throw new Error(`No Submission File created for entity '${entityName}'`);
+			}
+			return submissionRecordsRepository.saveManyForFile(
+				fileId,
+				entityRecords.map((record) => {
+					const lineNumberKey = `${entityName}:${record.actionType}`;
+					const lineNumber = (lineNumbers.get(lineNumberKey) ?? 0) + 1;
+					lineNumbers.set(lineNumberKey, lineNumber);
+					return { ...record, lineNumber, state: 'RECEIVED' };
+				}),
+				tx,
+			);
+		};
+
+		for (const [entityName, updates] of Object.entries(nonIdFieldChanges)) {
+			await saveRecords(
+				entityName,
+				updates.map((update) => ({ actionType: 'UPDATE', data: update })),
+			);
+		}
+
+		for (const [entityName, entityIdFieldChanges] of Object.entries(idFieldChanges)) {
+			for (const { update, deleteRecord, insertRecord } of entityIdFieldChanges) {
+				// The parent is saved on its own to get its ID before its consequence records reference it
+				const [parentRecordId] = await saveRecords(entityName, [
+					{ actionType: 'UPDATE', data: update, idFieldChange: true },
+				]);
+				if (parentRecordId === undefined) {
+					throw new Error(`Failed to save the update of system ID '${update.systemId}'`);
+				}
+
+				await saveRecords(entityName, [
+					{ actionType: 'DELETE', data: deleteRecord, parentRecord: parentRecordId },
+					{ actionType: 'INSERT', data: insertRecord, parentRecord: parentRecordId },
+				]);
+
+				for (const [dependentEntityName, dependentUpdates] of Object.entries(
+					dependentUpdatesBySystemId.get(update.systemId) ?? {},
+				)) {
+					await saveRecords(
+						dependentEntityName,
+						dependentUpdates.map((dependentUpdate) => ({
+							actionType: 'UPDATE',
+							data: dependentUpdate,
+							parentRecord: parentRecordId,
+						})),
+					);
+				}
+			}
+		}
+	};
+
+	/**
 	 * Void function to process and validate uploaded records on an Active Submission.
 	 * Performs the schema data validation of data to be edited combined with all Submitted Data.
 	 *
 	 * Although `records` belongs to a single `schema`, edits can affect more than that one entity:
-	 * - A primary ID field change on a record produces a DELETE + INSERT pair, scoped to `schema.name`.
-	 * - A primary ID field change can also cascade to dependent entities that reference the old ID via
-	 *   a foreign key; those cascading updates are scoped to the dependent's own entity name, not `schema.name`.
+	 * - An edit that does not change an ID field is staged as an UPDATE.
+	 * - An edit that changes an ID field (a field referenced by another schema's foreign key) is staged as an
+	 *   UPDATE with `idFieldChange` set. That UPDATE is what the user sees as their edit, but it is not applied
+	 *   itself; the records staged as its consequence, which reference it through `parentRecord`, apply it:
+	 *   - a DELETE of the original record and an INSERT of its replacement, scoped to `schema.name`;
+	 *   - UPDATEs of the dependent records that reference the old ID via a foreign key, scoped to the
+	 *     dependent's own entity name, not `schema.name`.
+	 *
+	 * Each systemId has at most one UPDATE staged per entity. An edit of a systemId replaces the UPDATE already staged
+	 * for it, and deleting an `idFieldChange` UPDATE deletes its consequence records. Within a request, the last edit
+	 * of a systemId wins. The find-and-replace runs in one transaction holding a lock on the Submission row, so
+	 * concurrent edits of the same Submission cannot both stage an UPDATE for the same systemId.
+	 *
+	 * When an edit collides with a dependent's foreign key UPDATE cascaded from an ID field change, in either order,
+	 * nothing from the request is staged and the conflict is logged: replacing the cascaded UPDATE would undo the
+	 * foreign key change.
 	 *
 	 * Side effect: for every entity touched by the above (not just `schema.name`), this creates one
 	 * `submission_files` row scoped to that entity and attaches its INSERT/UPDATE/DELETE records to it.
@@ -776,7 +912,17 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// Parse file data
 			const recordsParsed = records.map(convertRecordToString).map(parseToSchema(schema));
 
-			const filesDataProcessed = await compareUpdatedData(recordsParsed, schema.name);
+			// Within a request, the last edit of a systemId wins
+			const filesDataProcessed =
+				mergeUpdatesBySystemId({ [schema.name]: await compareUpdatedData(recordsParsed, schema.name) })[schema.name] ??
+				[];
+
+			// Every systemId in the request replaces the UPDATE staged for it, including the ones whose edit matches
+			// the Submitted Data: those leave no UPDATE staged.
+			const directEditKeys = recordsParsed.flatMap((record) => {
+				const systemId = record['systemId']?.toString();
+				return systemId ? [{ entityName: schema.name, systemId }] : [];
+			});
 
 			const submission = await getSubmissionById(submissionId);
 			if (!submission) {
@@ -816,9 +962,19 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				logger.info(LOG_MODULE, 'No dependents found on any system ID.');
 			}
 
-			const totalDependants = foundDependentUpdates.reduce<Record<string, SubmissionUpdateData[]>>((acc, o) => {
-				return mergeUpdatesBySystemId(acc, o.dependents);
-			}, {});
+			// Dependents of each edited record, by its systemId. Dependents found only through another dependent
+			// (for example the players of a team whose sport changes) have no field to change and are left out.
+			const dependentUpdatesBySystemId = new Map(
+				foundDependentUpdates.map(({ submissionUpdateData, dependents }) => [
+					submissionUpdateData.systemId,
+					_.pickBy(
+						_.mapValues(dependents, (updates) =>
+							updates.filter((update) => !_.isEmpty(update.old) || !_.isEmpty(update.new)),
+						),
+						(updates) => updates.length > 0,
+					),
+				]),
+			);
 
 			// Identify what requested updates involves ID and nonID field changes
 			const { idFieldChangeRecord, nonIdFieldChangeRecord } = segregateFieldChangeRecords(
@@ -826,93 +982,66 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				dictionaryRelations,
 			);
 
-			// Aggegates all Update changes on Submission
-			// Note: We do not include records involving primary ID fields changes in here. We would rather do a DELETE and an INSERT
-			const updatedActiveSubmissionData: Record<string, SubmissionUpdateData[]> = mergeUpdatesBySystemId(
-				totalDependants,
-				nonIdFieldChangeRecord,
-			);
+			// Creates the delete and insert records of each ID field change
+			const idFieldChanges = await handleIdFieldChanges(idFieldChangeRecord);
 
-			// Creates insert and delete records based on primary ID field change records.
-			const additions = await handleIdFieldChanges(idFieldChangeRecord);
+			const cascadeUpdateKeys = Object.values(idFieldChanges)
+				.flat()
+				.flatMap(({ update }) =>
+					Object.entries(dependentUpdatesBySystemId.get(update.systemId) ?? {}).flatMap(([entityName, updates]) =>
+						updates.map((dependentUpdate) => ({ entityName, systemId: dependentUpdate.systemId })),
+					),
+				);
 
-			const entityNames: Set<string> = new Set([
-				...Object.keys(additions.inserts),
-				...Object.keys(additions.deletes),
-				...Object.keys(updatedActiveSubmissionData),
-			]);
-
-			if (entityNames.size === 0) {
+			if (directEditKeys.length === 0) {
 				logger.info(LOG_MODULE, `No changes to stage on Submission '${submission.id}'`);
 				return;
 			}
 
 			const stagedVersion = await dependencies.db.transaction(async (tx) => {
+				// Locks the Submission row until the transaction ends, so concurrent edits find and replace staged
+				// UPDATEs one at a time
 				const newVersion = await markSubmissionAsChanged(submission.id, username, tx);
 
-				/**
-				 * Submission files are entity-scoped: the file's entity name identifies the schema used to
-				 * validate and process its records. Create one file per affected entity so records from
-				 * different entities are never mixed in the same file.
-				 */
-				for (const entityName of entityNames) {
-					// fileSize reflects only the records actually attached to this entity's file below —
-					// not the full `recordsParsed` input, which belongs to `schema.name` and may be
-					// unrelated to a cascading dependent entity's file.
-					const entityRecords = [
-						...(updatedActiveSubmissionData[entityName] ?? []),
-						...(additions.inserts[entityName] ?? []),
-						...(additions.deletes[entityName] ?? []),
-					];
+				const stagedUpdates = await submissionRecordsRepository.getBySubmissionId(
+					submission.id,
+					undefined,
+					{ actionTypes: ['UPDATE'] },
+					tx,
+				);
 
-					const savedFileId = await submissionFilesRepository.save(
-						{
-							entityName: entityName,
-							fileName: genericSubmissionFileName(),
-							fileSize: getSizeInBytes(JSON.stringify(entityRecords)),
-							submissionId: submission.id,
-						},
-						tx,
+				const { supersededRecordIds, conflictingSystemIds } = resolveEditStagingConflicts({
+					directEditKeys,
+					cascadeUpdateKeys,
+					existingSubmissionRecords: stagedUpdates.records,
+				});
+
+				if (conflictingSystemIds.length > 0) {
+					// Throwing rolls back the transaction, including the status and version change
+					throw new Error(
+						`Cannot stage edits on entity '${schema.name}' in Submission '${submission.id}': system ID(s) '${conflictingSystemIds.join(', ')}' collide with a foreign key update cascaded from an ID field change. No records from this request were staged.`,
 					);
-
-					if (updatedActiveSubmissionData[entityName]) {
-						await submissionRecordsRepository.saveManyForFile(
-							savedFileId,
-							updatedActiveSubmissionData[entityName].map((record, index) => ({
-								actionType: 'UPDATE',
-								data: record,
-								state: 'RECEIVED',
-								lineNumber: index + 1,
-							})),
-							tx,
-						);
-					}
-
-					if (additions.inserts[entityName]) {
-						await submissionRecordsRepository.saveManyForFile(
-							savedFileId,
-							additions.inserts[entityName].map((record, index) => ({
-								actionType: 'INSERT',
-								data: record,
-								state: 'RECEIVED',
-								lineNumber: index + 1,
-							})),
-							tx,
-						);
-					}
-					if (additions.deletes[entityName]) {
-						await submissionRecordsRepository.saveManyForFile(
-							savedFileId,
-							additions.deletes[entityName]?.map((record, index) => ({
-								actionType: 'DELETE',
-								data: record,
-								state: 'RECEIVED',
-								lineNumber: index + 1,
-							})),
-							tx,
-						);
-					}
 				}
+
+				// Deleting a superseded `idFieldChange` UPDATE also deletes its consequence records
+				const affectedFileIds = await submissionRecordsRepository.deleteByIds(supersededRecordIds, tx);
+				await submissionFilesRepository.deleteEmptyByIds(affectedFileIds, tx);
+				if (supersededRecordIds.length > 0) {
+					logger.info(
+						LOG_MODULE,
+						`Replaced '${supersededRecordIds.length}' staged update(s) on entity '${schema.name}' in Submission '${submission.id}'`,
+					);
+				}
+
+				await saveEditRecords(
+					{
+						dependentUpdatesBySystemId,
+						idFieldChanges,
+						nonIdFieldChanges: nonIdFieldChangeRecord,
+						submissionId: submission.id,
+					},
+					tx,
+				);
 
 				return newVersion;
 			});

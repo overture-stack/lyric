@@ -217,6 +217,19 @@ components:
         id:
           type: integer
           description: ID of the record in the submission
+        idFieldChange:
+          type: boolean
+          description: >
+            `true` only on an `UPDATE` whose change touches an ID field (a field referenced by another entity's foreign key).
+            This `UPDATE` is not applied itself: the records referencing it through `parentRecord` apply the change.
+            It is `INVALID` when any of those records is invalid.
+        parentRecord:
+          type: integer
+          nullable: true
+          description: >
+            ID of the `idFieldChange` `UPDATE` that caused this record to be staged: the `DELETE` of the original record,
+            the `INSERT` of its replacement, or a foreign key `UPDATE` of a dependent record.
+            `null` for any other record. Removing the parent removes this record; this record cannot be removed on its own.
         lineNumber:
           type: integer
           nullable: true
@@ -242,6 +255,7 @@ components:
             - INVALID_BY_RESTRICTION
             - INVALID_BY_UNIQUE
             - INVALID_BY_UNIQUE_KEY
+            - INVALID_CONSEQUENCE_RECORD
             - INVALID_VALUE_TYPE
             - UNRECOGNIZED_FIELD
             - UNRECOGNIZED_VALUE
@@ -257,6 +271,11 @@ components:
         systemId:
           type: string
           description: Only for `CONFLICTING_ACTION`. The System ID that has both an `UPDATE` and a `DELETE` staged.
+        invalidRecordIds:
+          type: array
+          items:
+            type: integer
+          description: Only for `INVALID_CONSEQUENCE_RECORD`. IDs of the invalid records staged as a consequence of this ID field change; their errors are on those records.
         message:
           type: string
           description: Details of the error

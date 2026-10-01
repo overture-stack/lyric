@@ -158,8 +158,10 @@ const commitSubmissionData = async ({
 		actionTypes: ['UPDATE'],
 	});
 
+	// An `idFieldChange` UPDATE is not applied itself: its consequence DELETE, INSERT and dependent UPDATEs apply it
 	const updatesBySystemId = recordsToUpdate.records
 		.filter(isUpdateSubmissionRecord)
+		.filter((record) => !record.idFieldChange)
 		.reduce<Record<string, SubmissionUpdateData>>((acc, { data }) => {
 			acc[data.systemId] = data;
 			return acc;

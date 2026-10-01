@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, ne } from 'drizzle-orm/sql';
+import { and, count, eq, inArray, ne, or } from 'drizzle-orm/sql';
 
 import {
 	type NewSubmissionRecord,
@@ -120,13 +120,26 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		}
 	};
 
-	const deleteByIds = async (ids: number[], tx?: RepositoryTransaction<SubmissionRecord>): Promise<number> => {
+	/**
+	 * Deletes Submission Records by ID. Records referencing a deleted record through `parentRecord` (the consequence
+	 * records of an `idFieldChange` UPDATE) are deleted with it by the database cascade.
+	 * @returns The IDs of the files that contained the deleted records, including the cascaded ones, so the caller can
+	 * clean up files left empty.
+	 */
+	const deleteByIds = async (ids: number[], tx?: RepositoryTransaction<SubmissionRecord>): Promise<number[]> => {
 		if (ids.length === 0) {
-			return 0;
+			return [];
 		}
 
 		try {
-			return await (tx || db).delete(submissionRecords).where(inArray(submissionRecords.id, ids));
+			const executor = tx || db;
+			// Consequence records only ever reference a parent directly, so one level covers every cascaded record.
+			const affectedFiles = await executor
+				.selectDistinct({ fileId: submissionRecords.fileId })
+				.from(submissionRecords)
+				.where(or(inArray(submissionRecords.id, ids), inArray(submissionRecords.parentRecord, ids)));
+			await executor.delete(submissionRecords).where(inArray(submissionRecords.id, ids));
+			return affectedFiles.map((file) => file.fileId);
 		} catch (error) {
 			logger.error(LOG_MODULE, `Failed deleting Submission Record by ids '${ids}'`, error);
 			throw new ServiceUnavailable();
@@ -162,6 +175,8 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 					errors: submissionRecords.errors,
 					entityName: submissionFiles.entityName,
 					lineNumber: submissionRecords.lineNumber,
+					idFieldChange: submissionRecords.idFieldChange,
+					parentRecord: submissionRecords.parentRecord,
 				})
 				.from(submissionRecords)
 				.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
@@ -182,6 +197,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		fileIds: number[],
 		paginationOptions?: PaginationOptions,
 		filterOptions?: { actionTypes?: SubmissionRecordActionType[]; states?: SubmissionRecordState[] },
+		tx?: RepositoryTransaction<SubmissionRecord>,
 	): Promise<PaginatedResponse<SubmissionRecordWithEntityName>> => {
 		const whereClause = and(
 			inArray(submissionRecords.fileId, fileIds),
@@ -189,8 +205,8 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 			filterOptions?.states?.length ? inArray(submissionRecords.state, filterOptions.states) : undefined,
 		);
 
-		const [totalRecords, records] = await db.transaction(async (tx) => {
-			const query = tx
+		const [totalRecords, records] = await (tx || db).transaction(async (queryTransaction) => {
+			const query = queryTransaction
 				.select({
 					actionType: submissionRecords.actionType,
 					data: submissionRecords.data,
@@ -200,6 +216,8 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 					id: submissionRecords.id,
 					state: submissionRecords.state,
 					lineNumber: submissionRecords.lineNumber,
+					idFieldChange: submissionRecords.idFieldChange,
+					parentRecord: submissionRecords.parentRecord,
 				})
 				.from(submissionRecords)
 				.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
@@ -210,7 +228,10 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 				query.limit(paginationOptions.pageSize).offset((paginationOptions.page - 1) * paginationOptions.pageSize);
 			}
 
-			return Promise.all([tx.select({ count: count() }).from(submissionRecords).where(whereClause), query]);
+			return Promise.all([
+				queryTransaction.select({ count: count() }).from(submissionRecords).where(whereClause),
+				query,
+			]);
 		});
 
 		const recordCount = totalRecords[0]?.count || 0;
@@ -235,9 +256,10 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 			entityNames?: string[];
 			fileId?: number;
 		},
+		tx?: RepositoryTransaction<SubmissionRecord>,
 	): Promise<PaginatedResponse<SubmissionRecordWithEntityName>> => {
 		try {
-			const submissionFileIds = await db
+			const submissionFileIds = await (tx || db)
 				.select({ id: submissionFiles.id, entityName: submissionFiles.entityName })
 				.from(submissionFiles)
 				.where(
@@ -265,6 +287,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 					actionTypes: filterOptions?.actionTypes,
 					states: filterOptions?.states,
 				},
+				tx,
 			);
 		} catch (error) {
 			logger.error(LOG_MODULE, `Failed getting Submission Records by submissionId '${submissionId}'`, error);

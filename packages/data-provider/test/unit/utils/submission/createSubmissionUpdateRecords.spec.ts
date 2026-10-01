@@ -3,6 +3,7 @@ import { describe, it } from 'mocha';
 
 import type { SubmissionRecordWithEntityName } from '../../../../src/repository/submissionRecordsRepository.js';
 import { createSubmissionUpdateRecords } from '../../../../src/utils/submissionRecordUtils.js';
+import { createUpdateRecord } from '../../../fixtures/submissionRecords.js';
 
 describe('createSubmissionUpdateRecords', () => {
 	it('should map update records to SubmissionUpdateRecordWithEntityName, dropping non-update records', () => {
@@ -67,5 +68,28 @@ describe('createSubmissionUpdateRecords', () => {
 
 	it('should return an empty array when given no records', () => {
 		expect(createSubmissionUpdateRecords([])).to.eql([]);
+	});
+
+	it('should exclude an ID field change UPDATE but keep the foreign key UPDATEs staged as its consequence', () => {
+		const submissionData: SubmissionRecordWithEntityName[] = [
+			createUpdateRecord(
+				{ id: 10, entityName: 'sport', idFieldChange: true },
+				{ systemId: 'SPT1', old: { sport_id: '1' }, new: { sport_id: '2' } },
+			),
+			createUpdateRecord(
+				{ id: 13, entityName: 'team', fileId: 2, parentRecord: 10 },
+				{ systemId: 'TM1', old: { sport_id: '1' }, new: { sport_id: '2' } },
+			),
+		];
+
+		const result = createSubmissionUpdateRecords(submissionData);
+
+		expect(result).to.eql([
+			{
+				recordId: 13,
+				entityName: 'team',
+				data: { systemId: 'TM1', old: { sport_id: '1' }, new: { sport_id: '2' } },
+			},
+		]);
 	});
 });

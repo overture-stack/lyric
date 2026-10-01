@@ -255,7 +255,8 @@ export const mapAndMergeSubmittedDataToRecordReferences = ({
 		return {};
 	}
 	return submittedData.reduce<Record<string, DataRecordReference[]>>((acc, entityData) => {
-		const recordToUpdate = editSubmittedData?.find(
+		// Use the last matching UPDATE, the same one the commit applies
+		const recordToUpdate = editSubmittedData?.findLast(
 			(item) => item.entityName === entityData.entityName && item.data.systemId === entityData.systemId,
 		);
 

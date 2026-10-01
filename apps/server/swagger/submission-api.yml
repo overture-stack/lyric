@@ -113,13 +113,13 @@
         required: false
         schema:
           type: integer
-        description: The ID of the record to remove from the Submission. <br />Exactly one of `recordId` or `fileId` must be provided.
+        description: The ID of the record to remove from the Submission. Removing an `idFieldChange` update also removes the records staged as its consequence; a consequence record (with `parentRecord` set) cannot be removed on its own and returns 400. <br />Exactly one of `recordId` or `fileId` must be provided.
       - name: fileId
         in: query
         required: false
         schema:
           type: integer
-        description: The ID of the file to remove from the Submission, along with all of its records. <br />Exactly one of `recordId` or `fileId` must be provided.
+        description: The ID of the file to remove from the Submission, along with all of its records. When the file contains an `idFieldChange` update or any of its consequence records, the whole group is removed, including its records in other files. <br />Exactly one of `recordId` or `fileId` must be provided.
     responses:
       200:
         description: Removal accepted. Validation of the Active Submission runs in the background.
@@ -231,6 +231,12 @@
         $ref: '#/components/responses/ServiceUnavailableError'
   put:
     summary: Modifies existing data for a submission.  Data is provided as JSON in the request body.
+    description: >
+      Each record must include its `systemId` and the full record. An edit replaces any edit already staged for the
+      same `systemId` in the Active Submission, so each record has at most one staged update. An edit that changes an
+      ID field is staged as an update with `idFieldChange` set, plus the records that apply it, linked through
+      `parentRecord`. An edit that collides with a dependent's foreign key update cascaded from an ID field change is
+      rejected in the background, and nothing from that request is staged.
     tags:
       - Submission
     parameters:

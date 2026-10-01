@@ -119,11 +119,14 @@ table submission_records {
   errors jsonb
   state submission_record_state [not null]
   line_number integer
+  id_field_change boolean [not null, default: false]
+  parent_record_id integer
 
   indexes {
     file_id [name: 'submission_records_file_id_index']
     (file_id, action_type) [name: 'submission_records_file_id_action_type_index']
     (file_id, state, action_type) [name: 'submission_records_file_id_state_action_type_index']
+    parent_record_id [name: 'submission_records_parent_record_id_index']
   }
 }
 
@@ -190,6 +193,8 @@ ref: dictionary_migration.submission_id - submissions.id
 ref: submission_files.submission_id > submissions.id
 
 ref: submission_records.file_id > submission_files.id
+
+ref: submission_records.parent_record_id > submission_records.id
 
 ref: submissions.dictionary_id - dictionaries.id
 
