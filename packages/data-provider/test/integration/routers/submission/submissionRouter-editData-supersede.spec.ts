@@ -35,12 +35,11 @@ describe('Integration - Submission Router - PUT /category/:categoryId/data - Sta
 	let app: supertest.Agent;
 	let lyricProvider: LyricProvider;
 	let categoryId: number;
-	let originalCreate: typeof submissionProcessorFactory.create;
 	let pendingWork: Promise<unknown>[] = [];
 
 	/**
 	 * Waits for every background task started so far, including the ones started by other background tasks
-	 * (an edit queues a validation), so nothing runs past the end of a test.
+	 * (a validation of an ID field change can be followed by a commit), so nothing runs past the end of a test.
 	 */
 	const awaitPendingWork = async (): Promise<void> => {
 		while (pendingWork.length > 0) {
@@ -102,21 +101,6 @@ describe('Integration - Submission Router - PUT /category/:categoryId/data - Sta
 	};
 
 	before(async () => {
-		originalCreate = submissionProcessorFactory.create;
-		submissionProcessorFactory.create = (dependencies) => {
-			const processor = originalCreate(dependencies);
-
-			// processEditRecordsAsync is not awaited by the edit service so the response is not held up.
-			// Capture its promise so each test can wait for the staging to finish
-			const originalProcessEditRecords = processor.processEditRecordsAsync;
-			processor.processEditRecordsAsync = (...args) => {
-				const promise = originalProcessEditRecords(...args);
-				pendingWork.push(promise);
-				return promise;
-			};
-			return processor;
-		};
-
 		lyricProvider = await createLyricProvider(getContainers().providerConfig);
 		app = createTestApp(lyricProvider.routers.submission);
 
@@ -170,7 +154,6 @@ describe('Integration - Submission Router - PUT /category/:categoryId/data - Sta
 	});
 
 	after(async () => {
-		submissionProcessorFactory.create = originalCreate;
 		await lyricProvider.shutdown();
 	});
 
@@ -298,26 +281,37 @@ describe('Integration - Submission Router - PUT /category/:categoryId/data - Sta
 		assertExists(teamSchema);
 		const processor = submissionProcessorFactory.create(lyricProvider.configs);
 
-		await Promise.all(
-			['Lions FC', 'Lions United'].map((name) =>
-				processor.processEditRecordsAsync([{ systemId: 'TM1', team_id: '1', sport_id: '1', name }], {
-					schema: teamSchema,
-					submissionId,
-					username: '',
-				}),
-			),
-		);
-		await awaitPendingWork();
+		// A validation queued by the first edit could set the status to VALIDATING before the second edit stages,
+		// which rejects it. Hold validation back so both edits stage, one after the other
+		const workerPool = lyricProvider.configs.workerPool;
+		const trackedDataValidation = workerPool.dataValidation;
+		workerPool.dataValidation = () => Promise.resolve();
+		try {
+			await Promise.all(
+				['Lions FC', 'Lions United'].map((name) =>
+					processor.stageEditRecords([{ systemId: 'TM1', team_id: '1', sport_id: '1', name }], {
+						schema: teamSchema,
+						submissionId,
+						username: '',
+					}),
+				),
+			);
+		} finally {
+			workerPool.dataValidation = trackedDataValidation;
+		}
 
 		const records = await getStagedRecords(submissionId);
 		expect(records).to.have.lengthOf(1);
+		expect((await lyricProvider.repositories.submission.getSubmissionById(submissionId))?.version).to.eq(2);
 	});
 
 	it('should reject a direct edit of a record that has a cascaded foreign key UPDATE staged', async () => {
-		await editRecords('sport', [{ systemId: 'SPT1', sport_id: '2', name: 'Soccer' }]);
-		const submissionId = await editRecords('team', [
-			{ systemId: 'TM1', team_id: '1', sport_id: '1', name: 'Lions FC' },
-		]);
+		const submissionId = await editRecords('sport', [{ systemId: 'SPT1', sport_id: '2', name: 'Soccer' }]);
+		const response = await app
+			.put(`/category/${categoryId}/data?entityName=team&organization=${organization}`)
+			.send([{ systemId: 'TM1', team_id: '1', sport_id: '1', name: 'Lions FC' }]);
+		await awaitPendingWork();
+		expect(response.status).to.eq(409);
 
 		// Nothing from the rejected request is staged: the cascaded UPDATE of TM1 is still the only one
 		const records = await getStagedRecords(submissionId);
@@ -331,8 +325,14 @@ describe('Integration - Submission Router - PUT /category/:categoryId/data - Sta
 	});
 
 	it('should reject an ID field change that cascades to a record with a direct edit staged', async () => {
-		await editRecords('team', [{ systemId: 'TM1', team_id: '1', sport_id: '1', name: 'Lions FC' }]);
-		const submissionId = await editRecords('sport', [{ systemId: 'SPT1', sport_id: '2', name: 'Soccer' }]);
+		const submissionId = await editRecords('team', [
+			{ systemId: 'TM1', team_id: '1', sport_id: '1', name: 'Lions FC' },
+		]);
+		const response = await app
+			.put(`/category/${categoryId}/data?entityName=sport&organization=${organization}`)
+			.send([{ systemId: 'SPT1', sport_id: '2', name: 'Soccer' }]);
+		await awaitPendingWork();
+		expect(response.status).to.eq(409);
 
 		const records = await getStagedRecords(submissionId);
 

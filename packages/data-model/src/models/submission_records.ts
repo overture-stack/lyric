@@ -63,9 +63,10 @@ export type InvalidConsequenceRecordReason = {
 };
 
 /**
- * Summarizes, on an `UPDATE` that changes an ID field (`idFieldChange = true`), that one or more of the records
- * staged as its consequence (`parentRecord` referencing it) are invalid. The detailed errors stay on the
- * consequence records themselves; `invalidRecordIds` identifies them.
+ * Error on a parent record (an `UPDATE` that changes an ID field, or a `DELETE` with dependent `DELETE`s) reporting
+ * that one or more of its consequence records (the records whose `parentRecord` references it) are invalid.
+ * `invalidRecordIds` lists those records. Their detailed errors are on the consequence records themselves and are not
+ * copied here.
  */
 export type RecordErrorInvalidConsequence = InvalidConsequenceRecordReason & {
 	invalidRecordIds: number[];
@@ -92,13 +93,18 @@ export const submissionRecords = pgTable(
 		lineNumber: integer('line_number'),
 		/**
 		 * True only on an `UPDATE` whose change touches an ID field (a field referenced by another schema's foreign key).
-		 * Such an `UPDATE` is not applied directly; the records referencing it through `parentRecord` apply the change.
+		 * Such an `UPDATE` records the user's edit. The change itself is represented by the records referencing it
+		 * through `parentRecord`.
 		 */
 		idFieldChange: boolean('id_field_change').notNull().default(false),
 		/**
-		 * References the `idFieldChange` `UPDATE` that caused this record to be staged: the `DELETE` of the original
-		 * record, the `INSERT` of its replacement, and the foreign key `UPDATE`s of its dependents.
-		 * Deleting the parent deletes these records.
+		 * References the parent record this record was staged as a consequence of. Empty on parent records and on records
+		 * staged on their own. A parent and its consequence records are one of:
+		 * - an `idFieldChange` `UPDATE`, with the `DELETE` of the original record, the `INSERT` of its replacement and the
+		 *   foreign key `UPDATE`s of its dependents;
+		 * - a `DELETE` staged by deleting a record by its systemId, with the `DELETE`s of the records that depend on it.
+		 *
+		 * The database deletes a consequence record when its parent is deleted.
 		 */
 		parentRecord: integer('parent_record_id').references((): AnyPgColumn => submissionRecords.id, {
 			onDelete: 'cascade',

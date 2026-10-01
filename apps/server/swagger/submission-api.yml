@@ -113,13 +113,13 @@
         required: false
         schema:
           type: integer
-        description: The ID of the record to remove from the Submission. Removing an `idFieldChange` update also removes the records staged as its consequence; a consequence record (with `parentRecord` set) cannot be removed on its own and returns 400. <br />Exactly one of `recordId` or `fileId` must be provided.
+        description: The ID of the record to remove from the Submission. Removing a parent record (an `idFieldChange` update, or a delete staged by system ID) also removes the records staged as its consequence; a consequence record (with `parentRecord` set) cannot be removed on its own and returns 400. <br />Exactly one of `recordId` or `fileId` must be provided.
       - name: fileId
         in: query
         required: false
         schema:
           type: integer
-        description: The ID of the file to remove from the Submission, along with all of its records. When the file contains an `idFieldChange` update or any of its consequence records, the whole group is removed, including its records in other files. <br />Exactly one of `recordId` or `fileId` must be provided.
+        description: The ID of the file to remove from the Submission, along with all of its records. When the file contains a parent record or any of its consequence records, the whole group is removed, including its records in other files. <br />Exactly one of `recordId` or `fileId` must be provided.
     responses:
       200:
         description: Removal accepted. Validation of the Active Submission runs in the background.
@@ -231,12 +231,25 @@
         $ref: '#/components/responses/ServiceUnavailableError'
   put:
     summary: Modifies existing data for a submission.  Data is provided as JSON in the request body.
-    description: >
-      Each record must include its `systemId` and the full record. An edit replaces any edit already staged for the
-      same `systemId` in the Active Submission, so each record has at most one staged update. An edit that changes an
-      ID field is staged as an update with `idFieldChange` set, plus the records that apply it, linked through
-      `parentRecord`. An edit that collides with a dependent's foreign key update cascaded from an ID field change is
-      rejected in the background, and nothing from that request is staged.
+    description: |
+      Each record must include its `systemId` and the full record. An edit that changes an ID field is staged as an
+      update with `idFieldChange` set, plus the records that apply it, linked to it through `parentRecord`: the delete
+      of the original record, the insert of its replacement, and the foreign key updates of its dependents.
+
+      Rules:
+      - **Replacement.** Each record replaces the change already staged for the same `systemId` in the Active
+        Submission: an update, an ID field change with its linked records, or a delete with its dependents' deletes.
+        Within one request, the last record with a given `systemId` wins.
+      - **`replacedRecords`.** The response lists the staged changes that were discarded. These are removed from the
+        submission only; submitted data does not change until the submission is committed. Linked records removed with
+        them are not listed.
+      - **Conflicts.** The request is rejected with `409` when a record targets a record staged as a consequence of
+        another change, or when one of its foreign key updates targets a record that is already staged.
+      - **Whole request.** A conflict, or a submission status that does not allow changes (such as `VALIDATING` or
+        `COMMITTING`), rejects the whole request and nothing from it is staged.
+
+      Staging is synchronous: the response is sent once the records are staged, and only validation runs in the
+      background. A batch of ID field changes whose records have many dependents can take a while to respond.
     tags:
       - Submission
     parameters:
@@ -254,15 +267,17 @@
               type: object
     responses:
       200:
-        description: Edit Data request accepted
+        description: Edits staged; validation runs in the background
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateSubmissionResult'
+              $ref: '#/components/schemas/EditSubmittedDataResult'
       400:
         $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      409:
+        $ref: '#/components/responses/StagingConflict'
       500:
         $ref: '#/components/responses/ServerError'
       503:
@@ -332,6 +347,22 @@
 /submission/category/{categoryId}/data/{systemId}:
   delete:
     summary: Removes data from a submission using the System ID. Returns an Active Submission containing the records that will be deleted
+    description: |
+      Stages a delete of the record and deletes of every record that depends on it. The record's delete is the parent;
+      the dependents' deletes are linked to it through `parentRecord`, so removing or replacing it removes them too.
+
+      Rules:
+      - **Replacement.** The delete replaces the change already staged for the same `systemId`: an update, an ID field
+        change with its linked records, or another delete with its dependents' deletes.
+      - **Already staged.** Deleting a record that already has a delete staged, directly or as a dependent of another
+        delete, changes nothing. A dependent that already has a delete staged is skipped.
+      - **`replacedRecords`.** The response lists the staged changes that were discarded. These are removed from the
+        submission only; submitted data does not change until the submission is committed. Linked records removed with
+        them are not listed.
+      - **Conflicts.** The request is rejected with `409` when the record, or one of its dependents, is already staged
+        as anything other than a delete that the request does not replace.
+      - **Whole request.** A conflict, or a submission status that does not allow changes, rejects the whole request
+        and nothing from it is staged.
     tags:
       - Submission
     parameters:
@@ -344,11 +375,11 @@
         description: The unique system ID of the data to be deleted
     responses:
       200:
-        description: Delete Data request accepted
+        description: Deletes staged; validation runs in the background
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateSubmissionResult'
+              $ref: '#/components/schemas/DeleteSubmittedDataResult'
       400:
         $ref: '#/components/responses/BadRequest'
       401:
@@ -356,7 +387,7 @@
       404:
         $ref: '#/components/responses/NotFound'
       409:
-        $ref: '#/components/responses/StatusConflict'
+        $ref: '#/components/responses/StagingConflict'
       500:
         $ref: '#/components/responses/ServerError'
       503:

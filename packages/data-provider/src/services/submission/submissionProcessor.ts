@@ -1,3 +1,4 @@
+import { TransactionRollbackError } from 'drizzle-orm';
 import * as _ from 'lodash-es';
 
 import type { DataRecord, DictionaryValidationRecordErrorDetails, Schema } from '@overture-stack/lectern-client';
@@ -31,10 +32,13 @@ import { convertRecordToString } from '../../utils/formatUtils.js';
 import { parseRecordsToInsert } from '../../utils/recordsParser.js';
 import {
 	addInvalidConsequenceErrorsToParents,
+	type EditStagingRecord,
 	extractRecordIdsFromSubmissionErrors,
 	findUpdateDeleteConflicts,
+	type IncomingParentEdit,
 	mergeSubmissionErrors,
-	resolveEditStagingConflicts,
+	type ReplacedStagedRecord,
+	resolveStagedEditReplacements,
 	type SubmissionErrors,
 } from '../../utils/submissionRecordUtils.js';
 import {
@@ -73,8 +77,8 @@ import {
 import createSubmittedDataRelationsSearch from '../submittedData/searchDataRelations.js';
 
 /**
- * An edit that changes an ID field, together with the `DELETE` of the original record and the `INSERT` of its
- * replacement that are staged as its consequence.
+ * An edit that changes an ID field, with the `DELETE` of the original record and the `INSERT` of its replacement. The
+ * edit is staged as the parent record; the `DELETE` and `INSERT` are staged as its consequence records.
  */
 type IdFieldChange = {
 	update: SubmissionUpdateData;
@@ -148,14 +152,19 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Processes a list of data records and compares them with previously submitted data.
-	 * @param {DataRecord[]} records An array of data records to be processed
-	 * @param {string} schemaName The name of the schema associated with the records
-	 * @returns {Promise<SubmissionUpdateData[]>} An array of `SubmissionUpdateData` objects, in the order of `records`.
-	 *          Each object contains the `systemId`, `old` data, and `new` data representing the differences
-	 *          between the previously submitted data and the updated record.
+	 * Compares each edited record with its Submitted Data, found by the record's `systemId`, and returns the
+	 * differences in the order of `records`:
+	 * - A record whose Submitted Data is found in `schemaName` returns the changed fields in `old` and `new`.
+	 * - A record whose Submitted Data is not found, or belongs to another entity, returns empty `old` and `new`.
+	 * - A record without a `systemId`, or with no changes, is left out.
+	 *
+	 * @throws {ServiceUnavailable} When the Submitted Data cannot be read.
 	 */
-	const compareUpdatedData = async (records: DataRecord[], schemaName: string): Promise<SubmissionUpdateData[]> => {
+	const compareUpdatedData = async (
+		records: DataRecord[],
+		schemaName: string,
+		tx?: RepositoryTransaction<SubmittedData>,
+	): Promise<SubmissionUpdateData[]> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepository;
 
 		const promises = records.map(async (record): Promise<SubmissionUpdateData | undefined> => {
@@ -164,7 +173,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				return undefined;
 			}
 
-			const foundSubmittedData = await getSubmittedDataBySystemId(systemId);
+			const foundSubmittedData = await getSubmittedDataBySystemId(systemId, tx);
 			if (foundSubmittedData?.data) {
 				if (foundSubmittedData.entityName !== schemaName) {
 					logger.info(
@@ -204,28 +213,30 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Finds and returns the dependent updates based on the provided submission update data.
+	 * Finds the Submitted Data records of `organization` that depend on each update in `submissionUpdateData`, following
+	 * the relations in `dictionaryRelations`. Only an update that changes a field referenced by another entity's foreign
+	 * key has dependents: the records whose foreign key holds the field's old value, and recursively the records that
+	 * depend on those.
 	 *
-	 * This function processes submission update data to identify dependencies between entities
-	 * as defined in the `dictionaryRelations`. It checks if updates in one entity impact other
-	 * related entities, and retrieves those dependent updates. The result is a collection of
-	 * update data, grouped by entity, that represents the cascading changes needed for the
-	 * submission process.
+	 * Returns one entry per update, with its dependents grouped by entity name as `SubmissionUpdateData`:
+	 * - A dependent whose foreign key references the changed field has that field in `old` and `new`, with the old and
+	 *   the new value.
+	 * - A dependent in an entity that does not reference the changed field, found only through another dependent, has
+	 *   empty `old` and `new`.
+	 * - An update without dependents has empty `dependents`.
 	 *
-	 * @param dictionaryRelations - A mapping of entity names to their schema child nodes, representing relationships between entities.
-	 * @param organization - The organization identifier associated with the submission data.
-	 * @param submissionUpdateData - The submission data containing updates for various entities, mapped by entity names.
-	 * @returns A Promise that resolves to an object with the records that has dependents and an object where each key is an entity name,
-	 * and the value is an array of `SubmissionUpdateData` representing the dependent updates for that entity.
+	 * @throws {ServiceUnavailable} When the Submitted Data cannot be read.
 	 */
 	const findUpdateDependents = async ({
 		dictionaryRelations,
 		organization,
 		submissionUpdateData,
+		tx,
 	}: {
 		dictionaryRelations: Record<string, SchemaChildNode[]>;
 		organization: string;
 		submissionUpdateData: Record<string, SubmissionUpdateData[]>;
+		tx?: RepositoryTransaction<SubmittedData>;
 	}): Promise<{ submissionUpdateData: SubmissionUpdateData; dependents: Record<string, SubmissionUpdateData[]> }[]> => {
 		const { getSubmittedDataFiltered } = submittedDataRepository;
 		const { searchDirectDependents } = submittedDataRelationsSearch;
@@ -249,7 +260,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 						return { submissionUpdateData: submissionUpdateRecord, dependents: {} };
 					}
 
-					const directDependents = await getSubmittedDataFiltered(organization, filterDependents);
+					const directDependents = await getSubmittedDataFiltered(organization, filterDependents, tx);
 
 					const additionalDepends = (
 						await Promise.all(
@@ -260,6 +271,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 									entityName: record.entityName,
 									organization: record.organization,
 									systemId: record.systemId,
+									tx,
 								}),
 							),
 						)
@@ -287,15 +299,17 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * This function iterates over records that are changing ID fields and fetches existing submitted data by `systemId`,
-	 * then generates a record to be deleted and to be inserted for each of them.
-	 * The result keeps each ID field change together with its delete and insert records, organized by entity names.
-	 * Records with no Submitted Data found are left out.
-	 * @param idFieldChangeRecord Records that are changing ID fields
-	 * @returns
+	 * Builds the `DELETE` of the original record and the `INSERT` of its replacement for each edit that changes an
+	 * ID field, from the Submitted Data found by its `systemId`.
+	 *
+	 * Returns each edit together with its `DELETE` and `INSERT`, grouped by entity name. Edits whose Submitted Data
+	 * is not found are left out.
+	 *
+	 * @throws {ServiceUnavailable} When the Submitted Data cannot be read.
 	 */
 	const handleIdFieldChanges = async (
 		idFieldChangeRecord: Record<string, SubmissionUpdateData[]>,
+		tx?: RepositoryTransaction<SubmittedData>,
 	): Promise<Record<string, IdFieldChange[]>> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepository;
 
@@ -303,7 +317,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		for (const [entityName, updateRecords] of Object.entries(idFieldChangeRecord)) {
 			const idFieldChanges: IdFieldChange[] = [];
 			for (const updateRecord of updateRecords) {
-				const foundSubmittedData = await getSubmittedDataBySystemId(updateRecord.systemId);
+				const foundSubmittedData = await getSubmittedDataBySystemId(updateRecord.systemId, tx);
 
 				if (!foundSubmittedData) {
 					continue;
@@ -706,7 +720,8 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			dataValidated: dataMergedByEntityName,
 		});
 
-		// An `idFieldChange` UPDATE is not validated itself; it is invalid when any of its consequence records is
+		// A parent record is invalid when any of its consequence records is, so the user's edit or delete reflects
+		// the records staged for it
 		const submissionSchemaErrors = addInvalidConsequenceErrorsToParents(
 			mergeSubmissionErrors(conflictErrors, schemaValidationErrors),
 			submissionRecords.records,
@@ -737,15 +752,18 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	/**
 	 * Saves the records staged by an edit request, in one generic `submission_files` row per affected entity.
 	 *
-	 * Edits that do not change an ID field are saved as UPDATEs. Each ID field change is saved as an UPDATE with
-	 * `idFieldChange` set, followed by its consequence records referencing it through `parentRecord`: the DELETE of the
-	 * original record, the INSERT of its replacement and the foreign key UPDATEs of its dependents.
-	 * @param params
-	 * @param params.dependentUpdatesBySystemId Foreign key updates of the dependents of each edited record, by its systemId
-	 * @param params.idFieldChanges Edits changing an ID field, by entity name
-	 * @param params.nonIdFieldChanges Edits not changing an ID field, by entity name
-	 * @param params.submissionId ID of the Active Submission
-	 * @param tx The transaction to save the records in
+	 * - Edits that do not change an ID field are saved as UPDATEs.
+	 * - Each ID field change is saved as an UPDATE with `idFieldChange` set, followed by its consequence records
+	 *   referencing it through `parentRecord`:
+	 *   - the DELETE of the original record;
+	 *   - the INSERT of its replacement;
+	 *   - the foreign key UPDATEs of its dependents.
+	 *
+	 * `dependentUpdatesBySystemId` is keyed by the `systemId` of the edited record that changes an ID field, not by
+	 * the dependents' own `systemId`s. Its values are the dependents' foreign key UPDATEs, grouped by entity name.
+	 *
+	 * @throws {ServiceUnavailable} When saving a file or a record fails.
+	 * @throws {Error} When a parent UPDATE is saved without an ID being returned, or a record's entity has no file.
 	 */
 	const saveEditRecords = async (
 		{
@@ -861,39 +879,115 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Void function to process and validate uploaded records on an Active Submission.
-	 * Performs the schema data validation of data to be edited combined with all Submitted Data.
+	 * Replaces the parent edits already staged on an Active Submission with the parent edits of an incoming edit or
+	 * delete request, following the rules of `resolveStagedEditReplacements`.
+	 *
+	 * Deletes the replaced parent records together with their consequence records, and removes the files left without
+	 * records. It does not stage the incoming edits.
+	 *
+	 * Reads and deletes the staged records through `tx` and takes no lock of its own. The staged records cannot change
+	 * between being read and being replaced only when `tx` holds the lock on the Submission row taken by
+	 * `markSubmissionAsChanged`.
+	 *
+	 * Returns:
+	 * - `replacedRecords`: the replaced parent records, without their consequence records;
+	 * - `editsToStage`: the parent edits left to stage, each with the consequence records left to stage. Edits and
+	 *   consequence records that are already staged are left out.
+	 *
+	 * @throws {StatusConflict} when the request conflicts with the staged records, with `{ conflicts }` as its details.
+	 * It is thrown before any staged record is deleted.
+	 * @throws {ServiceUnavailable} when the staged records cannot be read or deleted
+	 * @throws {Error} when a parent edit conflicts with a staged consequence record whose parent record is not found
+	 */
+	const replaceStagedParentEdits = async (
+		{
+			incomingEdits,
+			submissionId,
+		}: {
+			incomingEdits: IncomingParentEdit[];
+			submissionId: number;
+		},
+		tx: RepositoryTransaction<SubmissionRecord>,
+	): Promise<{ replacedRecords: ReplacedStagedRecord[]; editsToStage: IncomingParentEdit[] }> => {
+		const stagedRecords = await submissionRecordsRepository.getBySubmissionId(
+			submissionId,
+			undefined,
+			{ actionTypes: ['UPDATE', 'DELETE'] },
+			tx,
+		);
+
+		const { replacedRecords, editsToStage, conflicts } = resolveStagedEditReplacements({
+			incomingEdits,
+			existingSubmissionRecords: stagedRecords.records,
+		});
+
+		if (conflicts.length > 0) {
+			logger.info(
+				LOG_MODULE,
+				`Rejected staging changes on Submission '${submissionId}': '${conflicts.length}' conflict(s) with records already staged`,
+			);
+			throw new StatusConflict(
+				'The request conflicts with changes already staged on the Active Submission. Nothing from the request was staged.',
+				{ conflicts },
+			);
+		}
+
+		// Deleting a replaced parent also deletes its consequence records
+		const affectedFileIds = await submissionRecordsRepository.deleteByIds(
+			replacedRecords.map((replacedRecord) => replacedRecord.recordId),
+			tx,
+		);
+		await submissionFilesRepository.deleteEmptyByIds(affectedFileIds, tx);
+		if (replacedRecords.length > 0) {
+			logger.info(LOG_MODULE, `Replaced '${replacedRecords.length}' staged change(s) on Submission '${submissionId}'`);
+		}
+
+		return { replacedRecords, editsToStage };
+	};
+
+	/**
+	 * Stages edits of Submitted Data records on an Active Submission, then queues the validation of the new version.
 	 *
 	 * Although `records` belongs to a single `schema`, edits can affect more than that one entity:
 	 * - An edit that does not change an ID field is staged as an UPDATE.
 	 * - An edit that changes an ID field (a field referenced by another schema's foreign key) is staged as an
-	 *   UPDATE with `idFieldChange` set. That UPDATE is what the user sees as their edit, but it is not applied
-	 *   itself; the records staged as its consequence, which reference it through `parentRecord`, apply it:
+	 *   UPDATE with `idFieldChange` set. That UPDATE represents the user's edit; the records staged as its
+	 *   consequence, which reference it through `parentRecord`, represent the change itself:
 	 *   - a DELETE of the original record and an INSERT of its replacement, scoped to `schema.name`;
 	 *   - UPDATEs of the dependent records that reference the old ID via a foreign key, scoped to the
 	 *     dependent's own entity name, not `schema.name`.
 	 *
-	 * Each systemId has at most one UPDATE staged per entity. An edit of a systemId replaces the UPDATE already staged
-	 * for it, and deleting an `idFieldChange` UPDATE deletes its consequence records. Within a request, the last edit
-	 * of a systemId wins. The find-and-replace runs in one transaction holding a lock on the Submission row, so
-	 * concurrent edits of the same Submission cannot both stage an UPDATE for the same systemId.
+	 * Each record of the request is a parent edit of its systemId. It replaces the parent edit already staged for that
+	 * systemId (an UPDATE, an `idFieldChange` UPDATE with its consequences, or a DELETE with its dependents' DELETEs),
+	 * including when the edit matches the Submitted Data and leaves nothing staged. Within a request, the last edit of
+	 * a systemId wins. The whole request is rejected when one of its records targets a record staged as the consequence
+	 * of another parent, or when one of its foreign key UPDATEs targets a record that is already staged (see
+	 * `resolveStagedEditReplacements`).
 	 *
-	 * When an edit collides with a dependent's foreign key UPDATE cascaded from an ID field change, in either order,
-	 * nothing from the request is staged and the conflict is logged: replacing the cascaded UPDATE would undo the
-	 * foreign key change.
+	 * Staging is atomic: either the replacements and every record of the request are staged and the Submission's
+	 * version is incremented, or nothing changes. Concurrent changes to the same Submission are applied one at a time.
+	 * Staging completes before this returns, and takes longer the more dependents the edited records have. Validation
+	 * runs in the background after staging.
 	 *
-	 * Side effect: for every entity touched by the above (not just `schema.name`), this creates one
-	 * `submission_files` row scoped to that entity and attaches its INSERT/UPDATE/DELETE records to it.
-	 * These rows are a bookkeeping construct required by the data model (`submissionRecords` must
-	 * reference a `fileId`) rather than a record of an actual uploaded file — there was only one file
-	 * (or none, for programmatic edits) in the original request.
-	 * @param records Records to be processed
-	 * @param params
-	 * @param params.schema Schema to parse data with
-	 * @param params.submission A `Submission` object representing the Active Submission
-	 * @param params.username User who performs the action
+	 * Side effect: for every entity touched by the above (not just `schema.name`), this creates one generic
+	 * `submission_files` row scoped to that entity and attaches its INSERT/UPDATE/DELETE records to it. These rows do
+	 * not correspond to an uploaded file.
+	 *
+	 * Returns the staged parent records the request replaced, without their consequence records. When the request
+	 * neither replaces nor stages anything (no record has a `systemId`, or every edit matches the Submitted Data and
+	 * nothing was staged for it), the Submission is left unchanged, no validation is queued and the list is empty.
+	 * @param records Edited records of `schema`, each with its `systemId`. Records without a `systemId` are ignored.
+	 * @throws {StatusConflict} nothing from the request is staged when:
+	 * - the Submission's status does not allow changes;
+	 * - the request conflicts with the staged records. The error details list the conflicts as `{ conflicts }`.
+	 * @throws {BadRequest} when the Submission or its dictionary is not found
+	 * @throws {InternalServerError} when the Submission is not found while it is marked as changed, after it was read
+	 * @throws {ServiceUnavailable} when the database cannot be read or written
+	 * @throws {Error} when:
+	 * - a saved parent UPDATE returns no ID;
+	 * - an edit conflicts with a staged consequence record whose parent record is not found.
 	 */
-	const processEditRecordsAsync = async (
+	const stageEditRecords = async (
 		records: Record<string, unknown>[],
 		{
 			schema,
@@ -904,135 +998,148 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			submissionId: number;
 			username: string;
 		},
-	): Promise<void> => {
+	): Promise<{ replacedRecords: ReplacedStagedRecord[] }> => {
 		const { getDictionary } = dictionaryRepository;
 		const { getSubmissionById } = submissionRepository;
 
-		try {
-			// Parse file data
-			const recordsParsed = records.map(convertRecordToString).map(parseToSchema(schema));
+		// Parse file data
+		const recordsParsed = records.map(convertRecordToString).map(parseToSchema(schema));
 
-			// Within a request, the last edit of a systemId wins
-			const filesDataProcessed =
-				mergeUpdatesBySystemId({ [schema.name]: await compareUpdatedData(recordsParsed, schema.name) })[schema.name] ??
-				[];
-
-			// Every systemId in the request replaces the UPDATE staged for it, including the ones whose edit matches
-			// the Submitted Data: those leave no UPDATE staged.
-			const directEditKeys = recordsParsed.flatMap((record) => {
+		// Every systemId in the request replaces what is staged for it, including the ones whose edit matches the
+		// Submitted Data: those leave nothing staged.
+		const directEditSystemIds = _.uniq(
+			recordsParsed.flatMap((record) => {
 				const systemId = record['systemId']?.toString();
-				return systemId ? [{ entityName: schema.name, systemId }] : [];
-			});
+				return systemId ? [systemId] : [];
+			}),
+		);
 
-			const submission = await getSubmissionById(submissionId);
-			if (!submission) {
-				throw new Error(`Submission '${submissionId}' not found`);
-			}
+		if (directEditSystemIds.length === 0) {
+			logger.info(LOG_MODULE, `No changes to stage on Submission '${submissionId}'`);
+			return { replacedRecords: [] };
+		}
 
-			const currentDictionary = await getDictionary(submission.dictionary.name, submission.dictionary.version);
-			if (!currentDictionary) {
-				throw new BadRequest(
-					`Dictionary with name '${submission.dictionary.name}' and version '${submission.dictionary.version}' not found`,
-				);
-			}
+		const submission = await getSubmissionById(submissionId);
+		if (!submission) {
+			throw new BadRequest(`Submission '${submissionId}' not found`);
+		}
 
-			// get dictionary relations
-			const dictionaryRelations = getDictionarySchemaRelations(currentDictionary.dictionary);
-
-			const foundDependentUpdates = await findUpdateDependents({
-				dictionaryRelations,
-				organization: submission.organization,
-				submissionUpdateData: { [schema.name]: filesDataProcessed },
-			});
-
-			const systemIdsWithDependents: string[] = [];
-
-			// Iterate through the foundDependentUpdates once
-			for (const { submissionUpdateData, dependents } of foundDependentUpdates) {
-				const numDependents = Object.keys(dependents).length;
-
-				if (numDependents > 0) {
-					systemIdsWithDependents.push(`System ID '${submissionUpdateData.systemId}' has ${numDependents} dependents`);
-				}
-			}
-
-			if (systemIdsWithDependents.length) {
-				logger.info(LOG_MODULE, `Direct dependencies found: ${systemIdsWithDependents.join(', ')}`);
-			} else {
-				logger.info(LOG_MODULE, 'No dependents found on any system ID.');
-			}
-
-			// Dependents of each edited record, by its systemId. Dependents found only through another dependent
-			// (for example the players of a team whose sport changes) have no field to change and are left out.
-			const dependentUpdatesBySystemId = new Map(
-				foundDependentUpdates.map(({ submissionUpdateData, dependents }) => [
-					submissionUpdateData.systemId,
-					_.pickBy(
-						_.mapValues(dependents, (updates) =>
-							updates.filter((update) => !_.isEmpty(update.old) || !_.isEmpty(update.new)),
-						),
-						(updates) => updates.length > 0,
-					),
-				]),
+		const currentDictionary = await getDictionary(submission.dictionary.name, submission.dictionary.version);
+		if (!currentDictionary) {
+			throw new BadRequest(
+				`Dictionary with name '${submission.dictionary.name}' and version '${submission.dictionary.version}' not found`,
 			);
+		}
 
-			// Identify what requested updates involves ID and nonID field changes
-			const { idFieldChangeRecord, nonIdFieldChangeRecord } = segregateFieldChangeRecords(
-				{ [schema.name]: filesDataProcessed },
-				dictionaryRelations,
-			);
+		// get dictionary relations
+		const dictionaryRelations = getDictionarySchemaRelations(currentDictionary.dictionary);
 
-			// Creates the delete and insert records of each ID field change
-			const idFieldChanges = await handleIdFieldChanges(idFieldChangeRecord);
-
-			const cascadeUpdateKeys = Object.values(idFieldChanges)
-				.flat()
-				.flatMap(({ update }) =>
-					Object.entries(dependentUpdatesBySystemId.get(update.systemId) ?? {}).flatMap(([entityName, updates]) =>
-						updates.map((dependentUpdate) => ({ entityName, systemId: dependentUpdate.systemId })),
-					),
-				);
-
-			if (directEditKeys.length === 0) {
-				logger.info(LOG_MODULE, `No changes to stage on Submission '${submission.id}'`);
-				return;
-			}
-
-			const stagedVersion = await dependencies.db.transaction(async (tx) => {
-				// Locks the Submission row until the transaction ends, so concurrent edits find and replace staged
-				// UPDATEs one at a time
+		// Comparing the records with the Submitted Data, finding dependents, replacing staged records, resolving
+		// conflicts and saving the records all run in one transaction that starts with `markSubmissionAsChanged`. Its
+		// lock on the Submission row makes concurrent changes to the same Submission apply one at a time
+		let stagingResult: { replacedRecords: ReplacedStagedRecord[]; stagedVersion: number };
+		try {
+			stagingResult = await dependencies.db.transaction(async (tx) => {
+				// Throws StatusConflict and rolls back if the Submission's status no longer allows changes. Locks the
+				// Submission row until the transaction ends
 				const newVersion = await markSubmissionAsChanged(submission.id, username, tx);
 
-				const stagedUpdates = await submissionRecordsRepository.getBySubmissionId(
-					submission.id,
-					undefined,
-					{ actionTypes: ['UPDATE'] },
-					tx,
-				);
+				// Within a request, the last edit of a systemId wins
+				const filesDataProcessed =
+					mergeUpdatesBySystemId({ [schema.name]: await compareUpdatedData(recordsParsed, schema.name, tx) })[
+						schema.name
+					] ?? [];
 
-				const { supersededRecordIds, conflictingSystemIds } = resolveEditStagingConflicts({
-					directEditKeys,
-					cascadeUpdateKeys,
-					existingSubmissionRecords: stagedUpdates.records,
+				const foundDependentUpdates = await findUpdateDependents({
+					dictionaryRelations,
+					organization: submission.organization,
+					submissionUpdateData: { [schema.name]: filesDataProcessed },
+					tx,
 				});
 
-				if (conflictingSystemIds.length > 0) {
-					// Throwing rolls back the transaction, including the status and version change
-					throw new Error(
-						`Cannot stage edits on entity '${schema.name}' in Submission '${submission.id}': system ID(s) '${conflictingSystemIds.join(', ')}' collide with a foreign key update cascaded from an ID field change. No records from this request were staged.`,
-					);
+				const systemIdsWithDependents: string[] = [];
+
+				// Iterate through the foundDependentUpdates once
+				for (const { submissionUpdateData, dependents } of foundDependentUpdates) {
+					const numDependents = Object.keys(dependents).length;
+
+					if (numDependents > 0) {
+						systemIdsWithDependents.push(
+							`System ID '${submissionUpdateData.systemId}' has ${numDependents} dependents`,
+						);
+					}
 				}
 
-				// Deleting a superseded `idFieldChange` UPDATE also deletes its consequence records
-				const affectedFileIds = await submissionRecordsRepository.deleteByIds(supersededRecordIds, tx);
-				await submissionFilesRepository.deleteEmptyByIds(affectedFileIds, tx);
-				if (supersededRecordIds.length > 0) {
-					logger.info(
-						LOG_MODULE,
-						`Replaced '${supersededRecordIds.length}' staged update(s) on entity '${schema.name}' in Submission '${submission.id}'`,
-					);
+				if (systemIdsWithDependents.length) {
+					logger.info(LOG_MODULE, `Direct dependencies found: ${systemIdsWithDependents.join(', ')}`);
+				} else {
+					logger.info(LOG_MODULE, 'No dependents found on any system ID.');
 				}
 
+				// Dependents of each edited record, by its systemId. Dependents found only through another dependent
+				// (for example the players of a team whose sport changes) have no field to change and are left out.
+				const dependentUpdatesBySystemId = new Map(
+					foundDependentUpdates.map(({ submissionUpdateData, dependents }) => [
+						submissionUpdateData.systemId,
+						_.pickBy(
+							_.mapValues(dependents, (updates) =>
+								updates.filter((update) => !_.isEmpty(update.old) || !_.isEmpty(update.new)),
+							),
+							(updates) => updates.length > 0,
+						),
+					]),
+				);
+
+				// Identify what requested updates involves ID and nonID field changes
+				const { idFieldChangeRecord, nonIdFieldChangeRecord } = segregateFieldChangeRecords(
+					{ [schema.name]: filesDataProcessed },
+					dictionaryRelations,
+				);
+
+				// Creates the delete and insert records of each ID field change
+				const idFieldChanges = await handleIdFieldChanges(idFieldChangeRecord, tx);
+				const idFieldChangeSystemIds = new Set(
+					Object.values(idFieldChanges)
+						.flat()
+						.map(({ update }) => update.systemId),
+				);
+
+				const incomingEdits = directEditSystemIds.map((systemId): IncomingParentEdit => {
+					const idFieldChange = idFieldChangeSystemIds.has(systemId);
+					const cascadeUpdates = idFieldChange
+						? Object.entries(dependentUpdatesBySystemId.get(systemId) ?? {}).flatMap(([entityName, updates]) =>
+								updates.map(
+									(dependentUpdate): EditStagingRecord => ({
+										entityName,
+										systemId: dependentUpdate.systemId,
+										actionType: 'UPDATE',
+									}),
+								),
+							)
+						: [];
+					return {
+						entityName: schema.name,
+						systemId,
+						actionType: 'UPDATE',
+						idFieldChange,
+						consequences: cascadeUpdates,
+					};
+				});
+
+				// Throws StatusConflict and rolls back if the request conflicts with the staged records. An edit only
+				// stages UPDATEs, which are never skipped, so every edit is staged with all of its consequences.
+				const { replacedRecords } = await replaceStagedParentEdits({ incomingEdits, submissionId: submission.id }, tx);
+
+				const hasRecordsToSave =
+					Object.values(nonIdFieldChangeRecord).some((updates) => updates.length > 0) ||
+					Object.values(idFieldChanges).some((entityIdFieldChanges) => entityIdFieldChanges.length > 0);
+				if (!hasRecordsToSave && replacedRecords.length === 0) {
+					// Nothing to replace or stage: roll back the status and version change
+					tx.rollback();
+				}
+
+				// The generic files are a bookkeeping construct required by the data model (`submissionRecords` must
+				// reference a `fileId`): the request had one uploaded file, or none for programmatic edits
 				await saveEditRecords(
 					{
 						dependentUpdatesBySystemId,
@@ -1043,15 +1150,24 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 					tx,
 				);
 
-				return newVersion;
+				return { replacedRecords, stagedVersion: newVersion };
 			});
-
-			// Runs Schema Data validation of the staged version in a worker thread
-			dependencies.workerPool.dataValidation({ submissionId: submission.id, username, version: stagedVersion });
 		} catch (error) {
-			logStagingError(`There was an error processing records on entity '${schema.name}'`, error);
+			if (error instanceof TransactionRollbackError) {
+				logger.info(LOG_MODULE, `No changes to stage on Submission '${submission.id}'`);
+				return { replacedRecords: [] };
+			}
+			throw error;
 		}
-		logger.info(LOG_MODULE, `Finished validating files`);
+
+		// Runs Schema Data validation of the staged version in a worker thread
+		dependencies.workerPool.dataValidation({
+			submissionId: submission.id,
+			username,
+			version: stagingResult.stagedVersion,
+		});
+
+		return { replacedRecords: stagingResult.replacedRecords };
 	};
 
 	/**
@@ -1317,8 +1433,9 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		markSubmissionAsChanged,
 		performCommitSubmissionAsync,
 		performDataValidation,
-		processEditRecordsAsync,
 		processInsertRecordsAsync,
+		replaceStagedParentEdits,
+		stageEditRecords,
 		updateActiveSubmission,
 		addFilesToSubmissionAsync,
 	};

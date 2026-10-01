@@ -54,6 +54,32 @@ components:
           schema:
             $ref: '#/components/responses/Error'
 
+    StagingConflict:
+      description: >
+        The request was rejected and nothing from it was staged: either the submission's status does not allow changes,
+        or the request conflicts with changes already staged. For conflicts with staged changes, `details.conflicts`
+        lists every conflict found.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                description: Error type
+                example: Conflict
+              message:
+                type: string
+                description: Description of the error
+              details:
+                type: object
+                description: Present when the request conflicts with changes already staged
+                properties:
+                  conflicts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StagingConflict'
+
     UnauthorizedError:
       description: Access token is missing or invalid
       content:
@@ -227,9 +253,11 @@ components:
           type: integer
           nullable: true
           description: >
-            ID of the `idFieldChange` `UPDATE` that caused this record to be staged: the `DELETE` of the original record,
-            the `INSERT` of its replacement, or a foreign key `UPDATE` of a dependent record.
-            `null` for any other record. Removing the parent removes this record; this record cannot be removed on its own.
+            ID of the parent record this record was staged as a consequence of. The consequence records of an
+            `idFieldChange` `UPDATE` are the `DELETE` of the original record, the `INSERT` of its replacement, and the
+            foreign key `UPDATE`s of dependent records. The consequence records of a `DELETE` staged by deleting a record
+            by its system ID are the `DELETE`s of the records that depend on it. `null` for any other record.
+            Removing the parent removes this record; this record cannot be removed on its own.
         lineNumber:
           type: integer
           nullable: true
@@ -275,7 +303,7 @@ components:
           type: array
           items:
             type: integer
-          description: Only for `INVALID_CONSEQUENCE_RECORD`. IDs of the invalid records staged as a consequence of this ID field change; their errors are on those records.
+          description: Only for `INVALID_CONSEQUENCE_RECORD`. IDs of the invalid records staged as a consequence of this record (an ID field change, or a delete by system ID); their errors are on those records.
         message:
           type: string
           description: Details of the error
@@ -559,6 +587,157 @@ components:
         submissionId:
           type: string
           description: ID of the Submission
+
+    EditSubmittedDataResult:
+      required:
+        - status
+        - replacedRecords
+      type: object
+      properties:
+        description:
+          type: string
+          description: Description of the result
+        status:
+          type: string
+          description: '`PROCESSING` when the edits are staged and being validated. `INVALID_SUBMISSION` when nothing was staged because the request is invalid.'
+          enum: ['PROCESSING', 'INVALID_SUBMISSION']
+        submissionId:
+          type: integer
+          description: ID of the Active Submission
+        replacedRecords:
+          type: array
+          description: >
+            Changes previously staged on the Active Submission that this request removed from the submission and replaced.
+            Submitted data is not affected. Records staged as their consequence were removed with them and are not listed.
+            Empty when nothing was replaced.
+          items:
+            $ref: '#/components/schemas/ReplacedStagedRecord'
+
+    DeleteSubmittedDataResult:
+      required:
+        - status
+        - description
+        - inProcessEntities
+        - replacedRecords
+      type: object
+      properties:
+        description:
+          type: string
+          description: Description of the result
+        status:
+          type: string
+          description: >
+            `PROCESSING` when the deletes are staged and being validated, or when the record already had a delete staged
+            and nothing changed. `INVALID_SUBMISSION` when nothing was staged because the request is invalid.
+          enum: ['PROCESSING', 'INVALID_SUBMISSION']
+        submissionId:
+          type: string
+          description: ID of the Active Submission
+        inProcessEntities:
+          type: array
+          description: Entities with deletes staged by this request
+          items:
+            type: string
+        replacedRecords:
+          type: array
+          description: >
+            Changes previously staged on the Active Submission that this request removed from the submission and replaced.
+            Submitted data is not affected. Records staged as their consequence were removed with them and are not listed.
+            Empty when nothing was replaced.
+          items:
+            $ref: '#/components/schemas/ReplacedStagedRecord'
+
+    ReplacedStagedRecord:
+      type: object
+      description: A staged change discarded from the Active Submission. It was never applied to submitted data.
+      required:
+        - recordId
+        - systemId
+        - entityName
+        - actionType
+        - idFieldChange
+        - data
+      properties:
+        recordId:
+          type: integer
+          description: ID of the discarded submission record
+        systemId:
+          type: string
+          description: System ID of the submitted data record the change targeted
+        entityName:
+          type: string
+        actionType:
+          type: string
+          enum: ['UPDATE', 'DELETE']
+        idFieldChange:
+          type: boolean
+          description: Whether the discarded change was an ID field change
+        data:
+          description: The staged change being discarded
+          oneOf:
+            - $ref: '#/components/schemas/SubmissionUpdateData'
+            - $ref: '#/components/schemas/SubmissionDeleteData'
+
+    StagingConflictRecord:
+      type: object
+      required:
+        - systemId
+        - entityName
+        - actionType
+      properties:
+        recordId:
+          type: integer
+          description: ID of the staged submission record. Absent when the record is part of the rejected request.
+        systemId:
+          type: string
+        entityName:
+          type: string
+        actionType:
+          type: string
+          enum: ['UPDATE', 'DELETE']
+
+    StagingConflict:
+      type: object
+      required:
+        - reason
+        - message
+        - incomingRecord
+        - conflictingRecord
+        - parentRecord
+      properties:
+        reason:
+          type: string
+          description: >
+            `TARGETS_CONSEQUENCE_RECORD`: a record of the request targets a record staged as a consequence of another
+            change. `CONSEQUENCE_COLLISION`: a record the request would stage as a consequence (a dependent's foreign key
+            update or delete) targets a record that is already staged, or that another record of the request targets.
+          enum: ['TARGETS_CONSEQUENCE_RECORD', 'CONSEQUENCE_COLLISION']
+        message:
+          type: string
+        incomingRecord:
+          type: object
+          description: The record of the request involved in the conflict
+          properties:
+            systemId:
+              type: string
+            entityName:
+              type: string
+            actionType:
+              type: string
+              enum: ['UPDATE', 'DELETE']
+        conflictingRecord:
+          $ref: '#/components/schemas/StagingConflictRecord'
+        parentRecord:
+          description: >
+            The parent change of the consequence record involved. For `TARGETS_CONSEQUENCE_RECORD`, the staged parent of
+            `conflictingRecord`; remove it to unblock the request. For `CONSEQUENCE_COLLISION`, the change of the request
+            that generates `incomingRecord` (no `recordId`).
+          allOf:
+            - $ref: '#/components/schemas/StagingConflictRecord'
+            - type: object
+              properties:
+                idFieldChange:
+                  type: boolean
 
     DeleteSubmissionResult:
       required:

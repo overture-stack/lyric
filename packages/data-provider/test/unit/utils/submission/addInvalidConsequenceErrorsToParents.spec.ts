@@ -5,7 +5,7 @@ import type { RecordErrorActionConflict, RecordErrorInvalidValue } from '@overtu
 
 import type { SubmissionRecordWithEntityName } from '../../../../src/repository/submissionRecordsRepository.js';
 import { addInvalidConsequenceErrorsToParents } from '../../../../src/utils/submissionRecordUtils.js';
-import { createInsertRecord, createUpdateRecord } from '../../../fixtures/submissionRecords.js';
+import { createDeleteRecord, createInsertRecord, createUpdateRecord } from '../../../fixtures/submissionRecords.js';
 
 // An ID field change of sport 'SPT1' (sport_id 1 -> 2) and the records staged as its consequence
 const submissionData: SubmissionRecordWithEntityName[] = [
@@ -80,6 +80,35 @@ describe('Submission Utils - Add Invalid Consequence Errors To Parents', () => {
 		expect(response.updates?.['sport']?.[0]?.errors.map((error) => error.reason)).to.eql([
 			'CONFLICTING_ACTION',
 			'INVALID_CONSEQUENCE_RECORD',
+		]);
+	});
+
+	it('adds the summary of a DELETE parent to the deletes bucket', () => {
+		const deleteData = { data: {}, isValid: true, organization: 'league' };
+		const deleteGroup: SubmissionRecordWithEntityName[] = [
+			createDeleteRecord({ id: 30, entityName: 'sport' }, { ...deleteData, systemId: 'SPT2' }),
+			createDeleteRecord(
+				{ id: 31, entityName: 'team', fileId: 3, parentRecord: 30 },
+				{ ...deleteData, systemId: 'TM3' },
+			),
+		];
+		const errors = { deletes: { team: [{ recordId: 31, errors: [fieldError] }] } };
+
+		const response = addInvalidConsequenceErrorsToParents(errors, deleteGroup);
+
+		expect(response.updates).to.eq(undefined);
+		expect(response.deletes?.['team']).to.eql(errors.deletes.team);
+		expect(response.deletes?.['sport']).to.eql([
+			{
+				recordId: 30,
+				errors: [
+					{
+						reason: 'INVALID_CONSEQUENCE_RECORD',
+						invalidRecordIds: [31],
+						message: "Record(s) '31' staged as a consequence of this delete are invalid",
+					},
+				],
+			},
 		]);
 	});
 });

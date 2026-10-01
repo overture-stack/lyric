@@ -70,8 +70,10 @@ const submissionFilesRepository = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Deletes the files among `fileIds` that no longer contain any Submission Record.
-		 * @returns The IDs of the deleted files
+		 * Deletes the files among `fileIds` that do not contain any Submission Record, and returns the IDs of the files
+		 * that were deleted. Files that still contain records are kept and left out of the result.
+		 *
+		 * @throws {ServiceUnavailable} When the delete query fails.
 		 */
 		deleteEmptyByIds: async (fileIds: number[], tx?: RepositoryTransaction<SubmissionFile>): Promise<number[]> => {
 			if (fileIds.length === 0) {

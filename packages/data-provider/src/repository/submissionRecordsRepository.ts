@@ -122,9 +122,12 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 
 	/**
 	 * Deletes Submission Records by ID. Records referencing a deleted record through `parentRecord` (the consequence
-	 * records of an `idFieldChange` UPDATE) are deleted with it by the database cascade.
-	 * @returns The IDs of the files that contained the deleted records, including the cascaded ones, so the caller can
-	 * clean up files left empty.
+	 * records of a parent record) are deleted with it by the database cascade.
+	 *
+	 * Returns the IDs of the files, not the records: every file that contained a deleted record, including the
+	 * cascaded ones. These files can be left without records; they are not deleted.
+	 *
+	 * @throws {ServiceUnavailable} When a query fails.
 	 */
 	const deleteByIds = async (ids: number[], tx?: RepositoryTransaction<SubmissionRecord>): Promise<number[]> => {
 		if (ids.length === 0) {

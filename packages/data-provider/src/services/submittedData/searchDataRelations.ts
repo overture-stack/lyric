@@ -3,6 +3,7 @@ import type { SubmittedData } from '@overture-stack/lyric-data-model/models';
 
 import type { BaseDependencies } from '../../config/config.js';
 import createSubmittedRepository from '../../repository/submittedRepository.js';
+import type { RepositoryTransaction } from '../../repository/types.js';
 import type { SchemaChildNode } from '../../utils/dictionarySchemaRelations.js';
 import { mergeSubmittedDataAndDeduplicateById } from '../../utils/submittedDataUtils.js';
 
@@ -11,15 +12,14 @@ const searchDataRelations = (dependencies: BaseDependencies) => {
 	const submittedDataRepository = createSubmittedRepository(dependencies);
 	const { logger } = dependencies;
 	/**
-	 * This function uses a dictionary children relations to query recursivaly
-	 * to return all SubmittedData that relates
-	 * @param input
-	 * @param {DataRecord} input.data
-	 * @param {Record<string, SchemaChildNode[]>} input.dictionaryRelations
-	 * @param {string} input.entityName
-	 * @param {string} input.organization
-	 * @param {string} input.systemId
-	 * @returns {Promise<SubmittedData[]>}
+	 * Finds every SubmittedData record of `organization` that depends on the `entityName` record with `data`, following
+	 * the children relations in `dictionaryRelations` recursively: the records whose foreign key references a field of
+	 * `data`, then the records that depend on those, and so on.
+	 *
+	 * Returns each dependent once. Returns an empty array when the entity has no children relations or no record
+	 * depends on it. `systemId` is only used for logging.
+	 *
+	 * @throws {ServiceUnavailable} When a query fails.
 	 */
 	const searchDirectDependents = async ({
 		data,
@@ -27,12 +27,14 @@ const searchDataRelations = (dependencies: BaseDependencies) => {
 		entityName,
 		organization,
 		systemId,
+		tx,
 	}: {
 		data: DataRecord;
 		dictionaryRelations: Record<string, SchemaChildNode[]>;
 		entityName: string;
 		organization: string;
 		systemId: string;
+		tx?: RepositoryTransaction<SubmittedData>;
 	}): Promise<SubmittedData[]> => {
 		const { getSubmittedDataFiltered } = submittedDataRepository;
 
@@ -60,7 +62,7 @@ const searchDataRelations = (dependencies: BaseDependencies) => {
 				`Entity '${entityName}' has following dependencies filter'${JSON.stringify(filterData)}'`,
 			);
 
-			const directDependents = await getSubmittedDataFiltered(organization, filterData);
+			const directDependents = await getSubmittedDataFiltered(organization, filterData, tx);
 
 			const additionalDepend = (
 				await Promise.all(
@@ -71,6 +73,7 @@ const searchDataRelations = (dependencies: BaseDependencies) => {
 							entityName: record.entityName,
 							organization: record.organization,
 							systemId: record.systemId,
+							tx,
 						}),
 					),
 				)

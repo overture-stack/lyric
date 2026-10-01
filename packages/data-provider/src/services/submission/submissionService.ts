@@ -192,13 +192,13 @@ const submissionService = (dependencies: BaseDependencies) => {
 	 * Removes records or a file from an active submission and starts validation of the updated submission.
 	 *
 	 * The `filter` determines what is removed:
-	 * - `recordId`: removes the specified record. Removing an `idFieldChange` UPDATE also removes the records staged
-	 *   as its consequence (the records whose `parentRecord` references it). A consequence record cannot be removed on
-	 *   its own; the request fails with `BadRequest`, naming its parent record.
+	 * - `recordId`: removes the specified record. Removing a parent record (an `idFieldChange` UPDATE, or a DELETE
+	 *   staged by deleting a record by its systemId) also removes the records staged as its consequence (the records
+	 *   whose `parentRecord` references it). A consequence record cannot be removed on its own; the request fails with
+	 *   `BadRequest`, naming its parent record.
 	 * - `fileId`: removes the specified file and all records associated with it. Because files are scoped to an
-	 *   entity, an ID field change and its consequence records can span several files: when the file contains an
-	 *   `idFieldChange` UPDATE or any of its consequence records, the whole group is removed, including the records
-	 *   in other files.
+	 *   entity, a parent record and its consequence records can span several files: when the file contains a parent
+	 *   record or any of its consequence records, the whole group is removed, including the records in other files.
 	 * - Other files left without records because a group's records were removed from them are removed as well. With
 	 *   `recordId`, the record's own file is kept, as for any other record.
 	 * - When both IDs are provided, `recordId` takes precedence.
@@ -210,7 +210,8 @@ const submissionService = (dependencies: BaseDependencies) => {
 	 * @throws {BadRequest} When:
 	 * - the submission does not exist, or has no files;
 	 * - neither `recordId` nor `fileId` is provided;
-	 * - the record or file is not found in the submission.
+	 * - the record or file is not found in the submission;
+	 * - the record is a consequence record, which can only be removed with its parent.
 	 * @throws {StatusConflict} When the submission's status does not allow changes, checked both before and inside
 	 * the transaction that removes the data.
 	 * @throws {ServiceUnavailable} When a database query fails.
@@ -255,7 +256,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 
 			if (recordFoundInDB.parentRecord) {
 				throw new BadRequest(
-					`Record with ID '${filter.recordId}' was staged as a consequence of the ID field change in record '${recordFoundInDB.parentRecord}' and cannot be removed on its own. Remove record '${recordFoundInDB.parentRecord}' instead.`,
+					`Record with ID '${filter.recordId}' was staged as a consequence of record '${recordFoundInDB.parentRecord}' and cannot be removed on its own. Remove record '${recordFoundInDB.parentRecord}' instead.`,
 				);
 			}
 
@@ -278,7 +279,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 			const newVersion = await submissionProcessor.markSubmissionAsChanged(submission.id, username, tx);
 
 			if (recordId) {
-				// Consequence records of an `idFieldChange` UPDATE are removed with it by the database cascade.
+				// Consequence records of a parent record are removed with it by the database cascade.
 				// Other files left empty by the cascade are removed; the record's own file is kept.
 				const affectedFileIds = await submissionRecordsRepository.deleteByIds([recordId], tx);
 				await submissionFilesRepository.deleteEmptyByIds(
