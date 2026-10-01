@@ -217,9 +217,8 @@ export interface CommitSubmissionParams {
 	submissionId: number;
 	username: string;
 	/**
-	 * Submission version verified when its status moved to `COMMITTING`. When provided, the commit is only applied
-	 * if the Submission still has status `COMMITTING` and this version. Omitted by dictionary migrations, which
-	 * commit their own Submission directly without the `COMMITTING` step.
+	 * Version of the Submission when its status was set to `COMMITTING`. Undefined for a Submission that is
+	 * committed without going through the `COMMITTING` status, such as the Submission of a dictionary migration.
 	 */
 	version?: number;
 	isMigration?: boolean;

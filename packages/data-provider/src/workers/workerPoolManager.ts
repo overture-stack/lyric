@@ -110,8 +110,7 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 				// This ensures the main thread is not affected by worker errors and can continue processing other tasks.
 			}
 		},
-		// Runs Schema Data validation in a worker thread. The worker moves the submission to VALIDATING only if its version still
-		// matches the job's version, then marks it VALID or INVALID based on the result
+		// Runs Schema Data validation of the job's Submission version in a worker thread
 		dataValidation: async (input: DataValidationWorkerInput): Promise<void> => {
 			const proxy = await readyProxy; // wait for worker to initialize before using
 			try {

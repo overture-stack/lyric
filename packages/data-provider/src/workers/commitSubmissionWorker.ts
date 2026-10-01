@@ -24,10 +24,16 @@ const LOG_MODULE = 'COMMIT_SUBMISSION_WORKER';
  * It fetches the data by the submissionId, prepares the data to be validated and passes it to the submission processor.
  *
  * The commit only runs if the Submission has status `COMMITTING` and the version that was verified when the commit
- * was requested. Otherwise an error is thrown without changing anything.
- * If the commit fails after it started, the Submission status is reset back to `VALID` so it can be retried.
- * @param message - The input message containing submissionId, username and the version to commit
- * @returns The result of the commit submission process
+ * was requested. If the commit fails after it started, the Submission status is reset back to `VALID` so it can be
+ * retried, and the error is rethrown.
+ *
+ * Returns the committed data with the submission, category and organization, for post-commit actions such as
+ * `onFinishCommit`.
+ *
+ * @throws {Error} When:
+ * - the Submission does not exist;
+ * - its status is not `COMMITTING` or its version does not match. Nothing is changed;
+ * - the category has no active dictionary, or the commit itself fails. The status is reset to `VALID` first.
  */
 export const processCommitSubmission = async (message: CommitWorkerInput): Promise<ResultOnCommit> => {
 	const { submissionId, username, version } = message;
@@ -76,11 +82,10 @@ export const processCommitSubmission = async (message: CommitWorkerInput): Promi
 
 /**
  * Prepares the records of a Submission in `COMMITTING` status and commits them through the submission processor.
- * @param params
- * @param params.submission The Submission to commit
- * @param params.username User who performs the action
- * @param params.version Submission version verified when the commit was requested
- * @returns The result of the commit submission process
+ *
+ * `version` must be the version verified when the commit was requested.
+ *
+ * @throws {Error} When the category has no active dictionary, or the commit fails.
  */
 const commitSubmissionData = async ({
 	submission,

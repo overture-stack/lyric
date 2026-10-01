@@ -76,9 +76,8 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 	/**
 	 * Counts the records of a Submission whose state is not `VALID`, either because they have not been validated
 	 * yet (`RECEIVED`) or because they failed validation (`INVALID`).
-	 * @param submissionId Submission ID
-	 * @param tx The transaction to use for the operation, optional
-	 * @returns The number of records not in the `VALID` state
+	 *
+	 * @throws {ServiceUnavailable} When the count query fails.
 	 */
 	const countNotValidBySubmissionId = async (
 		submissionId: number,

@@ -198,15 +198,14 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 		 * The updated row stays locked until the surrounding transaction ends. Any other conditional update on the
 		 * same Submission waits for that transaction, then re-checks its conditions against the committed row.
 		 * Run this as the first statement of a transaction to serialize concurrent changes to the same Submission.
-		 * @param params
-		 * @param params.submissionId Submission ID to update
-		 * @param params.newData Fields to update. The version can only be changed through `incrementVersion`
-		 * @param params.expectedStatuses Statuses the Submission must currently have
-		 * @param params.expectedVersion Version the Submission must currently have, optional
-		 * @param params.incrementVersion When true, the version is incremented by one
-		 * @param tx The transaction to use for the operation, optional
-		 * @returns The ID and resulting version of the updated Submission, or `undefined` if the Submission does not
-		 * exist or does not match the expected status and version
+		 *
+		 * - `newData` cannot change the version. Use `incrementVersion` to increment it by one.
+		 * - When `expectedVersion` is omitted, the version is not checked.
+		 *
+		 * Returns the ID and resulting version of the updated Submission, or `undefined` when the Submission does not
+		 * exist or does not match the expected status and version. A non-match is not an error.
+		 *
+		 * @throws {ServiceUnavailable} When the update query fails.
 		 */
 		updateWithConditions: async (
 			{

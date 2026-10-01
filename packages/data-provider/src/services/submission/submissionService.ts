@@ -54,16 +54,21 @@ const submissionService = (dependencies: BaseDependencies) => {
 	const submissionFilesRepository = createSubmissionFilesRepository(dependencies);
 
 	/**
-	 * Runs Schema validation asynchronously in a worker thread and moves the Active Submission to Submitted Data
+	 * Runs Schema validation asynchronously in a worker thread and moves the Active Submission to Submitted Data.
 	 *
 	 * The Submission can only be committed when its status is `VALID` and every one of its records has state `VALID`.
 	 * Both conditions are checked in the same transaction that moves the Submission to `COMMITTING`, while the
 	 * Submission row is locked, so no records can be staged between the check and the status change.
-	 * @param {number} categoryId
-	 * @param {number} submissionId
-	 * @returns {Promise<CommitSubmissionResult>}
-	 * @throws {StatusConflict} when the Submission is not `VALID`, has records that are not `VALID`, or changed
-	 * while the commit was being requested
+	 *
+	 * The result only reports that the commit is being processed. The commit itself runs in a worker afterwards.
+	 *
+	 * @throws {BadRequest} When the Submission does not exist, does not belong to `categoryId`, or the category has
+	 * no active dictionary.
+	 * @throws {StatusConflict} When:
+	 * - the Submission is not `VALID`, or has records that are not `VALID`;
+	 * - the Submission changed while the commit was being requested;
+	 * - a dictionary migration is running for the category.
+	 * @throws {ServiceUnavailable} When a database query fails.
 	 */
 	const commitSubmission = async (
 		categoryId: number,
@@ -97,7 +102,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		}
 
 		const committingVersion = await dependencies.db.transaction(async (tx) => {
-			// Locks the Submission row: staging changes on this Submission waits until this transaction ends
+			// Locks the Submission row until this transaction ends, so no records can be staged while they are checked
 			const committingSubmission = await submissionRepository.updateWithConditions(
 				{
 					submissionId,
@@ -190,16 +195,18 @@ const submissionService = (dependencies: BaseDependencies) => {
 	 * - `recordId`: removes the specified record.
 	 * - `fileId`: removes the specified file and all records associated with it.
 	 * - When both IDs are provided, `recordId` takes precedence.
-	 * - When neither ID is provided, the operation fails.
 	 *
-	 * The submission must be active, and the specified record or file must belong to the submission. The removal sets
-	 * the submission status to `OPEN` and increments its version, then the updated submission is validated
-	 * asynchronously against its schemas and existing submitted data.
+	 * The removal sets the submission status to `OPEN` and increments its version, then the updated submission is
+	 * validated asynchronously against its schemas and existing submitted data. The result only reports that the
+	 * submission is being processed.
 	 *
-	 * @param submissionId - Submission ID.
-	 * @param username - User name performing the action.
-	 * @param filter - IDs identifying the record or file to remove.
-	 * @returns A result indicating that the updated submission is being processed.
+	 * @throws {BadRequest} When:
+	 * - the submission does not exist, or has no files;
+	 * - neither `recordId` nor `fileId` is provided;
+	 * - the record or file is not found in the submission.
+	 * @throws {StatusConflict} When the submission's status does not allow changes, checked both before and inside
+	 * the transaction that removes the data.
+	 * @throws {ServiceUnavailable} When a database query fails.
 	 */
 	const deleteByRecordIdOrFileId = async (
 		submissionId: number,
@@ -454,16 +461,16 @@ const submissionService = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Find the current Active Submission or Create an Open Active Submission with initial values and no schema data.
-	 * Throws an error if the existing active submission is not in a status that can be modified (OPEN, VALID or INVALID)
+	 * Finds the user's Active Submission for the category and organization, or creates an `OPEN` one with no records,
+	 * and returns its ID.
 	 *
-	 * This check is an early rejection only: the status can change before data is written. Every path that stages
-	 * data verifies the status again, with the Submission row locked, in the transaction that writes the data.
-	 * @param {object} params
-	 * @param {string} params.username Owner of the Submission
-	 * @param {number} params.categoryId Category ID of the Submission
-	 * @param {string} params.organization Organization name
-	 * @returns number ID of the Active Submission
+	 * The status check here is an early rejection only: the status can change before data is written, so the
+	 * transaction that writes the data must check it again.
+	 *
+	 * @throws {StatusConflict} When the existing Active Submission's status does not allow changes, i.e. it is not
+	 * `OPEN`, `VALID` or `INVALID`.
+	 * @throws {InternalServerError} When a new Submission is needed and the category has no active dictionary.
+	 * @throws {ServiceUnavailable} When a database query fails.
 	 */
 	const getOrCreateActiveSubmission = async (params: {
 		username: string;

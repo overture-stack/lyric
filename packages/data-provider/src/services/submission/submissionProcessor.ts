@@ -88,13 +88,14 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	 * to the same Submission are serialized.
 	 *
 	 * `OPEN` prevents the Submission from being committed until a validation of the new version completes.
-	 * @param submissionId Submission ID
-	 * @param username User who performs the action
-	 * @param tx The transaction that writes the changes
-	 * @returns The new version of the Submission. Validation of the changes must be queued with this version once
-	 * the transaction completes
-	 * @throws {BadRequest} when the Submission does not exist
-	 * @throws {StatusConflict} when the Submission's status does not allow changes. Throwing rolls back the transaction
+	 *
+	 * Returns the new version of the Submission. The caller must queue validation of the changes with this version
+	 * once the transaction completes.
+	 *
+	 * @throws {BadRequest} When the Submission does not exist.
+	 * @throws {StatusConflict} When the Submission's status does not allow changes. Throwing rolls back the
+	 * transaction.
+	 * @throws {ServiceUnavailable} When the update query fails.
 	 */
 	const markSubmissionAsChanged = async (
 		submissionId: number,
@@ -124,9 +125,8 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 	/**
 	 * Logs an error thrown while staging changes on a Submission. A `StatusConflict` is an expected outcome when the
-	 * Submission started validating or committing in the meantime, so it is logged at info level.
-	 * @param message Description of the operation that failed
-	 * @param error The error thrown
+	 * Submission started validating or committing in the meantime, so it is logged at info level. Any other error is
+	 * logged at error level.
 	 */
 	const logStagingError = (message: string, error: unknown): void => {
 		if (error instanceof StatusConflict) {
@@ -341,6 +341,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	 * then persists the data on the database and finally updates the Submission status to 'committed'.
 	 * If any step fails, the operation is aborted and the error is thrown.
 	 *
+	 * When `params.version` is provided, the data is only written if the Submission has status `COMMITTING` and
+	 * that version. This is checked with the Submission row locked, in the same transaction that writes the data;
+	 * when it does not match, a `StatusConflict` is thrown and nothing is written. When `params.version` is omitted,
+	 * the Submission status is set to `COMMITTED` without checking its status or version.
+	 *
 	 * The response includes the data that was committed, which can be used by the caller to perform additional post commit actions,
 	 * such as an 'onFinishCommit' callback.
 	 * @param params
@@ -520,8 +525,8 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			await dependencies.db.transaction(async (tx) => {
 				const committedSubmissionData = { status: SUBMISSION_STATUS.COMMITTED, updatedAt: new Date() };
 				if (params.version !== undefined) {
-					// Locks the Submission row before writing any data, and aborts if the Submission is no longer the
-					// one that was verified when its status moved to 'COMMITTING'
+					// Locks the Submission row before writing any data, and aborts unless the Submission has status
+					// 'COMMITTING' and the version verified when the commit was requested
 					const committedSubmission = await submissionRepository.updateWithConditions(
 						{
 							submissionId: submission.id,
@@ -584,11 +589,17 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	 * validation job is queued for it, or it was closed), and this job stops without changing anything.
 	 * If validation throws, the Submission is moved back from `VALIDATING` to `OPEN`, so it is not left in a
 	 * status that rejects new changes.
-	 * @param {number} submissionId Active Submission
-	 * @param {string} username User who performs the action
-	 * @param {number} version Submission version this validation job was queued for
-	 * @returns {Promise<number | undefined>} ID of the Submission updated, or `undefined` when the validation was
-	 * skipped or its result was discarded because the Submission changed
+	 *
+	 * `version` must be the version returned by the staging transaction that queued this job.
+	 *
+	 * Returns the ID of the updated Submission, or `undefined` when:
+	 * - the validation was skipped because the Submission changed after this job was queued;
+	 * - the result was discarded because the Submission changed while it was being validated.
+	 *
+	 * @throws {Error} When the Submission does not exist.
+	 * @throws {BadRequest} When the category has no active dictionary. The status is reset to `OPEN` first.
+	 * @throws {ServiceUnavailable} When a database query fails. The status is reset to `OPEN` first when validation
+	 * had started.
 	 */
 	const performDataValidation = async (
 		submissionId: number,
@@ -604,9 +615,9 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			throw new Error(`Submission '${submissionId}' not found`);
 		}
 
-		// Mark the Submission as 'VALIDATING' now that validation is actually starting, only if this job is for the
-		// Submission's latest version. A single conditional update, so no changes can be staged between the check and
-		// the status change.
+		// Mark the Submission as 'VALIDATING' as validation starts, only if this job is for the Submission's latest
+		// version. The check and the status change are a single conditional update, so no changes can be staged
+		// between them.
 		const startedSubmission = await updateWithConditions({
 			submissionId,
 			newData: { status: SUBMISSION_STATUS.VALIDATING, updatedBy: username },
@@ -640,9 +651,12 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 	/**
 	 * Runs the validation of a Submission that has already been moved to `VALIDATING`, then stores the result.
-	 * @param activeSubmission The Submission being validated
-	 * @param version Submission version the validation was started for
-	 * @returns ID of the Submission updated, or `undefined` when the result was discarded because the Submission changed
+	 *
+	 * Returns the ID of the updated Submission, or `undefined` when the result was discarded because the Submission
+	 * changed while it was being validated.
+	 *
+	 * @throws {BadRequest} When the category has no active dictionary.
+	 * @throws {ServiceUnavailable} When a database query fails.
 	 */
 	const validateSubmissionData = async (
 		activeSubmission: SubmissionWithDictionaryAndCategoryRepositoryRecord,
@@ -978,23 +992,19 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Update Active Submission in database
-	 * Updates the Submission status to 'VALID' if there is no errors, otherwise updates it to 'INVALID'
-	 * Updates the validation state of the records considered during validation, marking records with errors
-	 * as 'INVALID' and the rest of `validatedRecordIds` as 'VALID'.
+	 * Stores the result of a validation, in one transaction:
+	 * - the Submission status becomes `VALID` when there are no errors, otherwise `INVALID`;
+	 * - records with errors become `INVALID`, and the rest of `validatedRecordIds` become `VALID`.
 	 *
-	 * Only records present in `validatedRecordIds` are touched.
+	 * Only records present in `validatedRecordIds`, the records that were actually validated, are touched.
 	 *
 	 * The result is applied only if the Submission still has status `VALIDATING` and the `version` that was
-	 * validated. Otherwise the Submission changed while it was being validated (for example, it was closed), the
+	 * validated. Otherwise the Submission changed while it was being validated (for example, it was closed), so the
 	 * result is stale and is discarded without changing the Submission or its records.
-	 * @param {Object} input
-	 * @param {number} input.dictionaryId The Dictionary ID of the Submission
-	 * @param {number} input.idActiveSubmission ID of the Submission
-	 * @param {SubmissionErrors} input.schemaErrors Array of errors on the submission
-	 * @param {number[]} input.validatedRecordIds IDs of the Submission Records that were actually validated
-	 * @param {number} input.version Submission version that was validated
-	 * @returns {Promise<number | undefined>} The ID of the updated Submission, or `undefined` if the result was discarded
+	 *
+	 * Returns the ID of the updated Submission, or `undefined` when the result was discarded.
+	 *
+	 * @throws {ServiceUnavailable} When a database query fails. Nothing is changed.
 	 */
 	const updateActiveSubmission = async (input: {
 		dictionaryId: number;

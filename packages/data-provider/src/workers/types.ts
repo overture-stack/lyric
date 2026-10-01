@@ -4,14 +4,14 @@ import type { AppConfig, BaseDependencies } from '../config/config.js';
 export type CommitWorkerInput = {
 	submissionId: number;
 	username: string;
-	/** Submission version verified when its status moved to `COMMITTING` */
+	/** Version of the Submission when its status was set to `COMMITTING` */
 	version: number;
 };
 
 export type DataValidationWorkerInput = {
 	submissionId: number;
 	username: string;
-	/** Submission version produced by the staging transaction that queued this validation */
+	/** Version of the Submission that contains the staged changes to validate */
 	version: number;
 };
 
@@ -79,9 +79,9 @@ export type WorkerProxy = {
 	commitSubmission: (input: CommitWorkerInput) => Promise<ResultOnCommit>;
 	/**
 	 * This function is executed in the worker thread to start the data validation process.
-	 * @param input The input data for the data validation
-	 * @returns A promise that resolves the submission ID, or `undefined` when the validation was skipped or its
-	 * result discarded because the Submission changed after the validation was queued
+	 *
+	 * Resolves with the submission ID, or `undefined` when the validation was skipped or its result discarded
+	 * because the Submission changed after the validation was queued.
 	 */
 	dataValidation: (input: DataValidationWorkerInput) => Promise<number | undefined>;
 	/**

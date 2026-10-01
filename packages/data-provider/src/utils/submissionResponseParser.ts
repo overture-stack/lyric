@@ -21,7 +21,7 @@ export type SubmissionSummary = SubmissionWithDictionaryAndCategoryRepositoryRec
 	data: SubmissionDataSummaryWithTotal;
 };
 
-// The Submission `version` is internal, used to discard outdated validation and commit jobs, and is not exposed in responses
+// The Submission `version` is internal state and is not part of the API response
 export type SubmissionSummaryResponse = Omit<SubmissionSummary, 'createdAt' | 'updatedAt' | 'version'> & {
 	createdAt: string;
 	updatedAt: string;
