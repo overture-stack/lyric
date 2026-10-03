@@ -4,7 +4,7 @@ import supertest from 'supertest';
 
 import submissionProcessorFactory from '../../../../src/services/submission/submissionProcessor.js';
 import { StatusConflict } from '../../../../src/utils/errors.js';
-import type { SubmissionStatus } from '../../../../src/utils/types.js';
+import { SUBMISSION_STATUS, type SubmissionStatus } from '../../../../src/utils/types.js';
 import type { CommitWorkerInput, DataValidationWorkerInput, WorkerFunctions } from '../../../../src/workers/types.js';
 import { createTsvFileContent } from '../../../fixtures/createTsvContent.js';
 import { dictionarySportsData } from '../../../fixtures/dictionarySchemasTestData.js';
@@ -15,15 +15,7 @@ import { getContainers } from '../../globalSetup.js';
 
 const ORGANIZATION = 'testOrg';
 
-const allSubmissionStatuses: SubmissionStatus[] = [
-	'OPEN',
-	'VALIDATING',
-	'VALID',
-	'INVALID',
-	'CLOSED',
-	'COMMITTING',
-	'COMMITTED',
-];
+const allSubmissionStatuses = Object.values(SUBMISSION_STATUS);
 
 /**
  * These tests check that the Submission status and version keep validation and commit jobs consistent with the
