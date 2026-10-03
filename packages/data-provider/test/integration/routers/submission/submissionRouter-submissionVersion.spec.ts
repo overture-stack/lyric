@@ -458,7 +458,7 @@ describe('Integration - Submission Router - Submission status and version', () =
 			]);
 		});
 
-		it('should discard a validation result when the version changed during validation', async () => {
+		it('should discard a validation result whose version does not match the submission version', async () => {
 			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.VALIDATING, version: 2 });
 			const recordIds = await saveSportRecords({ submissionId, states: [SUBMISSION_RECORD_STATE.Values.RECEIVED] });
 			const processor = originalCreate(lyricProvider.configs);
