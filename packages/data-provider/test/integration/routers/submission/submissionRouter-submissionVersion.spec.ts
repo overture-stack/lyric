@@ -376,7 +376,7 @@ describe('Integration - Submission Router - Submission status and version', () =
 				expect(validationJobs).to.eql([]);
 			});
 
-			it(`should roll back staging and throw StatusConflict when the submission is ${status}`, async () => {
+			it(`should throw StatusConflict and leave the status and version unchanged when the submission is ${status}`, async () => {
 				const submissionId = await createSubmission({ status, version: 1 });
 				const processor = originalCreate(lyricProvider.configs);
 
