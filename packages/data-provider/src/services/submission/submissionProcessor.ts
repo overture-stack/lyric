@@ -22,7 +22,7 @@ import createSubmissionRecordsRepository from '../../repository/submissionRecord
 import createSubmittedDataRepository from '../../repository/submittedRepository.js';
 import type { RepositoryTransaction } from '../../repository/types.js';
 import { getDictionarySchemaRelations, type SchemaChildNode } from '../../utils/dictionarySchemaRelations.js';
-import { BadRequest, StatusConflict } from '../../utils/errors.js';
+import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
 import { formatByteSize, genericSubmissionFileName, getSizeInBytes } from '../../utils/fileUtils.js';
 import { convertRecordToString } from '../../utils/formatUtils.js';
 import { parseRecordsToInsert } from '../../utils/recordsParser.js';
@@ -89,7 +89,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	 *
 	 * Returns the new version of the Submission.
 	 *
-	 * @throws {BadRequest} When the Submission does not exist.
+	 * @throws {InternalServerError} When the Submission does not exist.
 	 * @throws {StatusConflict} When the Submission's status does not allow changes.
 	 * @throws {ServiceUnavailable} When the update query fails.
 	 */
@@ -114,7 +114,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 		const submission = await submissionRepository.getSubmissionById(submissionId);
 		if (!submission) {
-			throw new BadRequest(`Submission '${submissionId}' not found`);
+			throw new InternalServerError(`Submission '${submissionId}' not found while marking its data as changed`);
 		}
 		throw new StatusConflict(`Existing submission with status '${submission.status}' cannot be modified`);
 	};
