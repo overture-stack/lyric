@@ -464,8 +464,8 @@ const submissionService = (dependencies: BaseDependencies) => {
 	 * Finds the user's Active Submission for the category and organization, or creates an `OPEN` one with no records,
 	 * and returns its ID.
 	 *
-	 * The status check here is an early rejection only: the status can change before data is written, so the
-	 * transaction that writes the data must check it again.
+	 * The existing Submission's status is checked when it is looked up, without locking the Submission. The returned
+	 * Submission accepted changes at that moment, but its status can change afterwards.
 	 *
 	 * @throws {StatusConflict} When the existing Active Submission's status does not allow changes, i.e. it is not
 	 * `OPEN`, `VALID` or `INVALID`.
