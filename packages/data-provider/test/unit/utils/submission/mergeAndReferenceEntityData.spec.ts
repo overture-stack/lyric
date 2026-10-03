@@ -7,6 +7,7 @@ import type { SubmissionRecordWithEntityName } from '../../../../src/repository/
 import { mergeAndReferenceEntityData } from '../../../../src/utils/submissionUtils.js';
 import { MERGE_REFERENCE_TYPE, SUBMISSION_STATUS } from '../../../../src/utils/types.js';
 import { assertExists } from '../../../assertions.js';
+import { createDeleteRecord, createInsertRecord, createUpdateRecord } from '../../../fixtures/submissionRecords.js';
 
 describe('Submission Utils - Combine Active Submission and the Submitted Data with reference', () => {
 	const todaysDate = new Date();
@@ -311,5 +312,89 @@ describe('Submission Utils - Combine Active Submission and the Submitted Data wi
 		});
 		expect(Object.keys(response).length).to.eq(0);
 		expect(response).eql({});
+	});
+
+	describe('ID field change groups and repeated UPDATEs', () => {
+		const createSubmittedData = (
+			id: number,
+			entityName: string,
+			systemId: string,
+			data: SubmittedData['data'],
+		): SubmittedData => ({
+			id,
+			data,
+			dictionaryCategoryId: 20,
+			entityName,
+			isValid: true,
+			lastValidSchemaId: 20,
+			organization: 'league',
+			originalSchemaId: 20,
+			systemId,
+			createdAt: todaysDate,
+			createdBy: 'me',
+			updatedAt: null,
+			updatedBy: null,
+		});
+
+		const submittedData: SubmittedData[] = [
+			createSubmittedData(5, 'sport', 'SPT1', { sport_id: '1', name: 'Soccer' }),
+			createSubmittedData(6, 'team', 'TM1', { team_id: '7', sport_id: '1', name: 'Lions' }),
+		];
+
+		it('applies the consequence records of an ID field change and not the ID field change UPDATE itself', () => {
+			const submissionData: SubmissionRecordWithEntityName[] = [
+				createUpdateRecord(
+					{ id: 10, entityName: 'sport', idFieldChange: true },
+					{ systemId: 'SPT1', old: { sport_id: '1' }, new: { sport_id: '2' } },
+				),
+				createDeleteRecord(
+					{ id: 11, entityName: 'sport', parentRecord: 10 },
+					{ systemId: 'SPT1', data: { sport_id: '1', name: 'Soccer' }, isValid: true, organization: 'league' },
+				),
+				createInsertRecord({ id: 12, entityName: 'sport', parentRecord: 10 }, { sport_id: '2', name: 'Soccer' }),
+				createUpdateRecord(
+					{ id: 13, entityName: 'team', fileId: 2, parentRecord: 10 },
+					{ systemId: 'TM1', old: { sport_id: '1' }, new: { sport_id: '2' } },
+				),
+			];
+
+			const response = mergeAndReferenceEntityData({ submissionId: 2, submissionData, submittedData });
+
+			expect(response['sport']).eql([
+				{
+					dataRecord: { sport_id: '2', name: 'Soccer' },
+					reference: { submissionId: 2, recordId: 12, type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA },
+				},
+			]);
+			expect(response['team']).eql([
+				{
+					dataRecord: { team_id: '7', sport_id: '2', name: 'Lions' },
+					reference: {
+						systemId: 'TM1',
+						submissionId: 2,
+						recordId: 13,
+						type: MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA,
+					},
+				},
+			]);
+		});
+
+		it('applies the last UPDATE staged for a systemId, matching the one the commit applies', () => {
+			const submissionData: SubmissionRecordWithEntityName[] = [
+				createUpdateRecord(
+					{ id: 10, entityName: 'team', fileId: 2 },
+					{ systemId: 'TM1', old: { name: 'Lions' }, new: { name: 'Tigers' } },
+				),
+				createUpdateRecord(
+					{ id: 14, entityName: 'team', fileId: 3 },
+					{ systemId: 'TM1', old: { name: 'Lions' }, new: { name: 'Bears' } },
+				),
+			];
+
+			const response = mergeAndReferenceEntityData({ submissionId: 2, submissionData, submittedData });
+
+			expect(response['team']?.[0]?.dataRecord).eql({ team_id: '7', sport_id: '1', name: 'Bears' });
+			expect(response['team']?.[0]?.reference).to.include({ recordId: 14 });
+		});
 	});
 });

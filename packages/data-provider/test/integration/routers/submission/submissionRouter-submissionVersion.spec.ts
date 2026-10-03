@@ -148,8 +148,6 @@ describe('Integration - Submission Router - Submission status and version', () =
 			processor.addFilesToSubmissionAsync = (...args) => trackPendingWork(originalAddFiles(...args));
 			const originalInsertRecords = processor.processInsertRecordsAsync;
 			processor.processInsertRecordsAsync = (...args) => trackPendingWork(originalInsertRecords(...args));
-			const originalEditRecords = processor.processEditRecordsAsync;
-			processor.processEditRecordsAsync = (...args) => trackPendingWork(originalEditRecords(...args));
 			return processor;
 		};
 

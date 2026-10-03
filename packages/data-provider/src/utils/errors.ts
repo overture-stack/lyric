@@ -21,9 +21,10 @@ export class NotFound extends Error {
 }
 
 export class StatusConflict extends Error {
-	constructor(msg: string) {
+	constructor(msg: string, details?: unknown) {
 		super(msg);
 		this.name = 'Conflict';
+		this.cause = details;
 	}
 }
 

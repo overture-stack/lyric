@@ -1,6 +1,11 @@
-import { eq } from 'drizzle-orm/sql';
+import { and, eq, inArray, notExists } from 'drizzle-orm/sql';
 
-import { type NewSubmissionFile, type SubmissionFile, submissionFiles } from '@overture-stack/lyric-data-model/models';
+import {
+	type NewSubmissionFile,
+	type SubmissionFile,
+	submissionFiles,
+	submissionRecords,
+} from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
@@ -60,6 +65,40 @@ const submissionFilesRepository = (dependencies: BaseDependencies) => {
 				return deletedFiles[0]?.id;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed deleting Submission File by fileId '${fileId}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Deletes the files among `fileIds` that do not contain any Submission Record, and returns the IDs of the files
+		 * that were deleted. Files that still contain records are kept and left out of the result.
+		 *
+		 * @throws {ServiceUnavailable} When the delete query fails.
+		 */
+		deleteEmptyByIds: async (fileIds: number[], tx?: RepositoryTransaction<SubmissionFile>): Promise<number[]> => {
+			if (fileIds.length === 0) {
+				return [];
+			}
+			try {
+				const executor = tx || db;
+				const deletedFiles = await executor
+					.delete(submissionFiles)
+					.where(
+						and(
+							inArray(submissionFiles.id, fileIds),
+							notExists(
+								executor
+									.select({ id: submissionRecords.id })
+									.from(submissionRecords)
+									.where(eq(submissionRecords.fileId, submissionFiles.id)),
+							),
+						),
+					)
+					.returning({ id: submissionFiles.id });
+				logger.info(LOG_MODULE, `Deleted '${deletedFiles.length}' empty Submission Files`);
+				return deletedFiles.map((file) => file.id);
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed deleting empty Submission Files`, error);
 				throw new ServiceUnavailable();
 			}
 		},

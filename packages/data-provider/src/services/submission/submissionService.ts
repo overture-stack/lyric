@@ -192,8 +192,15 @@ const submissionService = (dependencies: BaseDependencies) => {
 	 * Removes records or a file from an active submission and starts validation of the updated submission.
 	 *
 	 * The `filter` determines what is removed:
-	 * - `recordId`: removes the specified record.
-	 * - `fileId`: removes the specified file and all records associated with it.
+	 * - `recordId`: removes the specified record. Removing a parent record (an `idFieldChange` UPDATE, or a DELETE
+	 *   staged by deleting a record by its systemId) also removes the records staged as its consequence (the records
+	 *   whose `parentRecord` references it). A consequence record cannot be removed on its own; the request fails with
+	 *   `BadRequest`, naming its parent record.
+	 * - `fileId`: removes the specified file and all records associated with it. Because files are scoped to an
+	 *   entity, a parent record and its consequence records can span several files: when the file contains a parent
+	 *   record or any of its consequence records, the whole group is removed, including the records in other files.
+	 * - Other files left without records because a group's records were removed from them are removed as well. With
+	 *   `recordId`, the record's own file is kept, as for any other record.
 	 * - When both IDs are provided, `recordId` takes precedence.
 	 *
 	 * The removal sets the submission status to `OPEN` and increments its version, then the updated submission is
@@ -203,7 +210,8 @@ const submissionService = (dependencies: BaseDependencies) => {
 	 * @throws {BadRequest} When:
 	 * - the submission does not exist, or has no files;
 	 * - neither `recordId` nor `fileId` is provided;
-	 * - the record or file is not found in the submission.
+	 * - the record or file is not found in the submission;
+	 * - the record is a consequence record, which can only be removed with its parent.
 	 * @throws {StatusConflict} When the submission's status does not allow changes, checked both before and inside
 	 * the transaction that removes the data.
 	 * @throws {ServiceUnavailable} When a database query fails.
@@ -231,6 +239,9 @@ const submissionService = (dependencies: BaseDependencies) => {
 			throw new BadRequest(`Submission '${submissionId}' has no records or files to delete`);
 		}
 
+		// File of the record removed by ID, which is kept even when the removal leaves it empty
+		let recordFileId: number | undefined;
+
 		// Remove record by ID from the Submission
 		if (filter.recordId) {
 			const recordFoundInDB = await submissionRecordsRepository.getById(filter.recordId);
@@ -242,6 +253,14 @@ const submissionService = (dependencies: BaseDependencies) => {
 			if (fileReference?.submissionId !== submissionId) {
 				throw new BadRequest(`Record with ID '${filter.recordId}' does not belong to Submission '${submissionId}'`);
 			}
+
+			if (recordFoundInDB.parentRecord) {
+				throw new BadRequest(
+					`Record with ID '${filter.recordId}' was staged as a consequence of record '${recordFoundInDB.parentRecord}' and cannot be removed on its own. Remove record '${recordFoundInDB.parentRecord}' instead.`,
+				);
+			}
+
+			recordFileId = recordFoundInDB.fileId;
 		} else if (filter.fileId != null) {
 			const fileId = filter.fileId;
 			// Verify the requested FileId belongs to the Submission before deleting
@@ -260,10 +279,30 @@ const submissionService = (dependencies: BaseDependencies) => {
 			const newVersion = await submissionProcessor.markSubmissionAsChanged(submission.id, username, tx);
 
 			if (recordId) {
-				await submissionRecordsRepository.deleteByIds([recordId], tx);
+				// Consequence records of a parent record are removed with it by the database cascade.
+				// Other files left empty by the cascade are removed; the record's own file is kept.
+				const affectedFileIds = await submissionRecordsRepository.deleteByIds([recordId], tx);
+				await submissionFilesRepository.deleteEmptyByIds(
+					affectedFileIds.filter((affectedFileId) => affectedFileId !== recordFileId),
+					tx,
+				);
 			} else if (fileId != null) {
+				// Consequence records in this file can have their parent in another file. Removing the parent removes
+				// the whole group, wherever its records are. Parents in this file cascade on their own.
+				const fileRecords = await submissionRecordsRepository.getByFileIds([fileId], undefined, undefined, tx);
+				const recordIdsToDelete = new Set(
+					fileRecords.records.flatMap((record) =>
+						record.parentRecord ? [record.id, record.parentRecord] : [record.id],
+					),
+				);
+				const affectedFileIds = await submissionRecordsRepository.deleteByIds([...recordIdsToDelete], tx);
 				await submissionRecordsRepository.deleteByFileIds([fileId], tx);
 				await submissionFilesRepository.deleteById(fileId, tx);
+				// Other files left empty by removing the groups' records are removed too
+				await submissionFilesRepository.deleteEmptyByIds(
+					affectedFileIds.filter((affectedFileId) => affectedFileId !== fileId),
+					tx,
+				);
 			}
 
 			return newVersion;

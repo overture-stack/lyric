@@ -492,16 +492,21 @@ const repository = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Query to retrieve an unique SubmittedData record searching by System ID
-		 * Returns a SubmittedData record if found. Otherwise returns undefined
-		 * @param {string} systemId
-		 * @returns {Promise<SubmittedData | undefined>}
+		 * Finds the SubmittedData record with the given System ID. Returns `undefined` when there is none.
+		 *
+		 * @throws {ServiceUnavailable} When the query fails.
 		 */
-		getSubmittedDataBySystemId: async (systemId: string): Promise<SubmittedData | undefined> => {
+		getSubmittedDataBySystemId: async (
+			systemId: string,
+			tx?: RepositoryTransaction<SubmittedData>,
+		): Promise<SubmittedData | undefined> => {
 			try {
-				return await db.query.submittedData.findFirst({
-					where: eq(submittedData.systemId, systemId),
-				});
+				const [foundSubmittedData] = await (tx || db)
+					.select()
+					.from(submittedData)
+					.where(eq(submittedData.systemId, systemId))
+					.limit(1);
+				return foundSubmittedData;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying SubmittedData by systemId '${systemId}'`, error);
 				throw new ServiceUnavailable();
@@ -509,14 +514,11 @@ const repository = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Query to retrieve submitted data filtered by JSONB field on an organization
-		 * Returns an array of SubmittedData records found or an empty array if there are no matching records
-		 * @param {string} organization
-		 * @param {Object} filterData
-		 * @param {string} filterData.entityName
-		 * @param {string} filterData.dataField
-		 * @param {string | undefined} filterData.dataValue
-		 * @returns {Promise<SubmittedData[]>}
+		 * Finds the SubmittedData records of `organization` that match any of the `filterData` filters. A record matches
+		 * a filter when it belongs to the filter's `entityName` and the `dataField` of its data equals `dataValue`,
+		 * compared as text. Returns an empty array when no record matches.
+		 *
+		 * @throws {ServiceUnavailable} When the query fails.
 		 */
 		getSubmittedDataFiltered: async (
 			organization: string,
@@ -525,6 +527,7 @@ const repository = (dependencies: BaseDependencies) => {
 				dataField: string;
 				dataValue: string | undefined;
 			}[],
+			tx?: RepositoryTransaction<SubmittedData>,
 		): Promise<SubmittedData[]> => {
 			const sqlDataFilter = filterData.map((filter) => {
 				return and(
@@ -534,9 +537,10 @@ const repository = (dependencies: BaseDependencies) => {
 			});
 
 			try {
-				return await db.query.submittedData.findMany({
-					where: and(or(...sqlDataFilter), eq(submittedData.organization, organization)),
-				});
+				return await (tx || db)
+					.select()
+					.from(submittedData)
+					.where(and(or(...sqlDataFilter), eq(submittedData.organization, organization)));
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying SubmittedData`, error);
 				throw new ServiceUnavailable();
