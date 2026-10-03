@@ -4,6 +4,7 @@ import supertest from 'supertest';
 
 import submissionProcessorFactory from '../../../../src/services/submission/submissionProcessor.js';
 import { StatusConflict } from '../../../../src/utils/errors.js';
+import { SUBMISSION_RECORD_STATE, type SubmissionRecordState } from '../../../../src/utils/submissionTypes.js';
 import { SUBMISSION_STATUS, type SubmissionStatus } from '../../../../src/utils/types.js';
 import type { CommitWorkerInput, DataValidationWorkerInput, WorkerFunctions } from '../../../../src/workers/types.js';
 import { createTsvFileContent } from '../../../fixtures/createTsvContent.js';
@@ -107,7 +108,7 @@ describe('Integration - Submission Router - Submission status and version', () =
 		states,
 	}: {
 		submissionId: number;
-		states: ('RECEIVED' | 'VALID' | 'INVALID')[];
+		states: SubmissionRecordState[];
 	}): Promise<number[]> => {
 		const fileId = await lyricProvider.repositories.submissionFiles.save({
 			submissionId,
@@ -210,21 +211,21 @@ describe('Integration - Submission Router - Submission status and version', () =
 			const submissionId = await submitSportRecords([{ sport_id: '1', name: 'Soccer' }]);
 
 			const submission = await getSubmission(submissionId);
-			expect(submission.status).to.equal('OPEN');
+			expect(submission.status).to.equal(SUBMISSION_STATUS.OPEN);
 			expect(submission.version).to.equal(1);
 			expect(validationJobs).to.eql([{ submissionId, username: '', version: 1 }]);
-			expect(await getRecordStates(submissionId)).to.eql(['RECEIVED']);
+			expect(await getRecordStates(submissionId)).to.eql([SUBMISSION_RECORD_STATE.Values.RECEIVED]);
 
 			await submitSportRecords([{ sport_id: '2', name: 'Hockey' }]);
 
 			const updatedSubmission = await getSubmission(submissionId);
-			expect(updatedSubmission.status).to.equal('OPEN');
+			expect(updatedSubmission.status).to.equal(SUBMISSION_STATUS.OPEN);
 			expect(updatedSubmission.version).to.equal(2);
 			expect(validationJobs.map((job) => job.version)).to.eql([1, 2]);
 		});
 
 		it('should stage records of every entity in a single version', async () => {
-			const submissionId = await createSubmission({ status: 'OPEN' });
+			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.OPEN });
 			const processor = originalCreate(lyricProvider.configs);
 			const activeDictionary = await lyricProvider.repositories.category.getActiveDictionaryByCategory(categoryId);
 			assertExists(activeDictionary);
@@ -244,14 +245,17 @@ describe('Integration - Submission Router - Submission status and version', () =
 			});
 
 			const submission = await getSubmission(submissionId);
-			expect(submission.status).to.equal('OPEN');
+			expect(submission.status).to.equal(SUBMISSION_STATUS.OPEN);
 			expect(submission.version).to.equal(1);
 			expect(validationJobs).to.eql([{ submissionId, username: '', version: 1 }]);
-			expect(await getRecordStates(submissionId)).to.eql(['RECEIVED', 'RECEIVED']);
+			expect(await getRecordStates(submissionId)).to.eql([
+				SUBMISSION_RECORD_STATE.Values.RECEIVED,
+				SUBMISSION_RECORD_STATE.Values.RECEIVED,
+			]);
 		});
 
 		it('should set status OPEN and increment the version when files are submitted', async () => {
-			const submissionId = await createSubmission({ status: 'VALID', version: 3 });
+			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.VALID, version: 3 });
 			const sportTsv = createTsvFileContent(['sport_id', 'name'], [['1', 'Soccer']]);
 
 			const response = await app
@@ -261,27 +265,30 @@ describe('Integration - Submission Router - Submission status and version', () =
 
 			expect(response.body.submissionId).to.equal(submissionId);
 			const submission = await getSubmission(submissionId);
-			expect(submission.status).to.equal('OPEN');
+			expect(submission.status).to.equal(SUBMISSION_STATUS.OPEN);
 			expect(submission.version).to.equal(4);
 			expect(validationJobs).to.eql([{ submissionId, username: '', version: 4 }]);
 		});
 
 		it('should set status OPEN and increment the version when a record is removed from the submission', async () => {
-			const submissionId = await createSubmission({ status: 'VALID', version: 1 });
-			const [recordId] = await saveSportRecords({ submissionId, states: ['VALID', 'VALID'] });
+			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.VALID, version: 1 });
+			const [recordId] = await saveSportRecords({
+				submissionId,
+				states: [SUBMISSION_RECORD_STATE.Values.VALID, SUBMISSION_RECORD_STATE.Values.VALID],
+			});
 
 			const response = await app.delete(`/${submissionId}/data?recordId=${recordId}`);
 
 			expect(response.status).to.equal(200);
 			const submission = await getSubmission(submissionId);
-			expect(submission.status).to.equal('OPEN');
+			expect(submission.status).to.equal(SUBMISSION_STATUS.OPEN);
 			expect(submission.version).to.equal(2);
 			expect(validationJobs).to.eql([{ submissionId, username: '', version: 2 }]);
-			expect(await getRecordStates(submissionId)).to.eql(['VALID']);
+			expect(await getRecordStates(submissionId)).to.eql([SUBMISSION_RECORD_STATE.Values.VALID]);
 		});
 
 		it('should set status OPEN and increment the version when submitted data is staged for deletion', async () => {
-			const submissionId = await createSubmission({ status: 'INVALID', version: 1 });
+			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.INVALID, version: 1 });
 			await lyricProvider.repositories.submittedData.save({
 				data: { sport_id: '1', name: 'Soccer' },
 				dictionaryCategoryId: categoryId,
@@ -297,13 +304,13 @@ describe('Integration - Submission Router - Submission status and version', () =
 			expect(response.status).to.equal(200);
 			expect(response.body).to.have.property('status', 'PROCESSING');
 			const submission = await getSubmission(submissionId);
-			expect(submission.status).to.equal('OPEN');
+			expect(submission.status).to.equal(SUBMISSION_STATUS.OPEN);
 			expect(submission.version).to.equal(2);
 			expect(validationJobs).to.eql([{ submissionId, username: '', version: 2 }]);
 		});
 
 		it('should set status OPEN and increment the version when submitted data is edited', async () => {
-			const submissionId = await createSubmission({ status: 'VALID', version: 1 });
+			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.VALID, version: 1 });
 			await lyricProvider.repositories.submittedData.save({
 				data: { sport_id: '1', name: 'Soccer' },
 				dictionaryCategoryId: categoryId,
@@ -321,7 +328,7 @@ describe('Integration - Submission Router - Submission status and version', () =
 
 			expect(response.status).to.equal(200);
 			const submission = await getSubmission(submissionId);
-			expect(submission.status).to.equal('OPEN');
+			expect(submission.status).to.equal(SUBMISSION_STATUS.OPEN);
 			expect(submission.version).to.equal(2);
 			expect(validationJobs).to.eql([{ submissionId, username: '', version: 2 }]);
 		});
@@ -329,7 +336,7 @@ describe('Integration - Submission Router - Submission status and version', () =
 
 	describe('Staging into a submission that is validating or committing', () => {
 		it('should reject JSON records when the active submission is VALIDATING', async () => {
-			const submissionId = await createSubmission({ status: 'VALIDATING', version: 1 });
+			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.VALIDATING, version: 1 });
 
 			const response = await app
 				.post(`/category/${categoryId}/data?entityName=sport&organization=${ORGANIZATION}`)
@@ -338,13 +345,13 @@ describe('Integration - Submission Router - Submission status and version', () =
 
 			expect(response.body).to.have.property('status', 'INVALID_SUBMISSION');
 			const submission = await getSubmission(submissionId);
-			expect(submission.status).to.equal('VALIDATING');
+			expect(submission.status).to.equal(SUBMISSION_STATUS.VALIDATING);
 			expect(submission.version).to.equal(1);
 			expect(await getRecordStates(submissionId)).to.eql([]);
 			expect(validationJobs).to.eql([]);
 		});
 
-		for (const status of ['VALIDATING', 'COMMITTING'] as const) {
+		for (const status of [SUBMISSION_STATUS.VALIDATING, SUBMISSION_STATUS.COMMITTING] as const) {
 			it(`should not stage records when the status changed to ${status} after the request was accepted`, async () => {
 				const submissionId = await createSubmission({ status, version: 1 });
 				const processor = originalCreate(lyricProvider.configs);
@@ -390,16 +397,16 @@ describe('Integration - Submission Router - Submission status and version', () =
 		}
 
 		it('should reject removing a record when the submission is COMMITTING', async () => {
-			const submissionId = await createSubmission({ status: 'COMMITTING', version: 1 });
-			const [recordId] = await saveSportRecords({ submissionId, states: ['VALID'] });
+			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.COMMITTING, version: 1 });
+			const [recordId] = await saveSportRecords({ submissionId, states: [SUBMISSION_RECORD_STATE.Values.VALID] });
 
 			const response = await app.delete(`/${submissionId}/data?recordId=${recordId}`);
 
 			expect(response.status).to.equal(409);
 			const submission = await getSubmission(submissionId);
-			expect(submission.status).to.equal('COMMITTING');
+			expect(submission.status).to.equal(SUBMISSION_STATUS.COMMITTING);
 			expect(submission.version).to.equal(1);
-			expect(await getRecordStates(submissionId)).to.eql(['VALID']);
+			expect(await getRecordStates(submissionId)).to.eql([SUBMISSION_RECORD_STATE.Values.VALID]);
 			expect(validationJobs).to.eql([]);
 		});
 	});
@@ -414,17 +421,23 @@ describe('Integration - Submission Router - Submission status and version', () =
 
 			expect(outdatedResult).to.be.undefined;
 			const submission = await getSubmission(submissionId);
-			expect(submission.status).to.equal('OPEN');
+			expect(submission.status).to.equal(SUBMISSION_STATUS.OPEN);
 			expect(submission.version).to.equal(2);
-			expect(await getRecordStates(submissionId)).to.eql(['RECEIVED', 'RECEIVED']);
+			expect(await getRecordStates(submissionId)).to.eql([
+				SUBMISSION_RECORD_STATE.Values.RECEIVED,
+				SUBMISSION_RECORD_STATE.Values.RECEIVED,
+			]);
 
 			const currentResult = await processor.performDataValidation(submissionId, '', 2);
 
 			expect(currentResult).to.equal(submissionId);
 			const validatedSubmission = await getSubmission(submissionId);
-			expect(validatedSubmission.status).to.equal('VALID');
+			expect(validatedSubmission.status).to.equal(SUBMISSION_STATUS.VALID);
 			expect(validatedSubmission.version).to.equal(2);
-			expect(await getRecordStates(submissionId)).to.eql(['VALID', 'VALID']);
+			expect(await getRecordStates(submissionId)).to.eql([
+				SUBMISSION_RECORD_STATE.Values.VALID,
+				SUBMISSION_RECORD_STATE.Values.VALID,
+			]);
 		});
 
 		it('should run only the validation job of the latest version when jobs for several versions are queued', async () => {
@@ -438,13 +451,16 @@ describe('Integration - Submission Router - Submission status and version', () =
 
 			expect(results).to.eql([undefined, submissionId]);
 			const submission = await getSubmission(submissionId);
-			expect(submission.status).to.equal('VALID');
-			expect(await getRecordStates(submissionId)).to.eql(['VALID', 'VALID']);
+			expect(submission.status).to.equal(SUBMISSION_STATUS.VALID);
+			expect(await getRecordStates(submissionId)).to.eql([
+				SUBMISSION_RECORD_STATE.Values.VALID,
+				SUBMISSION_RECORD_STATE.Values.VALID,
+			]);
 		});
 
 		it('should discard a validation result when the version changed during validation', async () => {
-			const submissionId = await createSubmission({ status: 'VALIDATING', version: 2 });
-			const recordIds = await saveSportRecords({ submissionId, states: ['RECEIVED'] });
+			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.VALIDATING, version: 2 });
+			const recordIds = await saveSportRecords({ submissionId, states: [SUBMISSION_RECORD_STATE.Values.RECEIVED] });
 			const processor = originalCreate(lyricProvider.configs);
 
 			const result = await processor.updateActiveSubmission({
@@ -457,14 +473,14 @@ describe('Integration - Submission Router - Submission status and version', () =
 
 			expect(result).to.be.undefined;
 			const submission = await getSubmission(submissionId);
-			expect(submission.status).to.equal('VALIDATING');
+			expect(submission.status).to.equal(SUBMISSION_STATUS.VALIDATING);
 			expect(submission.version).to.equal(2);
-			expect(await getRecordStates(submissionId)).to.eql(['RECEIVED']);
+			expect(await getRecordStates(submissionId)).to.eql([SUBMISSION_RECORD_STATE.Values.RECEIVED]);
 		});
 
 		it('should discard a validation result when the submission is no longer VALIDATING', async () => {
-			const submissionId = await createSubmission({ status: 'CLOSED', version: 1 });
-			const recordIds = await saveSportRecords({ submissionId, states: ['RECEIVED'] });
+			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.CLOSED, version: 1 });
+			const recordIds = await saveSportRecords({ submissionId, states: [SUBMISSION_RECORD_STATE.Values.RECEIVED] });
 			const processor = originalCreate(lyricProvider.configs);
 
 			const result = await processor.updateActiveSubmission({
@@ -477,8 +493,8 @@ describe('Integration - Submission Router - Submission status and version', () =
 
 			expect(result).to.be.undefined;
 			const submission = await getSubmission(submissionId);
-			expect(submission.status).to.equal('CLOSED');
-			expect(await getRecordStates(submissionId)).to.eql(['RECEIVED']);
+			expect(submission.status).to.equal(SUBMISSION_STATUS.CLOSED);
+			expect(await getRecordStates(submissionId)).to.eql([SUBMISSION_RECORD_STATE.Values.RECEIVED]);
 		});
 	});
 
@@ -490,20 +506,23 @@ describe('Integration - Submission Router - Submission status and version', () =
 
 			expect(response.status).to.equal(409);
 			const submission = await getSubmission(submissionId);
-			expect(submission.status).to.equal('OPEN');
+			expect(submission.status).to.equal(SUBMISSION_STATUS.OPEN);
 			expect(commitJobs).to.eql([]);
 		});
 
-		for (const notValidState of ['RECEIVED', 'INVALID'] as const) {
+		for (const notValidState of [
+			SUBMISSION_RECORD_STATE.Values.RECEIVED,
+			SUBMISSION_RECORD_STATE.Values.INVALID,
+		] as const) {
 			it(`should refuse to commit a VALID submission with a record in state ${notValidState}`, async () => {
-				const submissionId = await createSubmission({ status: 'VALID', version: 1 });
-				await saveSportRecords({ submissionId, states: ['VALID', notValidState] });
+				const submissionId = await createSubmission({ status: SUBMISSION_STATUS.VALID, version: 1 });
+				await saveSportRecords({ submissionId, states: [SUBMISSION_RECORD_STATE.Values.VALID, notValidState] });
 
 				const response = await app.post(`/category/${categoryId}/commit/${submissionId}`);
 
 				expect(response.status).to.equal(409);
 				const submission = await getSubmission(submissionId);
-				expect(submission.status).to.equal('VALID');
+				expect(submission.status).to.equal(SUBMISSION_STATUS.VALID);
 				expect(submission.version).to.equal(1);
 				expect(commitJobs).to.eql([]);
 			});
@@ -514,8 +533,8 @@ describe('Integration - Submission Router - Submission status and version', () =
 			const submissionId = await submitSportRecords([{ sport_id: '1', name: 'Soccer' }]);
 
 			const validatedSubmission = await getSubmission(submissionId);
-			expect(validatedSubmission.status).to.equal('VALID');
-			expect(await getRecordStates(submissionId)).to.eql(['VALID']);
+			expect(validatedSubmission.status).to.equal(SUBMISSION_STATUS.VALID);
+			expect(await getRecordStates(submissionId)).to.eql([SUBMISSION_RECORD_STATE.Values.VALID]);
 
 			const response = await app.post(`/category/${categoryId}/commit/${submissionId}`);
 			await waitForPendingWork();
@@ -523,7 +542,7 @@ describe('Integration - Submission Router - Submission status and version', () =
 			expect(response.status).to.equal(200);
 			expect(commitJobs).to.eql([{ submissionId, username: '', version: 1 }]);
 			const committedSubmission = await getSubmission(submissionId);
-			expect(committedSubmission.status).to.equal('COMMITTED');
+			expect(committedSubmission.status).to.equal(SUBMISSION_STATUS.COMMITTED);
 
 			const submittedData = await lyricProvider.repositories.submittedData.getSubmittedDataByCategoryIdAndOrganization(
 				categoryId,
@@ -533,14 +552,14 @@ describe('Integration - Submission Router - Submission status and version', () =
 		});
 
 		it('should not commit when the commit job carries an outdated version', async () => {
-			const submissionId = await createSubmission({ status: 'COMMITTING', version: 2 });
-			await saveSportRecords({ submissionId, states: ['VALID'] });
+			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.COMMITTING, version: 2 });
+			await saveSportRecords({ submissionId, states: [SUBMISSION_RECORD_STATE.Values.VALID] });
 
 			await workerPool.commitSubmission({ submissionId, username: '', version: 1 });
 			await waitForPendingWork();
 
 			const submission = await getSubmission(submissionId);
-			expect(submission.status).to.equal('COMMITTING');
+			expect(submission.status).to.equal(SUBMISSION_STATUS.COMMITTING);
 			const submittedData = await lyricProvider.repositories.submittedData.getSubmittedDataByCategoryIdAndOrganization(
 				categoryId,
 				ORGANIZATION,

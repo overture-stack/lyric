@@ -3,6 +3,7 @@ import { after, afterEach, before, beforeEach, describe, it } from 'mocha';
 import supertest from 'supertest';
 
 import submissionProcessorFactory from '../../../../src/services/submission/submissionProcessor.js';
+import { SUBMISSION_STATUS } from '../../../../src/utils/types.js';
 import type { WorkerFunctions } from '../../../../src/workers/types.js';
 import { createTsvFileContent } from '../../../fixtures/createTsvContent.js';
 import { dictionarySportsData } from '../../../fixtures/dictionarySchemasTestData.js';
@@ -13,8 +14,8 @@ import { getContainers } from '../../globalSetup.js';
 import { delay } from '../../utils.js';
 
 /**
- * Waits for the submission to stop being in the 'OPEN' (validation queued) or 'VALIDATING' status, retrying up
- * to a maximum number of attempts with a delay between each attempt.
+ * Waits until the submission has a validation result, i.e. its status is no longer `OPEN` or `VALIDATING`, retrying
+ * up to a maximum number of attempts with a delay between each attempt.
  */
 const waitForSubmissionToStopValidating = async ({
 	lyricProvider,
@@ -39,7 +40,10 @@ const waitForSubmissionToStopValidating = async ({
 			organization,
 		});
 		attempt += 1;
-	} while ((submission?.status === 'OPEN' || submission?.status === 'VALIDATING') && attempt < maxRetries);
+	} while (
+		(submission?.status === SUBMISSION_STATUS.OPEN || submission?.status === SUBMISSION_STATUS.VALIDATING) &&
+		attempt < maxRetries
+	);
 
 	return submission;
 };
@@ -237,7 +241,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 		});
 
 		expect(resultFirstSubmission).to.exist;
-		expect(resultFirstSubmission!.status).to.equal('VALID');
+		expect(resultFirstSubmission!.status).to.equal(SUBMISSION_STATUS.VALID);
 
 		const submitResponse = await app
 			.post(`/category/${categoryId}/files?organization=${organization}`)
@@ -253,7 +257,7 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 		});
 
 		assertExists(resultFinalSubmission);
-		expect(resultFinalSubmission.status).to.equal('VALID');
+		expect(resultFinalSubmission.status).to.equal(SUBMISSION_STATUS.VALID);
 
 		const submissionRecords = await lyricProvider.repositories.submissionRecords.getBySubmissionId(
 			submitResponse.body.submissionId,
