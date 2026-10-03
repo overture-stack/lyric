@@ -79,22 +79,18 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	const { logger } = dependencies;
 
 	/**
-	 * Records that the data of an Active Submission is changing. Must be called inside the transaction that writes
-	 * the changes (staging new records, or removing staged ones), before writing them.
+	 * Marks the data of an Active Submission as changed. In a single conditional update on `tx`, it verifies that the
+	 * Submission's status allows changes (`OPEN`, `VALID` or `INVALID`), sets its status to `OPEN` and increments its
+	 * version.
 	 *
-	 * In a single conditional update, it verifies that the Submission's status allows changes, sets its status to
-	 * `OPEN` and increments its version. The Submission row stays locked until the transaction ends, so a
-	 * validation or commit cannot start between this check and the end of the transaction, and concurrent changes
-	 * to the same Submission are serialized.
+	 * The update locks the Submission row until `tx` ends. The status check, the version increment and every other
+	 * write in `tx` therefore take effect together, with no change to the Submission's status or version possible in
+	 * between.
 	 *
-	 * `OPEN` prevents the Submission from being committed until a validation of the new version completes.
-	 *
-	 * Returns the new version of the Submission. The caller must queue validation of the changes with this version
-	 * once the transaction completes.
+	 * Returns the new version of the Submission.
 	 *
 	 * @throws {BadRequest} When the Submission does not exist.
-	 * @throws {StatusConflict} When the Submission's status does not allow changes. Throwing rolls back the
-	 * transaction.
+	 * @throws {StatusConflict} When the Submission's status does not allow changes.
 	 * @throws {ServiceUnavailable} When the update query fails.
 	 */
 	const markSubmissionAsChanged = async (
