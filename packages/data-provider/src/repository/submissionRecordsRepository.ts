@@ -1,4 +1,4 @@
-import { and, count, eq, inArray } from 'drizzle-orm/sql';
+import { and, count, eq, inArray, ne } from 'drizzle-orm/sql';
 
 import {
 	type NewSubmissionRecord,
@@ -67,6 +67,33 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 			logger.error(
 				LOG_MODULE,
 				`Failed counting invalid Submission Records by action for submissionId '${submissionId}'`,
+				error,
+			);
+			throw new ServiceUnavailable();
+		}
+	};
+
+	/**
+	 * Counts the records of a Submission whose state is not `VALID`, either because they have not been validated
+	 * yet (`RECEIVED`) or because they failed validation (`INVALID`).
+	 *
+	 * @throws {ServiceUnavailable} When the count query fails.
+	 */
+	const countNotValidBySubmissionId = async (
+		submissionId: number,
+		tx?: RepositoryTransaction<SubmissionRecord>,
+	): Promise<number> => {
+		try {
+			const [result] = await (tx || db)
+				.select({ total: count() })
+				.from(submissionRecords)
+				.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
+				.where(and(eq(submissionFiles.submissionId, submissionId), ne(submissionRecords.state, 'VALID')));
+			return result?.total ?? 0;
+		} catch (error) {
+			logger.error(
+				LOG_MODULE,
+				`Failed counting not valid Submission Records for submissionId '${submissionId}'`,
 				error,
 			);
 			throw new ServiceUnavailable();
@@ -427,6 +454,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 	return {
 		countBySubmissionId,
 		countInvalidBySubmissionId,
+		countNotValidBySubmissionId,
 
 		deleteByIds,
 		deleteByFileIds,

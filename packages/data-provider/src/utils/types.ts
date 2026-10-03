@@ -216,6 +216,11 @@ export interface CommitSubmissionParams {
 	dictionary: SchemasDictionary & { id: number };
 	submissionId: number;
 	username: string;
+	/**
+	 * Version of the Submission when its status was set to `COMMITTING`. Undefined for a Submission that is
+	 * committed without going through the `COMMITTING` status, such as the Submission of a dictionary migration.
+	 */
+	version?: number;
 	isMigration?: boolean;
 	onFinishCommit?: (resultOnCommit: ResultOnCommit) => void;
 }

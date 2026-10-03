@@ -21,7 +21,8 @@ export type SubmissionSummary = SubmissionWithDictionaryAndCategoryRepositoryRec
 	data: SubmissionDataSummaryWithTotal;
 };
 
-export type SubmissionSummaryResponse = Omit<SubmissionSummary, 'createdAt' | 'updatedAt'> & {
+// The Submission `version` is internal state and is not part of the API response
+export type SubmissionSummaryResponse = Omit<SubmissionSummary, 'createdAt' | 'updatedAt' | 'version'> & {
 	createdAt: string;
 	updatedAt: string;
 };

@@ -27,6 +27,10 @@ export const submissions = pgTable(
 			.notNull(),
 		organization: varchar('organization').notNull(),
 		status: submissionStatusEnum('status').notNull(),
+
+		// `version` counts the changes made to the records staged on this Submission (records staged in or removed),
+		// so each value identifies one state of its staged records.
+		version: integer('version').notNull().default(0),
 		createdAt: timestamp('created_at').defaultNow(),
 		createdBy: varchar('created_by'),
 		updatedAt: timestamp('updated_at').defaultNow(),

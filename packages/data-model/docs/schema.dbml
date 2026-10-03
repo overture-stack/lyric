@@ -133,6 +133,7 @@ table submissions {
   dictionary_id integer [not null]
   organization varchar [not null]
   status submission_status [not null]
+  version integer [not null, default: 0]
   created_at timestamp [default: `now()`]
   created_by varchar
   updated_at timestamp [default: `now()`]
