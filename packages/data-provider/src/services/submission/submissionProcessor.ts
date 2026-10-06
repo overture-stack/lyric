@@ -519,7 +519,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			});
 
 			await dependencies.db.transaction(async (tx) => {
-				const committedSubmissionData = { status: SUBMISSION_STATUS.COMMITTED, updatedAt: new Date() };
+				const committedSubmissionData = { status: SUBMISSION_STATUS.COMMITTED, updatedBy: username };
 				if (params.version !== undefined) {
 					// Locks the Submission row before writing any data, and aborts unless the Submission has status
 					// 'COMMITTING' and the version verified when the commit was requested
