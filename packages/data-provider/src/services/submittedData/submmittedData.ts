@@ -174,9 +174,13 @@ const submittedData = (dependencies: BaseDependencies) => {
 			};
 		}
 
-		await dependencies.db.transaction(async (tx) => {
-			await Promise.all(
-				Object.entries(filteredRecordsToDeleteMap).map(async ([entityName, entityRecords]) => {
+		let stagedVersion: number;
+		try {
+			stagedVersion = await dependencies.db.transaction(async (tx) => {
+				// Throws StatusConflict and rolls back if the Submission's status no longer allows changes
+				const newVersion = await submissionProcessor.markSubmissionAsChanged(activeSubmissionId, username, tx);
+
+				for (const [entityName, entityRecords] of Object.entries(filteredRecordsToDeleteMap)) {
 					const savedFileId = await submissionFilesRepository.save(
 						{
 							entityName,
@@ -196,12 +200,23 @@ const submittedData = (dependencies: BaseDependencies) => {
 						})),
 						tx,
 					);
-				}),
-			);
-		});
+				}
 
-		// Perform Schema Data validation in a worker thread
-		dependencies.workerPool.dataValidation({ submissionId: activeSubmissionId, username });
+				return newVersion;
+			});
+		} catch (error) {
+			if (error instanceof StatusConflict) {
+				return {
+					status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+					description: error.message,
+					inProcessEntities: [],
+				};
+			}
+			throw error;
+		}
+
+		// Perform Schema Data validation of the staged version in a worker thread
+		dependencies.workerPool.dataValidation({ submissionId: activeSubmissionId, username, version: stagedVersion });
 
 		logger.info(LOG_MODULE, `Added '${entitiesToProcess.length}' records to be deleted on the Active Submission`);
 

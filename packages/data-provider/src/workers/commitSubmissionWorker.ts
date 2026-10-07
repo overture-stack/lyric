@@ -1,7 +1,9 @@
 import type { SubmissionDeleteData, SubmissionUpdateData } from '@overture-stack/lyric-data-model/models';
 
 import systemIdGenerator from '../external/systemIdGenerator.js';
-import createSubmissionRepository from '../repository/activeSubmissionRepository.js';
+import createSubmissionRepository, {
+	type SubmissionWithDictionaryAndCategoryRepositoryRecord,
+} from '../repository/activeSubmissionRepository.js';
 import createCategoryRepository from '../repository/categoryRepository.js';
 import createSubmissionRecordsRepository from '../repository/submissionRecordsRepository.js';
 import createSubmittedRepository from '../repository/submittedRepository.js';
@@ -15,23 +17,31 @@ import { type ResultOnCommit, SUBMISSION_STATUS } from '../utils/types.js';
 import type { CommitWorkerInput } from './types.js';
 import { getWorkerDependencies } from './workerContext.js';
 
+const LOG_MODULE = 'COMMIT_SUBMISSION_WORKER';
+
 /**
  * This function is executed in a worker thread to start processing the commit submission logic.
  * It fetches the data by the submissionId, prepares the data to be validated and passes it to the submission processor.
- * @param message - The input message containing submissionId and username
- * @returns The result of the commit submission process
+ *
+ * The commit only runs if the Submission has status `COMMITTING` and the version that was verified when the commit
+ * was requested. If the commit fails after it started, the Submission status is reset back to `VALID` so it can be
+ * retried, and the error is rethrown.
+ *
+ * Returns the committed data with the submission, category and organization, for post-commit actions such as
+ * `onFinishCommit`.
+ *
+ * @throws {Error} When:
+ * - the Submission does not exist;
+ * - its status is not `COMMITTING` or its version does not match. Nothing is changed;
+ * - the category has no active dictionary, or the commit itself fails. The status is reset to `VALID` first.
  */
 export const processCommitSubmission = async (message: CommitWorkerInput): Promise<ResultOnCommit> => {
-	const { submissionId, username } = message;
+	const { submissionId, username, version } = message;
 
 	const dependencies = getWorkerDependencies();
+	const { logger } = dependencies;
 
 	const submissionRepo = createSubmissionRepository(dependencies);
-	const categoryRepo = createCategoryRepository(dependencies);
-	const submittedDataRepo = createSubmittedRepository(dependencies);
-	const submissionRecordsRepo = createSubmissionRecordsRepository(dependencies);
-
-	const submissionProcessor = submissionProcessorFactory.create(dependencies);
 
 	// Fetch submission
 	const submission = await submissionRepo.getSubmissionById(submissionId);
@@ -39,10 +49,62 @@ export const processCommitSubmission = async (message: CommitWorkerInput): Promi
 		throw new Error(`Submission '${submissionId}' not found`);
 	}
 
-	if (submission.status !== 'COMMITTING') {
-		throw new Error(`Submission '${submissionId}' is not in COMMITTING status`);
+	if (submission.status !== SUBMISSION_STATUS.COMMITTING || submission.version !== version) {
+		throw new Error(
+			`Commit of Submission '${submissionId}' for version '${version}' was not started: the Submission has status '${submission.status}' and version '${submission.version}'`,
+		);
 	}
 
+	try {
+		return await commitSubmissionData({ submission, username, version });
+	} catch (error) {
+		// Reset the submission status back to VALID so it can be retried, unless it has changed in the meantime
+		try {
+			const resetSubmission = await submissionRepo.updateWithConditions({
+				submissionId,
+				newData: { status: SUBMISSION_STATUS.VALID, updatedBy: username },
+				expectedStatuses: [SUBMISSION_STATUS.COMMITTING],
+				expectedVersion: version,
+			});
+			if (resetSubmission) {
+				logger.info(LOG_MODULE, `Commit of Submission '${submissionId}' failed, status reset to 'VALID'`);
+			}
+		} catch (resetError) {
+			logger.error(
+				LOG_MODULE,
+				`Failed to reset status of Submission '${submissionId}' after a failed commit`,
+				resetError,
+			);
+		}
+		throw error;
+	}
+};
+
+/**
+ * Prepares the records of a Submission in `COMMITTING` status and commits them through the submission processor.
+ *
+ * `version` must be the version verified when the commit was requested.
+ *
+ * @throws {Error} When the category has no active dictionary, or the commit fails.
+ */
+const commitSubmissionData = async ({
+	submission,
+	username,
+	version,
+}: {
+	submission: SubmissionWithDictionaryAndCategoryRepositoryRecord;
+	username: string;
+	version: number;
+}): Promise<ResultOnCommit> => {
+	const dependencies = getWorkerDependencies();
+
+	const categoryRepo = createCategoryRepository(dependencies);
+	const submittedDataRepo = createSubmittedRepository(dependencies);
+	const submissionRecordsRepo = createSubmissionRecordsRepository(dependencies);
+
+	const submissionProcessor = submissionProcessorFactory.create(dependencies);
+
+	const submissionId = submission.id;
 	const categoryId = submission.dictionaryCategory.id;
 
 	// Fetch dictionary
@@ -55,7 +117,7 @@ export const processCommitSubmission = async (message: CommitWorkerInput): Promi
 	const { getSubmittedDataByCategoryIdAndOrganization } = submittedDataRepo;
 	const submittedDataToValidate = await getSubmittedDataByCategoryIdAndOrganization(
 		categoryId,
-		submission?.organization,
+		submission.organization,
 	);
 
 	const { generateIdentifier } = systemIdGenerator(dependencies);
@@ -103,21 +165,16 @@ export const processCommitSubmission = async (message: CommitWorkerInput): Promi
 			return acc;
 		}, {});
 
-	try {
-		return await submissionProcessor.performCommitSubmissionAsync({
-			dataToValidate: {
-				inserts: insertsToValidate,
-				submittedData: submittedDataToValidate,
-				deletes: deleteDataByEntityName,
-				updates: updatesBySystemId,
-			},
-			submissionId: submission.id,
-			dictionary: currentDictionary,
-			username: username,
-		});
-	} catch (error) {
-		// Reset the submission status back to VALID so it can be retried
-		await submissionRepo.update(submissionId, { status: SUBMISSION_STATUS.VALID, updatedBy: username });
-		throw error;
-	}
+	return await submissionProcessor.performCommitSubmissionAsync({
+		dataToValidate: {
+			inserts: insertsToValidate,
+			submittedData: submittedDataToValidate,
+			deletes: deleteDataByEntityName,
+			updates: updatesBySystemId,
+		},
+		submissionId,
+		dictionary: currentDictionary,
+		username: username,
+		version,
+	});
 };

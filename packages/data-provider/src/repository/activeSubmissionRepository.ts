@@ -1,5 +1,5 @@
 import type { SQL } from 'drizzle-orm';
-import { and, count, eq, inArray } from 'drizzle-orm/sql';
+import { and, count, eq, inArray, sql } from 'drizzle-orm/sql';
 
 import { type NewSubmission, type Submission, submissions } from '@overture-stack/lyric-data-model/models';
 
@@ -15,6 +15,7 @@ export type SubmissionWithDictionaryAndCategoryRepositoryRecord = {
 	dictionaryCategory: CategorySummary;
 	organization: string;
 	status: SubmissionStatus;
+	version: number;
 	createdAt: Date | null;
 	createdBy: string | null;
 	updatedAt: Date | null;
@@ -29,6 +30,7 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 	const submissionColumns = {
 		id: true,
 		status: true,
+		version: true,
 		organization: true,
 		createdAt: true,
 		createdBy: true,
@@ -169,7 +171,7 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 		 */
 		update: async (
 			submissionId: number,
-			newData: Partial<Submission>,
+			newData: Omit<Partial<Submission>, 'id' | 'version'>,
 			tx?: RepositoryTransaction<Submission>,
 		): Promise<number> => {
 			try {
@@ -184,6 +186,62 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 				return resultUpdate.id;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed updating Active Submission with id '${submissionId}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Updates a Submission only if its current status is one of `expectedStatuses` and, when provided, its
+		 * current version equals `expectedVersion`. The check and the update are a single
+		 * `UPDATE ... WHERE ... RETURNING` statement, so there is no gap between them.
+		 *
+		 * The updated row stays locked until the surrounding transaction ends. Any other conditional update on the
+		 * same Submission waits for that transaction, then re-checks its conditions against the committed row.
+		 * Run this as the first statement of a transaction to serialize concurrent changes to the same Submission.
+		 *
+		 * - `newData` cannot change the version. Use `incrementVersion` to increment it by one.
+		 * - When `expectedVersion` is omitted, the version is not checked.
+		 *
+		 * Returns the ID and resulting version of the updated Submission, or `undefined` when the Submission does not
+		 * exist or does not match the expected status and version. A non-match is not an error.
+		 *
+		 * @throws {ServiceUnavailable} When the update query fails.
+		 */
+		updateWithConditions: async (
+			{
+				submissionId,
+				newData,
+				expectedStatuses,
+				expectedVersion,
+				incrementVersion = false,
+			}: {
+				submissionId: number;
+				newData: Omit<Partial<Submission>, 'id' | 'version'>;
+				expectedStatuses: readonly SubmissionStatus[];
+				expectedVersion?: number;
+				incrementVersion?: boolean;
+			},
+			tx?: RepositoryTransaction<Submission>,
+		): Promise<{ id: number; version: number } | undefined> => {
+			try {
+				const [resultUpdate] = await (tx || db)
+					.update(submissions)
+					.set({
+						...newData,
+						updatedAt: new Date(),
+						...(incrementVersion ? { version: sql`${submissions.version} + 1` } : {}),
+					})
+					.where(
+						and(
+							eq(submissions.id, submissionId),
+							inArray(submissions.status, [...expectedStatuses]),
+							expectedVersion !== undefined ? eq(submissions.version, expectedVersion) : undefined,
+						),
+					)
+					.returning({ id: submissions.id, version: submissions.version });
+				return resultUpdate;
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed conditionally updating Active Submission with id '${submissionId}'`, error);
 				throw new ServiceUnavailable();
 			}
 		},
