@@ -12,14 +12,9 @@ import type { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import { formatMigrationAuditRecord } from '../utils/migrationResponseFormatter.js';
 import type { PaginatedResult } from '../utils/result.js';
-import type {
-	MigrationAuditRecord,
-	MigrationStatus,
-	PaginationOptions,
-	PartialColumns,
-	WithColumns,
-} from '../utils/types.js';
+import type { MigrationAuditRecord, MigrationStatus, PaginationOptions } from '../utils/types.js';
 import createAuditRepository from './auditRepository.js';
+import type { PartialColumns, WithColumns } from './types.js';
 
 type MigrationRepositoryRecord = Omit<DictionaryMigration, 'categoryId' | 'fromDictionaryId' | 'toDictionaryId'>;
 

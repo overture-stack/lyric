@@ -5,6 +5,7 @@ import type { DictionaryValidationError, TestResult } from '@overture-stack/lect
 
 import { groupSchemaErrorsByEntity } from '../../../../src/utils/submissionUtils.js';
 import { type DataRecordReference, MERGE_REFERENCE_TYPE } from '../../../../src/utils/types.js';
+import { assertExists } from '../../../assertions.js';
 
 describe('Submission Utils - Group validation errors by entity', () => {
 	it('retuns empty object when there is no data being processed', () => {
@@ -71,7 +72,7 @@ describe('Submission Utils - Group validation errors by entity', () => {
 				{
 					dataRecord: { title: 'XYZ123' },
 					reference: {
-						index: 12,
+						recordId: 12,
 						submissionId: 23,
 						type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
 					},
@@ -79,7 +80,7 @@ describe('Submission Utils - Group validation errors by entity', () => {
 				{
 					dataRecord: { sex_at_birth: 'Homme' },
 					reference: {
-						index: 12,
+						recordId: 13,
 						submissionId: 23,
 						type: MERGE_REFERENCE_TYPE.NEW_SUBMITTED_DATA,
 					},
@@ -89,11 +90,13 @@ describe('Submission Utils - Group validation errors by entity', () => {
 
 		const response = groupSchemaErrorsByEntity({ resultValidation, dataValidated });
 		expect(Object.keys(response)).to.eql(['inserts']);
+		assertExists(response['inserts']);
 		expect(Object.keys(response['inserts'])).to.eql(['sports']);
+		assertExists(response['inserts']['sports']);
 		expect(response['inserts']['sports'].length).to.eq(2);
 		expect(response['inserts']['sports']).to.eql([
-			{ fieldName: 'systemId', reason: 'UNRECOGNIZED_FIELD', fieldValue: '', index: 12 },
-			{ fieldName: 'sex_at_birth', reason: 'UNRECOGNIZED_FIELD', fieldValue: 'Homme', index: 12 },
+			{ errors: [{ fieldName: 'systemId', reason: 'UNRECOGNIZED_FIELD', fieldValue: '' }], recordId: 12 },
+			{ errors: [{ fieldName: 'sex_at_birth', reason: 'UNRECOGNIZED_FIELD', fieldValue: 'Homme' }], recordId: 13 },
 		]);
 	});
 	it('retuns errors found on the Submission updates', () => {
@@ -123,7 +126,7 @@ describe('Submission Utils - Group validation errors by entity', () => {
 				{
 					dataRecord: { title: 'XYZ123' },
 					reference: {
-						index: 12,
+						recordId: 12,
 						submissionId: 23,
 						type: MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA,
 					},
@@ -131,7 +134,7 @@ describe('Submission Utils - Group validation errors by entity', () => {
 				{
 					dataRecord: { sex_at_birth: 'Homme' },
 					reference: {
-						index: 12,
+						recordId: 13,
 						submissionId: 23,
 						type: MERGE_REFERENCE_TYPE.EDIT_SUBMITTED_DATA,
 					},
@@ -141,22 +144,32 @@ describe('Submission Utils - Group validation errors by entity', () => {
 
 		const response = groupSchemaErrorsByEntity({ resultValidation, dataValidated });
 		expect(Object.keys(response)).to.eql(['updates']);
+		assertExists(response['updates']);
 		expect(Object.keys(response['updates'])).to.eql(['sports']);
+		assertExists(response['updates']['sports']);
 		expect(response['updates']['sports'].length).to.eq(2);
 		expect(response['updates']['sports']).to.eql([
 			{
-				errors: [],
-				index: 12,
-				reason: 'INVALID_BY_RESTRICTION',
-				fieldName: 'systemId',
-				fieldValue: '',
+				errors: [
+					{
+						reason: 'INVALID_BY_RESTRICTION',
+						fieldName: 'systemId',
+						fieldValue: '',
+						errors: [],
+					},
+				],
+				recordId: 12,
 			},
 			{
-				errors: [],
-				index: 12,
-				reason: 'INVALID_BY_RESTRICTION',
-				fieldName: 'sex_at_birth',
-				fieldValue: '',
+				errors: [
+					{
+						reason: 'INVALID_BY_RESTRICTION',
+						fieldName: 'sex_at_birth',
+						fieldValue: '',
+						errors: [],
+					},
+				],
+				recordId: 13,
 			},
 		]);
 	});

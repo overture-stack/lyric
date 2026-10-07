@@ -71,11 +71,11 @@ const router = ({
 
 	router.get('/:submissionId', submissionController.getSubmissionById);
 
-	router.get('/:submissionId/details', submissionController.getSubmissionDetailsById);
-
 	router.delete('/:submissionId', submissionController.delete);
 
-	router.delete('/:submissionId/:actionType', submissionController.deleteEntityName);
+	router.get('/:submissionId/data', submissionController.getSubmissionDetailsById);
+
+	router.delete('/:submissionId/data', submissionController.deleteByRecordIdOrFileId);
 
 	router.get('/category/:categoryId', submissionController.getSubmissionsByCategory);
 

@@ -1,45 +1,52 @@
-import bytes from 'bytes';
 import * as _ from 'lodash-es';
 
 import type { DataRecord, DictionaryValidationRecordErrorDetails, Schema } from '@overture-stack/lectern-client';
 import type {
 	DataDiff,
 	NewSubmittedData,
+	Submission,
 	SubmissionDeleteData,
-	SubmissionErrors,
 	SubmissionInsertData,
-	SubmissionRecordErrorDetails,
 	SubmissionUpdateData,
 	SubmittedData,
 } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../../config/config.js';
-import createSubmissionRepository from '../../repository/activeSubmissionRepository.js';
+import createSubmissionRepository, {
+	type SubmissionWithDictionaryAndCategoryRepositoryRecord,
+} from '../../repository/activeSubmissionRepository.js';
 import createCategoryRepository from '../../repository/categoryRepository.js';
 import createDictionaryRepository from '../../repository/dictionaryRepository.js';
+import createSubmissionFilesRepository from '../../repository/submissionFilesRepository.js';
+import createSubmissionRecordsRepository from '../../repository/submissionRecordsRepository.js';
 import createSubmittedDataRepository from '../../repository/submittedRepository.js';
+import type { RepositoryTransaction } from '../../repository/types.js';
 import { getDictionarySchemaRelations, type SchemaChildNode } from '../../utils/dictionarySchemaRelations.js';
-import { BadRequest } from '../../utils/errors.js';
+import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
+import { formatByteSize, genericSubmissionFileName, getSizeInBytes } from '../../utils/fileUtils.js';
 import { convertRecordToString } from '../../utils/formatUtils.js';
 import { parseRecordsToInsert } from '../../utils/recordsParser.js';
 import {
+	extractRecordIdsFromSubmissionErrors,
+	findUpdateDeleteConflicts,
+	mergeSubmissionErrors,
+	type SubmissionErrors,
+} from '../../utils/submissionRecordUtils.js';
+import {
 	extractSchemaDataFromMergedDataRecords,
 	type FileParseResult,
-	filterDeletesFromUpdates,
 	filterRelationsForPrimaryIdUpdate,
-	findEditSubmittedData,
 	findInvalidRecordErrorsBySchemaName,
 	groupSchemaErrorsByEntity,
-	isSubmissionActive,
 	mapGroupedUpdateSubmissionData,
 	mergeAndReferenceEntityData,
-	mergeDeleteRecords,
-	mergeInsertsRecords,
 	mergeUpdatesBySystemId,
+	openSubmissionStatus,
 	parseToSchema,
 	segregateFieldChangeRecords,
 	submissionInsertDataFromFiles,
 	validateSchemas,
+	validationStartSubmissionStatus,
 } from '../../utils/submissionUtils.js';
 import {
 	computeDataDiff,
@@ -57,7 +64,6 @@ import {
 	type ResultOnCommit,
 	type SchemasDictionary,
 	SUBMISSION_STATUS,
-	type ValidateFilesParams,
 } from '../../utils/types.js';
 import createSubmittedDataRelationsSearch from '../submittedData/searchDataRelations.js';
 
@@ -68,7 +74,63 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	const submissionRepository = createSubmissionRepository(dependencies);
 	const submittedDataRepository = createSubmittedDataRepository(dependencies);
 	const submittedDataRelationsSearch = createSubmittedDataRelationsSearch(dependencies);
+	const submissionRecordsRepository = createSubmissionRecordsRepository(dependencies);
+	const submissionFilesRepository = createSubmissionFilesRepository(dependencies);
 	const { logger } = dependencies;
+
+	/**
+	 * Marks the data of an Active Submission as changed. In a single conditional update on `tx`, it verifies that the
+	 * Submission's status allows changes (`OPEN`, `VALID` or `INVALID`), sets its status to `OPEN` and increments its
+	 * version.
+	 *
+	 * The update locks the Submission row until `tx` ends. The status check, the version increment and every other
+	 * write in `tx` therefore take effect together, with no change to the Submission's status or version possible in
+	 * between.
+	 *
+	 * Returns the new version of the Submission.
+	 *
+	 * @throws {InternalServerError} When the Submission does not exist.
+	 * @throws {StatusConflict} When the Submission's status does not allow changes.
+	 * @throws {ServiceUnavailable} When the update query fails.
+	 */
+	const markSubmissionAsChanged = async (
+		submissionId: number,
+		username: string,
+		tx: RepositoryTransaction<Submission>,
+	): Promise<number> => {
+		const updatedSubmission = await submissionRepository.updateWithConditions(
+			{
+				submissionId,
+				newData: { status: SUBMISSION_STATUS.OPEN, updatedBy: username },
+				expectedStatuses: openSubmissionStatus,
+				incrementVersion: true,
+			},
+			tx,
+		);
+
+		if (updatedSubmission) {
+			return updatedSubmission.version;
+		}
+
+		const submission = await submissionRepository.getSubmissionById(submissionId);
+		if (!submission) {
+			throw new InternalServerError(`Submission '${submissionId}' not found while marking its data as changed`);
+		}
+		throw new StatusConflict(`Existing submission with status '${submission.status}' cannot be modified`);
+	};
+
+	/**
+	 * Logs an error thrown while staging changes on a Submission. A `StatusConflict` is an expected outcome when the
+	 * Submission started validating or committing in the meantime, so it is logged at info level. Any other error is
+	 * logged at error level.
+	 */
+	const logStagingError = (message: string, error: unknown): void => {
+		if (error instanceof StatusConflict) {
+			logger.info(LOG_MODULE, `${message}: ${error.message}`);
+			return;
+		}
+		logger.error(LOG_MODULE, message, error instanceof Error ? error.message : JSON.stringify(error));
+	};
 
 	/**
 	 * Processes a list of data records and compares them with previously submitted data.
@@ -91,7 +153,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			const foundSubmittedData = await getSubmittedDataBySystemId(systemId);
 			if (foundSubmittedData?.data) {
 				if (foundSubmittedData.entityName !== schemaName) {
-					logger.error(
+					logger.info(
 						LOG_MODULE,
 						`Entity name mismatch for system ID '${systemId}': expected '${schemaName}', found '${foundSubmittedData.entityName}'`,
 					);
@@ -112,7 +174,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 					});
 				}
 			} else {
-				logger.error(LOG_MODULE, `No submitted data found for system ID '${systemId}'`);
+				logger.info(LOG_MODULE, `No submitted data found for system ID '${systemId}'`);
 				results.push({
 					systemId: systemId,
 					old: {},
@@ -223,7 +285,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 		return Object.entries(idFieldChangeRecord).reduce<
 			Promise<{
-				inserts: Record<string, SubmissionInsertData>;
+				inserts: Record<string, SubmissionInsertData[]>;
 				deletes: Record<string, SubmissionDeleteData[]>;
 			}>
 		>(
@@ -233,7 +295,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				// iterate each record on this entity
 				const result = await updRecord.reduce<
 					Promise<{
-						inserts: DataRecord[];
+						inserts: SubmissionInsertData[];
 						deletes: SubmissionDeleteData[];
 					}>
 				>(
@@ -248,12 +310,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 						const deleteRecord: SubmissionDeleteData = {
 							systemId: foundSubmittedData.systemId,
 							data: foundSubmittedData.data,
-							entityName: foundSubmittedData.entityName,
 							isValid: foundSubmittedData.isValid,
 							organization: foundSubmittedData.organization,
 						};
 
-						const insertDataRecord: DataRecord = { ...foundSubmittedData.data, ...u.new };
+						const insertDataRecord: SubmissionInsertData = { ...foundSubmittedData.data, ...u.new };
 
 						acc2.inserts.push(insertDataRecord);
 						acc2.deletes.push(deleteRecord);
@@ -263,7 +324,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				);
 
 				acc.deletes[entityName] = result.deletes;
-				acc.inserts[entityName] = { batchName: entityName, records: result.inserts };
+				acc.inserts[entityName] = result.inserts;
 
 				return acc;
 			},
@@ -275,6 +336,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	 * This function validates whole data together against a dictionary,
 	 * then persists the data on the database and finally updates the Submission status to 'committed'.
 	 * If any step fails, the operation is aborted and the error is thrown.
+	 *
+	 * When `params.version` is provided, the data is only written if the Submission has status `COMMITTING` and
+	 * that version. This is checked with the Submission row locked, in the same transaction that writes the data;
+	 * when it does not match, a `StatusConflict` is thrown and nothing is written. When `params.version` is omitted,
+	 * the Submission status is set to `COMMITTED` without checking its status or version.
 	 *
 	 * The response includes the data that was committed, which can be used by the caller to perform additional post commit actions,
 	 * such as an 'onFinishCommit' callback.
@@ -301,7 +367,9 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 			// Merge Submitted Data with items to be inserted, updated or deleted consist on 3 steps
 			// Step 1: Exclude items that are marked for deletion
-			const systemIdsToDelete = new Set<string>(dataToValidate?.deletes?.map((item) => item.systemId) || []);
+			const systemIdsToDelete = new Set<string>(
+				Object.values(dataToValidate.deletes).flatMap((items) => items.map((item) => item.systemId)),
+			);
 			logger.info(LOG_MODULE, `Found '${systemIdsToDelete.size}' Records to delete on Submission '${submission.id}'`);
 			const submittedData = systemIdsToDelete.size
 				? dataToValidate.submittedData?.filter((item) => !systemIdsToDelete.has(item.systemId))
@@ -429,26 +497,50 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			});
 
 			// iterate if there are any record to be deleted
-			dataToValidate?.deletes?.forEach((item) => {
-				const { data, entityName, isValid, organization, systemId } = item;
+			Object.entries(dataToValidate?.deletes ?? {}).forEach(([entityName, items]) => {
+				items.forEach((item) => {
+					const { data, isValid, organization, systemId } = item;
 
-				deletesToProcess.push({
-					submissionId: submission.id,
-					systemId,
-					diff: computeDataDiff(data, null),
-					username,
-				});
+					deletesToProcess.push({
+						submissionId: submission.id,
+						systemId,
+						diff: computeDataDiff(data, null),
+						username,
+					});
 
-				resultCommit.deletes.push({
-					data,
-					entityName,
-					isValid,
-					organization,
-					systemId,
+					resultCommit.deletes.push({
+						data,
+						entityName,
+						isValid,
+						organization,
+						systemId,
+					});
 				});
 			});
 
 			await dependencies.db.transaction(async (tx) => {
+				const committedSubmissionData = { status: SUBMISSION_STATUS.COMMITTED, updatedBy: username };
+				if (params.version !== undefined) {
+					// Locks the Submission row before writing any data, and aborts unless the Submission has status
+					// 'COMMITTING' and the version verified when the commit was requested
+					const committedSubmission = await submissionRepository.updateWithConditions(
+						{
+							submissionId: submission.id,
+							newData: committedSubmissionData,
+							expectedStatuses: [SUBMISSION_STATUS.COMMITTING],
+							expectedVersion: params.version,
+						},
+						tx,
+					);
+					if (!committedSubmission) {
+						throw new StatusConflict(
+							`Submission '${submission.id}' no longer has status 'COMMITTING' with version '${params.version}'`,
+						);
+					}
+				} else {
+					await submissionRepository.update(submission.id, committedSubmissionData, tx);
+				}
+
 				if (insertsToSave.length) {
 					await submittedDataRepository.save(insertsToSave, tx);
 				}
@@ -458,15 +550,6 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				if (deletesToProcess.length) {
 					await submittedDataRepository.deleteBySystemId(deletesToProcess, tx);
 				}
-
-				await submissionRepository.update(
-					submission.id,
-					{
-						status: SUBMISSION_STATUS.COMMITTED,
-						updatedAt: new Date(),
-					},
-					tx,
-				);
 
 				logger.info(
 					LOG_MODULE,
@@ -496,21 +579,88 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	/**
 	 * Validates an Active Submission combined with all Submitted Data.
 	 * Active Submission is updated after validation is complete.
-	 * Returns the ID of the Active Submission updated
-	 * @param {number} submissionId Active Submission
-	 * @returns {Promise<number>} ID of the Submission updated
+	 *
+	 * Validation only starts if the Submission still has the `version` this job was queued for and a status that
+	 * validation can start from (`OPEN`). Otherwise the Submission changed after this job was queued (a newer
+	 * validation job is queued for it, or it was closed), and this job stops without changing anything.
+	 * If validation throws, the Submission is moved back from `VALIDATING` to `OPEN`, so it is not left in a
+	 * status that rejects new changes.
+	 *
+	 * `version` must be the version returned by the staging transaction that queued this job.
+	 *
+	 * Returns the ID of the updated Submission, or `undefined` when:
+	 * - the validation was skipped because the Submission changed after this job was queued;
+	 * - the result was discarded because the Submission changed while it was being validated.
+	 *
+	 * @throws {Error} When the Submission does not exist.
+	 * @throws {BadRequest} When the category has no active dictionary. The status is reset to `OPEN` first.
+	 * @throws {ServiceUnavailable} When a database query fails. The status is reset to `OPEN` first when validation
+	 * had started.
 	 */
-	const performDataValidation = async (submissionId: number): Promise<number> => {
-		const { getActiveDictionaryByCategory } = categoryRepository;
-		const { getSubmittedDataByCategoryIdAndOrganization } = submittedDataRepository;
-		const { getSubmissionDetailsById } = submissionRepository;
+	const performDataValidation = async (
+		submissionId: number,
+		username: string,
+		version: number,
+	): Promise<number | undefined> => {
+		const { getSubmissionById, updateWithConditions } = submissionRepository;
 
 		// Get Active Submission from database
-		const activeSubmission = await getSubmissionDetailsById(submissionId);
+		const activeSubmission = await getSubmissionById(submissionId);
 
 		if (!activeSubmission) {
 			throw new Error(`Submission '${submissionId}' not found`);
 		}
+
+		// Mark the Submission as 'VALIDATING' as validation starts, only if this job is for the Submission's latest
+		// version. The check and the status change are a single conditional update, so no changes can be staged
+		// between them.
+		const startedSubmission = await updateWithConditions({
+			submissionId,
+			newData: { status: SUBMISSION_STATUS.VALIDATING, updatedBy: username },
+			expectedStatuses: validationStartSubmissionStatus,
+			expectedVersion: version,
+		});
+
+		if (!startedSubmission) {
+			logger.info(
+				LOG_MODULE,
+				`Skipping validation of Submission '${submissionId}' for version '${version}': the Submission changed after this validation was queued`,
+			);
+			return undefined;
+		}
+
+		try {
+			return await validateSubmissionData(activeSubmission, version);
+		} catch (error) {
+			const resetSubmission = await updateWithConditions({
+				submissionId,
+				newData: { status: SUBMISSION_STATUS.OPEN, updatedBy: username },
+				expectedStatuses: [SUBMISSION_STATUS.VALIDATING],
+				expectedVersion: version,
+			});
+			if (resetSubmission) {
+				logger.info(LOG_MODULE, `Validation of Submission '${submissionId}' failed, status reset to 'OPEN'`);
+			}
+			throw error;
+		}
+	};
+
+	/**
+	 * Runs the validation of a Submission that has already been moved to `VALIDATING`, then stores the result.
+	 *
+	 * Returns the ID of the updated Submission, or `undefined` when the result was discarded because the Submission
+	 * changed while it was being validated.
+	 *
+	 * @throws {BadRequest} When the category has no active dictionary.
+	 * @throws {ServiceUnavailable} When a database query fails.
+	 */
+	const validateSubmissionData = async (
+		activeSubmission: SubmissionWithDictionaryAndCategoryRepositoryRecord,
+		version: number,
+	): Promise<number | undefined> => {
+		const { getActiveDictionaryByCategory } = categoryRepository;
+		const { getSubmittedDataByCategoryIdAndOrganization } = submittedDataRepository;
+		const submissionId = activeSubmission.id;
 
 		// Get Submitted Data from database
 		const submittedData = await getSubmittedDataByCategoryIdAndOrganization(
@@ -523,10 +673,31 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			throw new BadRequest(`Dictionary in category '${activeSubmission.dictionaryCategory.id}' not found`);
 		}
 
+		const submissionRecords = await submissionRecordsRepository.getBySubmissionId(submissionId);
+
+		// Detect records where the same systemId has both an UPDATE and a DELETE staged, before
+		// running dictionary validation. Both sides of a conflict are rejected explicitly instead
+		// of letting one action silently win.
+		const conflictErrors = findUpdateDeleteConflicts(submissionRecords.records);
+		const conflictingRecordIds = extractRecordIdsFromSubmissionErrors(conflictErrors);
+
+		if (conflictingRecordIds.size > 0) {
+			logger.info(
+				LOG_MODULE,
+				`Detected '${conflictingRecordIds.size}' Submission Record(s) with conflicting UPDATE/DELETE actions on the same systemId in Submission '${submissionId}'`,
+				JSON.stringify(conflictErrors),
+			);
+		}
+
+		// Exclude conflicting records from validation; neither side of a conflict should be applied
+		const nonConflictingSubmissionRecords = conflictingRecordIds.size
+			? submissionRecords.records.filter((record) => !conflictingRecordIds.has(record.id))
+			: submissionRecords.records;
+
 		// Merge Submitted Data with Active Submission keepping reference of each record ID
 		const dataMergedByEntityName = mergeAndReferenceEntityData({
 			submissionId,
-			submissionData: activeSubmission.data,
+			submissionData: nonConflictingSubmissionRecords,
 			submittedData,
 		});
 
@@ -537,44 +708,12 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		const resultValidation = validateSchemas(currentDictionary, crossSchemasDataToValidate);
 
 		// Collect errors of the Active Submission
-		const submissionSchemaErrors = groupSchemaErrorsByEntity({
+		const schemaValidationErrors = groupSchemaErrorsByEntity({
 			resultValidation,
 			dataValidated: dataMergedByEntityName,
 		});
 
-		// Check for records to be updated that its systemId was not found in the Submitted Data collection.
-		// Any error found will cause the submission to be marked as 'invalid'
-		Object.entries(activeSubmission.data.updates ?? {}).forEach(([entityName, recordsToUpdate]) => {
-			recordsToUpdate.forEach((submissionEditData, index) => {
-				const found = findEditSubmittedData(entityName, submissionEditData.systemId, dataMergedByEntityName);
-
-				if (found) {
-					return;
-				}
-
-				logger.error(
-					LOG_MODULE,
-					`Record with systemId '${submissionEditData.systemId}' not found in entity '${entityName}'`,
-				);
-
-				if (!submissionSchemaErrors.updates) {
-					submissionSchemaErrors.updates = {};
-				}
-
-				if (!submissionSchemaErrors.updates[entityName]) {
-					submissionSchemaErrors.updates[entityName] = [];
-				}
-
-				const unrecodgnizedValueError: SubmissionRecordErrorDetails = {
-					fieldName: 'systemId',
-					fieldValue: submissionEditData.systemId,
-					index,
-					reason: 'UNRECOGNIZED_VALUE',
-				};
-
-				submissionSchemaErrors.updates[entityName].push(unrecodgnizedValueError);
-			});
-		});
+		const submissionSchemaErrors = mergeSubmissionErrors(conflictErrors, schemaValidationErrors);
 
 		if (_.isEmpty(submissionSchemaErrors)) {
 			logger.info(LOG_MODULE, `No error found on data submission`);
@@ -593,12 +732,25 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			idActiveSubmission: submissionId,
 			schemaErrors: submissionSchemaErrors,
 			dictionaryId: currentDictionary.id,
+			validatedRecordIds: submissionRecords.records.map((record) => record.id),
+			version,
 		});
 	};
 
 	/**
 	 * Void function to process and validate uploaded records on an Active Submission.
 	 * Performs the schema data validation of data to be edited combined with all Submitted Data.
+	 *
+	 * Although `records` belongs to a single `schema`, edits can affect more than that one entity:
+	 * - A primary ID field change on a record produces a DELETE + INSERT pair, scoped to `schema.name`.
+	 * - A primary ID field change can also cascade to dependent entities that reference the old ID via
+	 *   a foreign key; those cascading updates are scoped to the dependent's own entity name, not `schema.name`.
+	 *
+	 * Side effect: for every entity touched by the above (not just `schema.name`), this creates one
+	 * `submission_files` row scoped to that entity and attaches its INSERT/UPDATE/DELETE records to it.
+	 * These rows are a bookkeeping construct required by the data model (`submissionRecords` must
+	 * reference a `fileId`) rather than a record of an actual uploaded file — there was only one file
+	 * (or none, for programmatic edits) in the original request.
 	 * @param records Records to be processed
 	 * @param params
 	 * @param params.schema Schema to parse data with
@@ -618,7 +770,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		},
 	): Promise<void> => {
 		const { getDictionary } = dictionaryRepository;
-		const { getSubmissionDetailsById, update } = submissionRepository;
+		const { getSubmissionById } = submissionRepository;
 
 		try {
 			// Parse file data
@@ -626,7 +778,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 			const filesDataProcessed = await compareUpdatedData(recordsParsed, schema.name);
 
-			const submission = await getSubmissionDetailsById(submissionId);
+			const submission = await getSubmissionById(submissionId);
 			if (!submission) {
 				throw new Error(`Submission '${submissionId}' not found`);
 			}
@@ -677,7 +829,6 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// Aggegates all Update changes on Submission
 			// Note: We do not include records involving primary ID fields changes in here. We would rather do a DELETE and an INSERT
 			const updatedActiveSubmissionData: Record<string, SubmissionUpdateData[]> = mergeUpdatesBySystemId(
-				submission.data.updates ?? {},
 				totalDependants,
 				nonIdFieldChangeRecord,
 			);
@@ -685,34 +836,91 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 			// Creates insert and delete records based on primary ID field change records.
 			const additions = await handleIdFieldChanges(idFieldChangeRecord);
 
-			// Merge Active Submission Inserts with Edit generated new Inserts
-			const mergedInserts = mergeInsertsRecords(submission.data.inserts ?? {}, additions.inserts);
+			const entityNames: Set<string> = new Set([
+				...Object.keys(additions.inserts),
+				...Object.keys(additions.deletes),
+				...Object.keys(updatedActiveSubmissionData),
+			]);
 
-			// Merge Active Submission Deletes with Edit generated new Deletes
-			const mergedDeletes = mergeDeleteRecords(submission.data.deletes ?? {}, additions.deletes);
+			if (entityNames.size === 0) {
+				logger.info(LOG_MODULE, `No changes to stage on Submission '${submission.id}'`);
+				return;
+			}
 
-			// filter out delete records found on update records
-			const filteredDeletes = filterDeletesFromUpdates(mergedDeletes, updatedActiveSubmissionData);
+			const stagedVersion = await dependencies.db.transaction(async (tx) => {
+				const newVersion = await markSubmissionAsChanged(submission.id, username, tx);
 
-			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
-			await update(submission.id, {
-				data: {
-					inserts: mergedInserts,
-					deletes: filteredDeletes,
-					updates: updatedActiveSubmissionData,
-				},
-				updatedBy: username,
-				status: 'VALIDATING',
+				/**
+				 * Submission files are entity-scoped: the file's entity name identifies the schema used to
+				 * validate and process its records. Create one file per affected entity so records from
+				 * different entities are never mixed in the same file.
+				 */
+				for (const entityName of entityNames) {
+					// fileSize reflects only the records actually attached to this entity's file below —
+					// not the full `recordsParsed` input, which belongs to `schema.name` and may be
+					// unrelated to a cascading dependent entity's file.
+					const entityRecords = [
+						...(updatedActiveSubmissionData[entityName] ?? []),
+						...(additions.inserts[entityName] ?? []),
+						...(additions.deletes[entityName] ?? []),
+					];
+
+					const savedFileId = await submissionFilesRepository.save(
+						{
+							entityName: entityName,
+							fileName: genericSubmissionFileName(),
+							fileSize: getSizeInBytes(JSON.stringify(entityRecords)),
+							submissionId: submission.id,
+						},
+						tx,
+					);
+
+					if (updatedActiveSubmissionData[entityName]) {
+						await submissionRecordsRepository.saveManyForFile(
+							savedFileId,
+							updatedActiveSubmissionData[entityName].map((record, index) => ({
+								actionType: 'UPDATE',
+								data: record,
+								state: 'RECEIVED',
+								lineNumber: index + 1,
+							})),
+							tx,
+						);
+					}
+
+					if (additions.inserts[entityName]) {
+						await submissionRecordsRepository.saveManyForFile(
+							savedFileId,
+							additions.inserts[entityName].map((record, index) => ({
+								actionType: 'INSERT',
+								data: record,
+								state: 'RECEIVED',
+								lineNumber: index + 1,
+							})),
+							tx,
+						);
+					}
+					if (additions.deletes[entityName]) {
+						await submissionRecordsRepository.saveManyForFile(
+							savedFileId,
+							additions.deletes[entityName]?.map((record, index) => ({
+								actionType: 'DELETE',
+								data: record,
+								state: 'RECEIVED',
+								lineNumber: index + 1,
+							})),
+							tx,
+						);
+					}
+				}
+
+				return newVersion;
 			});
 
-			// Perform Schema Data validation in a worker thread
-			dependencies.workerPool.dataValidation({ submissionId: submission.id });
+			// Runs Schema Data validation of the staged version in a worker thread
+			dependencies.workerPool.dataValidation({ submissionId: submission.id, username, version: stagedVersion });
 		} catch (error) {
-			logger.error(
-				LOG_MODULE,
-				`There was an error processing records on entity '${schema.name}'`,
-				JSON.stringify(error),
-			);
+			logStagingError(`There was an error processing records on entity '${schema.name}'`, error);
 		}
 		logger.info(LOG_MODULE, `Finished validating files`);
 	};
@@ -738,174 +946,246 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		schemasDictionary: SchemasDictionary;
 		submissionId: number;
 		username: string;
-	}) => {
-		const { getSubmissionDetailsById, update } = submissionRepository;
-
+	}): Promise<void> => {
 		try {
-			// Get Active Submission from database
-			const activeSubmission = await getSubmissionDetailsById(submissionId);
-			if (!activeSubmission) {
-				throw new Error(`Submission '${activeSubmission}' not found`);
-			}
-
-			if (!isSubmissionActive(activeSubmission.status)) {
-				throw new Error(`Submission '${activeSubmission.id}' is not active`);
-			}
-
 			const insertRecords = parseRecordsToInsert(records, schemasDictionary);
 
-			// Merge Active Submission insert records with incoming TSV file data processed
-			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, insertRecords);
+			// All entities are staged in a single transaction, so they are validated together under one version
+			const stagedVersion = await dependencies.db.transaction(async (tx) => {
+				const newVersion = await markSubmissionAsChanged(submissionId, username, tx);
 
-			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
-			await update(activeSubmission.id, {
-				data: {
-					inserts: insertActiveSubmissionData,
-					deletes: activeSubmission.data.deletes,
-					updates: activeSubmission.data.updates,
-				},
-				updatedBy: username,
-				status: 'VALIDATING',
+				for (const [entityName, entityRecords] of Object.entries(insertRecords)) {
+					const savedFileId = await submissionFilesRepository.save(
+						{
+							entityName,
+							fileName: genericSubmissionFileName(),
+							fileSize: getSizeInBytes(JSON.stringify(entityRecords)),
+							submissionId,
+						},
+						tx,
+					);
+					await submissionRecordsRepository.saveManyForFile(
+						savedFileId,
+						entityRecords.map((record, index) => ({
+							actionType: 'INSERT',
+							data: record,
+							state: 'RECEIVED',
+							lineNumber: index + 1,
+						})),
+						tx,
+					);
+				}
+
+				return newVersion;
 			});
 
-			// Perform Schema Data validation in a worker thread
-			dependencies.workerPool.dataValidation({ submissionId: activeSubmission.id });
+			// Runs Schema Data validation of the staged version in a worker thread
+			dependencies.workerPool.dataValidation({ submissionId, username, version: stagedVersion });
 		} catch (error) {
-			logger.error(
-				LOG_MODULE,
-				`There was an error processing records on submission '${submissionId}'`,
-				JSON.stringify(error),
-			);
+			logStagingError(`There was an error processing records on submission '${submissionId}'`, error);
 		}
 		logger.info(LOG_MODULE, `Finished processInsertRecordsAsync for submission ${submissionId}`);
 	};
 
 	/**
-	 * Update Active Submission in database
-	 * Updates the status of the Submission to 'VALID' if there is no errors, otherwise updates it to 'INVALID'
-	 * @param {Object} input
-	 * @param {number} input.dictionaryId The Dictionary ID of the Submission
-	 * @param {number} input.idActiveSubmission ID of the Submission
-	 * @param {SubmissionErrors} input.schemaErrors Array of errors on the submission
-	 * @returns {Promise<number>} The ID of the updated Submission
+	 * Stores the result of a validation, in one transaction:
+	 * - the Submission status becomes `VALID` when there are no errors, otherwise `INVALID`;
+	 * - records with errors become `INVALID`, and the rest of `validatedRecordIds` become `VALID`.
+	 *
+	 * Only records present in `validatedRecordIds`, the records that were actually validated, are touched.
+	 *
+	 * The result is applied only if the Submission still has status `VALIDATING` and the `version` that was
+	 * validated. Otherwise the Submission changed while it was being validated (for example, it was closed), so the
+	 * result is stale and is discarded without changing the Submission or its records.
+	 *
+	 * Returns the ID of the updated Submission, or `undefined` when the result was discarded.
+	 *
+	 * @throws {ServiceUnavailable} When a database query fails. Nothing is changed.
 	 */
 	const updateActiveSubmission = async (input: {
 		dictionaryId: number;
 		idActiveSubmission: number;
 		schemaErrors: SubmissionErrors;
-	}): Promise<number> => {
-		const { dictionaryId, idActiveSubmission, schemaErrors } = input;
-		const { update } = submissionRepository;
+		validatedRecordIds: number[];
+		version: number;
+	}): Promise<number | undefined> => {
+		const { dictionaryId, idActiveSubmission, schemaErrors, validatedRecordIds, version } = input;
 		const newStatusSubmission =
 			Object.keys(schemaErrors).length > 0 ? SUBMISSION_STATUS.INVALID : SUBMISSION_STATUS.VALID;
-		// Update with new data
-		const updatedActiveSubmissionId = await update(idActiveSubmission, {
-			status: newStatusSubmission,
-			dictionaryId: dictionaryId,
-			errors: schemaErrors,
-		});
 
-		logger.info(
-			LOG_MODULE,
-			`Updated Active submission '${updatedActiveSubmissionId}' with status '${newStatusSubmission}'`,
-		);
-		return updatedActiveSubmissionId;
+		return await dependencies.db.transaction(async (tx) => {
+			// Update with new data, only if the validated version is still the current one
+			const updatedActiveSubmission = await submissionRepository.updateWithConditions(
+				{
+					submissionId: idActiveSubmission,
+					newData: {
+						status: newStatusSubmission,
+						dictionaryId: dictionaryId,
+					},
+					expectedStatuses: [SUBMISSION_STATUS.VALIDATING],
+					expectedVersion: version,
+				},
+				tx,
+			);
+
+			if (!updatedActiveSubmission) {
+				logger.info(
+					LOG_MODULE,
+					`Discarding validation result of Submission '${idActiveSubmission}' for version '${version}': the Submission changed during validation`,
+				);
+				return undefined;
+			}
+			const updatedActiveSubmissionId = updatedActiveSubmission.id;
+
+			const invalidRecords = Object.values(schemaErrors).flatMap((entityErrors) =>
+				Object.values(entityErrors).flatMap((recordErrors) =>
+					recordErrors.map(({ recordId, errors }) => ({
+						id: recordId,
+						errors,
+					})),
+				),
+			);
+
+			const recordsWithoutError = validatedRecordIds.filter(
+				(id) => !invalidRecords.some((invalidRecord) => invalidRecord.id === id),
+			);
+
+			// Update records with validation state, marking records with errors as 'INVALID' and records without errors as 'VALID'
+			await submissionRecordsRepository.updateValidationState(
+				{
+					invalidRecords,
+					validRecordIds: recordsWithoutError,
+				},
+				tx,
+			);
+			logger.info(
+				LOG_MODULE,
+				`Updated Active submission '${updatedActiveSubmissionId}' with status '${newStatusSubmission}'`,
+			);
+
+			return updatedActiveSubmissionId;
+		});
 	};
 
-	const logFileResults = (fileResults: FileParseResult[]) => {
-		for (const result of fileResults) {
-			if (result.status === 'error') {
-				logger.error(LOG_MODULE, `Failed to parse file`, {
-					fileName: result.fileName,
-					entityName: result.entityName,
-					error: result.streamError,
-				});
-			} else if (result.status === 'invalid') {
-				// Log field names and line numbers only — not field values (OWASP A03).
-				logger.warn(LOG_MODULE, `File parsed with schema validation issues`, {
-					fileName: result.fileName,
-					entityName: result.entityName,
-					errorCount: result.parseErrors.length,
-					issues: result.parseErrors.slice(0, 10).map((e) => ({
-						line: e.recordIndex,
-						fields: e.recordErrors.map((re) => re.fieldName),
-					})),
-				});
-			}
+	const logFileResult = (result: FileParseResult) => {
+		if (result.status === 'error') {
+			logger.error(LOG_MODULE, `Failed to parse file`, {
+				fileName: result.fileName,
+				fileSize: formatByteSize(result.fileSize, 'MB', 2),
+				entityName: result.entityName,
+				error: result.streamError,
+			});
+		} else if (result.status === 'invalid') {
+			// Log field names and line numbers only — not field values (OWASP A03).
+			logger.warn(LOG_MODULE, `File parsed with schema validation issues`, {
+				fileName: result.fileName,
+				fileSize: formatByteSize(result.fileSize, 'MB', 2),
+				entityName: result.entityName,
+				errorCount: result.parseErrors.length,
+				issues: result.parseErrors.slice(0, 10).map((e) => ({
+					line: e.recordIndex,
+					fields: e.recordErrors.map((re) => re.fieldName),
+				})),
+			});
 		}
 	};
 
 	/**
-	 * Processes and validates uploaded files on an Active Submission.
-	 * File parsing is fault-isolated per file. Schema validation runs in a background worker thread.
-	 * @param {FileSchemaMap} fileSchemaMap Mapping of files to their resolved entity and schema
-	 * @param {ValidateFilesParams} params categoryId, organization, username
-	 * @returns Per-file parse results, available immediately; validation results arrive later via the worker.
+	 * Void function to process and validate uploaded files on an Active Submission.
+	 * Performs the schema data validation combined with all Submitted Data.
+	 * @param {FileSchemaMap} fileSchemaMap Mapping the files with a schema
+	 * @param {number} submissionId Submission ID
+	 * @param {string} username User who performs the action
+	 * @returns {void}
 	 */
 	const addFilesToSubmissionAsync = async (
 		fileSchemaMap: FileSchemaMap,
-		params: ValidateFilesParams,
+		submissionId: number,
+		username: string,
 	): Promise<FileParseResult[]> => {
 		const fileSummaries = Object.entries(fileSchemaMap)
 			.flatMap(([_, { files, schema }]) =>
-				files.map(
-					(file) => `'${file.originalname}' (${bytes.format(file.size, { decimalPlaces: 2 })}, entity: ${schema.name})`,
-				),
+				files.map((file) => `'${file.originalname}' (${formatByteSize(file.size, 'MB', 2)}, entity: ${schema.name})`),
 			)
 			.join(', ');
 		logger.info(LOG_MODULE, `Processing files: ${fileSummaries}`);
 
-		const { categoryId, organization, username } = params;
-		let fileResults: FileParseResult[] = [];
+		const fileResult: FileParseResult[] = [];
 
 		try {
-			// Verify an active submission exists before doing any parsing work.
-			const activeSubmission = await submissionRepository.getActiveSubmissionDetails({
-				categoryId,
-				username,
-				organization,
-			});
-			if (!activeSubmission) {
-				throw new BadRequest(`No active submission found for category '${categoryId}' organization '${organization}'`);
+			// Parse file data before opening the transaction, so the Submission is not locked while files are read.
+			// Each file is isolated; a failure on one does not block others.
+			const parsingFileDataResult = await submissionInsertDataFromFiles(fileSchemaMap);
+
+			for (const fileProcessed of parsingFileDataResult) {
+				logFileResult(fileProcessed.fileResult);
+				fileResult.push(fileProcessed.fileResult);
 			}
 
-			// Parse file data — each file is isolated; a failure on one does not block others.
-			const { data: filesDataProcessed, fileResults: parsed } = await submissionInsertDataFromFiles(fileSchemaMap);
-			fileResults = parsed;
-			logFileResults(fileResults);
+			const filesToStage = parsingFileDataResult.filter((fileProcessed) => fileProcessed.fileResult.status === 'ok');
 
-			// Merge Active Submission data with incoming TSV file data processed
-			const insertActiveSubmissionData = mergeInsertsRecords(activeSubmission.data.inserts ?? {}, filesDataProcessed);
+			if (filesToStage.length === 0) {
+				logger.info(LOG_MODULE, `No valid files to stage on Submission '${submissionId}'`);
+				return fileResult;
+			}
 
-			// Updating the Submission with the new data and 'VALIDATING' status before validation starts
-			await submissionRepository.update(activeSubmission.id, {
-				data: {
-					inserts: insertActiveSubmissionData,
-					deletes: activeSubmission.data.deletes,
-					updates: activeSubmission.data.updates,
-				},
-				updatedBy: username,
-				status: 'VALIDATING',
+			const stagedVersion = await dependencies.db.transaction(async (tx) => {
+				const newVersion = await markSubmissionAsChanged(submissionId, username, tx);
+
+				for (const fileProcessed of filesToStage) {
+					const {
+						data,
+						fileResult: { entityName, fileName, fileSize },
+					} = fileProcessed;
+
+					const fileId = await submissionFilesRepository.save(
+						{
+							entityName,
+							fileName,
+							fileSize,
+							submissionId,
+						},
+						tx,
+					);
+
+					await submissionRecordsRepository.saveManyForFile(
+						fileId,
+						data.map(({ record, lineNumber }) => ({
+							actionType: 'INSERT',
+							data: record,
+							state: 'RECEIVED',
+							lineNumber,
+						})),
+						tx,
+					);
+				}
+
+				return newVersion;
 			});
 
-			// Perform Schema Data validation in a worker thread
-			dependencies.workerPool.dataValidation({ submissionId: activeSubmission.id });
+			// Runs Schema Data validation of the staged version in a worker thread
+			dependencies.workerPool.dataValidation({ submissionId, username, version: stagedVersion });
 		} catch (error) {
-			logger.error(LOG_MODULE, `Error processing submitted files`, {
-				files: fileSummaries,
-				error: error instanceof Error ? error.message : String(error),
-				errorType: error instanceof Error ? error.name : 'unknown',
-			});
+			if (error instanceof StatusConflict) {
+				logger.info(LOG_MODULE, `Submitted files were not staged on Submission '${submissionId}': ${error.message}`);
+			} else {
+				logger.error(LOG_MODULE, `Error processing submitted files`, {
+					files: fileSummaries,
+					error: error instanceof Error ? error.message : String(error),
+					errorType: error instanceof Error ? error.name : 'unknown',
+				});
+			}
 		}
 		logger.info(
 			LOG_MODULE,
-			`Finished addFilesToSubmissionAsync for active submission in category "${params.categoryId}" for organization "${params.organization}" submitted by user "${params.username}"`,
+			`Finished addFilesToSubmissionAsync on submission "${submissionId}" submitted by user "${username}"`,
 		);
 
-		return fileResults;
+		return fileResult;
 	};
 
 	return {
+		markSubmissionAsChanged,
 		performCommitSubmissionAsync,
 		performDataValidation,
 		processEditRecordsAsync,
