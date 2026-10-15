@@ -109,14 +109,14 @@ describe('Integration - Submission Router - Submission status and version', () =
 	}: {
 		submissionId: number;
 		states: SubmissionRecordState[];
-	}): Promise<number[]> => {
+	}): Promise<{ fileId: number; recordIds: number[] }> => {
 		const fileId = await lyricProvider.repositories.submissionFiles.save({
 			submissionId,
 			fileName: 'sport.tsv',
 			entityName: 'sport',
 			fileSize: 100,
 		});
-		return lyricProvider.repositories.submissionRecords.saveManyForFile(
+		const recordIds = await lyricProvider.repositories.submissionRecords.saveManyForFile(
 			fileId,
 			states.map((state, index) => ({
 				actionType: 'INSERT',
@@ -125,6 +125,7 @@ describe('Integration - Submission Router - Submission status and version', () =
 				state,
 			})),
 		);
+		return { fileId, recordIds };
 	};
 
 	const submitSportRecords = async (records: Record<string, string>[]): Promise<number> => {
@@ -270,14 +271,15 @@ describe('Integration - Submission Router - Submission status and version', () =
 			expect(validationJobs).to.eql([{ submissionId, username: '', version: 4 }]);
 		});
 
-		it('should set status OPEN and increment the version when a record is removed from the submission', async () => {
+		it('should set status OPEN and increment the version when a file is removed from the submission', async () => {
 			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.VALID, version: 1 });
-			const [recordId] = await saveSportRecords({
+			const { fileId } = await saveSportRecords({
 				submissionId,
 				states: [SUBMISSION_RECORD_STATE.Values.VALID, SUBMISSION_RECORD_STATE.Values.VALID],
 			});
+			await saveSportRecords({ submissionId, states: [SUBMISSION_RECORD_STATE.Values.VALID] });
 
-			const response = await app.delete(`/${submissionId}/data?recordId=${recordId}`);
+			const response = await app.delete(`/${submissionId}/data?fileId=${fileId}`);
 
 			expect(response.status).to.equal(200);
 			const submission = await getSubmission(submissionId);
@@ -285,6 +287,22 @@ describe('Integration - Submission Router - Submission status and version', () =
 			expect(submission.version).to.equal(2);
 			expect(validationJobs).to.eql([{ submissionId, username: '', version: 2 }]);
 			expect(await getRecordStates(submissionId)).to.eql([SUBMISSION_RECORD_STATE.Values.VALID]);
+		});
+
+		it('should reject removing a single record by its ID', async () => {
+			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.VALID, version: 1 });
+			const {
+				recordIds: [recordId],
+			} = await saveSportRecords({ submissionId, states: [SUBMISSION_RECORD_STATE.Values.VALID] });
+
+			const response = await app.delete(`/${submissionId}/data?recordId=${recordId}`);
+
+			expect(response.status).to.equal(400);
+			const submission = await getSubmission(submissionId);
+			expect(submission.status).to.equal(SUBMISSION_STATUS.VALID);
+			expect(submission.version).to.equal(1);
+			expect(await getRecordStates(submissionId)).to.eql([SUBMISSION_RECORD_STATE.Values.VALID]);
+			expect(validationJobs).to.eql([]);
 		});
 
 		it('should set status OPEN and increment the version when submitted data is staged for deletion', async () => {
@@ -396,11 +414,11 @@ describe('Integration - Submission Router - Submission status and version', () =
 			});
 		}
 
-		it('should reject removing a record when the submission is COMMITTING', async () => {
+		it('should reject removing a file when the submission is COMMITTING', async () => {
 			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.COMMITTING, version: 1 });
-			const [recordId] = await saveSportRecords({ submissionId, states: [SUBMISSION_RECORD_STATE.Values.VALID] });
+			const { fileId } = await saveSportRecords({ submissionId, states: [SUBMISSION_RECORD_STATE.Values.VALID] });
 
-			const response = await app.delete(`/${submissionId}/data?recordId=${recordId}`);
+			const response = await app.delete(`/${submissionId}/data?fileId=${fileId}`);
 
 			expect(response.status).to.equal(409);
 			const submission = await getSubmission(submissionId);
@@ -460,7 +478,7 @@ describe('Integration - Submission Router - Submission status and version', () =
 
 		it('should discard a validation result whose version does not match the submission version', async () => {
 			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.VALIDATING, version: 2 });
-			const recordIds = await saveSportRecords({ submissionId, states: [SUBMISSION_RECORD_STATE.Values.RECEIVED] });
+			const { recordIds } = await saveSportRecords({ submissionId, states: [SUBMISSION_RECORD_STATE.Values.RECEIVED] });
 			const processor = originalCreate(lyricProvider.configs);
 
 			const result = await processor.updateActiveSubmission({
@@ -480,7 +498,7 @@ describe('Integration - Submission Router - Submission status and version', () =
 
 		it('should discard a validation result when the submission is no longer VALIDATING', async () => {
 			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.CLOSED, version: 1 });
-			const recordIds = await saveSportRecords({ submissionId, states: [SUBMISSION_RECORD_STATE.Values.RECEIVED] });
+			const { recordIds } = await saveSportRecords({ submissionId, states: [SUBMISSION_RECORD_STATE.Values.RECEIVED] });
 			const processor = originalCreate(lyricProvider.configs);
 
 			const result = await processor.updateActiveSubmission({

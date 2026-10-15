@@ -120,19 +120,6 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		}
 	};
 
-	const deleteByIds = async (ids: number[], tx?: RepositoryTransaction<SubmissionRecord>): Promise<number> => {
-		if (ids.length === 0) {
-			return 0;
-		}
-
-		try {
-			return await (tx || db).delete(submissionRecords).where(inArray(submissionRecords.id, ids));
-		} catch (error) {
-			logger.error(LOG_MODULE, `Failed deleting Submission Record by ids '${ids}'`, error);
-			throw new ServiceUnavailable();
-		}
-	};
-
 	const deleteBySubmissionId = async (
 		submissionId: number,
 		tx?: RepositoryTransaction<SubmissionRecord>,
@@ -146,34 +133,6 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 			return await deleteByFileIds(fileIds, tx);
 		} catch (error) {
 			logger.error(LOG_MODULE, `Failed deleting Submission Records by submissionId '${submissionId}'`, error);
-			throw new ServiceUnavailable();
-		}
-	};
-
-	const getById = async (id: number): Promise<SubmissionRecordWithEntityName | undefined> => {
-		try {
-			const query = await db
-				.select({
-					id: submissionRecords.id,
-					actionType: submissionRecords.actionType,
-					state: submissionRecords.state,
-					fileId: submissionRecords.fileId,
-					data: submissionRecords.data,
-					errors: submissionRecords.errors,
-					entityName: submissionFiles.entityName,
-					lineNumber: submissionRecords.lineNumber,
-				})
-				.from(submissionRecords)
-				.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
-				.where(eq(submissionRecords.id, id))
-				.limit(1);
-
-			if (query.length === 0) {
-				return undefined;
-			}
-			return query[0];
-		} catch (error) {
-			logger.error(LOG_MODULE, `Failed getting Submission Record by id '${id}'`, error);
 			throw new ServiceUnavailable();
 		}
 	};
@@ -456,11 +415,9 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		countInvalidBySubmissionId,
 		countNotValidBySubmissionId,
 
-		deleteByIds,
 		deleteByFileIds,
 		deleteBySubmissionId,
 
-		getById,
 		getByFileIds,
 		getBySubmissionId,
 		getRecordsSummaryBySubmissionId,

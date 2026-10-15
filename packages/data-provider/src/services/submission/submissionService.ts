@@ -189,12 +189,11 @@ const submissionService = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Removes records or a file from an active submission and starts validation of the updated submission.
+	 * Removes a file and all of its records from an active submission and starts validation of the updated submission.
 	 *
-	 * The `filter` determines what is removed:
-	 * - `recordId`: removes the specified record.
-	 * - `fileId`: removes the specified file and all records associated with it.
-	 * - When both IDs are provided, `recordId` takes precedence.
+	 * Records can only be removed together with the file they were submitted in, never individually. To remove or
+	 * change some of a file's records, remove the file and upload a corrected one. This keeps every record's
+	 * `lineNumber` matching its line in the file it was submitted in.
 	 *
 	 * The removal sets the submission status to `OPEN` and increments its version, then the updated submission is
 	 * validated asynchronously against its schemas and existing submitted data. The result only reports that the
@@ -202,20 +201,12 @@ const submissionService = (dependencies: BaseDependencies) => {
 	 *
 	 * @throws {BadRequest} When:
 	 * - the submission does not exist, or has no files;
-	 * - neither `recordId` nor `fileId` is provided;
-	 * - the record or file is not found in the submission.
+	 * - the file is not found in the submission.
 	 * @throws {StatusConflict} When the submission's status does not allow changes, checked both before and inside
 	 * the transaction that removes the data.
 	 * @throws {ServiceUnavailable} When a database query fails.
 	 */
-	const deleteByRecordIdOrFileId = async (
-		submissionId: number,
-		username: string,
-		filter: {
-			recordId: number | null;
-			fileId: number | null;
-		},
-	): Promise<SubmitDataResult> => {
+	const deleteByFileId = async (submissionId: number, username: string, fileId: number): Promise<SubmitDataResult> => {
 		const submission = await submissionRepository.getSubmissionById(submissionId);
 		if (!submission) {
 			throw new BadRequest(`Submission '${submissionId}' not found`);
@@ -228,43 +219,20 @@ const submissionService = (dependencies: BaseDependencies) => {
 		const filesOnSubmission = await submissionFilesRepository.getBySubmissionId(submissionId);
 
 		if (filesOnSubmission.length === 0) {
-			throw new BadRequest(`Submission '${submissionId}' has no records or files to delete`);
+			throw new BadRequest(`Submission '${submissionId}' has no files to delete`);
 		}
 
-		// Remove record by ID from the Submission
-		if (filter.recordId) {
-			const recordFoundInDB = await submissionRecordsRepository.getById(filter.recordId);
-			if (!recordFoundInDB) {
-				throw new BadRequest(`Record with ID '${filter.recordId}' not found in Submission '${submissionId}'`);
-			}
-
-			const fileReference = filesOnSubmission.find((file) => file.id === recordFoundInDB.fileId);
-			if (fileReference?.submissionId !== submissionId) {
-				throw new BadRequest(`Record with ID '${filter.recordId}' does not belong to Submission '${submissionId}'`);
-			}
-		} else if (filter.fileId != null) {
-			const fileId = filter.fileId;
-			// Verify the requested FileId belongs to the Submission before deleting
-			const fileReference = filesOnSubmission.find((file) => file.id === fileId);
-			if (!fileReference) {
-				throw new BadRequest(`File with ID '${fileId}' not found in Submission '${submissionId}'`);
-			}
-		} else {
-			throw new BadRequest('Either recordId or fileId must be provided to delete a record or file from the Submission');
+		// Verify the requested FileId belongs to the Submission before deleting
+		if (!filesOnSubmission.some((file) => file.id === fileId)) {
+			throw new BadRequest(`File with ID '${fileId}' not found in Submission '${submissionId}'`);
 		}
-
-		const { recordId, fileId } = filter;
 
 		// Throws StatusConflict and rolls back if the Submission's status no longer allows changes
 		const stagedVersion = await dependencies.db.transaction(async (tx) => {
 			const newVersion = await submissionProcessor.markSubmissionAsChanged(submission.id, username, tx);
 
-			if (recordId) {
-				await submissionRecordsRepository.deleteByIds([recordId], tx);
-			} else if (fileId != null) {
-				await submissionRecordsRepository.deleteByFileIds([fileId], tx);
-				await submissionFilesRepository.deleteById(fileId, tx);
-			}
+			await submissionRecordsRepository.deleteByFileIds([fileId], tx);
+			await submissionFilesRepository.deleteById(fileId, tx);
 
 			return newVersion;
 		});
@@ -272,10 +240,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		// Perform Schema Data validation of the new version in a worker thread
 		dependencies.workerPool.dataValidation({ submissionId: submission.id, username, version: stagedVersion });
 
-		logger.info(
-			LOG_MODULE,
-			`Submission '${submission.id}' updated after removing entity with recordId '${filter.recordId}' and fileId '${filter.fileId}'`,
-		);
+		logger.info(LOG_MODULE, `Submission '${submission.id}' updated after removing file with ID '${fileId}'`);
 
 		return {
 			status: ACTIVE_SUBMISSION_STATUS.PROCESSING,
@@ -723,7 +688,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 	return {
 		commitSubmission,
 		deleteActiveSubmissionById,
-		deleteByRecordIdOrFileId,
+		deleteByFileId,
 		getSubmissionsByCategory,
 		getSubmissionById,
 		getSubmissionDetailsById,

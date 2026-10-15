@@ -20,7 +20,7 @@ import {
 	submissionCommitRequestSchema,
 	submissionDeleteRequestSchema,
 	submissionDetailsRequestSchema,
-	submissionRecordDeleteRequestSchema,
+	submissionFileDeleteRequestSchema,
 	submissionsByCategoryRequestSchema,
 	uploadSingleEntitySubmissionDataRequestSchema,
 	uploadSubmissionRequestSchema,
@@ -108,23 +108,13 @@ const controller = ({
 				next(error);
 			}
 		}),
-		deleteByRecordIdOrFileId: validateRequest(submissionRecordDeleteRequestSchema, async (req, res, next) => {
+		deleteByFileId: validateRequest(submissionFileDeleteRequestSchema, async (req, res, next) => {
 			try {
 				const submissionId = Number(req.params.submissionId);
-				const recordId = req.query.recordId ? parseInt(req.query.recordId) : null;
-				const fileId = req.query.fileId ? parseInt(req.query.fileId) : null;
+				const fileId = Number(req.query.fileId);
 				const user = req.user;
 
-				if (!recordId && !fileId) {
-					throw new BadRequest('Either "recordId" or "fileId" query parameter must be provided for deletion.');
-				} else if (recordId && fileId) {
-					throw new BadRequest('Only one of "recordId" or "fileId" query parameter can be provided for deletion.');
-				}
-
-				logger.info(
-					LOG_MODULE,
-					`Request Delete records with ${recordId ? `ID '${recordId}'` : ''}${fileId ? ` file ID '${fileId}'` : ''} on Submission '${submissionId}'`,
-				);
+				logger.info(LOG_MODULE, `Request Delete file ID '${fileId}' on Submission '${submissionId}'`);
 
 				const submission = await submissionService.getSubmissionById(submissionId);
 				if (!submission) {
@@ -137,10 +127,7 @@ const controller = ({
 
 				const username = user?.username || '';
 
-				const deleteSubmissionEntityResult = await submissionService.deleteByRecordIdOrFileId(submissionId, username, {
-					recordId,
-					fileId,
-				});
+				const deleteSubmissionEntityResult = await submissionService.deleteByFileId(submissionId, username, fileId);
 
 				if (isEmpty(deleteSubmissionEntityResult)) {
 					throw new NotFound('Active Submission not found');

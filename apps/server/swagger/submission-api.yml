@@ -103,23 +103,18 @@
         $ref: '#/components/responses/ServiceUnavailableError'
 
   delete:
-    summary: Remove a single record, or a file and all of its records, from an Active Submission. The Active Submission is then validated again in the background.
+    summary: Remove a file and all of its records from an Active Submission. The Active Submission is then validated again in the background.
+    description: Records can't be removed individually. To remove or change some of a file's records, remove the file and upload a corrected one, so each record's line number always matches its line in the submitted file.
     tags:
       - Submission
     parameters:
       - $ref: '#/components/parameters/path/SubmissionId'
-      - name: recordId
-        in: query
-        required: false
-        schema:
-          type: integer
-        description: The ID of the record to remove from the Submission. <br />Exactly one of `recordId` or `fileId` must be provided.
       - name: fileId
         in: query
-        required: false
+        required: true
         schema:
           type: integer
-        description: The ID of the file to remove from the Submission, along with all of its records. <br />Exactly one of `recordId` or `fileId` must be provided.
+        description: The ID of the file to remove from the Submission, along with all of its records.
     responses:
       200:
         description: Removal accepted. Validation of the Active Submission runs in the background.

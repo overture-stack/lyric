@@ -387,23 +387,21 @@ export const submissionDeleteRequestSchema: RequestValidation<
 	}),
 };
 
-export interface SubmissionRecordDeleteParams extends ParamsDictionary {
+export interface SubmissionFileDeleteParams extends ParamsDictionary {
 	submissionId: string;
 }
 
-export interface SubmissionRecordDeleteQueryParams extends ParsedQs {
-	recordId?: string;
-	fileId?: string;
+export interface SubmissionFileDeleteQueryParams extends ParsedQs {
+	fileId: string;
 }
 
-export const submissionRecordDeleteRequestSchema: RequestValidation<
+export const submissionFileDeleteRequestSchema: RequestValidation<
 	object,
-	SubmissionRecordDeleteQueryParams,
-	SubmissionRecordDeleteParams
+	SubmissionFileDeleteQueryParams,
+	SubmissionFileDeleteParams
 > = {
 	query: zod.object({
-		recordId: positiveInteger.optional(),
-		fileId: positiveInteger.optional(),
+		fileId: positiveInteger,
 	}),
 	pathParams: zod.object({
 		submissionId: submissionIdSchema,
