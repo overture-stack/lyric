@@ -87,6 +87,13 @@ const collectRows = (filePath: string, separator: string): Promise<string[][]> =
 /** One parsed data row paired with its 1-based line number in the original uploaded file. */
 export type ParsedRecordWithLineNumber = { record: DataRecord; lineNumber: number };
 
+/**
+ * Converts a record's 0-based position in a submitted file into its `lineNumber`.
+ * Line 1 is the header row, so the first record is always on line 2. Used for uploaded files and for records
+ * submitted as JSON alike, and matches `record_index + 2` in migration `0016_CUSTOM_migrate_submission_records.sql`.
+ */
+export const toLineNumber = (recordIndex: number): number => recordIndex + 2;
+
 export const readTextFile = async (
 	file: Express.Multer.File,
 	schema: Schema,
@@ -104,7 +111,7 @@ export const readTextFile = async (
 	const headers = Object.values(headerRow);
 
 	const parsed = dataRows.map((row, index) => {
-		const lineNumber = index + 2; // +1 for header row, +1 for 1-based line numbers
+		const lineNumber = toLineNumber(index);
 		const result = parse.parseRecordValues(mapRecordToHeaders(headers, row), schema);
 		const error = result.success ? undefined : { recordErrors: result.data.errors, recordIndex: lineNumber };
 		return { record: result.data.record, lineNumber, error };

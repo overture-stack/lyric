@@ -225,6 +225,67 @@ describe('Integration - Submission Router - Submission status and version', () =
 			expect(validationJobs.map((job) => job.version)).to.eql([1, 2]);
 		});
 
+		it('should number JSON records from line 2, the same as records from an uploaded file', async () => {
+			const submissionId = await submitSportRecords([
+				{ sport_id: '1', name: 'Soccer' },
+				{ sport_id: '2', name: 'Hockey' },
+			]);
+
+			const submissionRecords = await lyricProvider.repositories.submissionRecords.getBySubmissionId(submissionId);
+			expect(submissionRecords.records.map((record) => record.lineNumber)).to.eql([2, 3]);
+		});
+
+		it('should number edited records from line 2', async () => {
+			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.VALID, version: 1 });
+			await lyricProvider.repositories.submittedData.save({
+				data: { sport_id: '1', name: 'Soccer' },
+				dictionaryCategoryId: categoryId,
+				entityName: 'sport',
+				isValid: true,
+				organization: ORGANIZATION,
+				originalSchemaId: dictionaryId,
+				systemId: 'SPORT1',
+			});
+
+			await app
+				.put(`/category/${categoryId}/data?entityName=sport&organization=${ORGANIZATION}`)
+				.send([{ systemId: 'SPORT1', sport_id: '1', name: 'Football' }]);
+			await waitForPendingWork();
+
+			const submissionRecords = await lyricProvider.repositories.submissionRecords.getBySubmissionId(submissionId);
+			expect(submissionRecords.records.map((record) => record.lineNumber)).to.eql([2]);
+		});
+
+		it('should store each action type of an edit in its own file, each numbered from line 2', async () => {
+			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.VALID, version: 1 });
+			await lyricProvider.repositories.submittedData.save({
+				data: { sport_id: '1', name: 'Soccer' },
+				dictionaryCategoryId: categoryId,
+				entityName: 'sport',
+				isValid: true,
+				organization: ORGANIZATION,
+				originalSchemaId: dictionaryId,
+				systemId: 'SPORT1',
+			});
+
+			// Changing `sport_id`, which `team` references, stages a DELETE and an INSERT instead of an UPDATE
+			await app
+				.put(`/category/${categoryId}/data?entityName=sport&organization=${ORGANIZATION}`)
+				.send([{ systemId: 'SPORT1', sport_id: '2', name: 'Soccer' }]);
+			await waitForPendingWork();
+
+			const submissionRecords = await lyricProvider.repositories.submissionRecords.getBySubmissionId(submissionId);
+			const recordsByFile = Map.groupBy(submissionRecords.records, (record) => record.fileId);
+			const actionTypesByFile = [...recordsByFile.values()].map((records) => [
+				...new Set(records.map((record) => record.actionType)),
+			]);
+			expect(actionTypesByFile.flat()).to.have.members(['DELETE', 'INSERT']);
+			expect(actionTypesByFile.every((actionTypes) => actionTypes.length === 1)).to.equal(true);
+			for (const records of recordsByFile.values()) {
+				expect(records.map((record) => record.lineNumber)).to.eql(records.map((_record, index) => index + 2));
+			}
+		});
+
 		it('should stage records of every entity in a single version', async () => {
 			const submissionId = await createSubmission({ status: SUBMISSION_STATUS.OPEN });
 			const processor = originalCreate(lyricProvider.configs);

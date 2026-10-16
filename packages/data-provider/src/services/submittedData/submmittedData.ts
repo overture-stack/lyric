@@ -11,7 +11,7 @@ import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelations.js';
 import { InternalServerError, StatusConflict } from '../../utils/errors.js';
-import { genericSubmissionFileName, getSizeInBytes } from '../../utils/fileUtils.js';
+import { genericSubmissionFileName, getSizeInBytes, toLineNumber } from '../../utils/fileUtils.js';
 import type { PaginatedResult } from '../../utils/result.js';
 import { resolveDeleteStagingConflicts } from '../../utils/submissionRecordUtils.js';
 import {
@@ -196,7 +196,7 @@ const submittedData = (dependencies: BaseDependencies) => {
 							actionType: 'DELETE',
 							data: record,
 							state: 'RECEIVED',
-							lineNumber: index + 1,
+							lineNumber: toLineNumber(index),
 						})),
 						tx,
 					);

@@ -23,7 +23,7 @@ import createSubmittedDataRepository from '../../repository/submittedRepository.
 import type { RepositoryTransaction } from '../../repository/types.js';
 import { getDictionarySchemaRelations, type SchemaChildNode } from '../../utils/dictionarySchemaRelations.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
-import { formatByteSize, genericSubmissionFileName, getSizeInBytes } from '../../utils/fileUtils.js';
+import { formatByteSize, genericSubmissionFileName, getSizeInBytes, toLineNumber } from '../../utils/fileUtils.js';
 import { convertRecordToString } from '../../utils/formatUtils.js';
 import { parseRecordsToInsert } from '../../utils/recordsParser.js';
 import {
@@ -852,62 +852,41 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 				/**
 				 * Submission files are entity-scoped: the file's entity name identifies the schema used to
-				 * validate and process its records. Create one file per affected entity so records from
-				 * different entities are never mixed in the same file.
+				 * validate and process its records. Each action type of each affected entity gets its own file,
+				 * so records from different entities or action types are never mixed in the same file and each
+				 * file's line numbers start from line 2.
 				 */
 				for (const entityName of entityNames) {
-					// fileSize reflects only the records actually attached to this entity's file below —
-					// not the full `recordsParsed` input, which belongs to `schema.name` and may be
-					// unrelated to a cascading dependent entity's file.
-					const entityRecords = [
-						...(updatedActiveSubmissionData[entityName] ?? []),
-						...(additions.inserts[entityName] ?? []),
-						...(additions.deletes[entityName] ?? []),
-					];
+					const recordsByActionType = [
+						{ actionType: 'UPDATE', records: updatedActiveSubmissionData[entityName] ?? [] },
+						{ actionType: 'INSERT', records: additions.inserts[entityName] ?? [] },
+						{ actionType: 'DELETE', records: additions.deletes[entityName] ?? [] },
+					] as const;
 
-					const savedFileId = await submissionFilesRepository.save(
-						{
-							entityName: entityName,
-							fileName: genericSubmissionFileName(),
-							fileSize: getSizeInBytes(JSON.stringify(entityRecords)),
-							submissionId: submission.id,
-						},
-						tx,
-					);
+					for (const { actionType, records } of recordsByActionType) {
+						if (records.length === 0) {
+							continue;
+						}
 
-					if (updatedActiveSubmissionData[entityName]) {
-						await submissionRecordsRepository.saveManyForFile(
-							savedFileId,
-							updatedActiveSubmissionData[entityName].map((record, index) => ({
-								actionType: 'UPDATE',
-								data: record,
-								state: 'RECEIVED',
-								lineNumber: index + 1,
-							})),
+						// fileSize reflects only the records attached to this file, not the full `recordsParsed`
+						// input, which belongs to `schema.name` and may be unrelated to a cascading dependent entity.
+						const savedFileId = await submissionFilesRepository.save(
+							{
+								entityName,
+								fileName: genericSubmissionFileName(),
+								fileSize: getSizeInBytes(JSON.stringify(records)),
+								submissionId: submission.id,
+							},
 							tx,
 						);
-					}
 
-					if (additions.inserts[entityName]) {
 						await submissionRecordsRepository.saveManyForFile(
 							savedFileId,
-							additions.inserts[entityName].map((record, index) => ({
-								actionType: 'INSERT',
+							records.map((record, index) => ({
+								actionType,
 								data: record,
 								state: 'RECEIVED',
-								lineNumber: index + 1,
-							})),
-							tx,
-						);
-					}
-					if (additions.deletes[entityName]) {
-						await submissionRecordsRepository.saveManyForFile(
-							savedFileId,
-							additions.deletes[entityName]?.map((record, index) => ({
-								actionType: 'DELETE',
-								data: record,
-								state: 'RECEIVED',
-								lineNumber: index + 1,
+								lineNumber: toLineNumber(index),
 							})),
 							tx,
 						);
@@ -970,7 +949,7 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 							actionType: 'INSERT',
 							data: record,
 							state: 'RECEIVED',
-							lineNumber: index + 1,
+							lineNumber: toLineNumber(index),
 						})),
 						tx,
 					);
