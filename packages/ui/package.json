@@ -41,7 +41,8 @@
 		"@tanstack/react-table": "^9.2.4",
 		"class-variance-authority": "^0.7.1",
 		"cn": "^0.3.2",
-		"lucide-react": "^1.33.0"
+		"lucide-react": "^1.33.0",
+		"radix-ui": "^1.8.1"
 	},
 	"devDependencies": {
 		"@storybook/react": "^10.5.9",
