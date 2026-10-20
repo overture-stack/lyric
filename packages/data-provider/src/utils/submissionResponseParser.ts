@@ -31,13 +31,27 @@ export type SubmissionSummaryResponse = Omit<SubmissionSummary, 'createdAt' | 'u
 export const buildDataSummary = (rows: SubmissionRecordAggregate[]): SubmissionDataSummaryWithTotal => {
 	const inserts: Record<string, DataInsertsSubmissionSummary[]> = {};
 	const updates: Record<string, DataUpdatesSubmissionSummary[]> = {};
-	const deletes: Record<string, DataDeletesSubmissionSummary> = {};
+	const deletes: Record<string, DataDeletesSubmissionSummary[]> = {};
 	let totalRecords = 0;
 	let errors = 0;
 
 	for (const row of rows) {
-		const { actionType, entityName, totalRecords: rowTotalRecords, batchName, errors: rowErrors, fileId } = row;
-		const summaryItem = { batchName: batchName ?? '', errors: rowErrors, fileId, recordsCount: rowTotalRecords };
+		const {
+			actionType,
+			entityName,
+			totalRecords: rowTotalRecords,
+			batchName,
+			errors: rowErrors,
+			fileId,
+			isSystemGenerated,
+		} = row;
+		const summaryItem = {
+			batchName: batchName ?? '',
+			errors: rowErrors,
+			fileId,
+			isSystemGenerated,
+			recordsCount: rowTotalRecords,
+		};
 
 		totalRecords += rowTotalRecords;
 		errors += rowErrors;
@@ -56,10 +70,9 @@ export const buildDataSummary = (rows: SubmissionRecordAggregate[]): SubmissionD
 				break;
 			}
 			case 'DELETE': {
-				const entitySummary = deletes[entityName] ?? { recordsCount: 0, errors: 0 };
-				entitySummary.recordsCount += rowTotalRecords;
-				entitySummary.errors += rowErrors;
-				deletes[entityName] = entitySummary;
+				const entitySummaries = deletes[entityName] ?? [];
+				entitySummaries.push(summaryItem);
+				deletes[entityName] = entitySummaries;
 				break;
 			}
 		}

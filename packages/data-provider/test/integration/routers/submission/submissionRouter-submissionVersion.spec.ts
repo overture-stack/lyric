@@ -268,7 +268,7 @@ describe('Integration - Submission Router - Submission status and version', () =
 				systemId: 'SPORT1',
 			});
 
-			// Changing `sport_id`, which `team` references, stages a DELETE and an INSERT instead of an UPDATE
+			// Changing `sport_id`, which `team` references, stages the user's UPDATE, carried out by a DELETE and an INSERT
 			await app
 				.put(`/category/${categoryId}/data?entityName=sport&organization=${ORGANIZATION}`)
 				.send([{ systemId: 'SPORT1', sport_id: '2', name: 'Soccer' }]);
@@ -279,7 +279,7 @@ describe('Integration - Submission Router - Submission status and version', () =
 			const actionTypesByFile = [...recordsByFile.values()].map((records) => [
 				...new Set(records.map((record) => record.actionType)),
 			]);
-			expect(actionTypesByFile.flat()).to.have.members(['DELETE', 'INSERT']);
+			expect(actionTypesByFile.flat()).to.have.members(['UPDATE', 'DELETE', 'INSERT']);
 			expect(actionTypesByFile.every((actionTypes) => actionTypes.length === 1)).to.equal(true);
 			for (const records of recordsByFile.values()) {
 				expect(records.map((record) => record.lineNumber)).to.eql(records.map((_record, index) => index + 2));

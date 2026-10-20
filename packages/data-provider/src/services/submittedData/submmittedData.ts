@@ -1,6 +1,7 @@
 import * as _ from 'lodash-es';
 
 import type { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
+import type { SubmissionDeleteData } from '@overture-stack/lyric-data-model/models';
 import { SQON } from '@overture-stack/sqon-builder';
 
 import { BaseDependencies } from '../../config/config.js';
@@ -13,7 +14,7 @@ import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelati
 import { InternalServerError, StatusConflict } from '../../utils/errors.js';
 import { genericSubmissionFileName, getSizeInBytes, toLineNumber } from '../../utils/fileUtils.js';
 import type { PaginatedResult } from '../../utils/result.js';
-import { resolveDeleteStagingConflicts } from '../../utils/submissionRecordUtils.js';
+import { isDeleteSubmissionRecord, resolveDeleteStagingConflicts } from '../../utils/submissionRecordUtils.js';
 import {
 	fetchDataErrorResponse,
 	getEntityNamesFromFilterOptions,
@@ -180,26 +181,67 @@ const submittedData = (dependencies: BaseDependencies) => {
 				// Throws StatusConflict and rolls back if the Submission's status no longer allows changes
 				const newVersion = await submissionProcessor.markSubmissionAsChanged(activeSubmissionId, username, tx);
 
-				for (const [entityName, entityRecords] of Object.entries(filteredRecordsToDeleteMap)) {
+				const saveDeleteFile = async ({
+					entityName,
+					isSystemGenerated,
+					parentRecordId,
+					records,
+				}: {
+					entityName: string;
+					isSystemGenerated: boolean;
+					parentRecordId?: number;
+					records: SubmissionDeleteData[];
+				}): Promise<number[]> => {
 					const savedFileId = await submissionFilesRepository.save(
 						{
 							entityName,
 							fileName: genericSubmissionFileName(),
-							fileSize: getSizeInBytes(JSON.stringify(entityRecords)),
+							fileSize: getSizeInBytes(JSON.stringify(records)),
+							isSystemGenerated,
 							submissionId: activeSubmissionId,
 						},
 						tx,
 					);
-					await submissionRecordsRepository.saveManyForFile(
+					return submissionRecordsRepository.saveManyForFile(
 						savedFileId,
-						entityRecords.map((record, index) => ({
+						records.map((record, index) => ({
 							actionType: 'DELETE',
 							data: record,
+							parentRecordId,
 							state: 'RECEIVED',
 							lineNumber: toLineNumber(index),
 						})),
 						tx,
 					);
+				};
+
+				// The requested record is the user's; its dependents are deleted by the system, in separate files whose
+				// records point back to it
+				const isRequestedRecord = (entityName: string, record: SubmissionDeleteData) =>
+					entityName === foundRecordToDelete.entityName && record.systemId === foundRecordToDelete.systemId;
+
+				const requestedRecords = (filteredRecordsToDeleteMap[foundRecordToDelete.entityName] ?? []).filter((record) =>
+					isRequestedRecord(foundRecordToDelete.entityName, record),
+				);
+
+				// When the requested record was already staged for deletion, its dependents point to that staged record
+				let parentRecordId = existingSubmissionRecords.records
+					.filter(isDeleteSubmissionRecord)
+					.find((record) => isRequestedRecord(record.entityName, record.data))?.id;
+
+				if (requestedRecords.length > 0) {
+					[parentRecordId] = await saveDeleteFile({
+						entityName: foundRecordToDelete.entityName,
+						isSystemGenerated: false,
+						records: requestedRecords,
+					});
+				}
+
+				for (const [entityName, entityRecords] of Object.entries(filteredRecordsToDeleteMap)) {
+					const dependents = entityRecords.filter((record) => !isRequestedRecord(entityName, record));
+					if (dependents.length > 0) {
+						await saveDeleteFile({ entityName, isSystemGenerated: true, parentRecordId, records: dependents });
+					}
 				}
 
 				return newVersion;

@@ -64,10 +64,15 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 					],
 				},
 				deletes: {
-					books: {
-						recordsCount: 1,
-						errors: 0,
-					},
+					books: [
+						{
+							batchName: 'submission-2026-10-19T00:00:00.000Z.json',
+							recordsCount: 1,
+							errors: 0,
+							fileId: 103,
+							isSystemGenerated: true,
+						},
+					],
 				},
 				totalRecords: 3,
 				errors: 0,
@@ -106,10 +111,15 @@ describe('Submission Utils - Parse a Submission object to a Summary of the Activ
 					],
 				},
 				deletes: {
-					books: {
-						recordsCount: 1,
-						errors: 0,
-					},
+					books: [
+						{
+							batchName: 'submission-2026-10-19T00:00:00.000Z.json',
+							recordsCount: 1,
+							errors: 0,
+							fileId: 103,
+							isSystemGenerated: true,
+						},
+					],
 				},
 				totalRecords: 3,
 				errors: 0,

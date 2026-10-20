@@ -1,6 +1,11 @@
-import { eq } from 'drizzle-orm/sql';
+import { and, eq, notExists } from 'drizzle-orm/sql';
 
-import { type NewSubmissionFile, type SubmissionFile, submissionFiles } from '@overture-stack/lyric-data-model/models';
+import {
+	type NewSubmissionFile,
+	type SubmissionFile,
+	submissionFiles,
+	submissionRecords,
+} from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
@@ -60,6 +65,46 @@ const submissionFilesRepository = (dependencies: BaseDependencies) => {
 				return deletedFiles[0]?.id;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed deleting Submission File by fileId '${fileId}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Deletes a submission's system-generated files that no longer have any records, such as after removing a user's
+		 * file also removed the child records the system staged for it. Files the user submitted are never deleted here.
+		 * @returns The IDs of the deleted files
+		 */
+		deleteEmptySystemGeneratedBySubmissionId: async (
+			submissionId: number,
+			tx?: RepositoryTransaction<SubmissionFile>,
+		): Promise<number[]> => {
+			try {
+				const deletedFiles = await (tx || db)
+					.delete(submissionFiles)
+					.where(
+						and(
+							eq(submissionFiles.submissionId, submissionId),
+							eq(submissionFiles.isSystemGenerated, true),
+							notExists(
+								(tx || db)
+									.select({ id: submissionRecords.id })
+									.from(submissionRecords)
+									.where(eq(submissionRecords.fileId, submissionFiles.id)),
+							),
+						),
+					)
+					.returning({ id: submissionFiles.id });
+				logger.info(
+					LOG_MODULE,
+					`Deleted '${deletedFiles.length}' empty system-generated Submission Files for submissionId '${submissionId}'`,
+				);
+				return deletedFiles.map((file) => file.id);
+			} catch (error) {
+				logger.error(
+					LOG_MODULE,
+					`Failed deleting empty system-generated Submission Files by submissionId '${submissionId}'`,
+					error,
+				);
 				throw new ServiceUnavailable();
 			}
 		},

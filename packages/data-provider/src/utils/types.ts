@@ -236,6 +236,7 @@ export type DataInsertsSubmissionSummary = {
 	batchName: string;
 	errors: number;
 	fileId: number;
+	isSystemGenerated: boolean;
 	recordsCount: number;
 };
 
@@ -243,18 +244,22 @@ export type DataUpdatesSubmissionSummary = {
 	batchName: string;
 	errors: number;
 	fileId: number;
+	isSystemGenerated: boolean;
 	recordsCount: number;
 };
 
 export type DataDeletesSubmissionSummary = {
+	batchName: string;
 	errors: number;
+	fileId: number;
+	isSystemGenerated: boolean;
 	recordsCount: number;
 };
 
 export type SubmissionDataSummary = {
 	inserts?: Record<string, DataInsertsSubmissionSummary[]>;
 	updates?: Record<string, DataUpdatesSubmissionSummary[]>;
-	deletes?: Record<string, DataDeletesSubmissionSummary>;
+	deletes?: Record<string, DataDeletesSubmissionSummary[]>;
 };
 
 /**

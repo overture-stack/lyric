@@ -158,8 +158,10 @@ const commitSubmissionData = async ({
 		actionTypes: ['UPDATE'],
 	});
 
+	// Updates applied by their children, such as an update to an ID field, are carried out by their DELETE and INSERT
 	const updatesBySystemId = recordsToUpdate.records
 		.filter(isUpdateSubmissionRecord)
+		.filter((record) => !record.appliedByChildren)
 		.reduce<Record<string, SubmissionUpdateData>>((acc, { data }) => {
 			acc[data.systemId] = data;
 			return acc;

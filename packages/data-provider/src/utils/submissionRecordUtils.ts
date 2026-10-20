@@ -280,3 +280,46 @@ export const mergeSubmissionErrors = (
 	}
 	return merged;
 };
+
+/**
+ * Reports the errors of records the system staged to carry out another record on that parent record too, for every
+ * record applied by its children (`appliedByChildren`), such as a user's update to an ID field carried out as a DELETE
+ * and an INSERT. The parent is the only record its user can fix, so it gets every error of its direct children, and is
+ * left without errors when they have none.
+ *
+ * Parent errors are added under the bucket of the parent's own action type.
+ */
+export const reportChildErrorsOnParents = (
+	submissionData: SubmissionRecordWithEntityName[],
+	errors: SubmissionErrors,
+): SubmissionErrors => {
+	const errorsByRecordId = new Map<number, SubmissionRecordError[]>();
+	Object.values(errors).forEach((entityErrors) =>
+		Object.values(entityErrors ?? {}).forEach((records) =>
+			records.forEach(({ recordId, errors: recordErrors }) =>
+				errorsByRecordId.set(recordId, [...(errorsByRecordId.get(recordId) ?? []), ...recordErrors]),
+			),
+		),
+	);
+
+	const childErrorsByParentId = new Map<number, SubmissionRecordError[]>();
+	submissionData.forEach(({ id, parentRecordId }) => {
+		const childErrors = errorsByRecordId.get(id);
+		if (parentRecordId !== null && childErrors) {
+			childErrorsByParentId.set(parentRecordId, [...(childErrorsByParentId.get(parentRecordId) ?? []), ...childErrors]);
+		}
+	});
+
+	const bucketByActionType = { INSERT: 'inserts', UPDATE: 'updates', DELETE: 'deletes' } as const;
+	const parentErrors: SubmissionErrors = {};
+	submissionData.forEach(({ actionType, appliedByChildren, entityName, id }) => {
+		const childErrors = childErrorsByParentId.get(id);
+		if (!appliedByChildren || !childErrors) {
+			return;
+		}
+		const bucket = (parentErrors[bucketByActionType[actionType]] ??= {});
+		bucket[entityName] = [...(bucket[entityName] ?? []), { recordId: id, errors: childErrors }];
+	});
+
+	return mergeSubmissionErrors(errors, parentErrors);
+};

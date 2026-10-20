@@ -288,16 +288,11 @@ components:
                   $ref: '#/components/schemas/SubmissionFileSummary'
             deletes:
               type: object
-              description: Delete records, keyed by entity name, with counts combined across files.
+              description: Delete records, keyed by entity name. Each entity lists one summary per file.
               additionalProperties:
-                type: object
-                properties:
-                  errors:
-                    type: integer
-                    description: Number of records with errors
-                  recordsCount:
-                    type: integer
-                    description: Number of records
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubmissionFileSummary'
             totalRecords:
               type: integer
               description: Total number of records in the submission
@@ -348,13 +343,16 @@ components:
       properties:
         batchName:
           type: string
-          description: Original filename of the file in the submission
+          description: Original filename of an uploaded file, or a generated `submission-<timestamp>.json` name for records sent as JSON or staged by the system
         errors:
           type: integer
           description: Number of records with errors in the file
         fileId:
           type: integer
           description: ID of the file in the submission
+        isSystemGenerated:
+          type: boolean
+          description: True when the system staged this file's records, such as changes to dependent records, rather than the user submitting them. System-generated files can't be removed by the user; they're removed with the records that caused them.
         recordsCount:
           type: integer
           description: Number of records in the file

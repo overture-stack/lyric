@@ -26,6 +26,7 @@ export type SubmissionRecordAggregate = {
 	entityName: string;
 	errors: number;
 	fileId: number;
+	isSystemGenerated: boolean;
 	totalRecords: number;
 };
 
@@ -159,6 +160,8 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 					id: submissionRecords.id,
 					state: submissionRecords.state,
 					lineNumber: submissionRecords.lineNumber,
+					parentRecordId: submissionRecords.parentRecordId,
+					appliedByChildren: submissionRecords.appliedByChildren,
 				})
 				.from(submissionRecords)
 				.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
@@ -240,6 +243,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 					entityName: submissionFiles.entityName,
 					errors: count(submissionRecords.errors),
 					fileId: submissionFiles.id,
+					isSystemGenerated: submissionFiles.isSystemGenerated,
 					totalRecords: count(),
 				})
 				.from(submissionRecords)
@@ -250,6 +254,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 					submissionRecords.actionType,
 					submissionFiles.entityName,
 					submissionFiles.fileName,
+					submissionFiles.isSystemGenerated,
 				);
 
 			return submissionFileRecords;
@@ -274,6 +279,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 					entityName: submissionFiles.entityName,
 					errors: count(submissionRecords.errors),
 					fileId: submissionFiles.id,
+					isSystemGenerated: submissionFiles.isSystemGenerated,
 					submissionId: submissionFiles.submissionId,
 					totalRecords: count(),
 				})
@@ -286,6 +292,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 					submissionRecords.actionType,
 					submissionFiles.entityName,
 					submissionFiles.fileName,
+					submissionFiles.isSystemGenerated,
 				);
 
 			return submissionFileRecords.reduce<Record<number, SubmissionRecordAggregate[]>>((summaries, record) => {
@@ -296,6 +303,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 					entityName: record.entityName,
 					errors: record.errors,
 					fileId: record.fileId,
+					isSystemGenerated: record.isSystemGenerated,
 					totalRecords: record.totalRecords,
 				});
 				summaries[record.submissionId] = records;
