@@ -1,15 +1,17 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
-import { PersonTable } from './table';
+import { SubmissionViewTable } from './SubmissionViewTable';
 
-const meta: Meta<typeof PersonTable> = {
+const meta: Meta<typeof SubmissionViewTable> = {
 	title: 'Components/Table',
-	component: PersonTable,
+	component: SubmissionViewTable,
 	tags: ['autodocs'],
 };
 
 export default meta;
 
-type Story = StoryObj<typeof PersonTable>;
+type Story = StoryObj<typeof SubmissionViewTable>;
 
-export const Default: Story = {};
+export const Default: Story = {
+	args: {},
+};
