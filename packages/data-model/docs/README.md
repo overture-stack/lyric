@@ -56,6 +56,8 @@ A Submission is a structured process used to prepare, validate, and commit data 
 
 To view the State diagram for submission status [click here](./stateDiagramSubmissionStatus.md)
 
+To view how a Submission is validated [click here](../../data-provider/docs/submission-validation.md)
+
 To view Submission commit workflow [click here](./submissionCommit.md)
 
 

@@ -2,6 +2,11 @@
 
 ## Open
 
+### Closing a Submission with `force=true` can relabel a committed Submission as `CLOSED`
+fix: In `deleteActiveSubmissionById` (`packages/data-provider/src/services/submission/submissionService.ts`), keep rejecting a Submission that is already `COMMITTED` or `CLOSED` even when `force` is set, and let `force` only add `VALIDATING` and `COMMITTING` to the statuses that can be closed. Do the status check and the update in one conditional update (`updateWithConditions` with `expectedStatuses`), as staging and commit already do. Document in the `ForceDeleteSubmission` Swagger parameter which statuses `force` allows.
+standalone: yes
+context: Without `force`, only `OPEN`, `VALID` and `INVALID` Submissions can be closed. With `force=true`, the status check is skipped entirely and the status is set to `CLOSED` unconditionally. For a `COMMITTED` Submission, its records are already in Submitted Data, but its status then says it was discarded. Closing a `VALIDATING` or `COMMITTING` Submission with `force` is safe: the running validation or commit checks the status before saving and stops. The check and the update are also two separate queries, so a status change between them is overwritten.
+
 ### A dependent record reached through two user records keeps only one parent
 fix: Let a system-staged record have more than one parent, for example with a `submission_record_parents` join table instead of the single `submission_records.parent_record_id` column, and remove the child only when its last parent is removed.
 standalone: yes
