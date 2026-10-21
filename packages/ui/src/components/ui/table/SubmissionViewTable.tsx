@@ -13,7 +13,7 @@ import { ArrowUpDown, Funnel } from 'lucide-react';
 import { useState } from 'react';
 
 import { StatusFilterPopover } from './StatusFilterPopover';
-import { COLUMN_NAMES, Submission, SUBMISSION_STATUS } from './types';
+import { COLUMN_NAMES, Submission, SUBMISSION_STATUS, SUBMISSION_STATUS_VALUES } from './types';
 
 export const testData: Array<Submission> = [
 	{
@@ -98,11 +98,12 @@ export interface SubmissionViewTableProps {
 
 // TODO: Integrate API Layer to fetch data, will use test data for now
 export function SubmissionViewTable({ initialPageSize = 20 }: SubmissionViewTableProps) {
-	const [statusFilterOpen, setStatusFilterOpen] = useState(false);
-	const [filter, setFilter] = useState<ColumnFiltersState>([]);
+	const [columnFilterState, setColumnFilterState] = useState<ColumnFiltersState>([]);
 	const [sorting, setSorting] = useState<SortingState>([]);
+	const [openStatusPopover, setStatusPopover] = useState<boolean>(false);
+
 	// TODO: API call here, pass manualSorting options to the fetch query
-	console.log('Replace----', sorting, filter);
+	console.log('Replace----', sorting, columnFilterState);
 
 	const table = useTable({
 		features,
@@ -110,15 +111,15 @@ export function SubmissionViewTable({ initialPageSize = 20 }: SubmissionViewTabl
 		data: testData,
 		manualSorting: true,
 		onSortingChange: setSorting,
-		onColumnFiltersChange: setFilter,
+		onColumnFiltersChange: setColumnFilterState,
+		state: {
+			columnFilters: columnFilterState,
+		},
 		initialState: {
 			pagination: { pageIndex: 0, pageSize: initialPageSize },
 		},
 	});
 	const statusColumn = table.getColumn(COLUMN_NAMES.STATUS);
-
-	const activeStatusFilter = statusColumn?.id;
-	const isStatusFiltered = activeStatusFilter && activeStatusFilter.length > 0;
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -130,8 +131,10 @@ export function SubmissionViewTable({ initialPageSize = 20 }: SubmissionViewTabl
 							<tr key={headerGroup.id}>
 								{headerGroup.headers.map((header) => {
 									const canSort = header.column.getCanSort();
-									const canFilter = header.column.getCanFilter();
 									const isStatusCol = header.column.id === COLUMN_NAMES.STATUS;
+									const statusFilterState = columnFilterState.find(
+										(filterState) => filterState.id === COLUMN_NAMES.STATUS,
+									)?.value as SUBMISSION_STATUS_VALUES[]; // TODO: how to type filter and sorting States
 
 									return (
 										<th key={header.id} className="pl-2 pr-4 py-3 text-left font-semibold whitespace-nowrap">
@@ -148,31 +151,30 @@ export function SubmissionViewTable({ initialPageSize = 20 }: SubmissionViewTabl
 													<table.FlexRender header={header} />
 												)}
 
-												{canFilter && (
-													<div className="relative ml-0.5 ">
-														<button
-															aria-label="Filter status"
-															className={cn('p-0.5 rounded hover:bg-gray-100 transition-colors cursor-pointer')}
-															onClick={() => setStatusFilterOpen((o) => !o)}
-														>
-															<Funnel size={12} />
-														</button>
-														{statusFilterOpen && isStatusCol && (
-															<StatusFilterPopover
-																currentFilter={SUBMISSION_STATUS.COMMITED}
-																onApply={(selected) => {
-																	console.log(selected);
-
-																	statusColumn?.setFilterValue(selected.length > 0 ? selected : undefined);
-																}}
-																onReset={() => {
-																	statusColumn?.setFilterValue(undefined);
-																	setStatusFilterOpen(false);
-																}}
-																onClose={() => setStatusFilterOpen(false)}
-															/>
-														)}
-													</div>
+												{isStatusCol && (
+													<StatusFilterPopover
+														open={openStatusPopover}
+														setStatusPopover={setStatusPopover}
+														trigger={
+															<button
+																aria-label="Filter status"
+																className={cn('p-0.5 rounded hover:bg-gray-100 transition-colors cursor-pointer')}
+																onClick={() => setStatusPopover(true)}
+															>
+																<Funnel size={12} />
+															</button>
+														}
+														currentFilter={statusFilterState}
+														onApply={(selected) => {
+															console.log(selected);
+															statusColumn?.setFilterValue(selected.length > 0 ? selected : undefined);
+															setStatusPopover(false);
+														}}
+														onReset={() => {
+															statusColumn?.setFilterValue(undefined);
+															setStatusPopover(false);
+														}}
+													/>
 												)}
 											</div>
 										</th>
