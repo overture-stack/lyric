@@ -34,7 +34,7 @@ const workerProxy: WorkerProxy = {
 		// workerpool.workerEmit({ type: 'chunk', chunk: { type: 'commitResult', result } });
 		return result;
 	},
-	dataValidation: async (input: DataValidationWorkerInput): Promise<number> => {
+	dataValidation: async (input: DataValidationWorkerInput): Promise<number | undefined> => {
 		if (!initializeWorkerPromise) {
 			throw new Error('Worker not initialized. Call initializeWorker first.');
 		}

@@ -44,21 +44,15 @@ describe('parseRecordsToInsert', () => {
 		const result = parseRecordsToInsert(records, inventoryDictionary);
 
 		// Fields properly formatted with the corresponding data type based on Dictionary
-		const expectedResult: Record<string, SubmissionInsertData> = {
-			user: {
-				batchName: 'user',
-				records: [
-					{ id: 1, name: 'Alice', birthYear: 2000, hasAllergies: false },
-					{ id: 2, name: 'Pedro', birthYear: 1990, hasAllergies: true },
-				],
-			},
-			product: {
-				batchName: 'product',
-				records: [
-					{ id: 101, name: 'Laptop' },
-					{ id: 102, name: 'Monitor' },
-				],
-			},
+		const expectedResult: Record<string, SubmissionInsertData[]> = {
+			user: [
+				{ id: 1, name: 'Alice', birthYear: 2000, hasAllergies: false },
+				{ id: 2, name: 'Pedro', birthYear: 1990, hasAllergies: true },
+			],
+			product: [
+				{ id: 101, name: 'Laptop' },
+				{ id: 102, name: 'Monitor' },
+			],
 		};
 
 		expect(Object.keys(result).length).to.eql(2);
@@ -83,14 +77,11 @@ describe('parseRecordsToInsert', () => {
 			],
 		};
 
-		const expectedResult: Record<string, SubmissionInsertData> = {
-			product: {
-				batchName: 'product',
-				records: [
-					{ id: 101, name: 'Laptop' },
-					{ id: 102, name: 'Monitor' },
-				],
-			},
+		const expectedResult: Record<string, SubmissionInsertData[]> = {
+			product: [
+				{ id: 101, name: 'Laptop' },
+				{ id: 102, name: 'Monitor' },
+			],
 		};
 
 		const result = parseRecordsToInsert(records, inventoryDictionary);
