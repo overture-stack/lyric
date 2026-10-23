@@ -38,16 +38,23 @@ export interface ButtonProps
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 	({ className, variant, size, asChild = false, icon, iconPosition = 'left', children, ...props }, ref) => {
-		const Comp = asChild ? Slot : 'button';
+		const classes = cn(buttonVariants({ variant, size, className }));
+
+		// Slot merges its props onto its single child element, so it must receive the child itself, not a wrapper
+		if (asChild) {
+			return (
+				<Slot className={classes} ref={ref} {...props}>
+					{children}
+				</Slot>
+			);
+		}
 
 		return (
-			<Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props}>
-				<>
-					{!asChild && icon && iconPosition === 'left' && icon}
-					{size !== 'icon' ? children : null}
-					{!asChild && icon && iconPosition === 'right' && icon}
-				</>
-			</Comp>
+			<button className={classes} ref={ref} {...props}>
+				{icon && iconPosition === 'left' && icon}
+				{size !== 'icon' ? children : null}
+				{icon && iconPosition === 'right' && icon}
+			</button>
 		);
 	},
 );
