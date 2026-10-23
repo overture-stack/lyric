@@ -12,6 +12,8 @@ describe('Integration - Submission Router - GET /:submissionId/errors/summary', 
 	let lyricProvider: LyricProvider;
 	let submissionId: number;
 	let fileId: number;
+	let dictionaryId: number;
+	let categoryId: number;
 
 	before(async () => {
 		lyricProvider = await createLyricProvider(getContainers().providerConfig);
@@ -29,6 +31,9 @@ describe('Integration - Submission Router - GET /:submissionId/errors/summary', 
 			name: 'sports-category',
 			activeDictionaryId: dictionary.id,
 		});
+
+		dictionaryId = dictionary.id;
+		categoryId = category.id;
 
 		submissionId = await lyricProvider.repositories.submission.save({
 			dictionaryCategoryId: category.id,
@@ -152,6 +157,20 @@ describe('Integration - Submission Router - GET /:submissionId/errors/summary', 
 		expect(response.status).to.eq(404);
 	});
 
+	it('returns 404 when the file exists but belongs to a different submission', async () => {
+		const otherSubmissionId = await lyricProvider.repositories.submission.save({
+			dictionaryCategoryId: categoryId,
+			dictionaryId,
+			organization: 'otherOrg',
+			status: 'INVALID',
+			createdBy: 'testUser',
+		});
+
+		const response = await app.get(`/${otherSubmissionId}/errors/summary`).query({ fileId });
+
+		expect(response.status).to.eq(404);
+	});
+
 	it('returns 400 when fileId is missing', async () => {
 		const response = await app.get(`/${submissionId}/errors/summary`);
 
@@ -234,6 +253,8 @@ describe('Integration - Submission Router - GET /:submissionId/errors/download',
 	let lyricProvider: LyricProvider;
 	let submissionId: number;
 	let fileId: number;
+	let dictionaryId: number;
+	let categoryId: number;
 
 	before(async () => {
 		lyricProvider = await createLyricProvider(getContainers().providerConfig);
@@ -251,6 +272,9 @@ describe('Integration - Submission Router - GET /:submissionId/errors/download',
 			name: 'sports-category',
 			activeDictionaryId: dictionary.id,
 		});
+
+		dictionaryId = dictionary.id;
+		categoryId = category.id;
 
 		submissionId = await lyricProvider.repositories.submission.save({
 			dictionaryCategoryId: category.id,
@@ -314,6 +338,20 @@ describe('Integration - Submission Router - GET /:submissionId/errors/download',
 
 	it('returns 404 when the file does not belong to the submission', async () => {
 		const response = await app.get(`/${submissionId}/errors/download`).query({ fileId: fileId + 999 });
+
+		expect(response.status).to.eq(404);
+	});
+
+	it('returns 404 when the file exists but belongs to a different submission', async () => {
+		const otherSubmissionId = await lyricProvider.repositories.submission.save({
+			dictionaryCategoryId: categoryId,
+			dictionaryId,
+			organization: 'otherOrg',
+			status: 'INVALID',
+			createdBy: 'testUser',
+		});
+
+		const response = await app.get(`/${otherSubmissionId}/errors/download`).query({ fileId });
 
 		expect(response.status).to.eq(404);
 	});
