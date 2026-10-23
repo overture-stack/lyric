@@ -17,7 +17,7 @@ export default defineConfig({
 			name: 'LyricUI',
 			fileName: 'lyric-ui',
 			cssFileName: 'style',
-			formats: ['es', 'cjs'],
+			formats: ['es'],
 		},
 		rolldownOptions: {
 			output: {

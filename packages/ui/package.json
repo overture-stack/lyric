@@ -3,14 +3,13 @@
 	"version": "0.0.0-dev",
 	"description": "Shared React component library for Lyric-based UIs.",
 	"type": "module",
-	"main": "./dist/lyric-ui.cjs",
+	"main": "./dist/lyric-ui.js",
 	"module": "./dist/lyric-ui.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"import": "./dist/lyric-ui.js",
-			"require": "./dist/lyric-ui.cjs"
+			"default": "./dist/lyric-ui.js"
 		},
 		"./dist/lyric-ui.css": "./dist/lyric-ui.css"
 	},
