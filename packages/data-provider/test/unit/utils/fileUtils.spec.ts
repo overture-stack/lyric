@@ -2,7 +2,7 @@ import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import { describe, it } from 'mocha';
 
-import { getSeparatorCharacter, mapRecordToHeaders } from '../../../src/utils/fileUtils.js';
+import { getSeparatorCharacter, mapRecordToHeaders, toSafeFileNameSegment } from '../../../src/utils/fileUtils.js';
 import { createMulterFile } from '../../fixtures/createMulterFile.js';
 
 use(chaiAsPromised);
@@ -41,6 +41,18 @@ describe('File Utils', () => {
 		it('should return undefined when file extension is invalid', () => {
 			const response = getSeparatorCharacter(createMulterFile({ originalname: 'myFile.xyz' }));
 			expect(response).to.be.undefined;
+		});
+	});
+
+	describe('Make a value safe for a file name', () => {
+		it('should leave letters, digits, dots, underscores and hyphens untouched', () => {
+			expect(toSafeFileNameSegment('primary_diagnosis-2.v1')).to.equal('primary_diagnosis-2.v1');
+		});
+		it('should replace each run of unsafe characters with a single underscore', () => {
+			expect(toSafeFileNameSegment('my sport; "odd"/x')).to.equal('my_sport_odd_x');
+		});
+		it('should replace non-ASCII characters and line breaks', () => {
+			expect(toSafeFileNameSegment('café\r\nname')).to.equal('caf_name');
 		});
 	});
 });

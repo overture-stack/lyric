@@ -1,7 +1,7 @@
 import * as _ from 'lodash-es';
 
 import { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
-import { type NewSubmission } from '@overture-stack/lyric-data-model/models';
+import { type NewSubmission, type SubmissionFile } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../../config/config.js';
 import createSubmissionRepository from '../../repository/activeSubmissionRepository.js';
@@ -12,7 +12,7 @@ import createSubmissionRecordsRepository, {
 	type SubmissionRecordWithEntityName,
 } from '../../repository/submissionRecordsRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
-import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
+import { BadRequest, InternalServerError, NotFound, StatusConflict } from '../../utils/errors.js';
 import type { PaginatedResult } from '../../utils/result.js';
 import type { FilenameEntityPair } from '../../utils/schemas.js';
 import {
@@ -20,11 +20,17 @@ import {
 	createSubmissionSummaryResponse,
 	type SubmissionSummaryResponse,
 } from '../../utils/submissionResponseParser.js';
-import type { SubmissionRecordActionType } from '../../utils/submissionTypes.js';
+import type {
+	SubmissionErrorsSummary,
+	SubmissionRecordActionType,
+	SubmissionRecordFieldError,
+} from '../../utils/submissionTypes.js';
 import {
 	checkEntityFieldNames,
 	type FileParseResult,
+	groupFieldErrorsByFieldAndReason,
 	isSubmissionActive,
+	mapSubmissionRecordErrorsToFieldErrors,
 	resolveFileEntities,
 } from '../../utils/submissionUtils.js';
 import {
@@ -405,6 +411,74 @@ const submissionService = (dependencies: BaseDependencies) => {
 	};
 
 	/**
+	 * Returns the file named by `fileId`, or throws NotFound unless it belongs to `submissionId`.
+	 */
+	const assertFileBelongsToSubmission = async (submissionId: number, fileId: number): Promise<SubmissionFile> => {
+		const submissionFile = await submissionFilesRepository.getById(fileId);
+		if (!submissionFile || submissionFile.submissionId !== submissionId) {
+			throw new NotFound(`File '${fileId}' not found in Submission '${submissionId}'`);
+		}
+		return submissionFile;
+	};
+
+	/**
+	 * Get the field-level validation errors for a single file within a Submission
+	 * @param {Object} params
+	 * @param {number} params.submissionId A Submission ID
+	 * @param {number} params.fileId The ID of the file within the Submission
+	 * @returns The name of the entity the file was submitted for, and the file's Submission Record errors
+	 * normalized to a flat field-level shape
+	 */
+	const getSubmissionErrorsByFileId = async ({
+		submissionId,
+		fileId,
+	}: {
+		submissionId: number;
+		fileId: number;
+	}): Promise<{ entityName: string; errors: SubmissionRecordFieldError[] }> => {
+		const { entityName } = await assertFileBelongsToSubmission(submissionId, fileId);
+
+		const submissionRecords = await submissionRecordsRepository.getByFileIds([fileId]);
+
+		return {
+			entityName,
+			errors: submissionRecords.records.flatMap((record) =>
+				mapSubmissionRecordErrorsToFieldErrors(record.errors, record.lineNumber),
+			),
+		};
+	};
+
+	/**
+	 * Get a dashboard-style summary of a single file's validation errors within a Submission: how many
+	 * records have at least one error, and error counts grouped by field name and reason.
+	 * @param {Object} params
+	 * @param {number} params.submissionId A Submission ID
+	 * @param {number} params.fileId The ID of the file within the Submission
+	 * @returns The file's error summary
+	 */
+	const getSubmissionErrorsSummaryByFileId = async ({
+		submissionId,
+		fileId,
+	}: {
+		submissionId: number;
+		fileId: number;
+	}): Promise<SubmissionErrorsSummary> => {
+		await assertFileBelongsToSubmission(submissionId, fileId);
+
+		const recordErrors = await submissionRecordsRepository.getErrorsByFileId(fileId);
+
+		const recordsWithErrors = recordErrors.filter((record) => record.errors && record.errors.length > 0).length;
+		const fieldErrors = recordErrors.flatMap((record) =>
+			mapSubmissionRecordErrorsToFieldErrors(record.errors, record.lineNumber),
+		);
+
+		return {
+			recordsWithErrors,
+			errorsByFieldAndReason: groupFieldErrorsByFieldAndReason(fieldErrors),
+		};
+	};
+
+	/**
 	 * Get an active Submission by Organization
 	 * @param {Object} params
 	 * @param {number} params.categoryId
@@ -706,6 +780,8 @@ const submissionService = (dependencies: BaseDependencies) => {
 		getSubmissionsByCategory,
 		getSubmissionById,
 		getSubmissionDetailsById,
+		getSubmissionErrorsByFileId,
+		getSubmissionErrorsSummaryByFileId,
 		getActiveSubmissionByOrganization,
 		getOrCreateActiveSubmission,
 		submit,
