@@ -316,7 +316,7 @@ describe('Integration - Submission Router - GET /:submissionId/errors/download',
 		expect(response.status).to.eq(200);
 		expect(response.headers['content-type']).to.include('text/csv');
 		expect(response.headers['content-disposition']).to.eq(
-			`attachment; filename=submission_${submissionId}_file_${fileId}_errors.csv`,
+			`attachment; filename=${submissionId}_file_${fileId}_sport_errors.csv`,
 		);
 		expect(response.text).to.eq(
 			"rowNumber,fieldName,reason,fieldValue,message\n2,name,UNRECOGNIZED_FIELD,not-a-real-sport,Field 'name' is not recognized in the schema\n",
@@ -329,10 +329,26 @@ describe('Integration - Submission Router - GET /:submissionId/errors/download',
 		expect(response.status).to.eq(200);
 		expect(response.headers['content-type']).to.include('text/tab-separated-values');
 		expect(response.headers['content-disposition']).to.eq(
-			`attachment; filename=submission_${submissionId}_file_${fileId}_errors.tsv`,
+			`attachment; filename=${submissionId}_file_${fileId}_sport_errors.tsv`,
 		);
 		expect(response.text).to.eq(
 			"rowNumber\tfieldName\treason\tfieldValue\tmessage\n2\tname\tUNRECOGNIZED_FIELD\tnot-a-real-sport\tField 'name' is not recognized in the schema\n",
+		);
+	});
+
+	it('replaces characters that are unsafe in a header with underscores in the entity name part of the file name', async () => {
+		const oddEntityFileId = await lyricProvider.repositories.submissionFiles.save({
+			submissionId,
+			fileName: 'odd.tsv',
+			entityName: 'my sport; "odd"',
+			fileSize: 10,
+		});
+
+		const response = await app.get(`/${submissionId}/errors/download`).query({ fileId: oddEntityFileId });
+
+		expect(response.status).to.eq(200);
+		expect(response.headers['content-disposition']).to.eq(
+			`attachment; filename=${submissionId}_file_${oddEntityFileId}_my_sport_odd__errors.csv`,
 		);
 	});
 

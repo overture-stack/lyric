@@ -9,6 +9,7 @@ import createSubmissionService from '../services/submission/submissionService.js
 import createSubmittedDataService from '../services/submittedData/submmittedData.js';
 import { hasUserWriteAccess } from '../utils/authUtils.js';
 import { BadRequest, Forbidden, NotFound, StatusConflict } from '../utils/errors.js';
+import { toSafeFileNameSegment } from '../utils/fileUtils.js';
 import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import { resolveCategoryId } from '../utils/resolveCategoryId.js';
@@ -333,13 +334,14 @@ const controller = ({
 					`Request download Submission errors for fileId '${fileId}' on Submission '${submissionId}' as '${fileType}'`,
 				);
 
-				const errors = await submissionService.getSubmissionErrorsByFileId({ submissionId, fileId });
+				const { entityName, errors } = await submissionService.getSubmissionErrorsByFileId({ submissionId, fileId });
 
 				const delimiter = fileType === 'tsv' ? '\t' : ',';
 				const content = formatFieldErrorsAsDelimitedText(errors, delimiter);
+				const downloadFileName = `${submissionId}_file_${fileId}_${toSafeFileNameSegment(entityName)}_errors.${fileType}`;
 
 				res.set({
-					'Content-Disposition': `attachment; filename=submission_${submissionId}_file_${fileId}_errors.${fileType}`,
+					'Content-Disposition': `attachment; filename=${downloadFileName}`,
 					'Content-Type': fileType === 'tsv' ? 'text/tab-separated-values' : 'text/csv',
 				});
 

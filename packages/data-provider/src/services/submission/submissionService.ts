@@ -1,7 +1,7 @@
 import * as _ from 'lodash-es';
 
 import { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
-import { type NewSubmission } from '@overture-stack/lyric-data-model/models';
+import { type NewSubmission, type SubmissionFile } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../../config/config.js';
 import createSubmissionRepository from '../../repository/activeSubmissionRepository.js';
@@ -411,13 +411,14 @@ const submissionService = (dependencies: BaseDependencies) => {
 	};
 
 	/**
-	 * Throws NotFound unless `fileId` names a file belonging to `submissionId`.
+	 * Returns the file named by `fileId`, or throws NotFound unless it belongs to `submissionId`.
 	 */
-	const assertFileBelongsToSubmission = async (submissionId: number, fileId: number): Promise<void> => {
+	const assertFileBelongsToSubmission = async (submissionId: number, fileId: number): Promise<SubmissionFile> => {
 		const submissionFile = await submissionFilesRepository.getById(fileId);
 		if (!submissionFile || submissionFile.submissionId !== submissionId) {
 			throw new NotFound(`File '${fileId}' not found in Submission '${submissionId}'`);
 		}
+		return submissionFile;
 	};
 
 	/**
@@ -425,7 +426,8 @@ const submissionService = (dependencies: BaseDependencies) => {
 	 * @param {Object} params
 	 * @param {number} params.submissionId A Submission ID
 	 * @param {number} params.fileId The ID of the file within the Submission
-	 * @returns The file's Submission Record errors, normalized to a flat field-level shape
+	 * @returns The name of the entity the file was submitted for, and the file's Submission Record errors
+	 * normalized to a flat field-level shape
 	 */
 	const getSubmissionErrorsByFileId = async ({
 		submissionId,
@@ -433,14 +435,17 @@ const submissionService = (dependencies: BaseDependencies) => {
 	}: {
 		submissionId: number;
 		fileId: number;
-	}): Promise<SubmissionRecordFieldError[]> => {
-		await assertFileBelongsToSubmission(submissionId, fileId);
+	}): Promise<{ entityName: string; errors: SubmissionRecordFieldError[] }> => {
+		const { entityName } = await assertFileBelongsToSubmission(submissionId, fileId);
 
 		const submissionRecords = await submissionRecordsRepository.getByFileIds([fileId]);
 
-		return submissionRecords.records.flatMap((record) =>
-			mapSubmissionRecordErrorsToFieldErrors(record.errors, record.lineNumber),
-		);
+		return {
+			entityName,
+			errors: submissionRecords.records.flatMap((record) =>
+				mapSubmissionRecordErrorsToFieldErrors(record.errors, record.lineNumber),
+			),
+		};
 	};
 
 	/**

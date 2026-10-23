@@ -187,7 +187,7 @@
         description: The delimited format to download the error report as
     responses:
       200:
-        description: The error report as an attachment
+        description: The error report as an attachment, named `{submissionId}_file_{fileId}_{entityName}_errors.{csv|tsv}` (characters in the entity name other than letters, digits, `.`, `_` and `-` are replaced with `_`)
         content:
           text/csv:
             schema:
