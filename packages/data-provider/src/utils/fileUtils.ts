@@ -140,6 +140,12 @@ function formatForExcelCompatibility(data: string) {
  */
 export const genericSubmissionFileName = () => `submission-${new Date().toISOString()}.json`;
 
+/**
+ * Makes a value safe to embed in a downloaded file's name (and its `Content-Disposition` header) by replacing every
+ * character other than letters, digits, `.`, `_` and `-` with `_`.
+ */
+export const toSafeFileNameSegment = (value: string): string => value.replace(/[^A-Za-z0-9._-]+/g, '_');
+
 export function getSizeInBytes(size: string | number): number {
 	// Parse the string value into an integer in bytes.
 	// If value is a number it is assumed is in bytes.
