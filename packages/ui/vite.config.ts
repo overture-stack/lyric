@@ -20,9 +20,6 @@ export default defineConfig({
 			formats: ['es'],
 		},
 		rolldownOptions: {
-			output: {
-				banner: "import './style.css';",
-			},
 			plugins: [
 				esmExternalRequirePlugin({
 					external: ['react', 'react-dom', 'react/jsx-runtime'],

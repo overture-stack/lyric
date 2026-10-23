@@ -11,8 +11,11 @@
 			"types": "./dist/index.d.ts",
 			"default": "./dist/lyric-ui.js"
 		},
-		"./dist/lyric-ui.css": "./dist/lyric-ui.css"
+		"./style.css": "./dist/style.css"
 	},
+	"sideEffects": [
+		"**/*.css"
+	],
 	"files": [
 		"dist/"
 	],
