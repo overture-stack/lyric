@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import dts from 'unplugin-dts/vite';
 import { defineConfig } from 'vite';
 
 import pkg from './package.json' with { type: 'json' };
@@ -11,19 +12,23 @@ const externalPackages = [...Object.keys(pkg.dependencies), ...Object.keys(pkg.p
 const isExternal = (id: string) => externalPackages.some((name) => id === name || id.startsWith(`${name}/`));
 
 export default defineConfig({
-	plugins: [react(), tailwindcss()],
+	plugins: [
+		react(),
+		tailwindcss(),
+		dts({ outDirs: ['dist', { dir: 'dist', moduleFormat: 'cjs' }], tsconfigPath: './tsconfig.build.json' }),
+	],
 	resolve: {
 		alias: {
-			'@': resolve(__dirname, './src'),
+			'@': resolve(import.meta.dirname, './src'),
 		},
 	},
 	build: {
 		lib: {
-			entry: resolve(__dirname, 'src/index.ts'),
+			entry: resolve(import.meta.dirname, 'src/entry.ts'),
 			name: 'LyricUI',
 			fileName: 'lyric-ui',
 			cssFileName: 'style',
-			formats: ['es'],
+			formats: ['es', 'cjs'],
 		},
 		rolldownOptions: {
 			external: isExternal,

@@ -8,10 +8,10 @@ Shared React component library for Lyric-based UIs.
 
 ## Features
 
-- **Themeable** — Theming can be customized using css variables in the main .css file in your application. Please see section [Theming].
-- **Variant-driven components** — built with [`class-variance-authority`](https://cva.style/) so each component exposes a clean, type-safe variant API.
-- **ES module build** — ships an ES module (`lyric-ui.js`) and a separate stylesheet (`style.css`) that consumers import explicitly.
-- **Storybook** — every component has stories for interactive development and visual documentation.
+- **Themeable**: Theming can be customized using css variables in the main .css file in your application. Please see section [Theming].
+- **Variant-driven components**: built with [`class-variance-authority`](https://cva.style/) so each component exposes a clean, type-safe variant API.
+- **Dual-format build**: ships ES module (`lyric-ui.js`) and CommonJS (`lyric-ui.cjs`) outputs, plus a separate stylesheet (`style.css`) that consumers import explicitly.
+- **Storybook**: every component has stories for interactive development and visual documentation.
 
 ---
 
@@ -33,7 +33,7 @@ Shared React component library for Lyric-based UIs.
 | [Tailwind CSS v4](https://tailwindcss.com/)    | Utility-first styling                             |
 | [class-variance-authority](https://cva.style/) | Variant and slot management for components        |
 | [cn](https://github.com/shadcn-ui/cn#readme)   | Conditional class composition without conflicts   |
-| [Vite](https://vitejs.dev/)                    | Library build (ESM, separate CSS)                 |
+| [Vite](https://vitejs.dev/)                    | Library build (ESM + CJS, separate CSS)           |
 | [Storybook 8](https://storybook.js.org/)       | Component development environment and visual docs |
 
 The theming system follows a similar [shadcn/ui](https://ui.shadcn.com/) convention: design tokens are declared as CSS custom properties in a `@layer base` block, then referenced by Tailwind via `@theme`. shadcn uses HSL to apply their themes by default, this implementation will also be able to support other formats. Ultimately, callers can override the full palette simply by redefining the CSS variables in their own stylesheet which will be explained further in the next section.
