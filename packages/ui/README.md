@@ -8,10 +8,10 @@ Shared React component library for Lyric-based UIs.
 
 ## Features
 
-- **Themeable** — Theming can be customized using css variables in the main .css file in your application. Please see section [Theming].
-- **Variant-driven components** — built with [`class-variance-authority`](https://cva.style/) so each component exposes a clean, type-safe variant API.
-- **Dual-format build** — ships both ES module (`lyric-ui.js`) and CommonJS (`lyric-ui.cjs`) outputs so it works in both modern bundlers and legacy setups.
-- **Storybook** — every component has stories for interactive development and visual documentation.
+- **Themeable**: Theming can be customized using css variables in the main .css file in your application. Please see section [Theming].
+- **Variant-driven components**: built with [`class-variance-authority`](https://cva.style/) so each component exposes a clean, type-safe variant API.
+- **Dual-format build**: ships ES module (`lyric-ui.js`) and CommonJS (`lyric-ui.cjs`) outputs, plus a separate stylesheet (`style.css`) that consumers import explicitly.
+- **Storybook**: every component has stories for interactive development and visual documentation.
 
 ---
 
@@ -33,7 +33,7 @@ Shared React component library for Lyric-based UIs.
 | [Tailwind CSS v4](https://tailwindcss.com/)    | Utility-first styling                             |
 | [class-variance-authority](https://cva.style/) | Variant and slot management for components        |
 | [cn](https://github.com/shadcn-ui/cn#readme)   | Conditional class composition without conflicts   |
-| [Vite](https://vitejs.dev/)                    | Library build (ESM + CJS, bundled CSS)            |
+| [Vite](https://vitejs.dev/)                    | Library build (ESM + CJS, separate CSS)           |
 | [Storybook 8](https://storybook.js.org/)       | Component development environment and visual docs |
 
 The theming system follows a similar [shadcn/ui](https://ui.shadcn.com/) convention: design tokens are declared as CSS custom properties in a `@layer base` block, then referenced by Tailwind via `@theme`. shadcn uses HSL to apply their themes by default, this implementation will also be able to support other formats. Ultimately, callers can override the full palette simply by redefining the CSS variables in their own stylesheet which will be explained further in the next section.
@@ -60,10 +60,13 @@ Tailoring lyric-ui components to a target application is done by overriding CSS 
 | `--color-input`                  | `hsl(214.3 31.8% 91.4%)` | Input field border color                                            |
 | `--color-ring`                   | `hsl(222.2 84% 4.9%)`    | Focus ring color for interactive elements                           |
 | `--radius`                       | `0.5rem`                 | Base border-radius used across components                           |
+<<<<<<< HEAD
 | `--color-pill-error`             | `#ffccc7`                | Background color for error/failed pill badges                       |
 | `--color-pill-success`           | `#52c41a`                | Background color for success pill badges                            |
 | `--color-pill-warning`           | `#ffff7a`                | Background color for warning pill badges                            |
 | `--color-pill-default`           | `#f9fafb`                | Background color for default/neutral pill badges                    |
+=======
+
 
 Your main css file should look something like this:
 
@@ -84,6 +87,13 @@ Your main css file should look something like this:
 	--color-border: hsl(214.3 31.8% 91.4%);
 	--color-input: hsl(214.3 31.8% 91.4%);
 	--color-ring: hsl(222.2 84% 4.9%);
+<<<<<<< HEAD
+=======
+
+	/*Select and Combobox*/
+	--color-popover: oklch(1 0 0);
+	--color-popover-foreground: oklch(0.145 0 0);
+>>>>>>> main
 }
 
 :root {
@@ -102,6 +112,8 @@ Your main css file should look something like this:
 	--border: var(--color-border);
 	--input: var(--color-input);
 	--ring: var(--color-ring);
+	--popover: var(--color-popover);
+	--popover-foreground: var(--color-popover-foreground);
 	--radius: 0.5rem;
 }
 ```
@@ -134,4 +146,10 @@ For example `pnpm dlx shadcn@latest add popover` will add `@radix-ui/react-popov
 <!--
 ```bash
 pnpm add @overture-stack/lyric-ui
+```
+
+Import the stylesheet once, at your application's entry point, before your own styles so your theme overrides take effect:
+
+```ts
+import '@overture-stack/lyric-ui/style.css';
 ```-->
