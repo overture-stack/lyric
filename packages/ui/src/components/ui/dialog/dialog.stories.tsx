@@ -79,7 +79,7 @@ export const WithTrigger: Story = {
 						Click the button above to open this dialog. Click outside or press Escape to close it.
 					</DialogDescription>
 				</DialogHeader>
-				<DialogFooter showCloseButton></DialogFooter>
+				<DialogFooter showCloseButton />
 			</DialogContent>
 		</Dialog>
 	),
