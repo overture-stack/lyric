@@ -272,6 +272,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@overture-stack/lyric':
+        specifier: workspace:^
+        version: link:../data-provider
       '@radix-ui/react-slot':
         specifier: ^1.3.3
         version: 1.3.3(@types/react@19.2.18)(react@19.2.8)
