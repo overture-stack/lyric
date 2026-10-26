@@ -1,4 +1,3 @@
-export { Button, buttonVariants } from './components/ui/button';
 export {
 	Combobox,
 	ComboboxChip,
@@ -16,6 +15,7 @@ export {
 	ComboboxTrigger,
 	ComboboxValue,
 } from './components/ui/combobox/combobox';
+export * from './components/ui/headertext/headertext';
 export { Input } from './components/ui/input/input';
 export {
 	InputGroup,
@@ -26,3 +26,4 @@ export {
 	InputGroupTextarea,
 } from './components/ui/input/input-group';
 export { Textarea } from './components/ui/input/textarea';
+export * from './components/ui/pill/pill';

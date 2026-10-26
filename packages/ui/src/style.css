@@ -27,6 +27,11 @@
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);
 
+	/* Pill CUSTOM*/
+	--color-pill-error: #ffccc7;
+	--color-pill-success: #52c41a;
+	--color-pill-warning: #ffff7a;
+	--color-pill-default: #d0d2d3;
 	/*Select and Combobox*/
 	--color-popover: oklch(1 0 0);
 	--color-popover-foreground: oklch(0.145 0 0);
