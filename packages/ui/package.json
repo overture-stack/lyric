@@ -3,13 +3,19 @@
 	"version": "0.0.0-dev",
 	"description": "Shared React component library for Lyric-based UIs.",
 	"type": "module",
-	"main": "./dist/lyric-ui.js",
+	"main": "./dist/lyric-ui.cjs",
 	"module": "./dist/lyric-ui.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"types": "./dist/index.d.ts",
-			"default": "./dist/lyric-ui.js"
+			"import": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/lyric-ui.js"
+			},
+			"require": {
+				"types": "./dist/index.d.cts",
+				"default": "./dist/lyric-ui.cjs"
+			}
 		},
 		"./style.css": "./dist/style.css"
 	},
@@ -24,7 +30,7 @@
 	},
 	"scripts": {
 		"nuke:build": "npx rimraf dist",
-		"build:all": "pnpm nuke:build && vite build && tsc -p tsconfig.build.json",
+		"build:all": "pnpm nuke:build && vite build",
 		"storybook": "storybook dev -p 6006",
 		"build:storybook": "storybook build"
 	},
@@ -58,6 +64,7 @@
 		"rimraf": "^6.1.3",
 		"storybook": "^10.5.9",
 		"tailwindcss": "^4.3.3",
+		"unplugin-dts": "1.1.2",
 		"vite": "^8.2.1"
 	},
 	"private": true
