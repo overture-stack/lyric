@@ -75,3 +75,11 @@ export const Link: Story = {
 		variant: 'link',
 	},
 };
+
+export const AsChild: Story = {
+	args: {
+		variant: 'outline',
+		asChild: true,
+		children: <a href="#">Anchor styled as a button</a>,
+	},
+};
