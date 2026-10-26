@@ -60,8 +60,10 @@ Tailoring lyric-ui components to a target application is done by overriding CSS 
 | `--color-input`                  | `hsl(214.3 31.8% 91.4%)` | Input field border color                                            |
 | `--color-ring`                   | `hsl(222.2 84% 4.9%)`    | Focus ring color for interactive elements                           |
 | `--radius`                       | `0.5rem`                 | Base border-radius used across components                           |
-| `--color-popover`                | `oklch(1 0 0)`           | Background color for popover/dropdown surfaces (Select, Combobox)   |
-| `--color-popover-foreground`     | `oklch(0.145 0 0)`       | Text/icons rendered inside a popover surface                        |
+
+<<<<<<< HEAD
+| `--color-popover` | `oklch(1 0 0)` | Background color for popover/dropdown surfaces (Select, Combobox) |
+| `--color-popover-foreground` | `oklch(0.145 0 0)` | Text/icons rendered inside a popover surface |
 
 Your main css file should look something like this:
 
