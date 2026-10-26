@@ -60,13 +60,12 @@ Tailoring lyric-ui components to a target application is done by overriding CSS 
 | `--color-input`                  | `hsl(214.3 31.8% 91.4%)` | Input field border color                                            |
 | `--color-ring`                   | `hsl(222.2 84% 4.9%)`    | Focus ring color for interactive elements                           |
 | `--radius`                       | `0.5rem`                 | Base border-radius used across components                           |
-<<<<<<< HEAD
 | `--color-pill-error`             | `#ffccc7`                | Background color for error/failed pill badges                       |
 | `--color-pill-success`           | `#52c41a`                | Background color for success pill badges                            |
 | `--color-pill-warning`           | `#ffff7a`                | Background color for warning pill badges                            |
 | `--color-pill-default`           | `#f9fafb`                | Background color for default/neutral pill badges                    |
-=======
-
+| `--color-popover`                | `oklch(1 0 0)`           | Background color for popover/dropdown surfaces (Select, Combobox)   |
+| `--color-popover-foreground`     | `oklch(0.145 0 0)`       | Text/icons rendered inside a popover surface                        |
 
 Your main css file should look something like this:
 
@@ -87,13 +86,10 @@ Your main css file should look something like this:
 	--color-border: hsl(214.3 31.8% 91.4%);
 	--color-input: hsl(214.3 31.8% 91.4%);
 	--color-ring: hsl(222.2 84% 4.9%);
-<<<<<<< HEAD
-=======
 
 	/*Select and Combobox*/
 	--color-popover: oklch(1 0 0);
 	--color-popover-foreground: oklch(0.145 0 0);
->>>>>>> main
 }
 
 :root {
