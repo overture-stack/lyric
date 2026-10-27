@@ -81,6 +81,8 @@ const router = ({
 
 	router.get('/:submissionId/errors/download', submissionController.downloadSubmissionErrorsByFileId);
 
+	router.get('/:submissionId/errors/download/all', submissionController.downloadAllSubmissionErrors);
+
 	router.get('/category/:categoryId', submissionController.getSubmissionsByCategory);
 
 	router.get('/category/:categoryId/organization/:organization', submissionController.getActiveByOrganization);

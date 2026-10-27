@@ -2,7 +2,12 @@ import { expect, use } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import { describe, it } from 'mocha';
 
-import { getSeparatorCharacter, mapRecordToHeaders, toSafeFileNameSegment } from '../../../src/utils/fileUtils.js';
+import {
+	getErrorReportFileName,
+	getSeparatorCharacter,
+	mapRecordToHeaders,
+	toSafeFileNameSegment,
+} from '../../../src/utils/fileUtils.js';
 import { createMulterFile } from '../../fixtures/createMulterFile.js';
 
 use(chaiAsPromised);
@@ -53,6 +58,27 @@ describe('File Utils', () => {
 		});
 		it('should replace non-ASCII characters and line breaks', () => {
 			expect(toSafeFileNameSegment('café\r\nname')).to.equal('caf_name');
+		});
+	});
+
+	describe('Build the name of a file error report', () => {
+		it('should join the submission, file and entity with the file type as extension', () => {
+			expect(getErrorReportFileName({ submissionId: 12, fileId: 34, entityName: 'sport', fileType: 'tsv' })).to.equal(
+				'12_file_34_sport_errors.tsv',
+			);
+			expect(getErrorReportFileName({ submissionId: 12, fileId: 34, entityName: 'sport', fileType: 'csv' })).to.equal(
+				'12_file_34_sport_errors.csv',
+			);
+		});
+		it('should make the entity name safe for a file name', () => {
+			expect(
+				getErrorReportFileName({ submissionId: 1, fileId: 2, entityName: 'my sport; "odd"', fileType: 'csv' }),
+			).to.equal('1_file_2_my_sport_odd__errors.csv');
+		});
+		it('should give files of the same entity different names', () => {
+			const nameOf = (fileId: number) =>
+				getErrorReportFileName({ submissionId: 1, fileId, entityName: 'sport', fileType: 'tsv' });
+			expect(nameOf(2)).to.not.equal(nameOf(3));
 		});
 	});
 });

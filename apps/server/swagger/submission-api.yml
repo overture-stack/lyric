@@ -206,6 +206,45 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
+/submission/{submissionId}/errors/download/all:
+  get:
+    summary: Download the validation errors of every file within a Submission as a zip of CSV or TSV reports
+    description: Responds 404 when the Submission does not exist, and also when none of its files has errors.
+    tags:
+      - Submission
+    parameters:
+      - $ref: '#/components/parameters/path/SubmissionId'
+      - name: fileType
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [csv, tsv]
+          default: csv
+        description: The delimited format of each error report inside the zip
+    responses:
+      200:
+        description: >-
+          A zip attachment named `submission_{submissionId}_all_errors.zip`, holding one error report per file that has
+          errors (files without errors are left out). Each report is named
+          `{submissionId}_file_{fileId}_{entityName}_errors.{csv|tsv}`, the same name the single file download uses, and
+          has the same content.
+        content:
+          application/zip:
+            schema:
+              type: string
+              format: binary
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      404:
+        $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
 /submission/category/{categoryId}:
   get:
     summary: Retrieve the Submissions for a category in this user session

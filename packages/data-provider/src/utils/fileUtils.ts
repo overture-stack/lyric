@@ -146,6 +146,22 @@ export const genericSubmissionFileName = () => `submission-${new Date().toISOStr
  */
 export const toSafeFileNameSegment = (value: string): string => value.replace(/[^A-Za-z0-9._-]+/g, '_');
 
+/**
+ * Builds the name of a file's error report, `{submissionId}_file_{fileId}_{entityName}_errors.{fileType}`. It's unique
+ * per `fileId`, since a Submission can hold several files for the same entity or with the same original name.
+ */
+export const getErrorReportFileName = ({
+	submissionId,
+	fileId,
+	entityName,
+	fileType,
+}: {
+	submissionId: number;
+	fileId: number;
+	entityName: string;
+	fileType: SupportedFileExtension;
+}): string => `${submissionId}_file_${fileId}_${toSafeFileNameSegment(entityName)}_errors.${fileType}`;
+
 export function getSizeInBytes(size: string | number): number {
 	// Parse the string value into an integer in bytes.
 	// If value is a number it is assumed is in bytes.

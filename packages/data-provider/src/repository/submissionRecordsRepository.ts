@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, ne } from 'drizzle-orm/sql';
+import { and, count, eq, inArray, isNotNull, ne } from 'drizzle-orm/sql';
 
 import {
 	type NewSubmissionRecord,
@@ -252,6 +252,30 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		}
 	};
 
+	/**
+	 * Fetches the `fileId`, `lineNumber` and `errors` of every Submission Record of a Submission that has errors, ordered
+	 * by record `id`. Like `getErrorsByFileId`, it skips the record `data`.
+	 */
+	const getErrorsBySubmissionId = async (
+		submissionId: number,
+	): Promise<Array<{ fileId: number; lineNumber: number | null; errors: SubmissionRecordError[] | null }>> => {
+		try {
+			return await db
+				.select({
+					fileId: submissionRecords.fileId,
+					lineNumber: submissionRecords.lineNumber,
+					errors: submissionRecords.errors,
+				})
+				.from(submissionRecords)
+				.innerJoin(submissionFiles, eq(submissionRecords.fileId, submissionFiles.id))
+				.where(and(eq(submissionFiles.submissionId, submissionId), isNotNull(submissionRecords.errors)))
+				.orderBy(submissionRecords.id);
+		} catch (error) {
+			logger.error(LOG_MODULE, `Failed getting Submission Record errors by submissionId '${submissionId}'`, error);
+			throw new ServiceUnavailable();
+		}
+	};
+
 	const getRecordsSummaryBySubmissionId = async (submissionId: number): Promise<SubmissionRecordAggregate[]> => {
 		try {
 			const submissionFileRecords = await db
@@ -448,6 +472,8 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		getBySubmissionId,
 
 		getErrorsByFileId,
+
+		getErrorsBySubmissionId,
 
 		getRecordsSummaryBySubmissionId,
 		getRecordsSummaryBySubmissionIds,

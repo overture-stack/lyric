@@ -7,6 +7,7 @@ import type { SQON } from '@overture-stack/sqon-builder';
 
 import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js';
 import { parseSQON } from './convertSqonToQuery.js';
+import { SUPPORTED_FILE_EXTENSIONS, type SupportedFileExtension } from './fileUtils.js';
 import { isValidCategoryAlias, isValidDateFormat, isValidIdNumber } from './formatUtils.js';
 import { RequestValidation } from './requestValidation.js';
 import { VIEW_TYPE } from './types.js';
@@ -369,7 +370,7 @@ export const submissionErrorsRequestSchema: RequestValidation<
 
 export interface SubmissionErrorsDownloadQueryParams extends ParsedQs {
 	fileId: string;
-	fileType?: 'csv' | 'tsv';
+	fileType?: SupportedFileExtension;
 }
 
 export const submissionErrorsDownloadRequestSchema: RequestValidation<
@@ -379,7 +380,22 @@ export const submissionErrorsDownloadRequestSchema: RequestValidation<
 > = {
 	query: zod.object({
 		fileId: positiveInteger,
-		fileType: zod.enum(['csv', 'tsv']).optional(),
+		fileType: SUPPORTED_FILE_EXTENSIONS.optional(),
+	}),
+	pathParams: submissionIdPathParamSchema,
+};
+
+export interface SubmissionErrorsDownloadAllQueryParams extends ParsedQs {
+	fileType?: SupportedFileExtension;
+}
+
+export const submissionErrorsDownloadAllRequestSchema: RequestValidation<
+	object,
+	SubmissionErrorsDownloadAllQueryParams,
+	submissionIdPathParam
+> = {
+	query: zod.object({
+		fileType: SUPPORTED_FILE_EXTENSIONS.optional(),
 	}),
 	pathParams: submissionIdPathParamSchema,
 };
@@ -633,7 +649,7 @@ export const DataGetBySystemIdRequestSchema: RequestValidation<
 
 export const downloadDataFileTemplatesSchema = {
 	query: zod.object({
-		fileType: zod.enum(['csv', 'tsv']).optional(),
+		fileType: SUPPORTED_FILE_EXTENSIONS.optional(),
 	}),
 	pathParams: zod.object({
 		categoryId: categoryIdSchema,
