@@ -14,7 +14,7 @@ import {
 import { cn } from 'cn';
 import { ArrowUpDown, Funnel } from 'lucide-react';
 
-import { Submission } from './types';
+import { Submission } from './utils/types';
 
 export const columnHelper = createColumnHelper<typeof features, Submission>();
 

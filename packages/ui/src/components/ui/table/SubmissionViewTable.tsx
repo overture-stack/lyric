@@ -12,8 +12,8 @@ import { cn } from 'cn';
 import { ArrowUpDown, Funnel } from 'lucide-react';
 import { useState } from 'react';
 
-import { StatusFilterPopover } from './StatusFilterPopover';
-import { COLUMN_NAMES, Submission, SUBMISSION_STATUS, SUBMISSION_STATUS_VALUES } from './types';
+import { StatusFilterPopover } from './components/StatusFilterPopover';
+import { COLUMN_NAMES, Submission, SUBMISSION_STATUS, SUBMISSION_STATUS_VALUES } from './utils/types';
 
 export const testData: Array<Submission> = [
 	{

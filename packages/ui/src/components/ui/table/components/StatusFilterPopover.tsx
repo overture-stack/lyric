@@ -1,9 +1,9 @@
 import { useState } from 'react';
 
-import { Button } from '../button';
-import { Checkbox } from '../checkbox';
-import { Popover, PopoverContent, PopoverTrigger } from '../popover';
-import { SUBMISSION_STATUS, SUBMISSION_STATUS_VALUES } from './types';
+import { Button } from '../../button';
+import { Checkbox } from '../../checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '../../popover';
+import { SUBMISSION_STATUS, SUBMISSION_STATUS_VALUES } from '../utils/types';
 
 interface StatusFilterPopoverProps {
 	trigger: React.ReactNode;
