@@ -270,10 +270,6 @@ export interface DictionaryRegisterQueryParams extends ParsedQs {
 	force?: string;
 }
 
-export interface DictionaryRegisterQueryParams extends ParsedQs {
-	force?: string;
-}
-
 export const dictionaryRegisterRequestSchema: RequestValidation<
 	DictionaryRegisterBodyParams,
 	DictionaryRegisterQueryParams,
