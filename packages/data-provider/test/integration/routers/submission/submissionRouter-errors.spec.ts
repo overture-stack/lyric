@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+import JSZip from 'jszip';
 import { after, afterEach, before, beforeEach, describe, it } from 'mocha';
 import supertest from 'supertest';
 
@@ -376,5 +377,204 @@ describe('Integration - Submission Router - GET /:submissionId/errors/download',
 		const response = await app.get(`/${submissionId}/errors/download`);
 
 		expect(response.status).to.eq(400);
+	});
+});
+
+describe('Integration - Submission Router - GET /:submissionId/errors/download/all', () => {
+	let app: supertest.Agent;
+	let lyricProvider: LyricProvider;
+	let submissionId: number;
+	let sportFileId: number;
+	let secondSportFileId: number;
+	let teamFileId: number;
+	let dictionaryId: number;
+	let categoryId: number;
+
+	const unrecognizedFieldError = (fieldName: string, fieldValue: string) => ({
+		reason: 'UNRECOGNIZED_FIELD' as const,
+		fieldName,
+		fieldValue,
+	});
+
+	/** Collects the raw response bytes so the zip isn't mangled by supertest's text handling. */
+	const downloadAll = (path: string, query: Record<string, string> = {}) =>
+		app
+			.get(path)
+			.query(query)
+			.buffer(true)
+			.parse((res, callback) => {
+				const chunks: Buffer[] = [];
+				res.on('data', (chunk: Buffer) => chunks.push(chunk));
+				res.on('end', () => callback(null, Buffer.concat(chunks)));
+			});
+
+	before(async () => {
+		lyricProvider = await createLyricProvider(getContainers().providerConfig);
+		app = createTestApp(lyricProvider.routers.submission);
+	});
+
+	beforeEach(async () => {
+		const dictionary = await lyricProvider.repositories.dictionary.save({
+			name: 'sports',
+			version: '1.0.0',
+			dictionary: dictionarySportsData,
+		});
+
+		const category = await lyricProvider.repositories.category.save({
+			name: 'sports-category',
+			activeDictionaryId: dictionary.id,
+		});
+
+		dictionaryId = dictionary.id;
+		categoryId = category.id;
+
+		submissionId = await lyricProvider.repositories.submission.save({
+			dictionaryCategoryId: category.id,
+			dictionaryId: dictionary.id,
+			organization: 'testOrg',
+			status: 'INVALID',
+			createdBy: 'testUser',
+		});
+
+		sportFileId = await lyricProvider.repositories.submissionFiles.save({
+			submissionId,
+			fileName: 'sport.tsv',
+			entityName: 'sport',
+			fileSize: 100,
+		});
+		await lyricProvider.repositories.submissionRecords.saveManyForFile(sportFileId, [
+			{
+				data: { sport_id: '1', name: 'a' },
+				actionType: 'INSERT',
+				state: 'INVALID',
+				lineNumber: 2,
+				errors: [unrecognizedFieldError('name', 'a')],
+			},
+			{ data: { sport_id: '2', name: 'b' }, actionType: 'INSERT', state: 'VALID', lineNumber: 3, errors: null },
+		]);
+
+		// Same entity and same original file name as above, uploaded a second time
+		secondSportFileId = await lyricProvider.repositories.submissionFiles.save({
+			submissionId,
+			fileName: 'sport.tsv',
+			entityName: 'sport',
+			fileSize: 100,
+		});
+		await lyricProvider.repositories.submissionRecords.saveManyForFile(secondSportFileId, [
+			{
+				data: { sport_id: '3', name: 'c' },
+				actionType: 'INSERT',
+				state: 'INVALID',
+				lineNumber: 2,
+				errors: [unrecognizedFieldError('name', 'c')],
+			},
+		]);
+
+		teamFileId = await lyricProvider.repositories.submissionFiles.save({
+			submissionId,
+			fileName: 'team.tsv',
+			entityName: 'team',
+			fileSize: 100,
+		});
+		await lyricProvider.repositories.submissionRecords.saveManyForFile(teamFileId, [
+			{
+				data: { team_id: '1' },
+				actionType: 'INSERT',
+				state: 'INVALID',
+				lineNumber: 4,
+				errors: [unrecognizedFieldError('coach', 'x')],
+			},
+		]);
+
+		// A file without any error must not produce a report
+		const cleanFileId = await lyricProvider.repositories.submissionFiles.save({
+			submissionId,
+			fileName: 'clean.tsv',
+			entityName: 'sport',
+			fileSize: 50,
+		});
+		await lyricProvider.repositories.submissionRecords.saveManyForFile(cleanFileId, [
+			{ data: { sport_id: '9', name: 'z' }, actionType: 'INSERT', state: 'VALID', lineNumber: 2, errors: null },
+		]);
+	});
+
+	afterEach(async () => {
+		await getContainers().resetDatabases();
+	});
+
+	after(async () => {
+		await lyricProvider.shutdown();
+	});
+
+	it('downloads a zip named after the submission with one CSV report per file that has errors', async () => {
+		const response = await downloadAll(`/${submissionId}/errors/download/all`);
+
+		expect(response.status).to.eq(200);
+		expect(response.headers['content-type']).to.include('application/zip');
+		expect(response.headers['content-disposition']).to.eq(
+			`attachment; filename=submission_${submissionId}_all_errors.zip`,
+		);
+
+		const zip = await JSZip.loadAsync(response.body);
+		expect(Object.keys(zip.files).sort()).to.eql(
+			[
+				`${submissionId}_file_${sportFileId}_sport_errors.csv`,
+				`${submissionId}_file_${secondSportFileId}_sport_errors.csv`,
+				`${submissionId}_file_${teamFileId}_team_errors.csv`,
+			].sort(),
+		);
+
+		expect(await zip.file(`${submissionId}_file_${sportFileId}_sport_errors.csv`)?.async('string')).to.eq(
+			"rowNumber,fieldName,reason,fieldValue,message\n2,name,UNRECOGNIZED_FIELD,a,Field 'name' is not recognized in the schema\n",
+		);
+		expect(await zip.file(`${submissionId}_file_${teamFileId}_team_errors.csv`)?.async('string')).to.eq(
+			"rowNumber,fieldName,reason,fieldValue,message\n4,coach,UNRECOGNIZED_FIELD,x,Field 'coach' is not recognized in the schema\n",
+		);
+	});
+
+	it('writes TSV reports when fileType=tsv', async () => {
+		const response = await downloadAll(`/${submissionId}/errors/download/all`, { fileType: 'tsv' });
+
+		expect(response.status).to.eq(200);
+		const zip = await JSZip.loadAsync(response.body);
+		expect(Object.keys(zip.files).every((name) => name.endsWith('_errors.tsv'))).to.be.true;
+		expect(await zip.file(`${submissionId}_file_${teamFileId}_team_errors.tsv`)?.async('string')).to.eq(
+			"rowNumber\tfieldName\treason\tfieldValue\tmessage\n4\tcoach\tUNRECOGNIZED_FIELD\tx\tField 'coach' is not recognized in the schema\n",
+		);
+	});
+
+	it('returns 400 for an unsupported fileType', async () => {
+		const response = await app.get(`/${submissionId}/errors/download/all`).query({ fileType: 'xlsx' });
+
+		expect(response.status).to.eq(400);
+	});
+
+	it('returns 404 when the submission does not exist', async () => {
+		const response = await app.get(`/${submissionId + 999}/errors/download/all`);
+
+		expect(response.status).to.eq(404);
+	});
+
+	it('returns 404 when none of the submission files has errors', async () => {
+		const cleanSubmissionId = await lyricProvider.repositories.submission.save({
+			dictionaryCategoryId: categoryId,
+			dictionaryId,
+			organization: 'cleanOrg',
+			status: 'VALID',
+			createdBy: 'testUser',
+		});
+		const cleanFileId = await lyricProvider.repositories.submissionFiles.save({
+			submissionId: cleanSubmissionId,
+			fileName: 'sport.tsv',
+			entityName: 'sport',
+			fileSize: 50,
+		});
+		await lyricProvider.repositories.submissionRecords.saveManyForFile(cleanFileId, [
+			{ data: { sport_id: '1', name: 'a' }, actionType: 'INSERT', state: 'VALID', lineNumber: 2, errors: null },
+		]);
+
+		const response = await app.get(`/${cleanSubmissionId}/errors/download/all`);
+
+		expect(response.status).to.eq(404);
 	});
 });

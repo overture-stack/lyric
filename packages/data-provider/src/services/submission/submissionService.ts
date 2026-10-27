@@ -22,6 +22,7 @@ import {
 } from '../../utils/submissionResponseParser.js';
 import type {
 	SubmissionErrorsSummary,
+	SubmissionFileErrorReport,
 	SubmissionRecordActionType,
 	SubmissionRecordFieldError,
 } from '../../utils/submissionTypes.js';
@@ -449,6 +450,46 @@ const submissionService = (dependencies: BaseDependencies) => {
 	};
 
 	/**
+	 * Get the validation errors of every file of a Submission that has at least one error, ordered by file ID.
+	 * @param {Object} params
+	 * @param {number} params.submissionId A Submission ID
+	 * @returns One error report per file with errors
+	 * @throws {NotFound} When the Submission does not exist, or none of its files has errors
+	 */
+	const getSubmissionErrorReportsBySubmissionId = async ({
+		submissionId,
+	}: {
+		submissionId: number;
+	}): Promise<SubmissionFileErrorReport[]> => {
+		const submission = await submissionRepository.getSubmissionById(submissionId);
+		if (!submission) {
+			throw new NotFound(`Submission '${submissionId}' not found`);
+		}
+
+		const [submissionFiles, recordErrors] = await Promise.all([
+			submissionFilesRepository.getBySubmissionId(submissionId),
+			submissionRecordsRepository.getErrorsBySubmissionId(submissionId),
+		]);
+
+		const errorsByFileId = recordErrors.reduce((errorsByFile, record) => {
+			const fieldErrors = mapSubmissionRecordErrorsToFieldErrors(record.errors, record.lineNumber);
+			errorsByFile.set(record.fileId, [...(errorsByFile.get(record.fileId) ?? []), ...fieldErrors]);
+			return errorsByFile;
+		}, new Map<number, SubmissionRecordFieldError[]>());
+
+		const reports = submissionFiles
+			.map((file) => ({ fileId: file.id, entityName: file.entityName, errors: errorsByFileId.get(file.id) ?? [] }))
+			.filter((report) => report.errors.length > 0)
+			.sort((reportA, reportB) => reportA.fileId - reportB.fileId);
+
+		if (reports.length === 0) {
+			throw new NotFound(`No errors found on Submission '${submissionId}'`);
+		}
+
+		return reports;
+	};
+
+	/**
 	 * Get a dashboard-style summary of a single file's validation errors within a Submission: how many
 	 * records have at least one error, and error counts grouped by field name and reason.
 	 * @param {Object} params
@@ -781,6 +822,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		getSubmissionById,
 		getSubmissionDetailsById,
 		getSubmissionErrorsByFileId,
+		getSubmissionErrorReportsBySubmissionId,
 		getSubmissionErrorsSummaryByFileId,
 		getActiveSubmissionByOrganization,
 		getOrCreateActiveSubmission,
