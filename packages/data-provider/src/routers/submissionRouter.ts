@@ -130,6 +130,12 @@ const router = ({
 		submissionController.downloadSubmissionErrorsByFileId,
 	);
 
+	router.get(
+		'/:submissionId/errors/download/all',
+		...authenticateThenParseBody,
+		submissionController.downloadAllSubmissionErrors,
+	);
+
 	router.get('/category/:categoryId', ...authenticateThenParseBody, submissionController.getSubmissionsByCategory);
 
 	router.get(

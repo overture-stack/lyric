@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import JSZip from 'jszip';
 import { isEmpty } from 'lodash-es';
 
 import { BaseDependencies } from '../config/config.js';
@@ -9,7 +10,7 @@ import createSubmissionService from '../services/submission/submissionService.js
 import createSubmittedDataService from '../services/submittedData/submmittedData.js';
 import { hasUserWriteAccess } from '../utils/authUtils.js';
 import { BadRequest, Forbidden, NotFound, StatusConflict } from '../utils/errors.js';
-import { toSafeFileNameSegment } from '../utils/fileUtils.js';
+import { columnSeparatorValue, getErrorReportFileName } from '../utils/fileUtils.js';
 import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import { resolveCategoryId } from '../utils/resolveCategoryId.js';
@@ -21,6 +22,7 @@ import {
 	submissionCommitRequestSchema,
 	submissionDeleteRequestSchema,
 	submissionDetailsRequestSchema,
+	submissionErrorsDownloadAllRequestSchema,
 	submissionErrorsDownloadRequestSchema,
 	submissionErrorsRequestSchema,
 	submissionFileDeleteRequestSchema,
@@ -336,9 +338,8 @@ const controller = ({
 
 				const { entityName, errors } = await submissionService.getSubmissionErrorsByFileId({ submissionId, fileId });
 
-				const delimiter = fileType === 'tsv' ? '\t' : ',';
-				const content = formatFieldErrorsAsDelimitedText(errors, delimiter);
-				const downloadFileName = `${submissionId}_file_${fileId}_${toSafeFileNameSegment(entityName)}_errors.${fileType}`;
+				const content = formatFieldErrorsAsDelimitedText(errors, columnSeparatorValue[fileType]);
+				const downloadFileName = getErrorReportFileName({ submissionId, fileId, entityName, fileType });
 
 				res.set({
 					'Content-Disposition': `attachment; filename=${downloadFileName}`,
@@ -346,6 +347,37 @@ const controller = ({
 				});
 
 				return res.status(200).send(content);
+			} catch (error) {
+				next(error);
+			}
+		}),
+		downloadAllSubmissionErrors: validateRequest(submissionErrorsDownloadAllRequestSchema, async (req, res, next) => {
+			try {
+				const submissionId = Number(req.params.submissionId);
+				const fileType = req.query.fileType ?? 'csv';
+
+				logger.info(
+					LOG_MODULE,
+					`Request download of all Submission errors on Submission '${submissionId}' as '${fileType}'`,
+				);
+
+				const reports = await submissionService.getSubmissionErrorReportsBySubmissionId({ submissionId });
+
+				const zip = new JSZip();
+				reports.forEach(({ fileId, entityName, errors }) => {
+					zip.file(
+						getErrorReportFileName({ submissionId, fileId, entityName, fileType }),
+						formatFieldErrorsAsDelimitedText(errors, columnSeparatorValue[fileType]),
+					);
+				});
+				const zipContent = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+
+				res.set({
+					'Content-Disposition': `attachment; filename=submission_${submissionId}_all_errors.zip`,
+					'Content-Type': 'application/zip',
+				});
+
+				return res.status(200).send(zipContent);
 			} catch (error) {
 				next(error);
 			}
