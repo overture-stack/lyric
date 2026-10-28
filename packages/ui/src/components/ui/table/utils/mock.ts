@@ -1,15 +1,15 @@
-import { SubmissionDataSummaryRepositoryRecord } from '@overture-stack/lyric';
+import { SchemasDictionary, SubmissionDataSummaryRepositoryRecord } from '@overture-stack/lyric';
 
 export const validResponse: SubmissionDataSummaryRepositoryRecord = {
 	id: 1,
 	data: {
 		inserts: {
 			treatment: {
-				batchName: 'treatment',
+				batchName: 'treatment.tsv',
 				recordsCount: 3,
 			},
 			participant: {
-				batchName: 'participant',
+				batchName: 'participant.tsv',
 				recordsCount: 5,
 			},
 		},
@@ -45,12 +45,20 @@ export const validatingResponse: SubmissionDataSummaryRepositoryRecord = {
 	data: {
 		inserts: {
 			treatment: {
-				batchName: 'treatment',
+				batchName: 'treatment.tsv',
 				recordsCount: 3,
 			},
 			participant: {
-				batchName: 'participant',
+				batchName: 'participant.tsv',
 				recordsCount: 5,
+			},
+			sociodemographic: {
+				batchName: 'sociodemographic.tsv',
+				recordsCount: 1,
+			},
+			measurement: {
+				batchName: 'diagnosis.tsv',
+				recordsCount: 1,
 			},
 		},
 	},
@@ -73,7 +81,7 @@ export const validatingResponse: SubmissionDataSummaryRepositoryRecord = {
 		},
 	},
 	organization: 'TEST_CATEGORY_1',
-	status: 'VALID',
+	status: 'VALIDATING',
 	createdAt: new Date(),
 	createdBy: '',
 	updatedAt: new Date(),
@@ -85,11 +93,11 @@ export const openResponse: SubmissionDataSummaryRepositoryRecord = {
 	data: {
 		inserts: {
 			treatment: {
-				batchName: 'treatment',
+				batchName: 'treatment.tsv',
 				recordsCount: 3,
 			},
 			participant: {
-				batchName: 'participant',
+				batchName: 'participant.tsv',
 				recordsCount: 5,
 			},
 		},
@@ -125,11 +133,11 @@ export const committingResponse: SubmissionDataSummaryRepositoryRecord = {
 	data: {
 		inserts: {
 			treatment: {
-				batchName: 'treatment',
+				batchName: 'treatment.tsv',
 				recordsCount: 3,
 			},
 			participant: {
-				batchName: 'participant',
+				batchName: 'participant.tsv',
 				recordsCount: 5,
 			},
 		},
@@ -165,11 +173,11 @@ export const committedResponse: SubmissionDataSummaryRepositoryRecord = {
 	data: {
 		inserts: {
 			treatment: {
-				batchName: 'treatment',
+				batchName: 'treatment.tsv',
 				recordsCount: 3,
 			},
 			participant: {
-				batchName: 'participant',
+				batchName: 'participant.tsv',
 				recordsCount: 5,
 			},
 		},
@@ -205,11 +213,11 @@ export const invalidResponse: SubmissionDataSummaryRepositoryRecord = {
 	data: {
 		inserts: {
 			treatment: {
-				batchName: 'treatment',
+				batchName: 'treatment.tsv',
 				recordsCount: 3,
 			},
 			participant: {
-				batchName: 'participant',
+				batchName: 'participant.tsv',
 				recordsCount: 5,
 			},
 		},
@@ -238,4 +246,97 @@ export const invalidResponse: SubmissionDataSummaryRepositoryRecord = {
 	createdBy: '',
 	updatedAt: new Date(),
 	updatedBy: '',
+};
+
+export const testDictionary: SchemasDictionary = {
+	name: 'test_pcgl_schema',
+	description: 'Base clinical schema that incorporates all PCGL base entities',
+	version: '1.20',
+	schemas: [
+		{
+			name: 'participant',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'sociodemographic',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'demographic',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'diagnosis',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'treatment',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'follow_up',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'procedure',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'medication',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'radiation',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'measurement',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'phenotype',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'comorbidity',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'exposure',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'specimen',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'sample',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'experiment',
+			description: '...',
+			fields: [],
+		},
+		{
+			name: 'read_group',
+			description: '...',
+			fields: [],
+		},
+	],
 };

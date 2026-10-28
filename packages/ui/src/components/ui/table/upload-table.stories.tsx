@@ -5,6 +5,7 @@ import {
 	committedResponse,
 	committingResponse,
 	invalidResponse,
+	testDictionary,
 	validatingResponse,
 	validResponse,
 } from './utils/mock';
@@ -21,22 +22,21 @@ type Story = StoryObj<typeof UploadSubmissionViewTable>;
 // FRONTEND VALIDATION
 
 // RESPONSE FROM SERVER
-export const ValidatingTable: Story = {
-	args: { submissionResponse: validatingResponse },
-};
-
 export const ValidTable: Story = {
-	args: { submissionResponse: validResponse },
+	args: { submissionResponse: validResponse, dictionary: testDictionary },
+};
+export const ValidatingTable: Story = {
+	args: { submissionResponse: validatingResponse, dictionary: testDictionary },
 };
 
 export const CommitingTable: Story = {
-	args: { submissionResponse: committingResponse },
+	args: { submissionResponse: committingResponse, dictionary: testDictionary },
 };
 
 export const CommitedTable: Story = {
-	args: { submissionResponse: committedResponse },
+	args: { submissionResponse: committedResponse, dictionary: testDictionary },
 };
 
 export const InvalidTable: Story = {
-	args: { submissionResponse: invalidResponse },
+	args: { submissionResponse: invalidResponse, dictionary: testDictionary },
 };

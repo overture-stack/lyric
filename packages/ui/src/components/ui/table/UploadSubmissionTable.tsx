@@ -1,5 +1,6 @@
 import { createColumnHelper, tableFeatures, useTable } from '@tanstack/react-table';
-import { CircleCheck, Download, FileExclamationPoint, Info, Trash } from 'lucide-react';
+import { cn } from 'cn';
+import { CircleCheck, Download, FileExclamationPoint, Info, Trash, TriangleAlert } from 'lucide-react';
 import { ReactNode } from 'react';
 
 import {
@@ -10,6 +11,7 @@ import {
 } from '@overture-stack/lyric';
 
 import { Button } from '../button';
+import EntitySelectBox from './components/EntitySelectBox';
 import { UPLOAD_COLUMN_NAMES, UploadSubmission } from './utils/types';
 
 export const columnHelper = createColumnHelper<typeof features, UploadSubmission & { action: string | ReactNode }>();
@@ -23,91 +25,31 @@ export interface SubmissionViewTableProps {
 
 type UploadTableRow = UploadSubmission & { action: string | ReactNode };
 
-function commitToUploadTableRows(commit: SubmissionDataSummary, status: SubmissionStatus): UploadTableRow[] {
-	const inserts = commit.inserts;
-	if (!inserts) {
-		return [];
-	}
-
-	// Logic to map inserts errors to status
-	return Object.entries(inserts).map(([_, summary]) => ({
-		file: `${summary.batchName}.tsv`, // no file info in inserts — mocked
-		entity: summary.batchName,
-		record: summary.recordsCount,
-		status: DisplayStatus(status), //TODO: Dynamicly change this action based of commit.action. API should return the error for this row, and display here
-		action: DisplayAction(status), //TODO: Frontend UI validation for OPEN status ->
-	}));
-}
-
-const DisplayStatus = (status: SubmissionStatus) => {
-	switch (status) {
-		case 'VALID':
-		case 'VALIDATING':
-		case 'COMMITTING':
-			return (
-				<div className="flex gap-2 items-center">
-					<CircleCheck size={15} className="text-green-500" />
-					<p>{'Ready for validation'}</p>
-				</div>
-			);
-		case 'COMMITTED':
-			return (
-				<div className="flex gap-2 items-center">
-					<Info size={15} className="text-gray-700" />
-					<p>{'Commited'}</p>
-				</div>
-			);
-		default:
-			return (
-				<div>
-					<CircleCheck />
-				</div>
-			);
-	}
-};
-
-const DisplayAction = (status: SubmissionStatus) => {
-	switch (status) {
-		case 'VALID':
-		case 'VALIDATING':
-		case 'COMMITTING':
-			return (
-				<div className="flex gap-2 items-center">
-					<Button variant={'outline'} icon={<Trash />} size={'xs'}>
-						{'Remove'}
-					</Button>
-				</div>
-			);
-		case 'INVALID':
-			return (
-				<div className="flex gap-2 items-center">
-					<Button variant={'outline'} icon={<Trash />} size={'xs'}>
-						{'Remove'}
-					</Button>
-					<Button variant={'outline'} icon={<FileExclamationPoint />} size={'xs'}>
-						{'Error Report'}
-					</Button>
-					<Button variant={'outline'} icon={<Download />} size={'xs'}>
-						{'Download File'}
-					</Button>
-				</div>
-			);
-		default:
-			return (
-				<div>
-					<CircleCheck />
-				</div>
-			);
-	}
-};
-
 export function UploadSubmissionViewTable(props: SubmissionViewTableProps) {
+	const tableDisabled =
+		props.submissionResponse.status === 'COMMITTING' || props.submissionResponse.status === 'VALIDATING';
+
+	const deleteHandler = (id: number | string) => {
+		// TODO: put request to remove selected field
+		console.log('DELETE---', id);
+	};
+
+	const downloadFileHandler = (id: number | string) => {
+		// TODO: endpoint to download by filename
+		console.log('DOWNLOAD---', id);
+	};
+	const downloadErrorFileHandler = (id: number | string) => {
+		// TODO: endpoint to download error for specific by file
+		console.log('DOWNLOAD-ERROR---', id);
+	};
+
 	const defaultColumns = columnHelper.columns([
 		columnHelper.accessor(UPLOAD_COLUMN_NAMES.FILE, {
 			header: 'File',
 		}),
 		columnHelper.accessor(UPLOAD_COLUMN_NAMES.ENTITY, {
 			header: 'Entity',
+			cell: (info) => <>{info.getValue<string>()}</>,
 		}),
 		columnHelper.accessor(UPLOAD_COLUMN_NAMES.RECORD, {
 			header: 'Record',
@@ -125,6 +67,7 @@ export function UploadSubmissionViewTable(props: SubmissionViewTableProps) {
 				]
 			: []),
 	]);
+
 	function commitToUploadTableRows(commit: SubmissionDataSummary, status: SubmissionStatus): UploadTableRow[] {
 		const inserts = commit.inserts;
 		if (!inserts) {
@@ -133,11 +76,11 @@ export function UploadSubmissionViewTable(props: SubmissionViewTableProps) {
 
 		// Logic to map inserts errors to status
 		return Object.entries(inserts).map(([_, summary]) => ({
-			file: `${summary.batchName}.tsv`, // no file info in inserts — mocked
-			entity: summary.batchName,
+			file: summary.batchName, // no file info in inserts — mocked
+			entity: EntitySelectBox({ dictionary: props.dictionary }),
 			record: summary.recordsCount,
 			status: DisplayStatus(status), //TODO: Dynamicly change this action based of commit.action. API should return the error for this row, and display here
-			action: DisplayAction(status), //TODO: Frontend UI validation for OPEN status ->
+			action: DisplayAction(summary.batchName, status), //TODO: Frontend UI validation for OPEN status ->
 		}));
 	}
 
@@ -159,6 +102,13 @@ export function UploadSubmissionViewTable(props: SubmissionViewTableProps) {
 						<p>{'Commited'}</p>
 					</div>
 				);
+			case 'INVALID': // TEXT NEEDS TO BE DYNAMIC
+				return (
+					<div className="flex gap-2 items-center">
+						<TriangleAlert size={15} className="text-red-500" />
+						<p>{'ERROR'}</p>
+					</div>
+				);
 			default:
 				return (
 					<div>
@@ -168,14 +118,21 @@ export function UploadSubmissionViewTable(props: SubmissionViewTableProps) {
 		}
 	};
 
-	const DisplayAction = (status: SubmissionStatus) => {
+	const DisplayAction = (id: number | string, status: SubmissionStatus) => {
 		switch (status) {
 			case 'VALID':
 			case 'VALIDATING':
 			case 'COMMITTING':
 				return (
 					<div className="flex gap-2 items-center">
-						<Button variant={'outline'} icon={<Trash />} size={'xs'}>
+						<Button
+							className="cursor-pointer"
+							onClick={() => deleteHandler(id)}
+							disabled={tableDisabled}
+							variant={'outline'}
+							icon={<Trash />}
+							size={'xs'}
+						>
 							{'Remove'}
 						</Button>
 					</div>
@@ -183,13 +140,34 @@ export function UploadSubmissionViewTable(props: SubmissionViewTableProps) {
 			case 'INVALID':
 				return (
 					<div className="flex gap-2 items-center">
-						<Button variant={'outline'} icon={<Trash />} size={'xs'}>
+						<Button
+							className="cursor-pointer"
+							onClick={() => deleteHandler(id)}
+							disabled={tableDisabled}
+							variant={'outline'}
+							icon={<Trash />}
+							size={'xs'}
+						>
 							{'Remove'}
 						</Button>
-						<Button variant={'outline'} icon={<FileExclamationPoint />} size={'xs'}>
+						<Button
+							className="cursor-pointer"
+							onClick={() => downloadErrorFileHandler(id)}
+							disabled={tableDisabled}
+							variant={'outline'}
+							icon={<FileExclamationPoint />}
+							size={'xs'}
+						>
 							{'Error Report'}
 						</Button>
-						<Button variant={'outline'} icon={<Download />} size={'xs'}>
+						<Button
+							className="cursor-pointer"
+							onClick={() => downloadFileHandler(id)}
+							disabled={tableDisabled}
+							variant={'outline'}
+							icon={<Download />}
+							size={'xs'}
+						>
 							{'Download File'}
 						</Button>
 					</div>
@@ -210,7 +188,7 @@ export function UploadSubmissionViewTable(props: SubmissionViewTableProps) {
 	});
 
 	return (
-		<div className="flex flex-col gap-4">
+		<div className={cn('flex flex-col gap-4', tableDisabled ? 'opacity-55' : '')}>
 			{/* Table */}
 			<div className="overflow-x-auto rounded border border-gray-200">
 				<table className='w-full text-sm border-collapse"'>
