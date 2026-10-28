@@ -88,7 +88,7 @@ const DisplayAction = (status: SubmissionStatus) => {
 						{'Error Report'}
 					</Button>
 					<Button variant={'outline'} icon={<Download />} size={'xs'}>
-						{'Remove'}
+						{'Download File'}
 					</Button>
 				</div>
 			);
@@ -125,6 +125,83 @@ export function UploadSubmissionViewTable(props: SubmissionViewTableProps) {
 				]
 			: []),
 	]);
+	function commitToUploadTableRows(commit: SubmissionDataSummary, status: SubmissionStatus): UploadTableRow[] {
+		const inserts = commit.inserts;
+		if (!inserts) {
+			return [];
+		}
+
+		// Logic to map inserts errors to status
+		return Object.entries(inserts).map(([_, summary]) => ({
+			file: `${summary.batchName}.tsv`, // no file info in inserts — mocked
+			entity: summary.batchName,
+			record: summary.recordsCount,
+			status: DisplayStatus(status), //TODO: Dynamicly change this action based of commit.action. API should return the error for this row, and display here
+			action: DisplayAction(status), //TODO: Frontend UI validation for OPEN status ->
+		}));
+	}
+
+	const DisplayStatus = (status: SubmissionStatus) => {
+		switch (status) {
+			case 'VALID':
+			case 'VALIDATING':
+			case 'COMMITTING':
+				return (
+					<div className="flex gap-2 items-center">
+						<CircleCheck size={15} className="text-green-500" />
+						<p>{'Ready for validation'}</p>
+					</div>
+				);
+			case 'COMMITTED':
+				return (
+					<div className="flex gap-2 items-center">
+						<Info size={15} className="text-gray-700" />
+						<p>{'Commited'}</p>
+					</div>
+				);
+			default:
+				return (
+					<div>
+						<CircleCheck />
+					</div>
+				);
+		}
+	};
+
+	const DisplayAction = (status: SubmissionStatus) => {
+		switch (status) {
+			case 'VALID':
+			case 'VALIDATING':
+			case 'COMMITTING':
+				return (
+					<div className="flex gap-2 items-center">
+						<Button variant={'outline'} icon={<Trash />} size={'xs'}>
+							{'Remove'}
+						</Button>
+					</div>
+				);
+			case 'INVALID':
+				return (
+					<div className="flex gap-2 items-center">
+						<Button variant={'outline'} icon={<Trash />} size={'xs'}>
+							{'Remove'}
+						</Button>
+						<Button variant={'outline'} icon={<FileExclamationPoint />} size={'xs'}>
+							{'Error Report'}
+						</Button>
+						<Button variant={'outline'} icon={<Download />} size={'xs'}>
+							{'Download File'}
+						</Button>
+					</div>
+				);
+			default:
+				return (
+					<div>
+						<CircleCheck />
+					</div>
+				);
+		}
+	};
 
 	const table = useTable({
 		features,
