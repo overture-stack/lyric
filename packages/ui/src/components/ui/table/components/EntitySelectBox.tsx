@@ -5,13 +5,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 type EntitySelectBoxType = {
 	dictionary: SchemasDictionary;
 	placeholder?: string;
+	disabled?: boolean;
 };
 
-const EntitySelectBox = ({ dictionary, placeholder = 'Select an entity...' }: EntitySelectBoxType) => {
+const EntitySelectBox = ({
+	dictionary,
+	placeholder = 'Select an entity...',
+	disabled = false,
+}: EntitySelectBoxType) => {
 	const entites = dictionary.schemas;
 
 	return (
-		<Select>
+		<Select disabled={disabled}>
 			<SelectTrigger>
 				<SelectValue placeholder={placeholder} />
 			</SelectTrigger>

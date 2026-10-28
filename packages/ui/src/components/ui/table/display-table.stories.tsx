@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { SubmissionViewTable } from './SubmissionViewTable';
 
 const meta: Meta<typeof SubmissionViewTable> = {
-	title: 'Components/Table',
+	title: 'Components/ViewTable',
 	component: SubmissionViewTable,
 	tags: ['autodocs'],
 };

@@ -44,3 +44,17 @@ export const UPLOAD_COLUMN_NAMES = {
 } as const;
 
 export type UPLOAD_COLUMN_NAMES_VALUES = (typeof UPLOAD_COLUMN_NAMES)[keyof typeof UPLOAD_COLUMN_NAMES];
+
+export type BatchError = {
+	type: string;
+	message: string;
+	batchName: string;
+};
+
+export type NewSubmissionValidationResult = {
+	status: string;
+	description: string;
+	batchErrors: BatchError[];
+	fileResults: unknown[];
+	inProcessEntities: unknown[];
+};

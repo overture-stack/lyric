@@ -25,7 +25,12 @@ export interface SubmissionViewTableProps {
 
 type UploadTableRow = UploadSubmission & { action: string | ReactNode };
 
-export function UploadSubmissionViewTable(props: SubmissionViewTableProps) {
+/**
+ * Table to display the files AFTER it is sent to lyric. Errors are returned from lyric submission
+ * @param {SubmissionViewTableProps} props
+ * @returns
+ */
+export function UploadSubmissionTable(props: SubmissionViewTableProps) {
 	const tableDisabled =
 		props.submissionResponse.status === 'COMMITTING' || props.submissionResponse.status === 'VALIDATING';
 
@@ -77,7 +82,7 @@ export function UploadSubmissionViewTable(props: SubmissionViewTableProps) {
 		// Logic to map inserts errors to status
 		return Object.entries(inserts).map(([_, summary]) => ({
 			file: summary.batchName, // no file info in inserts — mocked
-			entity: EntitySelectBox({ dictionary: props.dictionary }),
+			entity: EntitySelectBox({ dictionary: props.dictionary, disabled: tableDisabled }),
 			record: summary.recordsCount,
 			status: DisplayStatus(status), //TODO: Dynamicly change this action based of commit.action. API should return the error for this row, and display here
 			action: DisplayAction(summary.batchName, status), //TODO: Frontend UI validation for OPEN status ->
@@ -98,7 +103,7 @@ export function UploadSubmissionViewTable(props: SubmissionViewTableProps) {
 			case 'COMMITTED':
 				return (
 					<div className="flex gap-2 items-center">
-						<Info size={15} className="text-gray-700" />
+						<Info size={15} className="text-gray-[#3D7CA4]" />
 						<p>{'Commited'}</p>
 					</div>
 				);

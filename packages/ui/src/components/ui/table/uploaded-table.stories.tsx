@@ -1,6 +1,6 @@
 import { Meta, StoryObj } from '@storybook/react';
 
-import { UploadSubmissionViewTable } from './UploadSubmissionTable';
+import { UploadSubmissionTable } from './UploadSubmissionTable';
 import {
 	committedResponse,
 	committingResponse,
@@ -10,16 +10,14 @@ import {
 	validResponse,
 } from './utils/mock';
 
-const meta: Meta<typeof UploadSubmissionViewTable> = {
-	title: 'Components/Table',
-	component: UploadSubmissionViewTable,
+const meta: Meta<typeof UploadSubmissionTable> = {
+	title: 'Components/UploadedTable',
+	component: UploadSubmissionTable,
 	tags: ['autodocs'],
 };
 export default meta;
 
-type Story = StoryObj<typeof UploadSubmissionViewTable>;
-
-// FRONTEND VALIDATION
+type Story = StoryObj<typeof UploadSubmissionTable>;
 
 // RESPONSE FROM SERVER
 export const ValidTable: Story = {
