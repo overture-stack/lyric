@@ -30,7 +30,7 @@ type UploadTableRow = UploadSubmission & { action: string | ReactNode };
  * @param {SubmissionViewTableProps} props
  * @returns
  */
-export function UploadSubmissionTable(props: SubmissionViewTableProps) {
+export function UploadedSubmissionTable(props: SubmissionViewTableProps) {
 	const tableDisabled =
 		props.submissionResponse.status === 'COMMITTING' || props.submissionResponse.status === 'VALIDATING';
 
