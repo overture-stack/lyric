@@ -131,14 +131,26 @@ const authHandler = (req: Request): UserSessionResult<CustomUserSession> => {
 			 },
 		};
 	} catch (err) {
-		 // If the token is invalid or an error occurs, return a forbidden error
+		 // If the token is invalid or an error occurs, return an unauthorized error
 		return {
-			errorCode: 403,
-			errorMessage: 'Forbidden: Invalid token'
+			errorCode: 401,
+			errorMessage: 'Unauthorized: Invalid token'
 		}
 	}
 };
 ```
+
+When the handler returns an `errorCode`, the middleware creates the matching Lyric error type with the `errorMessage` and passes it to `errorHandler`, so the response uses the standard `{ error, message, details }` format:
+
+- `400` → `BadRequest`
+- `401` → `Unauthorized`
+- `403` → `Forbidden`
+- `503` → `ServiceUnavailable`
+- Any other code → `InternalServerError` (`500`)
+
+A request that requires authentication is rejected with `401 Unauthorized` when the handler returns no `user`.
+
+The handler can also throw a Lyric error directly, for example `throw new ServiceUnavailable('Auth server is unreachable')`, and the response uses that error's status and message. The error classes are exported from `@overture-stack/lyric`. Any other error thrown by the handler is logged and returned as `500 Internal Server Error` with the message `Authorization check failed.`, so its original message is not sent to the client.
 
 To enable the authentication handler function, set `enabled: true` in the auth section of the **AppConfig** object, and provide your custom authentication handler with the `customAuthHandler` property.
 

@@ -7,7 +7,7 @@ import { type AuthConfig, shouldBypassAuth } from '../middleware/auth.js';
 import { getSubmittedFileType } from '../services/submission/submissionFile.js';
 import createSubmissionService from '../services/submission/submissionService.js';
 import createSubmittedDataService from '../services/submittedData/submmittedData.js';
-import { hasUserWriteAccess } from '../utils/authUtils.js';
+import { assertUserAuthenticated, hasUserWriteAccess } from '../utils/authUtils.js';
 import { BadRequest, Forbidden, NotFound, StatusConflict } from '../utils/errors.js';
 import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
@@ -62,8 +62,11 @@ const controller = ({
 					throw new BadRequest(`Submission '${submissionId}' not found`);
 				}
 
-				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(submission.organization, user)) {
-					throw new Forbidden(`User is not authorized to commit the submission from '${submission.organization}'`);
+				if (!shouldBypassAuth(req, authConfig)) {
+					assertUserAuthenticated(user);
+					if (!hasUserWriteAccess(submission.organization, user)) {
+						throw new Forbidden(`User is not authorized to commit the submission from '${submission.organization}'`);
+					}
 				}
 
 				const username = user?.username || '';
@@ -87,8 +90,11 @@ const controller = ({
 				if (!submission) {
 					throw new BadRequest(`Submission '${submissionId}' not found`);
 				}
-				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(submission.organization, user)) {
-					throw new Forbidden(`User is not authorized to delete the submission from '${submission.organization}'`);
+				if (!shouldBypassAuth(req, authConfig)) {
+					assertUserAuthenticated(user);
+					if (!hasUserWriteAccess(submission.organization, user)) {
+						throw new Forbidden(`User is not authorized to delete the submission from '${submission.organization}'`);
+					}
 				}
 
 				if (!isSubmissionActive(submission.status) && !force) {
@@ -130,8 +136,13 @@ const controller = ({
 					throw new BadRequest(`Submission '${submissionId}' not found`);
 				}
 
-				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(submission.organization, user)) {
-					throw new Forbidden(`User is not authorized to delete the submission data from '${submission.organization}'`);
+				if (!shouldBypassAuth(req, authConfig)) {
+					assertUserAuthenticated(user);
+					if (!hasUserWriteAccess(submission.organization, user)) {
+						throw new Forbidden(
+							`User is not authorized to delete the submission data from '${submission.organization}'`,
+						);
+					}
 				}
 
 				const username = user?.username || '';
@@ -175,10 +186,13 @@ const controller = ({
 					throw new BadRequest(`No Submitted data found with systemId '${systemId}'`);
 				}
 
-				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(foundRecordToDelete.result.organization, user)) {
-					throw new Forbidden(
-						`User is not authorized to delete data from '${foundRecordToDelete.result?.organization}'`,
-					);
+				if (!shouldBypassAuth(req, authConfig)) {
+					assertUserAuthenticated(user);
+					if (!hasUserWriteAccess(foundRecordToDelete.result.organization, user)) {
+						throw new Forbidden(
+							`User is not authorized to delete data from '${foundRecordToDelete.result?.organization}'`,
+						);
+					}
 				}
 
 				const username = user?.username || '';
@@ -210,8 +224,11 @@ const controller = ({
 					);
 				}
 
-				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(organization, user)) {
-					throw new Forbidden(`User is not authorized to edit data from '${organization}'`);
+				if (!shouldBypassAuth(req, authConfig)) {
+					assertUserAuthenticated(user);
+					if (!hasUserWriteAccess(organization, user)) {
+						throw new Forbidden(`User is not authorized to edit data from '${organization}'`);
+					}
 				}
 
 				const username = user?.username || '';
@@ -378,8 +395,11 @@ const controller = ({
 					);
 				}
 
-				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(organization, user)) {
-					throw new Forbidden(`User is not authorized to submit data to '${organization}'`);
+				if (!shouldBypassAuth(req, authConfig)) {
+					assertUserAuthenticated(user);
+					if (!hasUserWriteAccess(organization, user)) {
+						throw new Forbidden(`User is not authorized to submit data to '${organization}'`);
+					}
 				}
 
 				const username = user?.username || '';
@@ -423,8 +443,11 @@ const controller = ({
 					` fileEntityMap ${JSON.stringify(fileEntityMap)}`,
 				);
 
-				if (!shouldBypassAuth(req, authConfig) && !hasUserWriteAccess(organization, req.user)) {
-					throw new Forbidden(`User is not authorized to submit data to '${organization}'`);
+				if (!shouldBypassAuth(req, authConfig)) {
+					assertUserAuthenticated(req.user);
+					if (!hasUserWriteAccess(organization, req.user)) {
+						throw new Forbidden(`User is not authorized to submit data to '${organization}'`);
+					}
 				}
 
 				if (!files || files.length == 0) {

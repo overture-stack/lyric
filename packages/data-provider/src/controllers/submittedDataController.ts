@@ -4,7 +4,7 @@ import { BaseDependencies } from '../config/config.js';
 import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE } from '../config/pagination.js';
 import { type AuthConfig, shouldBypassAuth } from '../middleware/auth.js';
 import submittedDataService from '../services/submittedData/submmittedData.js';
-import { getUserReadableOrganizations, hasUserReadAccess } from '../utils/authUtils.js';
+import { assertUserAuthenticated, getUserReadableOrganizations, hasUserReadAccess } from '../utils/authUtils.js';
 import { parseSQON } from '../utils/convertSqonToQuery.js';
 import { Forbidden, NotFound } from '../utils/errors.js';
 import { asArray } from '../utils/formatUtils.js';
@@ -103,8 +103,11 @@ const controller = ({
 					`view '${view}'`,
 				);
 
-				if (!shouldBypassAuth(req, authConfig) && !hasUserReadAccess(organization, user)) {
-					throw new Forbidden(`User is not authorized to read submitted data for organization '${organization}'`);
+				if (!shouldBypassAuth(req, authConfig)) {
+					assertUserAuthenticated(user);
+					if (!hasUserReadAccess(organization, user)) {
+						throw new Forbidden(`User is not authorized to read submitted data for organization '${organization}'`);
+					}
 				}
 
 				const submittedDataResult = await service.getSubmittedDataByOrganization(
@@ -161,8 +164,11 @@ const controller = ({
 					`pagination params: page '${page}' pageSize '${pageSize}'`,
 				);
 
-				if (!shouldBypassAuth(req, authConfig) && !hasUserReadAccess(organization, user)) {
-					throw new Forbidden(`User is not authorized to read submitted data for organization '${organization}'`);
+				if (!shouldBypassAuth(req, authConfig)) {
+					assertUserAuthenticated(user);
+					if (!hasUserReadAccess(organization, user)) {
+						throw new Forbidden(`User is not authorized to read submitted data for organization '${organization}'`);
+					}
 				}
 
 				const submittedDataResult = await service.getSubmittedDataByOrganization(
@@ -220,13 +226,13 @@ const controller = ({
 					throw new NotFound(submittedDataResult.metadata.errorMessage);
 				}
 
-				if (
-					!shouldBypassAuth(req, authConfig) &&
-					!hasUserReadAccess(submittedDataResult.result?.organization || '', user)
-				) {
-					throw new Forbidden(
-						`User is not authorized to read submitted data for organization '${submittedDataResult.result?.organization}'`,
-					);
+				if (!shouldBypassAuth(req, authConfig)) {
+					assertUserAuthenticated(user);
+					if (!hasUserReadAccess(submittedDataResult.result?.organization || '', user)) {
+						throw new Forbidden(
+							`User is not authorized to read submitted data for organization '${submittedDataResult.result?.organization}'`,
+						);
+					}
 				}
 
 				return res.status(200).json(submittedDataResult.result);

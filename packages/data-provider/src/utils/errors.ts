@@ -6,6 +6,17 @@ export class BadRequest extends Error {
 	}
 }
 
+/**
+ * Error for requests that require authentication but do not identify a user.
+ * Maps to HTTP 401. Use `Forbidden` instead when the user is known but lacks permission.
+ */
+export class Unauthorized extends Error {
+	constructor(msg?: string) {
+		super(msg || 'Authentication is required to access this resource');
+		this.name = 'Unauthorized';
+	}
+}
+
 export class Forbidden extends Error {
 	constructor(msg: string) {
 		super(msg);
@@ -54,6 +65,22 @@ export class InternalServerError extends Error {
 		this.name = 'Internal Server Error';
 	}
 }
+
+/**
+ * The Lyric error types that `errorHandler` maps to a specific HTTP status code.
+ * Errors of any other type are returned as `500 Internal Server Error`.
+ */
+export const LYRIC_ERROR_TYPES = [
+	BadRequest,
+	Unauthorized,
+	Forbidden,
+	NotFound,
+	StatusConflict,
+	TSVParseError,
+	InternalServerError,
+	NotImplemented,
+	ServiceUnavailable,
+] as const;
 
 export const getErrorMessage = (error: unknown) => {
 	if (error instanceof Error) {
