@@ -58,3 +58,9 @@ export type NewSubmissionValidationResult = {
 	fileResults: unknown[];
 	inProcessEntities: unknown[];
 };
+
+export type ApiHandlers = {
+	deleteHandler: (id: string | number) => void;
+	downloadFileHandler: (id: string | number) => void;
+	downloadErrorFileHandler: (id: string | number) => void;
+};

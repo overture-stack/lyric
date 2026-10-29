@@ -8,6 +8,7 @@ type EntitySelectBoxType = {
 	disabled?: boolean;
 };
 
+// TODO: pass default value based off dictionary entity and submitted file name
 const EntitySelectBox = ({
 	dictionary,
 	placeholder = 'Select an entity...',
