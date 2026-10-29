@@ -15,6 +15,7 @@ import { Button } from '../button';
 import DisplayRowAction from './components/DisplayRowAction';
 import DisplayRowStatus from './components/DisplayRowStatus';
 import EntitySelectBox from './components/EntitySelectBox';
+import { ErrorTable } from './components/ErrorSubTable';
 import { ApiHandlers, UPLOAD_COLUMN_NAMES, UploadSubmission } from './utils/types';
 
 export const columnHelper = createColumnHelper<typeof features, UploadTableRow>();
@@ -172,8 +173,8 @@ export function UploadedSubmissionTable(props: SubmissionViewTableProps) {
 									</tr>
 									{props.submissionResponse.status === 'INVALID' && row.getIsExpanded() && (
 										<tr key={`${row.id}-expanded`}>
-											<td colSpan={defaultColumns.length} className="pl-4 py-3 bg-gray-50">
-												<div>Display error summary table</div>
+											<td colSpan={defaultColumns.length} className="pl-10 pr-10 py-3 bg-gray-50">
+												<ErrorTable fileId={row.id} />
 											</td>
 										</tr>
 									)}

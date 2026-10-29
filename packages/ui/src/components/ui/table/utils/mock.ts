@@ -340,3 +340,62 @@ export const testDictionary: SchemasDictionary = {
 		},
 	],
 };
+
+export const errorSummaryMock = [
+	{
+		field: 'age_at_treatment',
+		errorType: 'INVALID_BY_RANGE',
+		details: 'The value must be within the range.',
+		errorValue: '999',
+		rowsAffected: 45,
+	},
+	{
+		field: 'submitter_treatment_id',
+		errorType: 'INVALID_BY_REGEX',
+		details: 'The value must match the regular expression.',
+		errorValue: 'abc*7878(99',
+		rowsAffected: 1,
+	},
+	{
+		field: 'treatment_type',
+		errorType: 'INVALID_ENUM_VALUE',
+		details: 'The value for this field must match an option from the list.',
+		errorValue: 'Drugs',
+		rowsAffected: 18,
+	},
+	{
+		field: 'age_at_treatment',
+		errorType: 'INVALID_FIELD_VALUE_TYPE',
+		details: 'Value type of this field is incorrect.',
+		errorValue: '"age"',
+		rowsAffected: 11,
+	},
+	{
+		field: 'treatment_type',
+		errorType: 'MISSING_REQUIRED_FIELD',
+		details: 'A value is required for this field and cannot be empty.',
+		errorValue: '""',
+		rowsAffected: 1,
+	},
+	{
+		field: 'submitter_participant_id',
+		errorType: 'INVALID_BY_FOREIGNKEY',
+		details: 'Field "submitter_participant_id" does not exist in "Participant" file.',
+		errorValue: 'participant-123',
+		rowsAffected: 5,
+	},
+	{
+		field: 'phone_number',
+		errorType: 'UNRECOGNIZED_FIELD',
+		details: 'This field is not defined in the current schema.',
+		errorValue: '123456789',
+		rowsAffected: 27,
+	},
+	{
+		field: 'submitter_treatment_id',
+		errorType: 'DUPLICATE_RECORD',
+		details: 'This record already exists.',
+		errorValue: 'treatment_123',
+		rowsAffected: 18,
+	},
+];
