@@ -88,15 +88,13 @@ export function UploadedSubmissionTable(props: SubmissionViewTableProps) {
 					header: 'File',
 					cell: ({ row, getValue }) => {
 						return (
-							<div
-								style={{
-									paddingLeft: `${row.depth * 2}rem`,
-								}}
-							>
+							<div>
 								<div className="flex justify-start items-center ">
-									<Button variant="ghost" onClick={row.getToggleExpandedHandler()} style={{ cursor: 'pointer' }}>
-										{row.getIsExpanded() ? <ArrowBigDown fill="black" /> : <ArrowBigRight fill="black" />}
-									</Button>
+									{props.submissionResponse.status === 'INVALID' && (
+										<Button variant="ghost" onClick={row.getToggleExpandedHandler()} style={{ cursor: 'pointer' }}>
+											{row.getIsExpanded() ? <ArrowBigDown fill="black" /> : <ArrowBigRight fill="black" />}
+										</Button>
+									)}
 									{getValue<boolean>()}
 								</div>
 							</div>
@@ -172,7 +170,7 @@ export function UploadedSubmissionTable(props: SubmissionViewTableProps) {
 											</td>
 										))}
 									</tr>
-									{row.getIsExpanded() && (
+									{props.submissionResponse.status === 'INVALID' && row.getIsExpanded() && (
 										<tr key={`${row.id}-expanded`}>
 											<td colSpan={defaultColumns.length} className="pl-4 py-3 bg-gray-50">
 												<div>Display error summary table</div>
