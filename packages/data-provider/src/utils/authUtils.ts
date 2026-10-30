@@ -1,16 +1,4 @@
 import type { UserSession } from '../middleware/auth.js';
-import { Unauthorized } from './errors.js';
-
-/**
- * Asserts that a request carries an authenticated user session.
- * Narrows `user` to `UserSession` when it returns.
- * @throws {Unauthorized} when `user` is undefined
- */
-export function assertUserAuthenticated(user?: UserSession): asserts user is UserSession {
-	if (!user) {
-		throw new Unauthorized('User is not authenticated');
-	}
-}
 
 /**
  * Retrieves the list of organizations a user has read access to.

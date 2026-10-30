@@ -14,6 +14,7 @@ export { createKafkaPublisher, type KafkaProducer, type KafkaPublisherConfig } f
 // middleware
 export {
 	type AuthConfig,
+	type CustomAuthenticationHandler,
 	type RequestWithUser,
 	type UserSession,
 	type UserSessionResult,

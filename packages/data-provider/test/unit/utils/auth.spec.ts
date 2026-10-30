@@ -2,8 +2,7 @@ import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
 import { UserSession } from '../../../src/middleware/auth.js';
-import { assertUserAuthenticated, hasUserWriteAccess } from '../../../src/utils/authUtils.js';
-import { Unauthorized } from '../../../src/utils/errors.js';
+import { hasUserWriteAccess } from '../../../src/utils/authUtils.js';
 
 describe('Auth utils', () => {
 	it('should return false if user is not provided', () => {
@@ -49,19 +48,5 @@ describe('Auth utils', () => {
 		};
 		const result = hasUserWriteAccess('org3', user);
 		expect(result).to.eql(true);
-	});
-
-	it('should throw Unauthorized if user is not provided', () => {
-		expect(() => assertUserAuthenticated(undefined)).to.throw(Unauthorized);
-	});
-
-	it('should not throw if user is provided', () => {
-		const user: UserSession = {
-			username: 'John Doe',
-			isAdmin: false,
-			allowedWriteOrganizations: [],
-			allowedReadOrganizations: [],
-		};
-		expect(() => assertUserAuthenticated(user)).to.not.throw();
 	});
 });
