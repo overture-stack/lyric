@@ -286,6 +286,7 @@ migrate({
 ## Support & Contributions
 
 - Developer documentation [docs](https://github.com/overture-stack/lyric/blob/main/packages/data-provider/docs/add-new-resources.md)
+- How a Submission is [validated](https://github.com/overture-stack/lyric/blob/main/packages/data-provider/docs/submission-validation.md)
 - Filing an [issue](https://github.com/overture-stack/lyric/issues)
 - Connect with us on [Slack](http://slack.overture.bio)
 - Add or Upvote a [feature request](https://github.com/overture-stack/lyric/issues/new?assignees=&labels=&projects=&template=Feature_Requests.md)

@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { index, integer, jsonb, pgEnum, pgTable, serial } from 'drizzle-orm/pg-core';
+import { type AnyPgColumn, boolean, index, integer, jsonb, pgEnum, pgTable, serial } from 'drizzle-orm/pg-core';
 
 import {
 	type DataRecord,
@@ -13,43 +13,55 @@ export const submissionRecordState = pgEnum('submission_record_state', ['RECEIVE
 
 export const submissionRecordType = pgEnum('submission_record_type', ['INSERT', 'UPDATE', 'DELETE']);
 
-// TODO: export this type
-type SubmissionInsertData = DataRecord;
+export type SubmissionInsertData = DataRecord;
 
-// TODO: export this type
-type SubmissionUpdateData = {
+export type SubmissionUpdateData = {
 	systemId: string;
 	old: DataRecord;
 	new: DataRecord;
 };
 
-// TODO: export this type
-type SubmissionDeleteData = {
+export type SubmissionDeleteData = {
 	systemId: string;
 	data: DataRecord;
 	isValid: boolean;
 	organization: string;
 };
 
-// TODO: export this type
-type SubmissionData = SubmissionInsertData | SubmissionUpdateData | SubmissionDeleteData;
+export type SubmissionData = SubmissionInsertData | SubmissionUpdateData | SubmissionDeleteData;
 
-// TODO: export this type
-type FieldDetails = {
+export type FieldDetails = {
 	fieldName: string;
 	fieldValue: DataRecordValue;
 };
 
-// TODO: export this type
-type UnrecognizedValueReason = {
+export type UnrecognizedValueReason = {
 	reason: 'UNRECOGNIZED_VALUE';
 };
 
-// TODO: export this type
-type RecordErrorInvalidValue = FieldDetails & UnrecognizedValueReason;
+export type RecordErrorInvalidValue = FieldDetails & UnrecognizedValueReason;
 
-// TODO: export this type
-type SubmissionRecordError = DictionaryValidationRecordErrorDetails | RecordErrorInvalidValue;
+export type ConflictingActionReason = {
+	reason: 'CONFLICTING_ACTION';
+};
+
+/**
+ * Describes a conflict when a record's `systemId` has both an `UPDATE` and a `DELETE` staged in the same Active
+ * Submission.
+ *
+ * The `conflictingActionType` property identifies the other action type involved in the conflict, allowing both
+ * sides of the conflict to be reported independently.
+ */
+export type RecordErrorActionConflict = ConflictingActionReason & {
+	systemId: string;
+	conflictingActionType: 'UPDATE' | 'DELETE';
+	message: string;
+};
+
+export type SubmissionRecordError =
+	| DictionaryValidationRecordErrorDetails
+	| RecordErrorInvalidValue
+	| RecordErrorActionConflict;
 
 export const submissionRecords = pgTable(
 	'submission_records',
@@ -63,10 +75,20 @@ export const submissionRecords = pgTable(
 		errors: jsonb('errors').$type<SubmissionRecordError[]>(),
 		state: submissionRecordState('state').notNull(),
 		lineNumber: integer('line_number'),
+		// The user's UPDATE or DELETE record that caused the system to stage this record. Removing the parent removes
+		// its child records too.
+		parentRecordId: integer('parent_record_id').references((): AnyPgColumn => submissionRecords.id, {
+			onDelete: 'cascade',
+		}),
+		// True when the system carries out this record through its child records instead of applying it, such as a
+		// user's change to an ID field, carried out as a DELETE and an INSERT. Validation and commit skip this record and
+		// use its children; validation reports the children's errors on it.
+		appliedByChildren: boolean('applied_by_children').notNull().default(false),
 	},
 	(table) => {
 		return {
 			fileIndex: index('submission_records_file_id_index').on(table.fileId),
+			parentRecordIndex: index('submission_records_parent_record_id_index').on(table.parentRecordId),
 			fileActionIndex: index('submission_records_file_id_action_type_index').on(table.fileId, table.actionType),
 			fileStateActionIndex: index('submission_records_file_id_state_action_type_index').on(
 				table.fileId,

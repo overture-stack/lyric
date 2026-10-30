@@ -1,17 +1,20 @@
 import * as _ from 'lodash-es';
 
 import type { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
+import type { SubmissionDeleteData } from '@overture-stack/lyric-data-model/models';
 import { SQON } from '@overture-stack/sqon-builder';
 
 import { BaseDependencies } from '../../config/config.js';
-import submissionRepository from '../../repository/activeSubmissionRepository.js';
 import categoryRepository from '../../repository/categoryRepository.js';
+import createSubmissionFilesRepository from '../../repository/submissionFilesRepository.js';
+import createSubmissionRecordsRepository from '../../repository/submissionRecordsRepository.js';
 import submittedRepository from '../../repository/submittedRepository.js';
 import { convertSqonToQuery } from '../../utils/convertSqonToQuery.js';
 import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelations.js';
 import { InternalServerError, StatusConflict } from '../../utils/errors.js';
+import { genericSubmissionFileName, getSizeInBytes, toLineNumber } from '../../utils/fileUtils.js';
 import type { PaginatedResult } from '../../utils/result.js';
-import { filterUpdatesFromDeletes, mergeDeleteRecords } from '../../utils/submissionUtils.js';
+import { isDeleteSubmissionRecord, resolveDeleteStagingConflicts } from '../../utils/submissionRecordUtils.js';
 import {
 	fetchDataErrorResponse,
 	getEntityNamesFromFilterOptions,
@@ -39,6 +42,8 @@ const submittedData = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMITTED_DATA_SERVICE';
 	const submittedDataRepo = submittedRepository(dependencies);
 	const submissionProcessor = submissionProcessorFactory.create(dependencies);
+	const submissionRecordsRepository = createSubmissionRecordsRepository(dependencies);
+	const submissionFilesRepository = createSubmissionFilesRepository(dependencies);
 
 	const { logger } = dependencies;
 	const { convertRecordsToCompoundDocuments } = viewMode(dependencies);
@@ -56,7 +61,6 @@ const submittedData = (dependencies: BaseDependencies) => {
 	}> => {
 		const { getSubmittedDataBySystemId } = submittedDataRepo;
 		const { getActiveDictionaryByCategory } = categoryRepository(dependencies);
-		const { getSubmissionDetailsById, update } = submissionRepository(dependencies);
 		const { getOrCreateActiveSubmission } = submissionService(dependencies);
 
 		// get SubmittedData by SystemId
@@ -125,44 +129,143 @@ const submittedData = (dependencies: BaseDependencies) => {
 			throw error;
 		}
 
-		const activeSubmission = await getSubmissionDetailsById(activeSubmissionId);
+		// Check what the Active Submission already has pending for these systemIds before staging
+		// anything new: a pending UPDATE is a conflict (reject, consistent with how the same
+		// conflict is handled at validation time), a pending DELETE is a duplicate (skip it).
+		const existingSubmissionRecords = await submissionRecordsRepository.getBySubmissionId(
+			activeSubmissionId,
+			undefined,
+			{
+				actionTypes: ['UPDATE', 'DELETE'],
+			},
+		);
 
-		if (!activeSubmission) {
+		const { filteredRecordsToDeleteMap, conflictingSystemIds, duplicateSystemIds } = resolveDeleteStagingConflicts(
+			recordsToDeleteMap,
+			existingSubmissionRecords.records,
+		);
+
+		if (conflictingSystemIds.length > 0) {
+			logger.error(
+				LOG_MODULE,
+				`Cannot delete system ID(s) '${conflictingSystemIds.join(', ')}' on Submission '${activeSubmissionId}': a pending update already exists for the same system ID`,
+			);
 			return {
 				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: 'Active Submission not found',
+				description: `System ID(s) '${conflictingSystemIds.join(', ')}' already have a pending update staged on Submission '${activeSubmissionId}'. Resolve the conflicting update before deleting.`,
 				inProcessEntities: [],
 			};
 		}
 
-		// Merge current Active Submission delete entities with unique records to delete based on systemId
-		const mergedSubmissionDeletes = mergeDeleteRecords(activeSubmission.data.deletes || {}, recordsToDeleteMap);
+		if (duplicateSystemIds.length > 0) {
+			logger.info(
+				LOG_MODULE,
+				`System ID(s) '${duplicateSystemIds.join(', ')}' are already staged for deletion on Submission '${activeSubmissionId}', skipping duplicate`,
+			);
+		}
 
-		const entitiesToProcess = Object.keys(mergedSubmissionDeletes);
+		const entitiesToProcess = Object.keys(filteredRecordsToDeleteMap);
 
-		// filter out update records found matching systemID on delete records
-		const filteredUpdates = filterUpdatesFromDeletes(activeSubmission.data.updates ?? {}, mergedSubmissionDeletes);
+		if (entitiesToProcess.length === 0) {
+			return {
+				status: ACTIVE_SUBMISSION_STATUS.PROCESSING,
+				description: 'All requested records are already staged for deletion on the Active Submission',
+				submissionId: activeSubmissionId.toString(),
+				inProcessEntities: [],
+			};
+		}
 
-		// Updating the Submission with the new data and 'VALIDATING' status before validation starts
-		await update(activeSubmission.id, {
-			data: {
-				inserts: activeSubmission.data.inserts,
-				updates: filteredUpdates,
-				deletes: mergedSubmissionDeletes,
-			},
-			updatedBy: username,
-			status: 'VALIDATING',
-		});
+		let stagedVersion: number;
+		try {
+			stagedVersion = await dependencies.db.transaction(async (tx) => {
+				// Throws StatusConflict and rolls back if the Submission's status no longer allows changes
+				const newVersion = await submissionProcessor.markSubmissionAsChanged(activeSubmissionId, username, tx);
 
-		// Perform Schema Data validation in a worker thread
-		dependencies.workerPool.dataValidation({ submissionId: activeSubmission.id });
+				const saveDeleteFile = async ({
+					entityName,
+					isSystemGenerated,
+					parentRecordId,
+					records,
+				}: {
+					entityName: string;
+					isSystemGenerated: boolean;
+					parentRecordId?: number;
+					records: SubmissionDeleteData[];
+				}): Promise<number[]> => {
+					const savedFileId = await submissionFilesRepository.save(
+						{
+							entityName,
+							fileName: genericSubmissionFileName(),
+							fileSize: getSizeInBytes(JSON.stringify(records)),
+							isSystemGenerated,
+							submissionId: activeSubmissionId,
+						},
+						tx,
+					);
+					return submissionRecordsRepository.saveManyForFile(
+						savedFileId,
+						records.map((record, index) => ({
+							actionType: 'DELETE',
+							data: record,
+							parentRecordId,
+							state: 'RECEIVED',
+							lineNumber: toLineNumber(index),
+						})),
+						tx,
+					);
+				};
+
+				// The requested record is the user's; its dependents are deleted by the system, in separate files whose
+				// records point back to it
+				const isRequestedRecord = (entityName: string, record: SubmissionDeleteData) =>
+					entityName === foundRecordToDelete.entityName && record.systemId === foundRecordToDelete.systemId;
+
+				const requestedRecords = (filteredRecordsToDeleteMap[foundRecordToDelete.entityName] ?? []).filter((record) =>
+					isRequestedRecord(foundRecordToDelete.entityName, record),
+				);
+
+				// When the requested record was already staged for deletion, its dependents point to that staged record
+				let parentRecordId = existingSubmissionRecords.records
+					.filter(isDeleteSubmissionRecord)
+					.find((record) => isRequestedRecord(record.entityName, record.data))?.id;
+
+				if (requestedRecords.length > 0) {
+					[parentRecordId] = await saveDeleteFile({
+						entityName: foundRecordToDelete.entityName,
+						isSystemGenerated: false,
+						records: requestedRecords,
+					});
+				}
+
+				for (const [entityName, entityRecords] of Object.entries(filteredRecordsToDeleteMap)) {
+					const dependents = entityRecords.filter((record) => !isRequestedRecord(entityName, record));
+					if (dependents.length > 0) {
+						await saveDeleteFile({ entityName, isSystemGenerated: true, parentRecordId, records: dependents });
+					}
+				}
+
+				return newVersion;
+			});
+		} catch (error) {
+			if (error instanceof StatusConflict) {
+				return {
+					status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+					description: error.message,
+					inProcessEntities: [],
+				};
+			}
+			throw error;
+		}
+
+		// Perform Schema Data validation of the staged version in a worker thread
+		dependencies.workerPool.dataValidation({ submissionId: activeSubmissionId, username, version: stagedVersion });
 
 		logger.info(LOG_MODULE, `Added '${entitiesToProcess.length}' records to be deleted on the Active Submission`);
 
 		return {
 			status: ACTIVE_SUBMISSION_STATUS.PROCESSING,
 			description: 'Submission data is being processed',
-			submissionId: activeSubmission.id.toString(),
+			submissionId: activeSubmissionId.toString(),
 			inProcessEntities: entitiesToProcess,
 		};
 	};
