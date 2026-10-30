@@ -9,6 +9,7 @@ import {
 	ServiceUnavailable,
 	StatusConflict,
 	TSVParseError,
+	Unauthorized,
 } from '../utils/errors.js';
 
 /**
@@ -26,6 +27,9 @@ export const errorHandler = (err: Error, req: Request, res: Response, _next: Nex
 	switch (true) {
 		case err instanceof BadRequest:
 			status = 400;
+			break;
+		case err instanceof Unauthorized:
+			status = 401;
 			break;
 		case err instanceof Forbidden:
 			status = 403;
