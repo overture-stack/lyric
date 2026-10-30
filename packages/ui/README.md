@@ -8,6 +8,10 @@ Shared React component library for Lyric-based UIs.
 
 ## Features
 
+- **Themeable** — Theming can be customized using css variables in the main .css file in your application. Please see section [Theming].
+- **Variant-driven components** — built with [`class-variance-authority`](https://cva.style/) so each component exposes a clean, type-safe variant API.
+- **Dual-format build** — ships both ES module (`lyric-ui.js`) and CommonJS (`lyric-ui.cjs`) outputs so it works in both modern bundlers and legacy setups.
+- **Storybook** — every component has stories for interactive development and visual documentation.
 - **Themeable**: Theming can be customized using css variables in the main .css file in your application. Please see section [Theming].
 - **Variant-driven components**: built with [`class-variance-authority`](https://cva.style/) so each component exposes a clean, type-safe variant API.
 - **Dual-format build**: ships ES module (`lyric-ui.js`) and CommonJS (`lyric-ui.cjs`) outputs, plus a separate stylesheet (`style.css`) that consumers import explicitly.
