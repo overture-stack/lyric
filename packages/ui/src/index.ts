@@ -15,6 +15,7 @@ export {
 	ComboboxTrigger,
 	ComboboxValue,
 } from './components/ui/combobox/combobox';
+export * from './components/ui/dropzone/dropzone';
 export * from './components/ui/headertext/headertext';
 export { Input } from './components/ui/input/input';
 export {
