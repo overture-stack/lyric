@@ -12,9 +12,11 @@ import type {
 	ValidatorConfig,
 } from '../../../src/config/config.js';
 import provider from '../../../src/core/provider.js';
+import type { AuthConfig } from '../../../src/middleware/auth.js';
 import type { WorkerPoolConfigResolver } from '../../../src/workers/workerPoolManager.js';
 
 export type LyricProviderConfig = {
+	auth?: AuthConfig;
 	db: DbConfig;
 	schemaService: SchemaServiceConfig;
 	features?: FeaturesConfig;
@@ -58,7 +60,7 @@ export async function createLyricProvider(config: LyricProviderConfig) {
 	await migrate(config.db);
 
 	const appConfig: AppConfig = {
-		auth: { enabled: false },
+		auth: config.auth ?? { enabled: false },
 		db: config.db,
 		schemaService: config.schemaService,
 		features: config.features ?? defaultFeatures,
