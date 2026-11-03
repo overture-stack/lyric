@@ -133,6 +133,47 @@
       503:
         $ref: '#/components/responses/ServiceUnavailableError'
 
+/submission/{submissionId}/download:
+  get:
+    summary: Download a file of a Submission, conserving the order of its records as they were submitted.
+    description: Each generated file corresponds to a file, an entity and an action type of the Submission.
+    tags:
+      - Submission
+    parameters:
+      - $ref: '#/components/parameters/path/SubmissionId'
+      - name: fileId
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: The ID of the file in the Submission to download.
+      - name: fileType
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [csv, tsv]
+          default: csv
+        description: The type of file to download a .tsv or .csv file.
+    responses:
+      200:
+        description: The file's content, as an attachment named `{submissionId}-{actionType}-{entityName}-file-{fileId}.{fileType}`.
+        content:
+          text/tab-separated-values:
+            schema:
+              type: string
+          text/csv:
+            schema:
+              type: string
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
 /submission/category/{categoryId}:
   get:
     summary: Retrieve the Submissions for a category in this user session
