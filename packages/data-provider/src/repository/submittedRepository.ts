@@ -509,19 +509,23 @@ const repository = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Query to retrieve the SubmittedData records matching any of the given System IDs.
-		 * System IDs with no matching record are left out of the result, so it can be shorter than `systemIds`.
-		 * Returns an empty array when `systemIds` is empty.
-		 * @throws {ServiceUnavailable} When the query fails.
+		 * Query to retrieve the SubmittedData records matching any of the given System IDs
+		 * - System IDs with no SubmittedData record are left out of the result, and an empty list returns no records
+		 * - The System IDs are queried in batches, each in its own query, so the result is not read from a single
+		 *   snapshot of the data
+		 * @throws {ServiceUnavailable} When a query fails
 		 */
 		getSubmittedDataBySystemIds: async (systemIds: string[]): Promise<SubmittedData[]> => {
-			if (systemIds.length === 0) {
-				return [];
-			}
+			const result: SubmittedData[] = [];
 			try {
-				return await db.query.submittedData.findMany({
-					where: inArray(submittedData.systemId, systemIds),
-				});
+				for (let i = 0; i < systemIds.length; i += BATCH_SIZE) {
+					const batch = systemIds.slice(i, i + BATCH_SIZE);
+					const foundRecords = await db.query.submittedData.findMany({
+						where: inArray(submittedData.systemId, batch),
+					});
+					result.push(...foundRecords);
+				}
+				return result;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying SubmittedData by '${systemIds.length}' systemIds`, error);
 				throw new ServiceUnavailable();

@@ -118,6 +118,8 @@ const router = ({
 
 	router.delete('/:submissionId/data', ...authenticateThenParseBody, submissionController.deleteByFileId);
 
+	router.get('/:submissionId/download', ...authenticateThenParseBody, submissionController.downloadFileById);
+
 	router.get('/category/:categoryId', ...authenticateThenParseBody, submissionController.getSubmissionsByCategory);
 
 	router.get(
