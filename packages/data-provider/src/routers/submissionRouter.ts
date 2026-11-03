@@ -7,10 +7,18 @@ import multer from 'multer';
 import { BaseDependencies } from '../config/config.js';
 import createSubmissionController from '../controllers/submissionController.js';
 import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
-import { limitRequestSize } from '../middleware/requestSize.js';
+import { convertUploadErrors } from '../middleware/convertUploadErrors.js';
+import { limitRequestSize } from '../middleware/limitRequestSize.js';
 import { ContentTooLarge } from '../utils/errors.js';
 import { getSubmissionBodyLimits } from '../utils/submissionLimits.js';
 
+/**
+ * Creates the submission router. It authenticates a request before it parses the body, and refuses:
+ * - a file or a JSON body over `maxFileSize` with `ContentTooLarge` (413), naming the limit;
+ * - any other upload refused by multer with `ContentTooLarge` (413) for one of its limits, or `BadRequest` (400);
+ * - with `maxRequestSize` set, an upload over it with `ContentTooLarge` (413), one without `Content-Length` with
+ *   `LengthRequired` (411), and one whose `Content-Length` is not a whole number of bytes with `BadRequest` (400).
+ */
 const router = ({
 	baseDependencies,
 	authConfig,
@@ -48,8 +56,7 @@ const router = ({
 	const parseJson = json({ limit: jsonSize });
 
 	/**
-	 * Parses a JSON body, answering one over the size limit with `ContentTooLarge` naming the limit, as `uploadFiles`
-	 * does for a file.
+	 * Parses a JSON body, answering one over the size limit with `ContentTooLarge` naming the limit.
 	 */
 	const parseJsonBody: RequestHandler = (req, res, next) => {
 		parseJson(req, res, (error?: unknown) => {
@@ -103,7 +110,7 @@ const router = ({
 
 	// Parses a URL-encoded form body into `req.body`
 	router.use(urlencoded({ extended: false }));
-	// Parses a JSON body into `req.body`, refusing one over the JSON size limit with 413 naming the limit
+	// Parses a JSON body into `req.body`
 	router.use(parseJsonBody);
 
 	router.get('/:submissionId', submissionController.getSubmissionById);
@@ -126,6 +133,7 @@ const router = ({
 		'/category/:categoryId/files',
 		...uploadSizeLimit,
 		uploadFiles,
+		convertUploadErrors,
 		extractFileEntityMap,
 		submissionController.submitFiles,
 	);

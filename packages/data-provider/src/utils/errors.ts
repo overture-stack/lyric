@@ -39,8 +39,7 @@ export class StatusConflict extends Error {
 }
 
 /**
- * Error for a request that sends a body without declaring its size in `Content-Length`, where the size has to be
- * checked before the body is read. Maps to HTTP 411.
+ * Error for a request that sends a body without declaring its size in `Content-Length`. Maps to HTTP 411.
  */
 export class LengthRequired extends Error {
 	constructor(msg?: string) {
@@ -51,7 +50,7 @@ export class LengthRequired extends Error {
 
 /**
  * Error for a request whose content exceeds a size limit, such as an uploaded file larger than the configured
- * maximum. Maps to HTTP 413. The message should name the limit, so the client knows how far to shrink or split.
+ * maximum. Maps to HTTP 413. Without `msg`, its message names no limit.
  */
 export class ContentTooLarge extends Error {
 	constructor(msg?: string) {

@@ -35,18 +35,13 @@ export type ErrorResponse = {
 export type ErrorResponseOverride = (error: Error, defaultResponse: ErrorResponse) => ErrorResponse;
 
 /**
- * Options for `createErrorHandler`. The two overrides replace the responses to errors raised by libraries rather than
- * by Lyric; Lyric's own error types are always answered with their mapped status.
- * - `clientErrors`: errors that carry their own client error status, such as body-parser's "request entity too
- *   large" (413) or malformed JSON (400).
- * - `logger`: where an unexpected error is logged before it is answered with a fixed 500. Defaults to a console
- *   logger at `info` level.
- * - `uploadErrors`: uploads refused by multer, answered by default with 413 for a limit and 400 otherwise.
+ * Options for `createErrorHandler`.
+ * - `clientErrors`: the replacement for the response to an error carrying its own client error status.
+ * - `logger`: the logger for unexpected errors.
  */
 export type ErrorHandlerOptions = {
 	clientErrors?: ErrorResponseOverride;
 	logger?: Logger;
-	uploadErrors?: ErrorResponseOverride;
 };
 
 type ErrorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => unknown;
@@ -82,27 +77,6 @@ const getLyricErrorStatus = (err: Error): number | undefined => {
 	}
 };
 
-// multer's codes for an upload exceeding one of its configured limits; its other codes describe a malformed upload.
-const UPLOAD_LIMIT_CODES: ReadonlySet<string> = new Set([
-	'LIMIT_FIELD_COUNT',
-	'LIMIT_FIELD_KEY',
-	'LIMIT_FIELD_VALUE',
-	'LIMIT_FILE_COUNT',
-	'LIMIT_FILE_SIZE',
-	'LIMIT_PART_COUNT',
-]);
-
-/**
- * multer raises a `MulterError` for a multipart upload it refuses. It is matched by name and code rather than with
- * `instanceof`, because a consumer may run its own copy of multer in front of this handler.
- */
-const getUploadErrorStatus = (err: Error): number | undefined => {
-	if (err.name === 'MulterError' && 'code' in err && typeof err.code === 'string') {
-		return UPLOAD_LIMIT_CODES.has(err.code) ? 413 : 400;
-	}
-	return undefined;
-};
-
 /**
  * Express and middleware such as body-parser raise errors following the http-errors convention, where `status` holds
  * the response status. A client error status is taken at its word; a server error status is treated as unexpected.
@@ -119,10 +93,7 @@ const getClientErrorMessage = (err: Error, status: number): string =>
 		? 'The request body must be valid JSON'
 		: (STATUS_CODES[status] ?? 'The request could not be processed');
 
-const getKnownErrorResponse = (
-	err: Error,
-	{ clientErrors, uploadErrors }: ErrorHandlerOptions,
-): ErrorResponse | undefined => {
+const getKnownErrorResponse = (err: Error, { clientErrors }: ErrorHandlerOptions): ErrorResponse | undefined => {
 	const respondWith = (
 		status: number,
 		override?: ErrorResponseOverride,
@@ -136,10 +107,6 @@ const getKnownErrorResponse = (
 	if (typeof lyricStatus === 'number') {
 		return respondWith(lyricStatus);
 	}
-	const uploadStatus = getUploadErrorStatus(err);
-	if (typeof uploadStatus === 'number') {
-		return respondWith(uploadStatus, uploadErrors);
-	}
 	const clientStatus = getClientErrorStatus(err);
 	if (typeof clientStatus === 'number') {
 		return respondWith(clientStatus, clientErrors, { message: getClientErrorMessage(err, clientStatus) });
@@ -147,8 +114,20 @@ const getKnownErrorResponse = (
 	return undefined;
 };
 
-// Express passes on whatever was thrown, which is not always an Error.
-const asError = (thrown: unknown): Error => (thrown instanceof Error ? thrown : new Error(String(thrown)));
+/**
+ * Express passes on whatever was thrown, which is not always an Error. Turning it into text can itself throw, when
+ * its own `toString` does, so that case gets a fixed message.
+ */
+const asError = (thrown: unknown): Error => {
+	if (thrown instanceof Error) {
+		return thrown;
+	}
+	try {
+		return new Error(String(thrown));
+	} catch {
+		return new Error('A value that is not an Error was thrown, and could not be turned into text');
+	}
+};
 
 const describeForLog = (err: Error, req: Request): Record<string, unknown> => ({
 	errorMessage: err.message,
@@ -158,21 +137,37 @@ const describeForLog = (err: Error, req: Request): Record<string, unknown> => ({
 	stack: err.stack,
 });
 
+// The only call here that can throw is a consumer's `clientErrors` override
+const tryKnownErrorResponse = (
+	err: Error,
+	options: ErrorHandlerOptions,
+): { knownResponse?: ErrorResponse; overrideError?: Error } => {
+	try {
+		return { knownResponse: getKnownErrorResponse(err, options) };
+	} catch (overrideError) {
+		return { overrideError: asError(overrideError) };
+	}
+};
+
 /**
- * Creates Express error middleware that answers each error with a status and a `{ error, message, details }` body.
- * Lyric's error types get their mapped status; multer upload refusals get 413 for a limit and 400 otherwise; errors
- * carrying their own client error status, such as body-parser's, get that status with fixed text, since a library's
- * message can repeat what was submitted. Anything else is logged in full
- * and answered with a fixed 500, so nothing about it reaches the client. `options` replaces the response for the
- * library errors, for a consumer that sends its own instead.
+ * Creates Express error middleware that answers each error with a status and a `{ error, message, details }` body:
+ * - a Lyric error type: its mapped status, with the error's own message and `details`;
+ * - an error carrying a client error status (4xx), such as Express's and body-parser's: that status, with fixed
+ *   text for `message` and no `details`;
+ * - any other error: a fixed 500, the error being logged under `ERROR_HANDLER` with the request's method and path.
+ *   No multer error is recognized, so an upload error reaches this case unless `convertUploadErrors` has converted
+ *   it.
  *
- * An error raised after the response has started, such as partway through a stream, can no longer be answered, so
- * it is logged and handed on to Express, which ends the response as failed.
+ * An error raised after the response has started is logged and passed on to Express, which ends the response as
+ * failed.
+ *
+ * With `clientErrors`, its result replaces the response to a client error status; if `clientErrors` throws, its
+ * error is logged and the client error is answered with the fixed 500. Without `logger`, unexpected errors are
+ * logged to the console at `info` level.
  */
 export const createErrorHandler = ({
 	clientErrors,
 	logger = getLogger({}),
-	uploadErrors,
 }: ErrorHandlerOptions = {}): ErrorHandler => {
 	const unexpectedError = new InternalServerError();
 	return (thrown, req, res, next) => {
@@ -186,19 +181,26 @@ export const createErrorHandler = ({
 			return next(err);
 		}
 
-		const knownResponse = getKnownErrorResponse(err, { clientErrors, uploadErrors });
+		const { knownResponse, overrideError } = tryKnownErrorResponse(err, { clientErrors });
 		if (knownResponse) {
 			const { details, error, message, status } = knownResponse;
 			return res.status(status).send({ error, message, details });
 		}
 
-		logger.error(LOG_MODULE, 'Unexpected error answered with a fixed 500 response', describeForLog(err, req));
+		if (overrideError) {
+			logger.error(LOG_MODULE, 'clientErrors override threw, answered with a fixed 500 response', {
+				...describeForLog(overrideError, req),
+				originalErrorName: err.name,
+			});
+		} else {
+			logger.error(LOG_MODULE, 'Unexpected error answered with a fixed 500 response', describeForLog(err, req));
+		}
 		return res.status(500).send({ error: unexpectedError.name, message: unexpectedError.message });
 	};
 };
 
 /**
- * Express error middleware with the default responses described on `createErrorHandler`. Mount it after every
- * router; use `createErrorHandler` instead to override the responses to library errors.
+ * Express error middleware: `createErrorHandler()` with no options. It answers errors raised by the routes and
+ * middleware mounted before it.
  */
 export const errorHandler = createErrorHandler();

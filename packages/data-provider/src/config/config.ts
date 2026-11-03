@@ -27,10 +27,9 @@ export type SchemaServiceConfig = {
 
 /**
  * Body limits for the submission router, in bytes. `0` or omitted sets no limit of that kind.
- * - `maxFileSize`: the largest file accepted in an upload, and the largest JSON request body, which holds one
- *   entity's records the way a file does. When `0` or omitted, JSON bodies keep the JSON parser's default of 100kb.
- * - `maxRequestSize`: the largest upload accepted, counting every file in it together, so an upload of many files
- *   stays bounded. When set, an upload must declare its size with `Content-Length`, or it is refused with 411.
+ * - `maxFileSize`: the largest file accepted in an upload, and the largest JSON request body. When `0` or omitted,
+ *   JSON bodies keep the JSON parser's default of 100kb.
+ * - `maxRequestSize`: the largest upload accepted, counting every file in it together.
  */
 export type SubmissionServiceConfig = {
 	maxFileSize?: number;

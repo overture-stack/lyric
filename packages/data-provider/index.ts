@@ -19,6 +19,7 @@ export {
 	type UserSession,
 	type UserSessionResult,
 } from './src/middleware/auth.js';
+export { convertUploadErrors } from './src/middleware/convertUploadErrors.js';
 export {
 	createErrorHandler,
 	errorHandler,
@@ -26,7 +27,7 @@ export {
 	type ErrorResponse,
 	type ErrorResponseOverride,
 } from './src/middleware/errorHandler.js';
-export { limitRequestSize } from './src/middleware/requestSize.js';
+export { limitRequestSize } from './src/middleware/limitRequestSize.js';
 
 // routes
 export { default as dictionaryRouters } from './src/routers/dictionaryRouter.js';

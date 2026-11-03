@@ -1,12 +1,13 @@
 import { expect } from 'chai';
-import express, { type RequestHandler } from 'express';
+import express, { type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import { describe, it } from 'mocha';
 import multer from 'multer';
 import supertest from 'supertest';
 
 import type { Logger } from '../../../src/config/logger.js';
 import { createErrorHandler } from '../../../src/middleware/errorHandler.js';
-import { limitRequestSize } from '../../../src/middleware/requestSize.js';
+import { limitRequestSize } from '../../../src/middleware/limitRequestSize.js';
+import { BadRequest } from '../../../src/utils/errors.js';
 
 const ignore = (): void => {};
 const silentLogger: Logger = { debug: ignore, error: ignore, info: ignore, warn: ignore };
@@ -55,6 +56,20 @@ describe('Request size limit', () => {
 		request.write('a');
 		const response = await request;
 		expect(response.status).to.equal(411);
+	});
+
+	it('should refuse with BadRequest a declared size that is not a whole number of bytes', () => {
+		const passed: unknown[] = [];
+		const next: NextFunction = (argument?: unknown) => {
+			passed.push(argument);
+		};
+		// Node's HTTP parser rejects such a header before Express runs, so the request is built here directly
+		['abc', '-1', '1.5'].forEach((declaredSize) => {
+			const request = { headers: { 'content-length': declaredSize } } as Request;
+			limitRequestSize(1024)(request, {} as Response, next);
+		});
+		expect(passed).to.have.length(3);
+		passed.forEach((argument) => expect(argument).to.be.instanceOf(BadRequest));
 	});
 
 	it('should pass a request with no body', async () => {

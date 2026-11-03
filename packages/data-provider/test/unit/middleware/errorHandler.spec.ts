@@ -1,7 +1,6 @@
 import { expect } from 'chai';
 import express, { type ErrorRequestHandler, json, type RequestHandler } from 'express';
 import { describe, it } from 'mocha';
-import multer from 'multer';
 import supertest from 'supertest';
 
 import type { Logger } from '../../../src/config/logger.js';
@@ -54,13 +53,6 @@ const throwing =
 		throw error;
 	};
 
-/**
- * Builds an error shaped like a `MulterError` from a copy of multer other than Lyric's own, as raised by a
- * consumer that runs its own multer in front of Lyric's `errorHandler`.
- */
-const createForeignMulterError = (code: string): Error =>
-	Object.assign(new Error('File too large'), { code, name: 'MulterError' });
-
 describe('Error handler', () => {
 	describe('Lyric error types', () => {
 		it('should respond with the status mapped to a Lyric error type', async () => {
@@ -98,37 +90,6 @@ describe('Error handler', () => {
 			const response = await createApp(throwing(new BadRequest('Invalid request', { field: 'name' }))).post('/');
 			expect(response.status).to.equal(400);
 			expect(response.body).to.have.deep.property('details', { field: 'name' });
-		});
-	});
-
-	describe('Upload errors', () => {
-		const uploadOneByteFiles = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1 } }).any();
-		const uploadIntoOneField = multer({ storage: multer.memoryStorage() }).single('files');
-
-		it('should respond 413 when an uploaded file exceeds the size limit', async () => {
-			const response = await createApp(uploadOneByteFiles).post('/').attach('files', Buffer.from('12'), 'a.csv');
-			expect(response.status).to.equal(413);
-			expect(response.body).to.have.property('error', 'MulterError');
-			expect(response.body).to.have.property('message', 'File too large');
-		});
-
-		it('should respond 413 when an upload exceeds a count limit', async () => {
-			const uploadOneFile = multer({ storage: multer.memoryStorage(), limits: { files: 1 } }).any();
-			const response = await createApp(uploadOneFile)
-				.post('/')
-				.attach('files', Buffer.from('1'), 'a.csv')
-				.attach('files', Buffer.from('2'), 'b.csv');
-			expect(response.status).to.equal(413);
-		});
-
-		it('should respond 400 when a file arrives in a field the route does not accept', async () => {
-			const response = await createApp(uploadIntoOneField).post('/').attach('other', Buffer.from('1'), 'a.csv');
-			expect(response.status).to.equal(400);
-		});
-
-		it('should respond 413 to a file size error raised by another copy of multer', async () => {
-			const response = await createApp(throwing(createForeignMulterError('LIMIT_FILE_SIZE'))).post('/');
-			expect(response.status).to.equal(413);
 		});
 	});
 
@@ -193,33 +154,29 @@ describe('Error handler', () => {
 	});
 
 	describe('Overrides', () => {
-		const uploadOneByteFiles = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1 } }).any();
 		const refusal: ErrorResponse = { error: 'Request Refused', message: 'The request was refused', status: 400 };
 		const refuse = (): ErrorResponse => refusal;
 		const withOverrides = (overrides: Parameters<typeof createErrorHandler>[0]): ErrorRequestHandler =>
 			createErrorHandler({ logger: silentLogger, ...overrides });
 
-		it('should send the response the upload override returns for an upload error', async () => {
-			const response = await createAppWithHandler(withOverrides({ uploadErrors: refuse }), uploadOneByteFiles)
-				.post('/')
-				.attach('files', Buffer.from('12'), 'a.csv');
-			expect(response.status).to.equal(400);
-			expect(response.body).to.eql({ error: 'Request Refused', message: 'The request was refused' });
-		});
-
-		it('should pass the upload error and the default response to the upload override', async () => {
+		it('should pass the error and the default response to the client error override', async () => {
 			const received: Array<{ defaultResponse: ErrorResponse; error: Error }> = [];
 			const record = (error: Error, defaultResponse: ErrorResponse): ErrorResponse => {
 				received.push({ defaultResponse, error });
 				return defaultResponse;
 			};
-			const response = await createAppWithHandler(withOverrides({ uploadErrors: record }), uploadOneByteFiles)
+			const response = await createAppWithHandler(withOverrides({ clientErrors: record }), json())
 				.post('/')
-				.attach('files', Buffer.from('12'), 'a.csv');
-			expect(response.status).to.equal(413);
+				.set('Content-Type', 'application/json')
+				.send('{');
+			expect(response.status).to.equal(400);
 			expect(received).to.have.length(1);
-			expect(received[0]?.error).to.have.property('code', 'LIMIT_FILE_SIZE');
-			expect(received[0]?.defaultResponse).to.include({ error: 'MulterError', message: 'File too large', status: 413 });
+			expect(received[0]?.error).to.have.property('type', 'entity.parse.failed');
+			expect(received[0]?.defaultResponse).to.include({
+				error: 'SyntaxError',
+				message: 'The request body must be valid JSON',
+				status: 400,
+			});
 		});
 
 		it('should send the response the client error override returns for an error carrying its own status', async () => {
@@ -231,16 +188,31 @@ describe('Error handler', () => {
 			expect(response.body).to.eql({ error: 'Request Refused', message: 'The request was refused' });
 		});
 
-		it('should apply only the override for the kind of error raised', async () => {
-			const response = await createAppWithHandler(withOverrides({ clientErrors: refuse }), uploadOneByteFiles)
+		it('should answer with the fixed 500, and log the error, when the client error override throws', async () => {
+			const { errors, logger } = createRecordingLogger();
+			const throwingOverride = (): ErrorResponse => {
+				throw new Error('Override failed to build a response');
+			};
+			const response = await createAppWithHandler(
+				createErrorHandler({ clientErrors: throwingOverride, logger }),
+				json(),
+			)
 				.post('/')
-				.attach('files', Buffer.from('12'), 'a.csv');
-			expect(response.status).to.equal(413);
-			expect(response.body).to.have.property('error', 'MulterError');
+				.set('Content-Type', 'application/json')
+				.send('{');
+			expect(response.status).to.equal(500);
+			expect(response.body).to.eql({ error: 'Internal Server Error', message: 'Something unexpected happened' });
+			expect(errors).to.have.length(1);
+			expect(errors[0]?.at(-1)).to.deep.include({
+				errorMessage: 'Override failed to build a response',
+				method: 'POST',
+				originalErrorName: 'SyntaxError',
+				path: '/',
+			});
 		});
 
 		it('should respond to Lyric error types and other errors as it does without overrides', async () => {
-			const handler = withOverrides({ clientErrors: refuse, uploadErrors: refuse });
+			const handler = withOverrides({ clientErrors: refuse });
 			const lyricError = await createAppWithHandler(handler, throwing(new NotFound('Category not found'))).post('/');
 			const otherError = await createAppWithHandler(handler, throwing(new Error('Unexpected'))).post('/');
 			expect(lyricError.status).to.equal(404);
@@ -282,6 +254,20 @@ describe('Error handler', () => {
 				throw 'connection lost';
 			};
 			const response = await createApp(throwingString).post('/');
+			expect(response.status).to.equal(500);
+			expect(response.body).to.eql(fixedResponseBody);
+		});
+
+		it('should respond 500 with fixed text when the thrown value cannot even be turned into text', async () => {
+			const unprintable = {
+				toString: (): string => {
+					throw new Error('cannot be printed');
+				},
+			};
+			const throwingUnprintable: RequestHandler = () => {
+				throw unprintable;
+			};
+			const response = await createApp(throwingUnprintable).post('/');
 			expect(response.status).to.equal(500);
 			expect(response.body).to.eql(fixedResponseBody);
 		});

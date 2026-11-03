@@ -8,22 +8,25 @@ Each section covers one change to something you already use: what changed, who i
 
 ### Errors raised by libraries are answered with their own status
 
-**What changed.** `errorHandler` answers errors raised by multer and by Express middleware such as body-parser with the status they describe:
+**What changed.** These errors are answered with the status they describe:
 
 | Error | Status |
 |---|---|
-| An upload exceeding one of multer's limits, such as `fileSize` | `413` |
-| An upload refused by multer for any other reason, such as a file in an unexpected field | `400` |
 | A JSON body over body-parser's limit | `413` |
 | A malformed JSON body | `400` |
+| Any other error carrying a client error status, such as a route parameter Express can't decode | That status |
+| An upload exceeding one of multer's limits, such as `fileSize`, once converted by `convertUploadErrors` | `413` |
+| An upload refused by multer for any other reason, such as a file in an unexpected field, once converted by `convertUploadErrors` | `400` |
 
-The response body keeps its `{ error, message, details }` shape, and `error` is still the library's error name, such as `MulterError` or `SyntaxError`. `message` is fixed text, since a library's message can repeat what was submitted: multer's own message, which is already fixed, such as `File too large`; `The request body must be valid JSON` for malformed JSON; and the status's own name, such as `Payload Too Large`, for any other error carrying its own client status. The submission router names its limit instead, as in `JSON request bodies must be at most 10MB`.
+`convertUploadErrors` converts multer's refusals into Lyric errors before `errorHandler` answers them. Lyric's submission router mounts it for its own uploads, and Lyric exports it for upload routes of your own.
 
-**Who is affected.** Any service that mounts Lyric's `errorHandler`, including one that runs its own multer or body-parser in front of it, and any client, test or alert that expects `500` for these failures or retries a `500` automatically.
+The response body keeps its `{ error, message, details }` shape. `message` is fixed text, since a library's message can repeat what was submitted: `The request body must be valid JSON` for malformed JSON; the status's own name, such as `Payload Too Large`, for any other error carrying its own client status; and multer's own message, which is already fixed, such as `File too large`, for a converted upload. `error` is the library's error name, such as `SyntaxError`, or the Lyric error's name, `Content Too Large` or `Bad Request`, for a converted upload. The submission router names its limit instead, as in `JSON request bodies must be at most 10MB`.
+
+**Who is affected.** Any service that mounts Lyric's `errorHandler`, especially one with an upload route of its own that runs multer, and any client, test or alert that expects `500` for these failures or retries a `500` automatically.
 
 **How to tell.** A failed upload or JSON request is answered `413` or `400` where it was answered `500`.
 
-**What to do.** Treat these as client errors, which fail the same way when retried unchanged. To send a response of your own for them, use `createErrorHandler` with `uploadErrors` or `clientErrors`, described in the [README](README.md#error-handling).
+**What to do.** Treat these as client errors, which fail the same way when retried unchanged. On an upload route of your own that runs multer, mount `convertUploadErrors` after the route; without it, multer's refusals are answered as unexpected errors, with a fixed `500`. To send a response of your own for errors carrying their own client status, use `createErrorHandler` with `clientErrors`, described in the [README](README.md#error-handling).
 
 <a id="unexpected-error-response"></a>
 
@@ -59,21 +62,22 @@ The error's name, message and stack are logged with the request's method and pat
 
 ### New: a limit on the total size of an upload
 
-**What is new.** `submissionService.maxRequestSize` limits a whole upload, every file in it counted together. An upload over it is refused with `413` before any of it is read. Once it is set, an upload must declare its size with `Content-Length`, or it is refused with `411`. The library sets no such limit unless configured. Lyric's reference server applies 100 MB by default, read from `SUBMISSION_MAX_REQUEST_SIZE` in bytes. `limitRequestSize`, `ContentTooLarge` and `LengthRequired` are exported for routes of your own.
+**What is new.** `submissionService.maxRequestSize` limits a whole upload, every file in it counted together. An upload over it is refused with `413` before any of it is read. Once it is set, an upload must declare its size with `Content-Length`, or it is refused with `411`. The library sets no such limit unless configured. Lyric's reference server applies 100 MB by default, read from `SUBMISSION_MAX_REQUEST_SIZE` in bytes. `limitRequestSize`, `convertUploadErrors`, `ContentTooLarge` and `LengthRequired` are exported for routes of your own.
 
 **Who is affected.** Deployments of Lyric's reference server, where an upload over 100 MB in total is now refused with `413`, and an upload sent without `Content-Length` is now refused with `411`.
 
 **Who should act.** Anyone accepting uploads. A per-file limit, whether `maxFileSize` or multer's own `fileSize`, does not bound how many files arrive in one request.
 
-**What to do.** On the reference server, set `SUBMISSION_MAX_REQUEST_SIZE` if 100 MB does not suit your uploads. As a library, set `maxRequestSize` in `submissionService`. For an upload route of your own, mount `limitRequestSize` ahead of multer:
+**What to do.** On the reference server, set `SUBMISSION_MAX_REQUEST_SIZE` if 100 MB does not suit your uploads. As a library, set `maxRequestSize` in `submissionService`. For an upload route of your own, mount `limitRequestSize` ahead of multer, and `convertUploadErrors` after the route:
 
 ```javascript
-import { limitRequestSize } from '@overture-stack/lyric';
+import { convertUploadErrors, limitRequestSize } from '@overture-stack/lyric';
 import multer from 'multer';
 
 const upload = multer({ dest: '/tmp', limits: { fileSize: 20 * 1024 * 1024 } });
 
 router.post('/upload', limitRequestSize(100 * 1024 * 1024), upload.array('files'), uploadController);
+router.use(convertUploadErrors);
 ```
 
 Browsers and common HTTP clients declare `Content-Length` for multipart uploads. A client that streams an upload with chunked transfer encoding needs to set it once a limit is in place.

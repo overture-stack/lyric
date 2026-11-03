@@ -6,7 +6,7 @@ const JSON_PARSER_DEFAULT_SIZE = 100 * 1024;
 /**
  * The body limits the submission router applies, in bytes.
  * - `fileSize`: each uploaded file. `undefined` means no per-file limit.
- * - `jsonSize`: a JSON request body, which holds one entity's records the way a file does.
+ * - `jsonSize`: a JSON request body.
  * - `requestSize`: a whole upload, every file counted together. `undefined` means no limit on the total.
  */
 export type SubmissionBodyLimits = {
@@ -23,5 +23,6 @@ export type SubmissionBodyLimits = {
 export const getSubmissionBodyLimits = (config: SubmissionServiceConfig | undefined): SubmissionBodyLimits => {
 	const fileSize = config?.maxFileSize || undefined;
 	const requestSize = config?.maxRequestSize || undefined;
+	// A JSON body holds one entity's records the way a file does, so it takes the per-file limit
 	return { fileSize, jsonSize: fileSize ?? JSON_PARSER_DEFAULT_SIZE, requestSize };
 };
