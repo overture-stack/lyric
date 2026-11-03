@@ -76,6 +76,11 @@ fix: Have `@overture-stack/lectern-client`'s `getDictionary` report Lectern's HT
 standalone: no
 context: needs a `lectern-client` release that reports the status, and Lyric moving to it from `2.0.0-beta.6`; `latest` is `2.0.0`. Today a failed `getDictionary` result carries only a message, for a dictionary Lectern doesn't have (Lectern answers 404) and for Lectern being unreachable alike, so moving the `BadRequest` out of the `try` on its own would answer an outage 400. A permanent condition answered 503 tells clients to wait and retry, so a request naming a missing dictionary is retried for as long as the client keeps trying.
 
+### A malformed multipart upload answers 500 instead of 400
+fix: tell a request that can't be parsed apart from a storage failure on the same upload path, and answer the first with `BadRequest`. Both reach the route as plain `Error`s with no `status`: busboy's parse errors (`Multipart: Boundary not found`, `Unexpected end of form`, `Malformed part header`), and disk storage's own failures, such as `ENOSPC` or `EACCES`, which carry a Node `code` the parse errors lack. A storage failure is a server error and stays a 500, so the fix recognizes parse failures specifically rather than answering every non-multer error from an upload with 400. Test: a body with no boundary, a truncated body and a malformed part header each get 400; a storage failure still gets 500.
+standalone: yes
+context: multer passes busboy's errors on unchanged (`make-middleware.js`, its `busboy.on('error', ...)` handler), so `convertUploadErrors` passes them through and `errorHandler` answers them with its fixed-text 500 and logs them. 0.20.x answered them with 500 too.
+
 ---
 
 ## Resolved
