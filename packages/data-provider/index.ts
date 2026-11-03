@@ -19,7 +19,14 @@ export {
 	type UserSession,
 	type UserSessionResult,
 } from './src/middleware/auth.js';
-export { errorHandler } from './src/middleware/errorHandler.js';
+export {
+	createErrorHandler,
+	errorHandler,
+	type ErrorHandlerOptions,
+	type ErrorResponse,
+	type ErrorResponseOverride,
+} from './src/middleware/errorHandler.js';
+export { limitRequestSize } from './src/middleware/requestSize.js';
 
 // routes
 export { default as dictionaryRouters } from './src/routers/dictionaryRouter.js';
@@ -30,8 +37,10 @@ export { default as submittedDataRouter } from './src/routers/submittedDataRoute
 // errors
 export {
 	BadRequest,
+	ContentTooLarge,
 	Forbidden,
 	InternalServerError,
+	LengthRequired,
 	LYRIC_ERROR_TYPES,
 	NotFound,
 	NotImplemented,

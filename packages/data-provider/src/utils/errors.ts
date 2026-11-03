@@ -38,6 +38,28 @@ export class StatusConflict extends Error {
 	}
 }
 
+/**
+ * Error for a request that sends a body without declaring its size in `Content-Length`, where the size has to be
+ * checked before the body is read. Maps to HTTP 411.
+ */
+export class LengthRequired extends Error {
+	constructor(msg?: string) {
+		super(msg || 'Requests to this endpoint must declare their size with a Content-Length header');
+		this.name = 'Length Required';
+	}
+}
+
+/**
+ * Error for a request whose content exceeds a size limit, such as an uploaded file larger than the configured
+ * maximum. Maps to HTTP 413. The message should name the limit, so the client knows how far to shrink or split.
+ */
+export class ContentTooLarge extends Error {
+	constructor(msg?: string) {
+		super(msg || 'Request content is larger than the server accepts');
+		this.name = 'Content Too Large';
+	}
+}
+
 export class TSVParseError extends Error {
 	constructor(msg?: string) {
 		super(msg || `TSV file is formatted incorrectly`);
@@ -76,6 +98,8 @@ export const LYRIC_ERROR_TYPES = [
 	Forbidden,
 	NotFound,
 	StatusConflict,
+	LengthRequired,
+	ContentTooLarge,
 	TSVParseError,
 	InternalServerError,
 	NotImplemented,

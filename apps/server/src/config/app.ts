@@ -4,6 +4,7 @@ import { type AppConfig, type ValidatorEntry } from '@overture-stack/lyric';
 
 import { getBoolean, getJSONConfig, getOptionalIntegerConfig, getRequiredConfig } from './envUtils.js';
 
+const DEFAULT_SUBMISSION_MAX_REQUEST_SIZE = 100 * 1024 * 1024; // 100Mb
 const DEFAULT_SUBMISSION_MAX_SIZE = 10 * 1024 * 1024; // 10Mb
 
 export const getServerConfig = () => {
@@ -70,6 +71,7 @@ export const buildAppConfig = (overrides: Partial<AppConfig> = {}): AppConfig =>
 	},
 	submissionService: {
 		maxFileSize: getOptionalIntegerConfig('SUBMISSION_MAX_SIZE') || DEFAULT_SUBMISSION_MAX_SIZE,
+		maxRequestSize: getOptionalIntegerConfig('SUBMISSION_MAX_REQUEST_SIZE') || DEFAULT_SUBMISSION_MAX_REQUEST_SIZE,
 	},
 	validator: getValidatorConfig('VALIDATOR_CONFIG'),
 	...overrides,

@@ -8,6 +8,8 @@
 npm i @overture-stack/lyric
 ```
 
+When upgrading from an earlier release, see [MIGRATION.md](MIGRATION.md) for changes that need action.
+
 ## Configuration
 
 ### Provider
@@ -48,6 +50,10 @@ const appConfig: AppConfig = {
 	},
 	schemaService: {
 		url: 'https://api.lectern-service.com', // URL of the schema service
+	},
+	submissionService: {
+		maxFileSize: 10 * 1024 * 1024, // Largest file accepted in an upload, and largest JSON request body, in bytes. 0 or omitted: no per-file limit, and JSON bodies keep the JSON parser's 100kb default
+		maxRequestSize: 100 * 1024 * 1024, // Largest upload accepted, every file in it counted together, in bytes. 0 or omitted: no limit
 	},
 };
 
@@ -217,6 +223,48 @@ const app = express();
 app.use('/submission', lyricProvider.routers.submission);
 ```
 
+### Error Handling
+
+Mount `errorHandler` after the routers, so every error is answered with a status and a `{ error, message, details }` body:
+
+```javascript
+import { errorHandler } from '@overture-stack/lyric';
+
+app.use(errorHandler);
+```
+
+| Error | Status |
+|---|---|
+| A Lyric error type, such as `BadRequest`, `NotFound` or `ContentTooLarge` | The status mapped to that type |
+| An upload refused by multer for exceeding one of its limits | `413` |
+| An upload refused by multer for any other reason, such as a file in an unexpected field | `400` |
+| An error carrying its own client error status, such as body-parser's for a JSON body too large (`413`) or malformed (`400`) | That status, with fixed text |
+| Anything else | `500`, with fixed text |
+
+For an upload refused by multer, `message` is multer's own, which is fixed text such as `File too large`. For an error carrying its own client error status, `message` is fixed text, since a library's message can repeat what was submitted: `The request body must be valid JSON` for malformed JSON, and the status's own name, such as `Payload Too Large`, otherwise. `error` is the library's error name, such as `MulterError` or `SyntaxError`.
+
+An unexpected error is answered with `{ "error": "Internal Server Error", "message": "Something unexpected happened" }`, so nothing about it reaches the client. Its name, message and stack are logged with the request's method and path, under `ERROR_HANDLER`.
+
+An error raised after a response has started, such as partway through a stream, can no longer be answered. It is logged the same way and handed on to Express, which ends the response as failed, so the client never receives it as complete.
+
+Use `createErrorHandler` instead to choose the logger, or to send your own response to the errors raised by libraries rather than by Lyric. Each override receives the error and Lyric's default response, and returns the response to send:
+
+```javascript
+import { createErrorHandler, getLogger } from '@overture-stack/lyric';
+
+const logger = getLogger({ level: 'info' });
+
+app.use(
+	createErrorHandler({
+		clientErrors: (error, defaultResponse) => ({ ...defaultResponse, message: 'The request could not be read' }),
+		logger,
+		uploadErrors: (error, defaultResponse) => ({ ...defaultResponse, message: 'The upload was refused' }),
+	}),
+);
+```
+
+Lyric's own error types are always answered with their mapped status and message.
+
 ### File Submission
 
 Files are submitted via `POST /submission/category/:categoryId/files` as a multipart form upload.
@@ -238,6 +286,32 @@ POST /submission/category/1/files?sync=true
 ```
 
 When `sync=true`, `fileResults` will be populated in the response with per-file outcomes. Without it, parse errors are logged on the server but not returned to the caller. Avoid `sync=true` on very large batches where parsing time would exceed your client's request timeout.
+
+### Upload and Request Size Limits
+
+The submission router applies the limits set in `submissionService`:
+
+| Setting | Limits | Refused with |
+|---|---|---|
+| `maxFileSize` | Each uploaded file, and each JSON request body, which holds one entity's records the way a file does | `413`, naming the limit |
+| `maxRequestSize` | A whole upload, every file counted together | `413`, naming the limit |
+
+When `maxFileSize` is `0` or omitted, JSON bodies keep the JSON parser's default limit of 100kb.
+
+A per-file limit does not bound how many files arrive in one request, so set `maxRequestSize` wherever uploads are accepted. When it is set, the size of an upload is checked against its `Content-Length` header before any of it is read, and an upload sent without one is refused with `411`. Browsers and common HTTP clients declare it for multipart uploads; a client that streams an upload with chunked transfer encoding needs to set it.
+
+The submission router authenticates a request before it reads the body, so an unauthenticated request is refused without its body being parsed.
+
+For an upload route of your own, mount `limitRequestSize` ahead of multer:
+
+```javascript
+import { limitRequestSize } from '@overture-stack/lyric';
+import multer from 'multer';
+
+const upload = multer({ dest: '/tmp', limits: { fileSize: 20 * 1024 * 1024 } });
+
+router.post('/upload', limitRequestSize(100 * 1024 * 1024), upload.array('files'), uploadController);
+```
 
 ### Provider Shut down
 
