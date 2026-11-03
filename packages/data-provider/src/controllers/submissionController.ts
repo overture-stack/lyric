@@ -21,10 +21,12 @@ import {
 	submissionDeleteRequestSchema,
 	submissionDetailsRequestSchema,
 	submissionFileDeleteRequestSchema,
+	submissionFileDownloadRequestSchema,
 	submissionsByCategoryRequestSchema,
 	uploadSingleEntitySubmissionDataRequestSchema,
 	uploadSubmissionRequestSchema,
 } from '../utils/schemas.js';
+import { formatSubmissionFileContent, getDownloadFileName } from '../utils/submissionFileDownload.js';
 import type { SubmissionSummaryResponse } from '../utils/submissionResponseParser.js';
 import { SUBMISSION_RECORD_ACTION_TYPE } from '../utils/submissionTypes.js';
 import { isSubmissionActive, parseSubmissionActionTypes } from '../utils/submissionUtils.js';
@@ -295,6 +297,28 @@ const controller = ({
 				});
 
 				return res.status(200).json(submission);
+			} catch (error) {
+				next(error);
+			}
+		}),
+		downloadFileById: validateRequest(submissionFileDownloadRequestSchema, async (req, res, next) => {
+			try {
+				const submissionId = Number(req.params.submissionId);
+				const fileId = Number(req.query.fileId);
+				const fileType = req.query.fileType === 'tsv' ? 'tsv' : 'csv';
+
+				logger.info(LOG_MODULE, `Request Download file ID '${fileId}' on Submission '${submissionId}'`);
+
+				const fileData = await submissionService.getSubmissionFileData(submissionId, fileId);
+				const content = formatSubmissionFileContent(fileData, fileType);
+				const downloadFileName = getDownloadFileName(fileData, fileType);
+
+				res.set({
+					'Content-Disposition': `attachment; filename="${downloadFileName}"`,
+					'Content-Type': fileType === 'tsv' ? 'text/tab-separated-values' : 'text/csv',
+				});
+
+				return res.status(200).send(content);
 			} catch (error) {
 				next(error);
 			}

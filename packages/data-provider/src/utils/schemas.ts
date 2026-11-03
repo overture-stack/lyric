@@ -7,6 +7,7 @@ import type { SQON } from '@overture-stack/sqon-builder';
 
 import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js';
 import { parseSQON } from './convertSqonToQuery.js';
+import { SUPPORTED_FILE_EXTENSIONS } from './fileUtils.js';
 import { isValidCategoryAlias, isValidDateFormat, isValidIdNumber } from './formatUtils.js';
 import { RequestValidation } from './requestValidation.js';
 import { VIEW_TYPE } from './types.js';
@@ -402,6 +403,29 @@ export const submissionFileDeleteRequestSchema: RequestValidation<
 > = {
 	query: zod.object({
 		fileId: positiveInteger,
+	}),
+	pathParams: zod.object({
+		submissionId: submissionIdSchema,
+	}),
+};
+
+export interface SubmissionFileDownloadParams extends ParamsDictionary {
+	submissionId: string;
+}
+
+export interface SubmissionFileDownloadQueryParams extends ParsedQs {
+	fileId: string;
+	fileType?: string;
+}
+
+export const submissionFileDownloadRequestSchema: RequestValidation<
+	object,
+	SubmissionFileDownloadQueryParams,
+	SubmissionFileDownloadParams
+> = {
+	query: zod.object({
+		fileId: positiveInteger,
+		fileType: SUPPORTED_FILE_EXTENSIONS.default('csv'),
 	}),
 	pathParams: zod.object({
 		submissionId: submissionIdSchema,
