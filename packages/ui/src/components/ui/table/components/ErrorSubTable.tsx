@@ -45,6 +45,7 @@ const defaultColumns = columnHelper.columns([
 
 export function ErrorTable({ fileId }: { fileId: string | number }) {
 	console.log('FETCH FROM-', fileId);
+	//
 	const data = useMemo(() => errorSummaryMock, [errorSummaryMock]); // TODO: remove this with react-query, use file id to fetch from db and use proper caching
 
 	const table = useTable({

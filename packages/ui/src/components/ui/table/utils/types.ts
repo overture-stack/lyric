@@ -63,4 +63,21 @@ export type ApiHandlers = {
 	deleteHandler: (id: string | number) => void;
 	downloadFileHandler: (id: string | number) => void;
 	downloadErrorFileHandler: (id: string | number) => void;
+	changeEntityHandler: (id: string | number, entity: string) => void;
+};
+
+export const FILE_ACTION = {
+	UPDATE: 'UPDATE',
+	DELETE: 'DELETE',
+	UPLOAD: 'record',
+} as const;
+
+export type FILE_ACTION_VALUES = (typeof FILE_ACTION)[keyof typeof FILE_ACTION];
+
+export type FileActionType = {
+	id: number | string;
+	fileName: string;
+	action: FILE_ACTION_VALUES;
+	selectedEntity?: string;
+	file?: File;
 };

@@ -16,7 +16,7 @@ import DisplayRowAction from './components/DisplayRowAction';
 import DisplayRowStatus from './components/DisplayRowStatus';
 import EntitySelectBox from './components/EntitySelectBox';
 import { ErrorTable } from './components/ErrorSubTable';
-import { ApiHandlers, UPLOAD_COLUMN_NAMES, UploadSubmission } from './utils/types';
+import { ApiHandlers, FileActionType, UPLOAD_COLUMN_NAMES, UploadSubmission } from './utils/types';
 
 export const columnHelper = createColumnHelper<typeof features, UploadTableRow>();
 
@@ -25,23 +25,18 @@ const features = tableFeatures({
 	expandedRowModel: createExpandedRowModel(),
 });
 
-export interface SubmissionViewTableProps {
-	dictionary: SchemasDictionary;
-	submissionResponse: SubmissionDataSummaryRepositoryRecord;
-}
-
-type UploadTableRow = UploadSubmission & { action: string | ReactNode; expanded?: UploadTableRow[] };
-
 /**
- *  Function to transform incoming data into a format usable by react table.
+ *  Function to transform incoming data into a format usable by react table. This table should accomodate new submissions and in-progress submissions.
+ *
  * @param dictionary dictionary submissionData is assoicated to
  * @param submissionData Incoming data format. NOTE: Likely to change based of new lyric api changes.
  * @param apiHandlers
  * @returns
  */
-const transformSubmissionData = (
+const transformDataToTableFormat = (
 	dictionary: SchemasDictionary,
 	submissionData: SubmissionDataSummaryRepositoryRecord,
+	fileActions: FileActionType[],
 	apiHandlers: ApiHandlers,
 ): UploadTableRow[] => {
 	const inserts = submissionData.data.inserts;
@@ -50,15 +45,33 @@ const transformSubmissionData = (
 	}
 	const disabled = submissionData.status === 'COMMITTING' || submissionData.status === 'VALIDATING';
 
-	// Logic to map inserts errors to status
-	return Object.entries(inserts).map(([_, summary]) => ({
+	const transformedActions = fileActions.map((currentAction) => ({
+		file: currentAction.fileName,
+		entity: EntitySelectBox({ dictionary, disabled }),
+		record: 0, // TODO: need a way to read rows in UI
+		status: 'Display Error', // TODO: Need to UI validate
+		action: DisplayRowAction(currentAction.fileName, submissionData.status, disabled, apiHandlers),
+	}));
+
+	const transformedSubmissionData = Object.entries(inserts).map(([_, summary]) => ({
 		file: summary.batchName, // no file info in inserts — mocked
 		entity: EntitySelectBox({ dictionary, disabled }),
 		record: summary.recordsCount,
 		status: DisplayRowStatus(submissionData.status), //TODO: Dynamicly change this action based of commit.action. API should return the error for this row, and display here
 		action: DisplayRowAction(summary.batchName, submissionData.status, disabled, apiHandlers),
 	}));
+	// Logic to map inserts errors to status
+	return [...transformedActions, ...transformedSubmissionData];
 };
+
+export interface SubmissionViewTableProps {
+	dictionary: SchemasDictionary;
+	submissionResponse: SubmissionDataSummaryRepositoryRecord;
+	fileActions: FileActionType[];
+	handlers: ApiHandlers;
+}
+
+type UploadTableRow = UploadSubmission & { action: string | ReactNode; expanded?: UploadTableRow[] };
 
 /**
  * Table to display the files AFTER it is sent to lyric. Errors are returned from lyric submission
@@ -68,19 +81,6 @@ const transformSubmissionData = (
 export function UploadedSubmissionTable(props: SubmissionViewTableProps) {
 	const tableDisabled =
 		props.submissionResponse.status === 'COMMITTING' || props.submissionResponse.status === 'VALIDATING';
-
-	const deleteHandler = (id: number | string) => {
-		// TODO: put request to remove selected field
-		console.log('DELETE---', id);
-	};
-	const downloadFileHandler = (id: number | string) => {
-		// TODO: endpoint to download by filename
-		console.log('DOWNLOAD---', id);
-	};
-	const downloadErrorFileHandler = (id: number | string) => {
-		// TODO: endpoint to download error for specific by file
-		console.log('DOWNLOAD-ERROR---', id);
-	};
 
 	const defaultColumns = useMemo(
 		() =>
@@ -130,14 +130,15 @@ export function UploadedSubmissionTable(props: SubmissionViewTableProps) {
 		columns: defaultColumns,
 		data: useMemo(
 			() =>
-				transformSubmissionData(props.dictionary, props.submissionResponse, {
-					deleteHandler,
-					downloadFileHandler,
-					downloadErrorFileHandler,
+				transformDataToTableFormat(props.dictionary, props.submissionResponse, props.fileActions, {
+					deleteHandler: props.handlers.deleteHandler,
+					downloadFileHandler: props.handlers.downloadFileHandler,
+					downloadErrorFileHandler: props.handlers.downloadErrorFileHandler,
+					changeEntityHandler: props.handlers.changeEntityHandler,
 				}),
-			[props.dictionary, props.submissionResponse],
+			[props.dictionary, props.submissionResponse, props.fileActions],
 		),
-		getRowCanExpand: () => true, // Add your logic to determine if a row can be expanded. True means all rows include expanded data
+		getRowCanExpand: () => true,
 	});
 
 	return (
