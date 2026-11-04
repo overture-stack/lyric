@@ -35,23 +35,27 @@ const features = tableFeatures({
  */
 const transformDataToTableFormat = (
 	dictionary: SchemasDictionary,
-	submissionData: SubmissionDataSummaryRepositoryRecord,
 	fileActions: FileActionType[],
 	apiHandlers: ApiHandlers,
+	submissionData?: SubmissionDataSummaryRepositoryRecord,
 ): UploadTableRow[] => {
+	const transformedActions = fileActions.map((currentAction) => ({
+		file: currentAction.fileName,
+		entity: EntitySelectBox({ dictionary, disabled: false }),
+		record: 0, // TODO: need a way to read rows in UI
+		status: 'Display Error', // TODO: Need to UI validate
+		action: DisplayRowAction(currentAction.fileName, 'VALIDATING', false, apiHandlers),
+	}));
+
+	if (submissionData === undefined) {
+		return transformedActions;
+	}
+
 	const inserts = submissionData.data.inserts;
 	if (!inserts) {
 		return [];
 	}
 	const disabled = submissionData.status === 'COMMITTING' || submissionData.status === 'VALIDATING';
-
-	const transformedActions = fileActions.map((currentAction) => ({
-		file: currentAction.fileName,
-		entity: EntitySelectBox({ dictionary, disabled }),
-		record: 0, // TODO: need a way to read rows in UI
-		status: 'Display Error', // TODO: Need to UI validate
-		action: DisplayRowAction(currentAction.fileName, submissionData.status, disabled, apiHandlers),
-	}));
 
 	const transformedSubmissionData = Object.entries(inserts).map(([_, summary]) => ({
 		file: summary.batchName, // no file info in inserts — mocked
@@ -66,9 +70,9 @@ const transformDataToTableFormat = (
 
 export interface SubmissionViewTableProps {
 	dictionary: SchemasDictionary;
-	submissionResponse: SubmissionDataSummaryRepositoryRecord;
 	fileActions: FileActionType[];
 	handlers: ApiHandlers;
+	submissionResponse?: SubmissionDataSummaryRepositoryRecord;
 }
 
 type UploadTableRow = UploadSubmission & { action: string | ReactNode; expanded?: UploadTableRow[] };
@@ -78,9 +82,17 @@ type UploadTableRow = UploadSubmission & { action: string | ReactNode; expanded?
  * @param {SubmissionViewTableProps} props
  * @returns
  */
-export function UploadedSubmissionTable(props: SubmissionViewTableProps) {
+export function UploadedSubmissionTable({
+	dictionary,
+	fileActions,
+	submissionResponse,
+	handlers,
+}: SubmissionViewTableProps) {
+	const isNewSubmission = submissionResponse === undefined;
 	const tableDisabled =
-		props.submissionResponse.status === 'COMMITTING' || props.submissionResponse.status === 'VALIDATING';
+		!isNewSubmission &&
+		submissionResponse &&
+		(submissionResponse.status === 'COMMITTING' || submissionResponse.status === 'VALIDATING');
 
 	const defaultColumns = useMemo(
 		() =>
@@ -91,7 +103,7 @@ export function UploadedSubmissionTable(props: SubmissionViewTableProps) {
 						return (
 							<div>
 								<div className="flex justify-start items-center ">
-									{props.submissionResponse.status === 'INVALID' && (
+									{!isNewSubmission && submissionResponse.status === 'INVALID' && (
 										<Button variant="ghost" onClick={row.getToggleExpandedHandler()} style={{ cursor: 'pointer' }}>
 											{row.getIsExpanded() ? <ArrowBigDown fill="black" /> : <ArrowBigRight fill="black" />}
 										</Button>
@@ -113,7 +125,7 @@ export function UploadedSubmissionTable(props: SubmissionViewTableProps) {
 					header: 'Status',
 					cell: (info) => <>{info.getValue<string>()}</>,
 				}),
-				...(props.submissionResponse.status !== 'COMMITTED'
+				...((submissionResponse && submissionResponse.status !== 'COMMITTED') || isNewSubmission
 					? [
 							columnHelper.accessor(UPLOAD_COLUMN_NAMES.ACTION, {
 								header: 'Action',
@@ -130,13 +142,18 @@ export function UploadedSubmissionTable(props: SubmissionViewTableProps) {
 		columns: defaultColumns,
 		data: useMemo(
 			() =>
-				transformDataToTableFormat(props.dictionary, props.submissionResponse, props.fileActions, {
-					deleteHandler: props.handlers.deleteHandler,
-					downloadFileHandler: props.handlers.downloadFileHandler,
-					downloadErrorFileHandler: props.handlers.downloadErrorFileHandler,
-					changeEntityHandler: props.handlers.changeEntityHandler,
-				}),
-			[props.dictionary, props.submissionResponse, props.fileActions],
+				transformDataToTableFormat(
+					dictionary,
+					fileActions,
+					{
+						deleteHandler: handlers.deleteHandler,
+						downloadFileHandler: handlers.downloadFileHandler,
+						downloadErrorFileHandler: handlers.downloadErrorFileHandler,
+						changeEntityHandler: handlers.changeEntityHandler,
+					},
+					submissionResponse,
+				),
+			[dictionary, submissionResponse, fileActions],
 		),
 		getRowCanExpand: () => true,
 	});
@@ -172,7 +189,7 @@ export function UploadedSubmissionTable(props: SubmissionViewTableProps) {
 											</td>
 										))}
 									</tr>
-									{props.submissionResponse.status === 'INVALID' && row.getIsExpanded() && (
+									{submissionResponse && submissionResponse.status === 'INVALID' && row.getIsExpanded() && (
 										<tr key={`${row.id}-expanded`}>
 											<td colSpan={defaultColumns.length} className="pl-10 pr-10 py-3 bg-gray-50">
 												<ErrorTable fileId={row.id} />
