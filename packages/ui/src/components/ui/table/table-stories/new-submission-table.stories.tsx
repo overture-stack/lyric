@@ -1,7 +1,7 @@
 import { Meta, StoryObj } from '@storybook/react';
 
-import { NewSubmissionTable } from './NewSubmissionTable';
-import { testDictionary } from './utils/mock';
+import { NewSubmissionTable } from '../NewSubmissionTable';
+import { testDictionary } from '../utils/mock';
 
 const meta: Meta<typeof NewSubmissionTable> = {
 	title: 'Components/NewSubmissionTable',

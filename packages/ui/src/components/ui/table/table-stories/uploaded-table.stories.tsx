@@ -1,17 +1,10 @@
 import { Meta, StoryObj } from '@storybook/react';
 import { useState } from 'react';
 
-import { Button } from '../button';
-import { UploadedSubmissionTable } from './UploadedSubmissionTable';
-import {
-	committedResponse,
-	committingResponse,
-	invalidResponse,
-	testDictionary,
-	validatingResponse,
-	validResponse,
-} from './utils/mock';
-import { FILE_ACTION, FileActionType } from './utils/types';
+import { Button } from '../../button.js';
+import { UploadedSubmissionTable } from '../UploadedSubmissionTable.js';
+import { committedResponse, testDictionary } from '../utils/mock.js';
+import { FILE_ACTION, FileActionType } from '../utils/types.js';
 
 const meta: Meta<typeof UploadedSubmissionTable> = {
 	title: 'Components/UploadedSubmissionTable',
@@ -21,52 +14,6 @@ const meta: Meta<typeof UploadedSubmissionTable> = {
 export default meta;
 
 type Story = StoryObj<typeof UploadedSubmissionTable>;
-
-const defaultHandler = {
-	deleteHandler: () => {},
-	downloadFileHandler: () => {},
-	downloadErrorFileHandler: () => {},
-	changeEntityHandler: (_, __) => {},
-};
-
-// RESPONSE FROM SERVER
-export const ValidTable: Story = {
-	args: {
-		submissionResponse: validResponse,
-		dictionary: testDictionary,
-		fileActions: [],
-		handlers: defaultHandler,
-	},
-};
-export const ValidatingTable: Story = {
-	args: {
-		submissionResponse: validatingResponse,
-		dictionary: testDictionary,
-		fileActions: [],
-		handlers: defaultHandler,
-	},
-};
-
-export const CommitingTable: Story = {
-	args: {
-		submissionResponse: committingResponse,
-		dictionary: testDictionary,
-		fileActions: [],
-		handlers: defaultHandler,
-	},
-};
-
-export const CommitedTable: Story = {
-	args: {
-		submissionResponse: committedResponse,
-		dictionary: testDictionary,
-		fileActions: [],
-		handlers: defaultHandler,
-	},
-};
-export const InvalidTable: Story = {
-	args: { submissionResponse: invalidResponse, dictionary: testDictionary, fileActions: [], handlers: defaultHandler },
-};
 
 export const Controlled: Story = {
 	render: () => {
@@ -86,6 +33,7 @@ export const Controlled: Story = {
 				]);
 			}
 		};
+
 		const deleteHandler = (id: number | string) => {
 			// TODO: put request to remove selected field
 			console.log('DELETE---', id);

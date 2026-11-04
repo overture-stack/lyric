@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
-import { SubmissionViewTable } from './SubmissionViewTable';
+import { SubmissionViewTable } from '../SubmissionViewTable';
 
 const meta: Meta<typeof SubmissionViewTable> = {
 	title: 'Components/DisplaySubmissionTable',
