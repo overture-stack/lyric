@@ -51,7 +51,6 @@
 		"cn": "^0.3.2",
 		"lucide-react": "^1.33.0",
 		"radix-ui": "^1.6.7"
-
 	},
 	"devDependencies": {
 		"@storybook/react": "^10.5.9",
@@ -70,5 +69,6 @@
 		"tailwindcss": "^4.3.3",
 		"unplugin-dts": "1.1.2",
 		"vite": "^8.2.1"
-	}
+	},
+	"private": true
 }
