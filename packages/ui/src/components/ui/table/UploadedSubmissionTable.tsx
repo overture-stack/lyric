@@ -73,6 +73,11 @@ export interface SubmissionViewTableProps {
 	fileActions: FileActionType[];
 	handlers: ApiHandlers;
 	submissionResponse?: SubmissionDataSummaryRepositoryRecord;
+	styles?: {
+		headerRowStyles?: string | undefined;
+		headerCellStyles?: string | undefined;
+		recordRowStyles?: string | undefined;
+	};
 }
 
 type UploadTableRow = UploadSubmission & { action: string | ReactNode; expanded?: UploadTableRow[] };
@@ -87,6 +92,7 @@ export function UploadedSubmissionTable({
 	fileActions,
 	submissionResponse,
 	handlers,
+	styles,
 }: SubmissionViewTableProps) {
 	const isNewSubmission = submissionResponse === undefined;
 	const tableDisabled =
@@ -161,14 +167,20 @@ export function UploadedSubmissionTable({
 	return (
 		<div className={cn('flex flex-col gap-4', tableDisabled ? 'opacity-55' : '')}>
 			{/* Table */}
-			<div className="overflow-x-auto rounded border border-gray-200">
-				<table className='w-full text-sm border-collapse"'>
-					<thead className="bg-[#054A741A] border-b border-gray-200">
+			<div className="overflow-x-auto rounded">
+				<table className="w-full text-sm border-collapse">
+					<thead className={cn('bg-sky-900/10', styles?.headerRowStyles)}>
 						{table.getHeaderGroups().map((headerGroup) => (
 							<tr key={headerGroup.id}>
 								{headerGroup.headers.map((header) => {
 									return (
-										<th key={header.id} className="pl-2 pr-4 py-3 text-left font-semibold whitespace-nowrap">
+										<th
+											key={header.id}
+											className={cn(
+												'pl-2 pr-4 py-3 text-left font-semibold whitespace-nowrap first:border-l last:border-r border-gray-100',
+												styles?.headerCellStyles,
+											)}
+										>
 											<div className="flex items-center gap-1 w-full">
 												<table.FlexRender header={header} />
 											</div>
@@ -182,9 +194,15 @@ export function UploadedSubmissionTable({
 						{table.getRowModel().rows.map((row) => {
 							return (
 								<Fragment key={row.id}>
-									<tr className="even:bg-white odd:bg-[#FAFAFA] ">
+									<tr className="odd:bg-white even:bg-gray-100/45">
 										{row.getAllCells().map((cell) => (
-											<td key={cell.id} className="pl-2 py-3 text-black/80 border border-[#F0F0F0]">
+											<td
+												key={cell.id}
+												className={cn(
+													'pl-2 py-3 text-black/80 border-b border-l border-r border-gray-100',
+													styles?.recordRowStyles,
+												)}
+											>
 												<table.FlexRender cell={cell} />
 											</td>
 										))}
