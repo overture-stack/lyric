@@ -11,12 +11,12 @@ import { Fragment, ReactNode, useMemo } from 'react';
 
 import { SchemasDictionary, SubmissionDataSummaryRepositoryRecord } from '@overture-stack/lyric';
 
-import { Button } from '../button';
-import DisplayRowAction from './components/DisplayRowAction';
-import DisplayRowStatus from './components/DisplayRowStatus';
-import EntitySelectBox from './components/EntitySelectBox';
-import { ErrorTable } from './components/ErrorSubTable';
-import { ApiHandlers, FileActionType, UPLOAD_COLUMN_NAMES, UploadSubmission } from './utils/types';
+import { Button } from '../button.js';
+import DisplayRowAction from './components/DisplayRowAction.js';
+import DisplayRowStatus from './components/DisplayRowStatus.js';
+import EntitySelectBox from './components/EntitySelectBox.js';
+import { ErrorTable } from './components/ErrorSubTable.js';
+import { ApiHandlers, FileActionType, UPLOAD_COLUMN_NAMES, UploadSubmission } from './utils/types.js';
 
 export const columnHelper = createColumnHelper<typeof features, UploadTableRow>();
 
@@ -87,7 +87,7 @@ type UploadTableRow = UploadSubmission & { action: string | ReactNode; expanded?
  * @param {SubmissionViewTableProps} props
  * @returns
  */
-export function UploadedSubmissionTable({
+export function SubmissionTable({
 	dictionary,
 	fileActions,
 	submissionResponse,

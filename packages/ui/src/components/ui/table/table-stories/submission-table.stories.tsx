@@ -2,18 +2,18 @@ import { Meta, StoryObj } from '@storybook/react';
 import { useState } from 'react';
 
 import { Button } from '../../button.js';
-import { UploadedSubmissionTable } from '../UploadedSubmissionTable.js';
+import { SubmissionTable } from '../SubmissionTable.js';
 import { testDictionary, validatedResponse } from '../utils/mock.js';
 import { FILE_ACTION, FileActionType } from '../utils/types.js';
 
-const meta: Meta<typeof UploadedSubmissionTable> = {
-	title: 'Components/UploadedSubmissionTable',
-	component: UploadedSubmissionTable,
+const meta: Meta<typeof SubmissionTable> = {
+	title: 'Components/SubmissionTable',
+	component: SubmissionTable,
 	tags: ['autodocs'],
 };
 export default meta;
 
-type Story = StoryObj<typeof UploadedSubmissionTable>;
+type Story = StoryObj<typeof SubmissionTable>;
 
 export const NewSubmissionControlled: Story = {
 	render: () => {
@@ -57,7 +57,7 @@ export const NewSubmissionControlled: Story = {
 
 		return (
 			<div className="flex flex-col gap-4">
-				<UploadedSubmissionTable
+				<SubmissionTable
 					dictionary={testDictionary}
 					fileActions={files}
 					handlers={{
@@ -118,7 +118,7 @@ export const WithExistingSubmissionControlled: Story = {
 
 		return (
 			<div className="flex flex-col gap-4">
-				<UploadedSubmissionTable
+				<SubmissionTable
 					dictionary={testDictionary}
 					submissionResponse={validatedResponse}
 					fileActions={files}

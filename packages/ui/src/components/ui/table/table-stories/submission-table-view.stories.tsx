@@ -1,6 +1,6 @@
 import { Meta, StoryObj } from '@storybook/react';
 
-import { UploadedSubmissionTable } from '../UploadedSubmissionTable.js';
+import { SubmissionTable } from '../SubmissionTable.js';
 import {
 	committedResponse,
 	committingResponse,
@@ -10,14 +10,14 @@ import {
 	validResponse,
 } from '../utils/mock.js';
 
-const meta: Meta<typeof UploadedSubmissionTable> = {
-	title: 'Components/UploadedSubmissionTable/view',
-	component: UploadedSubmissionTable,
+const meta: Meta<typeof SubmissionTable> = {
+	title: 'Components/SubmissionTable/State Views',
+	component: SubmissionTable,
 	tags: ['autodocs'],
 };
 export default meta;
 
-type Story = StoryObj<typeof UploadedSubmissionTable>;
+type Story = StoryObj<typeof SubmissionTable>;
 
 const defaultHandler = {
 	deleteHandler: () => {},
