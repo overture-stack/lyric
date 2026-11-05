@@ -64,6 +64,8 @@ Tailoring lyric-ui components to a target application is done by overriding CSS 
 | `--color-pill-success`           | `#52c41a`                | Background color for success pill badges                            |
 | `--color-pill-warning`           | `#ffff7a`                | Background color for warning pill badges                            |
 | `--color-pill-default`           | `#f9fafb`                | Background color for default/neutral pill badges                    |
+| `--color-popover`                | `oklch(1 0 0)`           | Background color for popover/dropdown surfaces (Select, Combobox)   |
+| `--color-popover-foreground`     | `oklch(0.145 0 0)`       | Text/icons rendered inside a popover surface                        |
 
 Your main css file should look something like this:
 
