@@ -17,18 +17,20 @@ const EntitySelectBox = ({
 	const entites = dictionary.schemas;
 
 	return (
-		<Select disabled={disabled}>
-			<SelectTrigger>
-				<SelectValue placeholder={placeholder} />
-			</SelectTrigger>
-			<SelectContent>
-				{entites.map((entity) => (
-					<SelectItem key={entity.name} value={entity.name.toLowerCase()}>
-						{entity.name}
-					</SelectItem>
-				))}
-			</SelectContent>
-		</Select>
+		<div className="w-full pr-2">
+			<Select disabled={disabled}>
+				<SelectTrigger className="w-full">
+					<SelectValue placeholder={placeholder} />
+				</SelectTrigger>
+				<SelectContent>
+					{entites.map((entity) => (
+						<SelectItem key={entity.name} value={entity.name.toLowerCase()} className="w-full">
+							{entity.name}
+						</SelectItem>
+					))}
+				</SelectContent>
+			</Select>
+		</div>
 	);
 };
 
