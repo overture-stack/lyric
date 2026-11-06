@@ -1,8 +1,7 @@
 import { clsx } from 'cn';
+import { FilePlus } from 'lucide-react';
 import * as React from 'react';
 import ReactDropzone, { DropzoneProps as ReactDropzoneProps, DropzoneRef } from 'react-dropzone';
-
-import FileAdd from '@/icons/FileAdd';
 
 import { Button } from '../button';
 
@@ -28,7 +27,7 @@ const Dropzone = React.forwardRef<HTMLDivElement, DropzoneProps>(
 							<input {...getInputProps()} />
 							<div className="flex flex-wrap justify-center w-100 items-center mx-auto gap-4">
 								<div>{instructionsText}</div>
-								<Button variant="white" onClick={() => dropzoneRef.current?.open()} icon={<FileAdd />}>
+								<Button variant="white" onClick={() => dropzoneRef.current?.open()} icon={<FilePlus />}>
 									{buttonText}
 								</Button>
 							</div>
