@@ -14,17 +14,42 @@ export { createKafkaPublisher, type KafkaProducer, type KafkaPublisherConfig } f
 // middleware
 export {
 	type AuthConfig,
+	type CustomAuthenticationHandler,
 	type RequestWithUser,
 	type UserSession,
 	type UserSessionResult,
 } from './src/middleware/auth.js';
-export { errorHandler } from './src/middleware/errorHandler.js';
+export { convertUploadErrors } from './src/middleware/convertUploadErrors.js';
+export {
+	createErrorHandler,
+	errorHandler,
+	type ErrorHandlerOptions,
+	type ErrorResponse,
+	type ErrorResponseOverride,
+} from './src/middleware/errorHandler.js';
+export { limitRequestSize } from './src/middleware/limitRequestSize.js';
 
 // routes
 export { default as dictionaryRouters } from './src/routers/dictionaryRouter.js';
 export { default as migrationRouter } from './src/routers/migrationRouter.js';
 export { default as submissionRouter } from './src/routers/submissionRouter.js';
 export { default as submittedDataRouter } from './src/routers/submittedDataRouter.js';
+
+// errors
+export {
+	BadRequest,
+	ContentTooLarge,
+	Forbidden,
+	InternalServerError,
+	LengthRequired,
+	LYRIC_ERROR_TYPES,
+	NotFound,
+	NotImplemented,
+	ServiceUnavailable,
+	StatusConflict,
+	TSVParseError,
+	Unauthorized,
+} from './src/utils/errors.js';
 
 // utils
 export * from './src/utils/dictionaryUtils.js';

@@ -9,6 +9,13 @@ components:
           schema:
             $ref: '#/components/responses/Error'
 
+    ContentTooLarge:
+      description: Error response indicating the request content is over a size limit, which the message names
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
+
     Error:
       type: object
       properties:
@@ -17,10 +24,17 @@ components:
           description: Error type
         message:
           type: string
-          decription: Description of the error
+          description: Description of the error
 
     Forbidden:
       description: Error response indicating invalid access due to inadequate permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/responses/Error'
+
+    LengthRequired:
+      description: Error response indicating the request sent a body without a Content-Length header, which the server requires when it limits an upload's total size
       content:
         application/json:
           schema:
