@@ -7,6 +7,7 @@ import { assertExists } from '../../assertions.js';
 import { createLyricProvider, type LyricProvider } from '../../dependencies/lyricProvider.js';
 import { createTestApp } from '../../dependencies/testServer.js';
 import { getContainers } from '../../globalSetup.js';
+import { delay } from '../../utils.js';
 import {
 	NEW_DICTIONARY_VERSION,
 	ORGANIZATION,
@@ -15,8 +16,6 @@ import {
 	VALID_DICTIONARY_NAME,
 	VALID_DICTIONARY_VERSION,
 } from './fixtures.js';
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('Integration - Dictionary Migration Data Validation', () => {
 	let appDictionary: supertest.Agent;
@@ -46,12 +45,16 @@ describe('Integration - Dictionary Migration Data Validation', () => {
 
 	const registerDictionary = async (payload: RegisterPayload) => appDictionary.post('/register').send(payload);
 
+	/**
+	 * Waits for the migration process to finish, retrying up to a maximum number of attempts
+	 * with a delay between each attempt.
+	 */
 	const waitForMigrationToFinish = async (migrationId: number, maxRetries = 20, delayMs = 300) => {
 		let response = await appMigration.get(`/${migrationId}`);
 		let attempts = 0;
 
 		while (response.body.status === 'IN_PROGRESS' && attempts < maxRetries) {
-			await sleep(delayMs);
+			await delay(delayMs);
 			response = await appMigration.get(`/${migrationId}`);
 			attempts += 1;
 		}

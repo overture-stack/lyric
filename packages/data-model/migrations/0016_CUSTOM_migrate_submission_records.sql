@@ -2,7 +2,7 @@
     Migrates legacy submission JSON payloads into submission_files and submission_records.
 
     Assumptions:
-    - Migration 0014_create_submission_records_table has already run.
+    - Migration 0015_create_submission_records_table has already run.
     - submissions.data shape:
         inserts: { entity: { batchName, records: [...] } }
         updates: { entity: [...] }
@@ -101,25 +101,35 @@ delete_buckets AS (
 	) = 'array'
 ),
 
--- Step 3: union all action buckets.
+-- Step 3: union all action buckets, reserving each bucket's submission_files id up front.
+-- Every bucket of a submission shares the same file_name and may share an entity_name, so the
+-- inserted rows can't be matched back to their bucket by those columns; the reserved id is the
+-- only key that identifies a bucket's file. This CTE is referenced twice, so PostgreSQL evaluates
+-- it once and each bucket keeps a single id.
 source_submission_files AS (
-	SELECT * FROM insert_buckets
-	UNION ALL
-	SELECT * FROM update_buckets
-	UNION ALL
-	SELECT * FROM delete_buckets
+	SELECT
+		buckets.*,
+		nextval(pg_get_serial_sequence('submission_files', 'id'))::integer AS file_id
+	FROM (
+		SELECT * FROM insert_buckets
+		UNION ALL
+		SELECT * FROM update_buckets
+		UNION ALL
+		SELECT * FROM delete_buckets
+	) AS buckets
 ),
 
--- Step 4: create one submission_files row per action/entity bucket.
+-- Step 4: create one submission_files row per action/entity bucket, with its reserved id.
 inserted_submission_files AS (
-	INSERT INTO submission_files (submission_id, file_name, entity_name, file_size)
+	INSERT INTO submission_files (id, submission_id, file_name, entity_name, file_size)
 	SELECT
+		file_id,
 		submission_id,
 		file_name,
 		entity_name,
 		octet_length(CAST(records AS text)) AS file_size
 	FROM source_submission_files
-	RETURNING id, submission_id, file_name, entity_name
+	RETURNING id
 ),
 
 -- Step 5: map each normalized bucket to its inserted file_id.
@@ -134,9 +144,7 @@ file_map AS (
 		isf.id AS file_id
 	FROM source_submission_files ssf
 	INNER JOIN inserted_submission_files isf
-		ON isf.submission_id = ssf.submission_id
-		AND isf.file_name = ssf.file_name
-		AND isf.entity_name = ssf.entity_name
+		ON isf.id = ssf.file_id
 ),
 
 -- Step 6: explode each file's records array and keep record index.

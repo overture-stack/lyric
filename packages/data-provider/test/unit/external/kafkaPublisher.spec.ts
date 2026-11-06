@@ -1,8 +1,8 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { createKafkaPublisher } from '../../../src/external/kafkaPublisher.js';
 import type { KafkaProducer } from '../../../src/external/kafkaPublisher.js';
+import { createKafkaPublisher } from '../../../src/external/kafkaPublisher.js';
 import type { ResultOnCommit, SubmittedDataResponse } from '../../../src/utils/types.js';
 
 // ── helpers ───────────────────────────────────────────────────────────────────

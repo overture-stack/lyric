@@ -13,6 +13,8 @@ import auditRepository from '../repository/auditRepository.js';
 import categoryRepository from '../repository/categoryRepository.js';
 import migrationRepository from '../repository/dictionaryMigrationRepository.js';
 import dictionaryRepository from '../repository/dictionaryRepository.js';
+import submissionFilesRepository from '../repository/submissionFilesRepository.js';
+import submissionRecordsRepository from '../repository/submissionRecordsRepository.js';
 import submittedDataRepository from '../repository/submittedRepository.js';
 import auditRouter from '../routers/auditRouter.js';
 import categoryRouter from '../routers/categoryRouter.js';
@@ -104,6 +106,8 @@ const provider = (configData: AppConfig, options?: ProviderOptions) => {
 			category: categoryRepository(baseDeps),
 			dictionary: dictionaryRepository(baseDeps),
 			migration: migrationRepository(baseDeps),
+			submissionFiles: submissionFilesRepository(baseDeps),
+			submissionRecords: submissionRecordsRepository(baseDeps),
 			submission: submissionRepository(baseDeps),
 			submittedData: submittedDataRepository(baseDeps),
 		},

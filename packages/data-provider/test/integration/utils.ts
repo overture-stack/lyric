@@ -1,0 +1,6 @@
+/**
+ * Delays execution for a specified number of milliseconds.
+ * @param ms The number of milliseconds to delay.
+ * @returns A promise that resolves after the specified delay.
+ */
+export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

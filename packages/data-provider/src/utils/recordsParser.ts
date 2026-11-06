@@ -1,9 +1,7 @@
 import { type DataRecord, parse, type Schema } from '@overture-stack/lectern-client';
-import type { SubmissionInsertData } from '@overture-stack/lyric-data-model/models';
 
 import { getSchemaByName } from './dictionaryUtils.js';
 import { convertRecordToString, notEmpty } from './formatUtils.js';
-import { createBatchResponse } from './submissionResponseParser.js';
 import type { EntityData, SchemasDictionary } from './types.js';
 
 /**
@@ -37,7 +35,7 @@ export const convertToTypedRecords = (dataRecords: Record<string, unknown>[], sc
 export const parseRecordsToInsert = (
 	records: EntityData,
 	schemasDictionary: SchemasDictionary,
-): Record<string, SubmissionInsertData> => {
+): Record<string, DataRecord[]> => {
 	return Object.fromEntries(
 		Object.entries(records)
 			.map(([schemaName, dataRecords]) => {
@@ -53,7 +51,7 @@ export const parseRecordsToInsert = (
 					return null;
 				}
 
-				return [schemaName, createBatchResponse(schemaName, parsedRecords)];
+				return [schemaName, parsedRecords];
 			})
 			.filter(notEmpty),
 	);

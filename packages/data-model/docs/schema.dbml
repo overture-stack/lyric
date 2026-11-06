@@ -104,6 +104,7 @@ table submission_files {
   file_name varchar [not null]
   entity_name varchar [not null]
   file_size integer [not null]
+  is_system_generated boolean [not null, default: false]
 
   indexes {
     submission_id [name: 'submission_files_submission_id_index']
@@ -119,9 +120,12 @@ table submission_records {
   errors jsonb
   state submission_record_state [not null]
   line_number integer
+  parent_record_id integer
+  applied_by_children boolean [not null, default: false]
 
   indexes {
     file_id [name: 'submission_records_file_id_index']
+    parent_record_id [name: 'submission_records_parent_record_id_index']
     (file_id, action_type) [name: 'submission_records_file_id_action_type_index']
     (file_id, state, action_type) [name: 'submission_records_file_id_state_action_type_index']
   }
@@ -129,12 +133,11 @@ table submission_records {
 
 table submissions {
   id serial [pk, not null, increment]
-  data jsonb [not null]
   dictionary_category_id integer [not null]
   dictionary_id integer [not null]
-  errors jsonb
   organization varchar [not null]
   status submission_status [not null]
+  version integer [not null, default: 0]
   created_at timestamp [default: `now()`]
   created_by varchar
   updated_at timestamp [default: `now()`]
@@ -188,7 +191,7 @@ ref: dictionary_migration.to_dictionary_id - dictionaries.id
 
 ref: dictionary_migration.submission_id - submissions.id
 
-ref: submission_files.submission_id - submissions.id
+ref: submission_files.submission_id > submissions.id
 
 ref: submission_records.file_id > submission_files.id
 

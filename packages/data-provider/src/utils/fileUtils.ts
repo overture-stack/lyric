@@ -13,7 +13,7 @@ import {
 } from '@overture-stack/lectern-client';
 
 import { getSubmittedFileType } from '../services/submission/submissionFile.js';
-import { failure, success, type Result } from './result.js';
+import { failure, type Result, success } from './result.js';
 import { BATCH_ERROR_TYPE, type BatchError } from './types.js';
 
 export const SUPPORTED_FILE_EXTENSIONS = z.enum(['tsv', 'csv']);
@@ -84,10 +84,20 @@ const collectRows = (filePath: string, separator: string): Promise<string[][]> =
  * Returns all records (valid or not) and a separate list of per-row schema validation errors.
  * Supported file types: .tsv and .csv
  */
+/** One parsed data row paired with its 1-based line number in the original uploaded file. */
+export type ParsedRecordWithLineNumber = { record: DataRecord; lineNumber: number };
+
+/**
+ * Converts a record's 0-based position in a submitted file into its `lineNumber`.
+ * Line 1 is the header row, so the first record is always on line 2. Used for uploaded files and for records
+ * submitted as JSON alike, and matches `record_index + 2` in migration `0016_CUSTOM_migrate_submission_records.sql`.
+ */
+export const toLineNumber = (recordIndex: number): number => recordIndex + 2;
+
 export const readTextFile = async (
 	file: Express.Multer.File,
 	schema: Schema,
-): Promise<{ records: DataRecord[]; errors: ParseSchemaError[] }> => {
+): Promise<{ records: ParsedRecordWithLineNumber[]; errors: ParseSchemaError[] }> => {
 	const separator = getSeparatorCharacter(file);
 	if (!separator) {
 		throw new Error('Invalid file extension');
@@ -101,14 +111,14 @@ export const readTextFile = async (
 	const headers = Object.values(headerRow);
 
 	const parsed = dataRows.map((row, index) => {
-		const lineNumber = index + 2; // +1 for header row, +1 for 1-based line numbers
+		const lineNumber = toLineNumber(index);
 		const result = parse.parseRecordValues(mapRecordToHeaders(headers, row), schema);
 		const error = result.success ? undefined : { recordErrors: result.data.errors, recordIndex: lineNumber };
-		return { record: result.data.record, error };
+		return { record: result.data.record, lineNumber, error };
 	});
 
 	return {
-		records: parsed.map((p) => p.record),
+		records: parsed.map(({ record, lineNumber }) => ({ record, lineNumber })),
 		errors: parsed.flatMap((p) => (p.error ? [p.error] : [])),
 	};
 };
@@ -124,6 +134,11 @@ function formatForExcelCompatibility(data: string) {
 		.replace(/""/g, '"') // excel might've used a second double quote to escape a double quote in a string
 		.trim();
 }
+
+/**
+ * Generates a generic file name for submission files with `.json` extension based on the current date and time in ISO format.
+ */
+export const genericSubmissionFileName = () => `submission-${new Date().toISOString()}.json`;
 
 export function getSizeInBytes(size: string | number): number {
 	// Parse the string value into an integer in bytes.
