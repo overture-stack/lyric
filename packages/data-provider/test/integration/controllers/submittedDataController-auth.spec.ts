@@ -157,14 +157,15 @@ describe('Integration - Submitted Data Controller - readable organizations', () 
 			]);
 		});
 
-		it("answers a GET with a user with only the records of the user's readable organizations", async () => {
+		it("answers a GET with a user with every organization's records", async () => {
 			const { categoryId, createApp } = getContext();
 
 			const response = await createApp(reader).get(`/category/${categoryId}`);
 
 			expect(response.status).to.equal(200);
-			expect(response.body.records.map((record: SubmittedDataResponse) => record.organization)).to.eql([
+			expect(response.body.records.map((record: SubmittedDataResponse) => record.organization)).to.have.members([
 				READABLE_ORGANIZATION,
+				OTHER_ORGANIZATION,
 			]);
 		});
 	});
@@ -189,6 +190,18 @@ describe('Integration - Submitted Data Controller - readable organizations', () 
 
 			expect(response.status).to.equal(200);
 			expect(getStreamedOrganizations(response.text)).to.have.members([READABLE_ORGANIZATION, OTHER_ORGANIZATION]);
+		});
+
+		it("answers a request with a user with every organization's records", async () => {
+			const { categoryId, createApp } = getContext();
+
+			const response = await createApp(reader).get(`/category/${categoryId}`);
+
+			expect(response.status).to.equal(200);
+			expect(response.body.records.map((record: SubmittedDataResponse) => record.organization)).to.have.members([
+				READABLE_ORGANIZATION,
+				OTHER_ORGANIZATION,
+			]);
 		});
 	});
 });

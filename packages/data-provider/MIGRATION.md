@@ -141,3 +141,15 @@ Browsers and common HTTP clients declare `Content-Length` for multipart uploads.
 **How to tell.** Those routes answer `403`, `User is not authorized to read submitted data`, for requests that reach the controller without `req.user`.
 
 **What to do.** Set `req.user` to the authenticated user's `UserSession` before calling the controller.
+
+<a id="submitted-data-read-without-auth"></a>
+
+### Reading submitted data by category returns every organization wherever auth does not apply
+
+**What changed.** When auth is disabled or does not protect a request's method, `getSubmittedDataByCategory` and `getSubmittedDataByCategoryStream` answer with every organization's records, whatever `req.user` holds, as the other submitted data controllers do.
+
+**Who is affected.** A service that sets `req.user` itself on requests Lyric's auth does not protect, such as one that authenticates requests before they reach Lyric and disables Lyric's auth.
+
+**How to tell.** A user receives records from organizations outside the user's `allowedReadOrganizations`.
+
+**What to do.** To limit a user's reads to the user's organizations, have Lyric's auth protect the method: enable auth, and include `GET` in `protectedMethods` or omit `protectedMethods`.

@@ -26,9 +26,14 @@ describe('Auth utils - getUserReadableOrganizations', () => {
 		expect(result).to.equal(undefined);
 	});
 
-	it("returns the user's readable organizations on a method auth does not protect", () => {
+	it('returns undefined, meaning every organization, for a user on a method auth does not protect', () => {
 		const result = getUserReadableOrganizations({ method: 'GET', user: reader }, authOnPostOnly);
-		expect(result).to.eql(['org1', 'org2']);
+		expect(result).to.equal(undefined);
+	});
+
+	it('returns undefined, meaning every organization, for a user when auth is disabled', () => {
+		const result = getUserReadableOrganizations({ method: 'GET', user: reader }, { enabled: false });
+		expect(result).to.equal(undefined);
 	});
 
 	it('returns undefined, meaning every organization, for a request without a user when auth is disabled', () => {

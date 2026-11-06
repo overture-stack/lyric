@@ -3,21 +3,23 @@ import { Forbidden } from './errors.js';
 
 /**
  * The organizations a request may read submitted data from, or `undefined` for every organization:
- * - with a user, every organization for an admin, and the user's `allowedReadOrganizations` otherwise;
- * - without a user, every organization when auth is disabled or does not protect the request's method.
+ * - when auth is disabled or does not protect the request's method, every organization, with or without a user;
+ * - when auth protects the request's method, every organization for an admin, and the user's
+ *   `allowedReadOrganizations` for any other user;
+ * - when auth protects the request's method and the request has no user, none: it throws `Forbidden`.
  *
- * @throws {Forbidden} for a request without a user when auth protects its method.
+ * @throws {Forbidden} when auth protects the request's method and the request has no user.
  */
 export const getUserReadableOrganizations = (
 	req: Pick<RequestWithUser, 'method' | 'user'>,
 	authConfig: AuthConfig,
 ): string[] | undefined => {
+	if (shouldBypassAuth(req, authConfig)) {
+		return undefined;
+	}
 	const { user } = req;
 	if (user) {
 		return user.isAdmin ? undefined : user.allowedReadOrganizations;
-	}
-	if (shouldBypassAuth(req, authConfig)) {
-		return undefined;
 	}
 	throw new Forbidden('User is not authorized to read submitted data');
 };
