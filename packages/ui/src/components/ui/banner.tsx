@@ -1,12 +1,7 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from 'cn';
-import { X } from 'lucide-react';
+import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from 'lucide-react';
 import * as React from 'react';
-
-import ErrorIcon from '@/icons/ErrorIcon';
-import InfoIcon from '@/icons/InfoIcon';
-import SuccessIcon from '@/icons/SuccessIcon';
-import WarningIcon from '@/icons/WarningIcon';
 
 const bannerVariants = cva('z-50 flex justify-between w-full py-5 px-6 font-normal text-body', {
 	variants: {
@@ -23,10 +18,10 @@ const bannerVariants = cva('z-50 flex justify-between w-full py-5 px-6 font-norm
 });
 
 const variantIcons = {
-	error: <ErrorIcon />,
-	info: <InfoIcon />,
-	success: <SuccessIcon />,
-	warning: <WarningIcon />,
+	error: <CircleAlert />,
+	info: <Info />,
+	success: <CircleCheck />,
+	warning: <TriangleAlert />,
 };
 
 export interface BannerProps extends React.ComponentProps<'div'>, VariantProps<typeof bannerVariants> {
