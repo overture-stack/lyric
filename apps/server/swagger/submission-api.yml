@@ -234,6 +234,8 @@
         $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      413:
+        $ref: '#/components/responses/ContentTooLarge'
       500:
         $ref: '#/components/responses/ServerError'
       503:
@@ -266,6 +268,8 @@
         $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      413:
+        $ref: '#/components/responses/ContentTooLarge'
       500:
         $ref: '#/components/responses/ServerError'
       503:
@@ -327,6 +331,10 @@
         $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      411:
+        $ref: '#/components/responses/LengthRequired'
+      413:
+        $ref: '#/components/responses/ContentTooLarge'
       500:
         $ref: '#/components/responses/ServerError'
       503:
