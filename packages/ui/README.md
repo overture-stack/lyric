@@ -86,7 +86,6 @@ Your main css file should look something like this:
 	--color-border: hsl(214.3 31.8% 91.4%);
 	--color-input: hsl(214.3 31.8% 91.4%);
 	--color-ring: hsl(222.2 84% 4.9%);
-
 	/*Select and Combobox*/
 	--color-popover: oklch(1 0 0);
 	--color-popover-foreground: oklch(0.145 0 0);

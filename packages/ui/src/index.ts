@@ -15,6 +15,18 @@ export {
 	ComboboxTrigger,
 	ComboboxValue,
 } from './components/ui/combobox/combobox';
+export {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogOverlay,
+	DialogPortal,
+	DialogTitle,
+	DialogTrigger,
+} from './components/ui/dialog/dialog';
 export * from './components/ui/headertext/headertext';
 export { Input } from './components/ui/input/input';
 export {
