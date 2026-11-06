@@ -1,7 +1,6 @@
-import './style.css';
-
 export {
 	Breadcrumb,
+	BreadcrumbEllipsis,
 	BreadcrumbItem,
 	BreadcrumbLink,
 	BreadcrumbList,
