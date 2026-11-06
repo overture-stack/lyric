@@ -1,26 +1,27 @@
-import type { UserSession } from '../middleware/auth.js';
+import { type AuthConfig, type RequestWithUser, shouldBypassAuth, type UserSession } from '../middleware/auth.js';
+import { Forbidden } from './errors.js';
 
 /**
- * Retrieves the list of organizations a user has read access to.
- * If the user is an admin, it returns undefined to indicate access to all organizations.
- * If no user information is provided, it also returns undefined to allow all access (assuming authentication is not enabled).
- * Otherwise, it returns the list of organizations the user is allowed to read from.
- * @param organization
- * @param user
- * @returns
+ * The organizations a request may read submitted data from, or `undefined` for every organization:
+ * - when auth is disabled or does not protect the request's method, every organization, with or without a user;
+ * - when auth protects the request's method, every organization for an admin, and the user's
+ *   `allowedReadOrganizations` for any other user;
+ * - when auth protects the request's method and the request has no user, none: it throws `Forbidden`.
+ *
+ * @throws {Forbidden} when auth protects the request's method and the request has no user.
  */
-export const getUserReadableOrganizations = (user?: UserSession) => {
-	if (!user) {
-		// no user info, authentication is not enabled, allow all access
+export const getUserReadableOrganizations = (
+	req: Pick<RequestWithUser, 'method' | 'user'>,
+	authConfig: AuthConfig,
+): string[] | undefined => {
+	if (shouldBypassAuth(req, authConfig)) {
 		return undefined;
 	}
-
-	if (user.isAdmin) {
-		// admin has access to all organizations
-		return undefined;
+	const { user } = req;
+	if (user) {
+		return user.isAdmin ? undefined : user.allowedReadOrganizations;
 	}
-
-	return user.allowedReadOrganizations;
+	throw new Forbidden('User is not authorized to read submitted data');
 };
 
 /**
