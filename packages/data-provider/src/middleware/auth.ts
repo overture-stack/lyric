@@ -63,13 +63,13 @@ export type RequestWithUser<TUser extends UserSession = UserSession> = Request &
 };
 
 /**
- * Determines whether the incoming request should bypass authentication,
- * based on the application's authentication configuration.
- * @param req
- * @param authConfig
- * @returns
+ * Whether a request skips authentication: when auth is disabled, or when it does not protect the
+ * request's method.
+ *
+ * @param req the request; only its method is read.
+ * @param authConfig the application's authentication configuration.
  */
-export const shouldBypassAuth = (req: Request, authConfig: AuthConfig) => {
+export const shouldBypassAuth = (req: Pick<Request, 'method'>, authConfig: AuthConfig) => {
 	if (!authConfig.enabled) {
 		// bypass auth if it's globally disabled
 		return true;
