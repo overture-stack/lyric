@@ -1,8 +1,10 @@
 import { NextFunction, Request, Response } from 'express';
 
 import { BaseDependencies } from '../config/config.js';
+import type { AuthConfig } from '../middleware/auth.js';
 import categorySvc from '../services/categoryService.js';
-import { NotFound } from '../utils/errors.js';
+import { isUserAdmin } from '../utils/authUtils.js';
+import { Forbidden, NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import {
 	categoryAliasAssignRequestSchema,
@@ -10,7 +12,17 @@ import {
 	categoryDetailsRequestSchema,
 } from '../utils/schemas.js';
 
-const controller = (dependencies: BaseDependencies) => {
+/**
+ * Handlers for the category routes. Assigning and removing an alias require an administrator while `authConfig`
+ * enables auth, on every method.
+ */
+const controller = ({
+	authConfig,
+	baseDependencies: dependencies,
+}: {
+	authConfig: AuthConfig;
+	baseDependencies: BaseDependencies;
+}) => {
 	const categoryService = categorySvc(dependencies);
 	const { logger } = dependencies;
 	const LOG_MODULE = 'CATEGORY_CONTROLLER';
@@ -43,6 +55,12 @@ const controller = (dependencies: BaseDependencies) => {
 		},
 		assignAlias: validateRequest(categoryAliasAssignRequestSchema, async (req, res, next) => {
 			try {
+				// Access is decided before the category is looked up, so a refused request gets the same answer whether
+				// or not the category exists.
+				if (authConfig.enabled && !isUserAdmin(req.user)) {
+					throw new Forbidden('Changing a category alias requires an administrator');
+				}
+
 				const categoryIdOrAlias = req.params.categoryId;
 				const alias = req.body.alias;
 
@@ -56,6 +74,10 @@ const controller = (dependencies: BaseDependencies) => {
 		}),
 		unassignAlias: validateRequest(categoryAliasUnassignRequestSchema, async (req, res, next) => {
 			try {
+				if (authConfig.enabled && !isUserAdmin(req.user)) {
+					throw new Forbidden('Changing a category alias requires an administrator');
+				}
+
 				const categoryIdOrAlias = req.params.categoryId;
 
 				logger.info(LOG_MODULE, 'Request Unassign Category Alias', `categoryId '${categoryIdOrAlias}'`);

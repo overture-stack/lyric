@@ -72,11 +72,6 @@ fix: change the `Dockerfile`'s `corepack prepare pnpm@11.1.1 --activate` to the 
 standalone: yes
 context: Lyric's pipeline installs, builds and tests through the library's shared pnpm step. That step uses the version named by `packageManager` in the root `package.json`, or the library's default when none is named, as in Lyric's today. Setting `packageManager` stops the build unless the library has vetted the version it names. Both builds install from the same frozen lockfile, and pnpm 12.9.1 installs it.
 
-### Category-level admin actions have no privilege check beyond "authenticated"
-fix: needs a scope decision (likely an `isAdmin` gate) covering all three call sites together, not a patch to just the new ones.
-standalone: no
-context: `UserSession` declares `isAdmin`/org-scoped read-write lists, and `authUtils.ts` enforces them, but only the submission/submitted-data controllers call those helpers. Category actions (`dictionaryService.register()`, and now `assignAlias`/`unassignAlias`) have no privilege check beyond authentication; categories aren't organization-scoped, so the existing helpers don't apply directly. Not a regression, assign/unassign matches `register()`'s existing posture, but both are administrative, audit-logged actions worth gating.
-
 ### `auditController`'s own "No Records found" check is unreachable dead code
 fix: remove the redundant check, or confirm why both exist first.
 standalone: yes

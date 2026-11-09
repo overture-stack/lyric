@@ -15,12 +15,21 @@ const router = ({
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
+	// Authenticates on every method, regardless of `protectedMethods`, since a category's dictionary governs every
+	// organization's submissions. It sits ahead of the router-wide auth middleware so a request is authenticated once.
+	router.post(
+		'/register',
+		authMiddleware({ ...authConfig, protectedMethods: undefined }),
+		dictionaryController({ authConfig, baseDependencies }).registerDictionary,
+	);
+
 	router.use(authMiddleware(authConfig));
 
-	router.post('/register', dictionaryController(baseDependencies).registerDictionary);
-
-	router.get('/category/:categoryId', dictionaryController(baseDependencies).getDictionaryJson);
-	router.get('/category/:categoryId/templates', dictionaryController(baseDependencies).downloadDataFileTemplates);
+	router.get('/category/:categoryId', dictionaryController({ authConfig, baseDependencies }).getDictionaryJson);
+	router.get(
+		'/category/:categoryId/templates',
+		dictionaryController({ authConfig, baseDependencies }).downloadDataFileTemplates,
+	);
 	return router;
 };
 

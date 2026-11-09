@@ -80,8 +80,14 @@ const provider = (configData: AppConfig, options?: ProviderOptions) => {
 		},
 		controllers: {
 			audit: auditController(baseDeps),
-			category: categoryController(baseDeps),
-			dictionary: dictionaryController(baseDeps),
+			category: categoryController({
+				authConfig: { enabled: configData.auth.enabled },
+				baseDependencies: baseDeps,
+			}),
+			dictionary: dictionaryController({
+				authConfig: { enabled: configData.auth.enabled },
+				baseDependencies: baseDeps,
+			}),
 			migration: migrationController(baseDeps),
 			submission: submissionController({
 				baseDependencies: baseDeps,

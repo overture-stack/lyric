@@ -4,21 +4,37 @@ import JSZip from 'jszip';
 import { createDataFileTemplate } from '@overture-stack/lectern-client';
 
 import { BaseDependencies } from '../config/config.js';
+import type { AuthConfig } from '../middleware/auth.js';
 import dictionarySvc from '../services/dictionaryService.js';
-import { NotFound } from '../utils/errors.js';
+import { isUserAdmin } from '../utils/authUtils.js';
+import { Forbidden, NotFound } from '../utils/errors.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import { resolveCategoryId } from '../utils/resolveCategoryId.js';
 import { dictionaryRegisterRequestSchema } from '../utils/schemas.js';
 import { downloadDataFileTemplatesSchema } from '../utils/schemas.js';
 import { RegisterDictionaryResult } from '../utils/types.js';
 
-const controller = (dependencies: BaseDependencies) => {
+/**
+ * Handlers for the dictionary routes. Registering a dictionary requires an administrator while `authConfig` enables
+ * auth, on every method.
+ */
+const controller = ({
+	authConfig,
+	baseDependencies: dependencies,
+}: {
+	authConfig: AuthConfig;
+	baseDependencies: BaseDependencies;
+}) => {
 	const dictionaryService = dictionarySvc(dependencies);
 	const { logger } = dependencies;
 	const LOG_MODULE = 'DICTIONARY_CONTROLLER';
 	return {
 		registerDictionary: validateRequest(dictionaryRegisterRequestSchema, async (req, res, next) => {
 			try {
+				if (authConfig.enabled && !isUserAdmin(req.user)) {
+					throw new Forbidden('Registering a dictionary requires an administrator');
+				}
+
 				const alias = req.body.alias;
 				const categoryName = req.body.categoryName;
 				const dictionaryName = req.body.dictionaryName;

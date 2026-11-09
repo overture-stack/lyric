@@ -2,6 +2,20 @@
 
 Each section covers one change to something you already use: what changed, who is affected, how to tell, and what to do. Sections are grouped by the release you are upgrading from.
 
+## Upgrading from 0.21.x
+
+<a id="administrator-routes"></a>
+
+### Registering a dictionary and changing a category alias require an administrator
+
+**What changed.** While auth is enabled, `POST /dictionary/register`, `PUT /category/:categoryId/alias` and `DELETE /category/:categoryId/alias` answer `403` unless the request's user has `isAdmin` set to `true`, regardless of `protectedMethods`. The same holds for `dictionary.registerDictionary`, `category.assignAlias` and `category.unassignAlias` called through `provider().controllers`. Through Lyric's routers, these three routes authenticate on every method, so the auth middleware refuses a request it cannot authenticate, as on any protected method. With auth disabled, they need no user.
+
+**Who is affected.** A service, script or deployment step that registers dictionaries or changes category aliases as a user who is not an administrator, or without credentials on a method left out of `protectedMethods`, and a service that calls those controllers from its own routes with auth enabled.
+
+**How to tell.** Those requests are answered `403`, with `Registering a dictionary requires an administrator` or `Changing a category alias requires an administrator`. Through Lyric's routers, a request without credentials is refused by the auth middleware instead, with the status your `customAuthHandler` returns as `errorCode`, or `401` when it returns neither `user` nor `errorCode`.
+
+**What to do.** Make those calls as a user whose `customAuthHandler` result sets `isAdmin: true`, and send that user's credentials even on a method left out of `protectedMethods`. When calling the controllers from a route of your own, set `req.user` to that user's `UserSession` first.
+
 ## Upgrading from 0.20.x
 
 <a id="library-error-statuses"></a>

@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
 import { type AuthConfig, UserSession } from '../../../src/middleware/auth.js';
-import { getUserReadableOrganizations, hasUserWriteAccess } from '../../../src/utils/authUtils.js';
+import { getUserReadableOrganizations, hasUserWriteAccess, isUserAdmin } from '../../../src/utils/authUtils.js';
 import { Forbidden } from '../../../src/utils/errors.js';
 
 describe('Auth utils - getUserReadableOrganizations', () => {
@@ -53,6 +53,27 @@ describe('Auth utils - getUserReadableOrganizations', () => {
 	it('throws Forbidden for a request without a user on a method auth protects', () => {
 		const authOnGet: AuthConfig = { enabled: true, protectedMethods: ['GET'] };
 		expect(() => getUserReadableOrganizations({ method: 'GET' }, authOnGet)).to.throw(Forbidden);
+	});
+});
+
+describe('Auth utils - isUserAdmin', () => {
+	const writer: UserSession = {
+		allowedReadOrganizations: ['org1'],
+		allowedWriteOrganizations: ['org1'],
+		isAdmin: false,
+		username: 'writer',
+	};
+
+	it('returns true for a user whose isAdmin is true', () => {
+		expect(isUserAdmin({ ...writer, isAdmin: true })).to.equal(true);
+	});
+
+	it('returns false for a user whose isAdmin is false, whatever organizations the user can write to', () => {
+		expect(isUserAdmin(writer)).to.equal(false);
+	});
+
+	it('returns false without a user', () => {
+		expect(isUserAdmin(undefined)).to.equal(false);
 	});
 });
 
