@@ -15,8 +15,7 @@ import { downloadDataFileTemplatesSchema } from '../utils/schemas.js';
 import { RegisterDictionaryResult } from '../utils/types.js';
 
 /**
- * Handlers for the dictionary routes. Registering a dictionary requires an administrator while `authConfig` enables
- * auth, on every method.
+ * Handlers for the dictionary routes.
  */
 const controller = ({
 	authConfig,
@@ -29,6 +28,7 @@ const controller = ({
 	const { logger } = dependencies;
 	const LOG_MODULE = 'DICTIONARY_CONTROLLER';
 	return {
+		/** Requires an administrator while `authConfig` enables auth. */
 		registerDictionary: validateRequest(dictionaryRegisterRequestSchema, async (req, res, next) => {
 			try {
 				if (authConfig.enabled && !isUserAdmin(req.user)) {

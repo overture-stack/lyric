@@ -13,8 +13,7 @@ import {
 } from '../utils/schemas.js';
 
 /**
- * Handlers for the category routes. Assigning and removing an alias require an administrator while `authConfig`
- * enables auth, on every method.
+ * Handlers for the category routes.
  */
 const controller = ({
 	authConfig,
@@ -53,6 +52,7 @@ const controller = ({
 				next(error);
 			}
 		},
+		/** Requires an administrator while `authConfig` enables auth. */
 		assignAlias: validateRequest(categoryAliasAssignRequestSchema, async (req, res, next) => {
 			try {
 				// Access is decided before the category is looked up, so a refused request gets the same answer whether
@@ -72,6 +72,7 @@ const controller = ({
 				next(error);
 			}
 		}),
+		/** Requires an administrator while `authConfig` enables auth. */
 		unassignAlias: validateRequest(categoryAliasUnassignRequestSchema, async (req, res, next) => {
 			try {
 				if (authConfig.enabled && !isUserAdmin(req.user)) {

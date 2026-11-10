@@ -53,7 +53,6 @@ const categoryService = (dependencies: BaseDependencies) => {
 		 * Sets a category's alias, only if it doesn't already have a different one. Idempotent:
 		 * requesting the alias it already has succeeds as a no-op, not a conflict. Changing an
 		 * existing alias to a new value isn't supported yet, see `.dev/roadmap.md`.
-		 * Performs no authorization: a caller reaching it from a request decides who may change a category's alias.
 		 */
 		assignAlias: async (categoryIdOrAlias: string, alias: string, username?: string): Promise<CategorySummary> => {
 			const category = await categoryRepo.getCategoryByIdOrAlias(categoryIdOrAlias);
@@ -90,7 +89,6 @@ const categoryService = (dependencies: BaseDependencies) => {
 		/**
 		 * Clears a category's alias. Idempotent: a category with no alias already succeeds as a
 		 * no-op, matching standard DELETE semantics.
-		 * Performs no authorization: a caller reaching it from a request decides who may change a category's alias.
 		 */
 		unassignAlias: async (categoryIdOrAlias: string, username?: string): Promise<CategorySummary> => {
 			const category = await categoryRepo.getCategoryByIdOrAlias(categoryIdOrAlias);
