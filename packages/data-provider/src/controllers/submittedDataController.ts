@@ -34,6 +34,9 @@ const controller = ({
 	return {
 		getSubmittedDataByCategory: validateRequest(dataGetByCategoryRequestSchema, async (req, res, next) => {
 			try {
+				// Access is decided before the category is looked up, so a refused request gets the same answer
+				// whether or not the category exists.
+				const organizations = getUserReadableOrganizations(req, authConfig);
 				const categoryId = await resolveCategoryId(baseDependencies, req.params.categoryId);
 				if (categoryId === undefined) {
 					throw new NotFound(`Category '${req.params.categoryId}' not found`);
@@ -44,7 +47,6 @@ const controller = ({
 				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
 				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
 				const view = convertToViewType(req.query.view) || defaultView;
-				const user = req.user;
 
 				logger.info(
 					LOG_MODULE,
@@ -52,8 +54,6 @@ const controller = ({
 					`pagination params: page '${page}' pageSize '${pageSize}'`,
 					`view '${view}'`,
 				);
-
-				const organizations = getUserReadableOrganizations(user);
 
 				const submittedDataResult = await service.getSubmittedDataByCategory(
 					categoryId,
@@ -236,17 +236,17 @@ const controller = ({
 		}),
 		getSubmittedDataByCategoryStream: validateRequest(dataGetByCategoryRequestSchema, async (req, res, next) => {
 			try {
+				// Access is decided before the category is looked up, so a refused request gets the same answer
+				// whether or not the category exists.
+				const organizations = getUserReadableOrganizations(req, authConfig);
 				const categoryId = await resolveCategoryId(baseDependencies, req.params.categoryId);
 				if (categoryId === undefined) {
 					throw new NotFound(`Category '${req.params.categoryId}' not found`);
 				}
 				const entityName = asArray(req.query.entityName || []);
 				const view = convertToViewType(String(req.query.view)) || defaultView;
-				const user = req.user;
 
 				logger.info(LOG_MODULE, `Request stream for submitted data on categoryId '${categoryId}'`);
-
-				const organizations = getUserReadableOrganizations(user);
 
 				res.setHeader('Transfer-Encoding', 'chunked');
 				res.setHeader('Content-Type', 'application/x-ndjson');
