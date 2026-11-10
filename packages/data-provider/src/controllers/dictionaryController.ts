@@ -15,7 +15,7 @@ import { downloadDataFileTemplatesSchema } from '../utils/schemas.js';
 import { RegisterDictionaryResult } from '../utils/types.js';
 
 /**
- * Handlers for the dictionary routes.
+ * Creates the handlers for dictionary requests.
  */
 const controller = ({
 	authConfig,

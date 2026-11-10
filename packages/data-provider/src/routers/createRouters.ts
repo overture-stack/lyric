@@ -9,7 +9,7 @@ import submittedDataRouter from './submittedDataRouter.js';
 import validationRouter from './validationRouter.js';
 
 /**
- * Creates every router Lyric provides. Add a router here rather than in `provider`, so the router authentication test
+ * Creates all of Lyric's routers. Add a router here rather than in `provider`, so the router authentication test
  * checks it.
  */
 export const createRouters = ({

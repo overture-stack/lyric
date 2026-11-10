@@ -13,7 +13,7 @@ import {
 } from '../utils/schemas.js';
 
 /**
- * Handlers for the category routes.
+ * Creates the handlers for category requests.
  */
 const controller = ({
 	authConfig,
