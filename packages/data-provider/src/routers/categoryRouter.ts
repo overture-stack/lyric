@@ -2,7 +2,7 @@ import { json, Router, urlencoded } from 'express';
 
 import { BaseDependencies } from '../config/config.js';
 import categoryController from '../controllers/categoryController.js';
-import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
+import { type AuthConfig, authMiddleware, authMiddlewareForEveryMethod } from '../middleware/auth.js';
 
 const router = ({
 	baseDependencies,
@@ -15,9 +15,11 @@ const router = ({
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	// Each authenticates on every method, regardless of `protectedMethods`, since an alias addresses a category across
-	// every organization. They sit ahead of the router-wide auth middleware so a request is authenticated once.
-	const authenticateEveryMethod = authMiddleware({ ...authConfig, protectedMethods: undefined });
+	const defaultAuthenticator = authMiddleware(authConfig);
+	const authenticateEveryMethod = authMiddlewareForEveryMethod(authConfig);
+
+	// Alias changes authenticate on every method, regardless of `protectedMethods`, since an alias addresses a category
+	// across every organization.
 	router.put(
 		'/:categoryId/alias',
 		authenticateEveryMethod,
@@ -29,10 +31,8 @@ const router = ({
 		categoryController({ authConfig, baseDependencies }).unassignAlias,
 	);
 
-	router.use(authMiddleware(authConfig));
-
-	router.get('/', categoryController({ authConfig, baseDependencies }).listAll);
-	router.get('/:categoryId', categoryController({ authConfig, baseDependencies }).getDetails);
+	router.get('/', defaultAuthenticator, categoryController({ authConfig, baseDependencies }).listAll);
+	router.get('/:categoryId', defaultAuthenticator, categoryController({ authConfig, baseDependencies }).getDetails);
 
 	return router;
 };

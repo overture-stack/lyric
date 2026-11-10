@@ -110,3 +110,8 @@ context: the run takes the lock when it starts, such as a session-level Postgres
 fix: build `packages/data-provider` for publishing from a `tsconfig.build.json` that excludes `test/`, so `dist/test/` stays out of `@overture-stack/lyric`.
 standalone: yes
 context: `tsconfig.json` includes the whole package except `*.spec.ts`, and `package.json`'s `files` publishes all of `dist/`. The published package carries test fixtures, the integration setup and test container configuration, none of them used by consumers.
+
+### Parse request bodies after authentication in every router
+fix: in the audit, category, dictionary, migration, submitted data and validator routers, parse a body on each route after Lyric's auth middleware, as `submissionRouter.ts` does, in place of their router-wide `urlencoded` and `json` parsers. Then extend `routerAuthentication.spec.ts`'s check for router-wide middleware from the submission router to every router. Ship it with a MIGRATION.md section: an application's own route, registered after a Lyric router on the same path, then gets no `req.body` from Lyric and parses its own.
+standalone: yes
+context: a router-wide parser runs for every request under its router's path, ahead of the route's authentication, and also for a request passing through to an application's own route. Each parser holds at most its 100kb default in memory per request.

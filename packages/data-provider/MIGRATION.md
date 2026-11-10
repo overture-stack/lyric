@@ -16,6 +16,12 @@ While auth is enabled, these require a user whose `isAdmin` is `true`, on every 
 
 Make these calls as an administrator, with credentials even on a method left out of `protectedMethods`. A user who is not an administrator gets `403`.
 
+<a id="per-route-authentication"></a>
+
+### Lyric's routers authenticate only requests handled by their own routes
+
+A request matching no Lyric route passes through a Lyric router without being authenticated. So a route of your own, registered after a Lyric router on the same path, gets no `req.user` from Lyric and is not refused by it: authenticate it with middleware of your own. Under a Lyric router's path, a request to a path matching no route reaches your application's 404 handling.
+
 ## Upgrading from 0.20.x
 
 <a id="library-error-statuses"></a>
