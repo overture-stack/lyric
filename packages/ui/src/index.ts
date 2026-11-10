@@ -1,6 +1,16 @@
 export { Banner, type BannerProps, bannerVariants } from './components/ui/banner';
 export { Button, type ButtonProps, buttonVariants } from './components/ui/button';
 export {
+	Breadcrumb,
+	BreadcrumbEllipsis,
+	BreadcrumbItem,
+	BreadcrumbLink,
+	BreadcrumbList,
+	BreadcrumbPage,
+	BreadcrumbSeparator,
+} from './components/ui/breadcrumb/breadcrumb';
+export { Button, type ButtonProps, buttonVariants } from './components/ui/button';
+export {
 	Combobox,
 	ComboboxChip,
 	ComboboxChips,
