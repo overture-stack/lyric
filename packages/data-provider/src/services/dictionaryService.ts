@@ -93,6 +93,10 @@ const dictionaryService = (dependencies: BaseDependencies) => {
 		return dictionary;
 	};
 
+	/**
+	 * Registers a dictionary version from the schema service for a category, creating the category when it does not
+	 * exist.
+	 */
 	const register = async ({
 		alias,
 		categoryName,

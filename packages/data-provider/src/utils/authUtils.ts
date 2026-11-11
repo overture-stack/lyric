@@ -63,3 +63,9 @@ export const hasUserWriteAccess = (organization: string, user?: UserSession): bo
 
 	return user.allowedWriteOrganizations.includes(organization);
 };
+
+/**
+ * Whether a user is an administrator, who may change what governs every organization's data, such as a category's
+ * dictionary or alias. True only when the user's `isAdmin` is `true`.
+ */
+export const isUserAdmin = (user?: UserSession): boolean => user?.isAdmin === true;
