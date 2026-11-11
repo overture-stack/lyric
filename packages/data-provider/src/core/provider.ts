@@ -14,13 +14,7 @@ import categoryRepository from '../repository/categoryRepository.js';
 import migrationRepository from '../repository/dictionaryMigrationRepository.js';
 import dictionaryRepository from '../repository/dictionaryRepository.js';
 import submittedDataRepository from '../repository/submittedRepository.js';
-import auditRouter from '../routers/auditRouter.js';
-import categoryRouter from '../routers/categoryRouter.js';
-import dictionaryRouter from '../routers/dictionaryRouter.js';
-import migrationRouter from '../routers/migrationRouter.js';
-import submissionRouter from '../routers/submissionRouter.js';
-import submittedDataRouter from '../routers/submittedDataRouter.js';
-import validationRouter from '../routers/validationRouter.js';
+import { createRouters } from '../routers/createRouters.js';
 import auditService from '../services/auditService.js';
 import categoryService from '../services/categoryService.js';
 import dictionaryService from '../services/dictionaryService.js';
@@ -65,23 +59,21 @@ const provider = (configData: AppConfig, options?: ProviderOptions) => {
 
 	return {
 		configs: baseDeps,
-		routers: {
-			audit: auditRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
-			category: categoryRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
-			dictionary: dictionaryRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
-			migration: migrationRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
-			submission: submissionRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
-			submittedData: submittedDataRouter({ baseDependencies: baseDeps, authConfig: configData.auth }),
-			validator: validationRouter({
-				baseDependencies: baseDeps,
-				authConfig: configData.auth,
-				validatorConfig: configData.validator,
-			}),
-		},
+		routers: createRouters({
+			authConfig: configData.auth,
+			baseDependencies: baseDeps,
+			validatorConfig: configData.validator,
+		}),
 		controllers: {
 			audit: auditController(baseDeps),
-			category: categoryController(baseDeps),
-			dictionary: dictionaryController(baseDeps),
+			category: categoryController({
+				authConfig: { enabled: configData.auth.enabled },
+				baseDependencies: baseDeps,
+			}),
+			dictionary: dictionaryController({
+				authConfig: { enabled: configData.auth.enabled },
+				baseDependencies: baseDeps,
+			}),
 			migration: migrationController(baseDeps),
 			submission: submissionController({
 				baseDependencies: baseDeps,

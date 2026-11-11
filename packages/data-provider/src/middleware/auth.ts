@@ -107,6 +107,8 @@ const createErrorFromStatus = (status: number, message?: string): Error => {
 	}
 };
 
+const authMiddlewares = new WeakSet<object>();
+
 /**
  * Creates Express middleware that authenticates requests using the `customAuthHandler` from `authConfig`.
  * Requests are passed through without authentication when auth is disabled or the request method is not
@@ -127,7 +129,7 @@ const createErrorFromStatus = (status: number, message?: string): Error => {
  *   The original error message is logged and not sent in the response.
  */
 export const authMiddleware = (authConfig: AuthConfig) => {
-	return async (req: RequestWithUser, _res: Response, next: NextFunction) => {
+	const authenticate = async (req: RequestWithUser, _res: Response, next: NextFunction) => {
 		if (shouldBypassAuth(req, authConfig)) {
 			return next();
 		}
@@ -157,4 +159,19 @@ export const authMiddleware = (authConfig: AuthConfig) => {
 			return next(new InternalServerError('Authorization check failed.'));
 		}
 	};
+	authMiddlewares.add(authenticate);
+	return authenticate;
 };
+
+/**
+ * Creates an `authMiddleware` that authenticates on every method while `authConfig` enables auth, regardless of
+ * `authConfig.protectedMethods`.
+ */
+export const authMiddlewareForEveryMethod = (authConfig: AuthConfig) =>
+	authMiddleware({ ...authConfig, protectedMethods: undefined });
+
+/**
+ * Whether `handler` was created by `authMiddleware`, so a router's routes can be checked for authentication.
+ */
+export const isAuthMiddleware = (handler: unknown): boolean =>
+	typeof handler === 'function' && authMiddlewares.has(handler);
