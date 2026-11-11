@@ -45,7 +45,7 @@ context: Convention mismatch: team convention is to co-locate test files with so
 ### Some request body/query param types hand-duplicated instead of derived from their zod schema
 fix: convert to `zod.infer`.
 standalone: yes
-context: `schemas.ts` already uses `zod.infer<typeof schema>` in several places (`CategoryOrganizationPathParams`, `UploadSubmissionQueryParams`, others), but `CategoryPathParams`, `DictionaryRegisterBodyParams`, and `DictionaryRegisterQueryParams` are hand-written next to a schema that could derive them, risking drift. Pre-existing, not touched by the alias work; its own new schemas already follow the pattern.
+context: `schemas.ts` already uses `zod.infer<typeof schema>` in several places (`CategoryOrganizationPathParams`, `UploadSubmissionQueryParams`, others), but `CategoryPathParams`, `DictionaryRegisterBodyParams`, and `DictionaryRegisterQueryParams` are hand-written next to a schema that could derive them, risking drift.
 
 ### No centralised env var validation
 fix: add a schema-based startup validation pass (e.g. `zod` on `process.env`) that surfaces all missing/malformed vars at once with a single readable error, rather than each config area failing lazily on first use.
@@ -65,17 +65,17 @@ context: `server.ts` creates a logger with `getLogger()` and `buildAppConfig()` 
 ### Base image has known high vulnerability
 fix: pin to a patched digest, or upgrade to a newer `node:22-alpine` release once available.
 standalone: yes
-context: `FROM node:22-alpine` (Dockerfile line 9) is flagged with a high CVE by the IDE linter. Pre-existing, unrelated to Kafka work.
+context: `FROM node:22-alpine` (Dockerfile line 9) is flagged with a high CVE by the IDE linter.
 
-### Category-level admin actions have no privilege check beyond "authenticated"
-fix: needs a scope decision (likely an `isAdmin` gate) covering all three call sites together, not a patch to just the new ones.
-standalone: no
-context: `UserSession` declares `isAdmin`/org-scoped read-write lists, and `authUtils.ts` enforces them, but only the submission/submitted-data controllers call those helpers. Category actions (`dictionaryService.register()`, and now `assignAlias`/`unassignAlias`) have no privilege check beyond authentication; categories aren't organization-scoped, so the existing helpers don't apply directly. Not a regression, assign/unassign matches `register()`'s existing posture, but both are administrative, audit-logged actions worth gating.
+### The image is built with a different pnpm than CI
+fix: change the `Dockerfile`'s `corepack prepare pnpm@11.1.1 --activate` to the version vetted by the Jenkins pipeline library's shared pnpm step, 12.9.1 as of 2026-11-09, so the image and the tests use the same pnpm.
+standalone: yes
+context: Lyric's pipeline installs, builds and tests through the library's shared pnpm step. That step uses the version named by `packageManager` in the root `package.json`, or the library's default when none is named, as in Lyric's today. Setting `packageManager` stops the build unless the library has vetted the version it names. Both builds install from the same frozen lockfile, and pnpm 12.9.1 installs it.
 
 ### `auditController`'s own "No Records found" check is unreachable dead code
 fix: remove the redundant check, or confirm why both exist first.
 standalone: yes
-context: `byCategoryIdAndOrganization` (`auditController.ts`) throws `NotFound('No Records found')` on zero results, but `auditService.byCategoryIdAndOrganization` already throws its own `NotFound('No data found')` first whenever the query is empty, so the controller's check can never fire. Pre-existing, unrelated to the alias work.
+context: `byCategoryIdAndOrganization` (`auditController.ts`) throws `NotFound('No Records found')` on zero results, but `auditService.byCategoryIdAndOrganization` already throws its own `NotFound('No data found')` first whenever the query is empty, so the controller's check can never fire.
 
 ### Sequential numeric category id allows enumeration
 fix: not scoped yet; would mean exposing categories only by alias externally, or moving to a non-sequential primary key, both bigger decisions than this entry alone can resolve.
@@ -96,14 +96,22 @@ fix: tell a request that can't be parsed apart from a storage failure on the sam
 standalone: yes
 context: multer passes busboy's errors on unchanged (`make-middleware.js`, its `busboy.on('error', ...)` handler), so `convertUploadErrors` passes them through and `errorHandler` answers them with its fixed-text 500 and logs them. 0.20.x answered them with 500 too.
 
----
+### A dictionary migration's revalidation never reaches `onFinishCommit`
+fix: pass each organization's `ResultOnCommit` from a migration back to the main thread and call `onFinishCommit` with it, as `workerPoolManager.ts` does after a commit, so a host reindexes records whose validity was changed by the migration.
+standalone: yes
+context: `performMigrationValidation` (`migrationService.ts`) passes `onFinishCommit` along, but the worker's config sets it to `undefined`, and `performCommitSubmissionAsync` never calls it. A host reindexing on commit keeps stale `isValid` values for every record revalidated by a migration. A later commit reports only records whose validity changes in that commit, so it does not correct them either.
 
-## Resolved
+### A migration interrupted by a restart blocks its category's commits
+fix: when the server starts, mark `FAILED` any `IN_PROGRESS` migration whose run no longer holds its lock, so `?force=true` on dictionary registration can re-run it.
+standalone: yes
+context: the run takes the lock when it starts, such as a session-level Postgres advisory lock keyed to the migration, or a lease it renews. `submission.commitSubmission` answers `409` for a category while one of its migrations is `IN_PROGRESS`, and nothing changes that status after a restart. The lock keeps a server starting beside another from failing a migration still running there. Until then, recovery means changing the migration's row in `dictionary_migration` by hand.
 
-<!-- Move entries here when addressed, with a note of when and what fixed it -->
+### The npm package ships compiled test support code
+fix: build `packages/data-provider` for publishing from a `tsconfig.build.json` that excludes `test/`, so `dist/test/` stays out of `@overture-stack/lyric`.
+standalone: yes
+context: `tsconfig.json` includes the whole package except `*.spec.ts`, and `package.json`'s `files` publishes all of `dist/`. The published package carries test fixtures, the integration setup and test container configuration, none of them used by consumers.
 
-### Kafka publish tracking: no unit tests for `createPublishTracker`
-resolved: tracker removed in PR #208 (published_at column dropped during review; tracking responsibility deferred)
-
-### SQON `fieldName` has no allowlist against the dictionary schema
-resolved: invalid, not tracked. A record's `fieldName`s can legitimately fall outside the *current* dictionary after a migration: `migrationService.ts`'s `performMigrationValidation` re-validates existing records against a new dictionary but never rewrites their stored `data`, so a field the new schema dropped stays present and queryable on old records. Rejecting an unrecognized `fieldName` at query time would break querying that legitimate historical data. Submission-time validation already rejects an unrecognized field on the way in, via Lectern's `UNRECOGNIZED_FIELD` check (`validateRecord.ts`), called from `submissionProcessor.ts` against the category's active dictionary; that's the correct and only place for this check.
+### Parse request bodies after authentication in every router
+fix: in the audit, category, dictionary, migration, submitted data and validator routers, parse a body on each route after Lyric's auth middleware, as `submissionRouter.ts` does, in place of their router-wide `urlencoded` and `json` parsers. Then extend `routerAuthentication.spec.ts`'s check for router-wide middleware from the submission router to every router. Ship it with a MIGRATION.md section: an application's own route, registered after a Lyric router on the same path, then gets no `req.body` from Lyric and parses its own.
+standalone: yes
+context: a router-wide parser runs for every request under its router's path, ahead of the route's authentication, and also for a request passing through to an application's own route. Each parser holds at most its 100kb default in memory per request.
