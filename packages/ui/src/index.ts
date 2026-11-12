@@ -1,3 +1,4 @@
+export { Banner, type BannerProps, bannerVariants } from './components/ui/banner';
 export {
 	Breadcrumb,
 	BreadcrumbEllipsis,
