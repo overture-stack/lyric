@@ -176,6 +176,10 @@ const appConfig: AppConfig = {
 }
 ```
 
+Registering a dictionary and assigning or removing a category alias require an administrator, a user whose `isAdmin` is `true`, on every method while auth is enabled, regardless of `protectedMethods`.
+
+Authorization applies to requests, in Lyric's routers and controllers. Services, such as `services.dictionary.register`, perform none: an application calling a service directly decides who may.
+
 ### On Finish Commit Callback function
 
 The `onFinishCommit` callback function is executed automatically when a commit event is completed. This function provides the ability to customize the behavior or perform any additional actions after the commit is finished, using the result of the commit operation.

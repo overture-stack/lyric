@@ -72,11 +72,6 @@ fix: change the `Dockerfile`'s `corepack prepare pnpm@11.1.1 --activate` to the 
 standalone: yes
 context: Lyric's pipeline installs, builds and tests through the library's shared pnpm step. That step uses the version named by `packageManager` in the root `package.json`, or the library's default when none is named, as in Lyric's today. Setting `packageManager` stops the build unless the library has vetted the version it names. Both builds install from the same frozen lockfile, and pnpm 12.9.1 installs it.
 
-### Category-level admin actions have no privilege check beyond "authenticated"
-fix: needs a scope decision (likely an `isAdmin` gate) covering all three call sites together, not a patch to just the new ones.
-standalone: no
-context: `UserSession` declares `isAdmin`/org-scoped read-write lists, and `authUtils.ts` enforces them, but only the submission/submitted-data controllers call those helpers. Category actions (`dictionaryService.register()`, and now `assignAlias`/`unassignAlias`) have no privilege check beyond authentication; categories aren't organization-scoped, so the existing helpers don't apply directly. Not a regression, assign/unassign matches `register()`'s existing posture, but both are administrative, audit-logged actions worth gating.
-
 ### `auditController`'s own "No Records found" check is unreachable dead code
 fix: remove the redundant check, or confirm why both exist first.
 standalone: yes
@@ -115,3 +110,8 @@ context: the run takes the lock when it starts, such as a session-level Postgres
 fix: build `packages/data-provider` for publishing from a `tsconfig.build.json` that excludes `test/`, so `dist/test/` stays out of `@overture-stack/lyric`.
 standalone: yes
 context: `tsconfig.json` includes the whole package except `*.spec.ts`, and `package.json`'s `files` publishes all of `dist/`. The published package carries test fixtures, the integration setup and test container configuration, none of them used by consumers.
+
+### Parse request bodies after authentication in every router
+fix: in the audit, category, dictionary, migration, submitted data and validator routers, parse a body on each route after Lyric's auth middleware, as `submissionRouter.ts` does, in place of their router-wide `urlencoded` and `json` parsers. Then extend `routerAuthentication.spec.ts`'s check for router-wide middleware from the submission router to every router. Ship it with a MIGRATION.md section: an application's own route, registered after a Lyric router on the same path, then gets no `req.body` from Lyric and parses its own.
+standalone: yes
+context: a router-wide parser runs for every request under its router's path, ahead of the route's authentication, and also for a request passing through to an application's own route. Each parser holds at most its 100kb default in memory per request.

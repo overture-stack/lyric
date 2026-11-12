@@ -101,36 +101,38 @@ const router = ({
 
 	const router = Router();
 
-	// Authenticates each request that requires it. A request that fails is handed to the error handler, so nothing
-	// below runs for it.
-	router.use(authMiddleware(authConfig));
+	// Authenticates each request requiring authentication under `protectedMethods`. A refused
+	// request goes to the error handler, so no later handler on its route runs.
+	const defaultAuthenticator = authMiddleware(authConfig);
 
-	// Keep authentication above the body parsers. Parsing holds the whole body in memory, so it runs only for a request
-	// that has passed authentication or needs none.
+	// Each route authenticates before parsing a body. Parsing holds the whole body in memory, so it runs only for a
+	// request that has passed authentication or needs none. `urlencoded` and `parseJsonBody` fill `req.body` from a
+	// URL-encoded form or a JSON body.
+	const authenticateThenParseBody = [defaultAuthenticator, urlencoded({ extended: false }), parseJsonBody];
 
-	// Parses a URL-encoded form body into `req.body`
-	router.use(urlencoded({ extended: false }));
-	// Parses a JSON body into `req.body`
-	router.use(parseJsonBody);
+	router.get('/:submissionId', ...authenticateThenParseBody, submissionController.getSubmissionById);
 
-	router.get('/:submissionId', submissionController.getSubmissionById);
+	router.get('/:submissionId/details', ...authenticateThenParseBody, submissionController.getSubmissionDetailsById);
 
-	router.get('/:submissionId/details', submissionController.getSubmissionDetailsById);
+	router.delete('/:submissionId', ...authenticateThenParseBody, submissionController.delete);
 
-	router.delete('/:submissionId', submissionController.delete);
+	router.delete('/:submissionId/:actionType', ...authenticateThenParseBody, submissionController.deleteEntityName);
 
-	router.delete('/:submissionId/:actionType', submissionController.deleteEntityName);
+	router.get('/category/:categoryId', ...authenticateThenParseBody, submissionController.getSubmissionsByCategory);
 
-	router.get('/category/:categoryId', submissionController.getSubmissionsByCategory);
+	router.get(
+		'/category/:categoryId/organization/:organization',
+		...authenticateThenParseBody,
+		submissionController.getActiveByOrganization,
+	);
 
-	router.get('/category/:categoryId/organization/:organization', submissionController.getActiveByOrganization);
+	router.post('/category/:categoryId/data', ...authenticateThenParseBody, submissionController.submit);
 
-	router.post('/category/:categoryId/data', submissionController.submit);
-
-	router.put(`/category/:categoryId/data`, submissionController.editSubmittedData);
+	router.put(`/category/:categoryId/data`, ...authenticateThenParseBody, submissionController.editSubmittedData);
 
 	router.post(
 		'/category/:categoryId/files',
+		...authenticateThenParseBody,
 		...uploadSizeLimit,
 		uploadFiles,
 		convertUploadErrors,
@@ -138,9 +140,13 @@ const router = ({
 		submissionController.submitFiles,
 	);
 
-	router.delete(`/category/:categoryId/data/:systemId`, submissionController.deleteSubmittedDataBySystemId);
+	router.delete(
+		`/category/:categoryId/data/:systemId`,
+		...authenticateThenParseBody,
+		submissionController.deleteSubmittedDataBySystemId,
+	);
 
-	router.post('/category/:categoryId/commit/:submissionId', submissionController.commit);
+	router.post('/category/:categoryId/commit/:submissionId', ...authenticateThenParseBody, submissionController.commit);
 
 	return router;
 };

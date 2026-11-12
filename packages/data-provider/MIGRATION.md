@@ -2,6 +2,26 @@
 
 Each section covers one change to something you already use: what changed, who is affected, how to tell, and what to do. Sections are grouped by the release you are upgrading from.
 
+## Upgrading from 0.21.x
+
+<a id="administrator-routes"></a>
+
+### Registering a dictionary and changing a category alias require an administrator
+
+While auth is enabled, these require a user whose `isAdmin` is `true`, on every method, regardless of `protectedMethods`, through Lyric's routers and `provider().controllers` alike:
+
+- `POST /dictionary/register` (`dictionary.registerDictionary`)
+- `PUT /category/:categoryId/alias` (`category.assignAlias`)
+- `DELETE /category/:categoryId/alias` (`category.unassignAlias`)
+
+Make these calls as an administrator, with credentials even on a method left out of `protectedMethods`. A user who is not an administrator gets `403`.
+
+<a id="per-route-authentication"></a>
+
+### Lyric's routers authenticate only requests handled by their own routes
+
+A request matching no Lyric route passes through a Lyric router without being authenticated. So a route of your own, registered after a Lyric router on the same path, gets no `req.user` from Lyric and is not refused by it: authenticate it with middleware of your own. Under a Lyric router's path, a request to a path matching no route reaches your application's 404 handling.
+
 ## Upgrading from 0.20.x
 
 <a id="library-error-statuses"></a>
