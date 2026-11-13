@@ -74,5 +74,9 @@ export const buildAppConfig = (overrides: Partial<AppConfig> = {}): AppConfig =>
 		maxRequestSize: getOptionalIntegerConfig('SUBMISSION_MAX_REQUEST_SIZE') || DEFAULT_SUBMISSION_MAX_REQUEST_SIZE,
 	},
 	validator: getValidatorConfig('VALIDATOR_CONFIG'),
+	workerPool: {
+		// Unset leaves Lyric's own default
+		maxWorkers: getOptionalIntegerConfig('WORKER_POOL_MAX_WORKERS'),
+	},
 	...overrides,
 });
