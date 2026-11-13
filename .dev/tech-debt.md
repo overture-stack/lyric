@@ -111,6 +111,11 @@ fix: `performDictionaryMigration` (`dictionaryMigrationWorker.ts`) awaits `final
 standalone: yes
 context: both `finalizeMigration` calls are made without `await`, so the task resolves while the status update is still running. `finalizeMigration` catches its own errors and returns a failure that nobody reads, so a failed update leaves the migration `IN_PROGRESS` without any error from the worker, which blocks its category's commits as the entry above describes.
 
+### A failed validation task leaves its submission in `VALIDATING`
+fix: when a data validation task fails, in the worker or in `workerPoolManager.ts`'s `dataValidation` wrapper, move the submission out of `VALIDATING` to a status from which it can be edited or validated again, and do the same at server start for any submission left `VALIDATING` by a restart. Decide the status first: `submission_status` has no error value, and `OPEN` or `INVALID` each tell the client something different, so this may need a new enum value and a migration. Test: a validation whose worker task throws leaves its submission in that status, not `VALIDATING`.
+standalone: yes
+context: every caller sets `VALIDATING` before firing `workerPool.dataValidation` without awaiting it, and the wrapper only logs a failure, so nothing changes the status afterwards. Workers left uninitialized were one such failure, and every task now initializes its own worker, but any other failure, such as a lost database connection or a missing dictionary, still strands the submission. A `VALIDATING` submission accepts no further edits. Until then, the client cancels it with `DELETE /submission/:submissionId?force=true` and starts a new submission.
+
 ### The npm package ships compiled test support code
 fix: build `packages/data-provider` for publishing from a `tsconfig.build.json` that excludes `test/`, so `dist/test/` stays out of `@overture-stack/lyric`.
 standalone: yes
