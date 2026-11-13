@@ -46,17 +46,32 @@ const defaultIdService: IdServiceConfig = {
  * Worker pool configuration resolver used for testing.
  * It points to the TypeScript worker entry file.
  */
-const testWorkerPoolConfigResolver: WorkerPoolConfigResolver = () => ({
-	workerPath: fileURLToPath(new URL('../../../src/workers/workerpool.ts', import.meta.url)),
-	poolOptions: {
-		workerType: 'process',
-		forkOpts: {
-			execArgv: ['--import=tsx'],
+const createTestWorkerPoolConfigResolver =
+	(workerCount?: WorkerCount): WorkerPoolConfigResolver =>
+	() => ({
+		workerPath: fileURLToPath(new URL('../../../src/workers/workerpool.ts', import.meta.url)),
+		poolOptions: {
+			workerType: 'process',
+			forkOpts: {
+				execArgv: ['--import=tsx'],
+			},
+			...workerCount,
 		},
-	},
-});
+	});
 
-export async function createLyricProvider(config: LyricProviderConfig) {
+/**
+ * Worker pool sizing for a test provider. Leave unset to use workerpool's defaults.
+ */
+export type WorkerCount = {
+	minWorkers?: number;
+	maxWorkers?: number;
+};
+
+export type CreateLyricProviderOptions = {
+	workerCount?: WorkerCount;
+};
+
+export async function createLyricProvider(config: LyricProviderConfig, options?: CreateLyricProviderOptions) {
 	await migrate(config.db);
 
 	const appConfig: AppConfig = {
@@ -71,6 +86,6 @@ export async function createLyricProvider(config: LyricProviderConfig) {
 	};
 
 	return provider(appConfig, {
-		workerPoolConfigResolver: testWorkerPoolConfigResolver,
+		workerPoolConfigResolver: createTestWorkerPoolConfigResolver(options?.workerCount),
 	});
 }

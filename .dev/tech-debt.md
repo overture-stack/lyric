@@ -106,6 +106,11 @@ fix: when the server starts, mark `FAILED` any `IN_PROGRESS` migration whose run
 standalone: yes
 context: the run takes the lock when it starts, such as a session-level Postgres advisory lock keyed to the migration, or a lease it renews. `submission.commitSubmission` answers `409` for a category while one of its migrations is `IN_PROGRESS`, and nothing changes that status after a restart. The lock keeps a server starting beside another from failing a migration still running there. Until then, recovery means changing the migration's row in `dictionary_migration` by hand.
 
+### A failed validation task leaves its submission in `VALIDATING`
+fix: when a data validation task fails, in the worker or in `workerPoolManager.ts`'s `dataValidation` wrapper, move the submission out of `VALIDATING` to a status from which it can be edited or validated again, and do the same at server start for any submission left `VALIDATING` by a restart. Decide the status first: `submission_status` has no error value, and `OPEN` or `INVALID` each tell the client something different, so this may need a new enum value and a migration. Test: a validation whose worker task throws leaves its submission in that status, not `VALIDATING`.
+standalone: yes
+context: every caller sets `VALIDATING` before firing `workerPool.dataValidation` without awaiting it, and the wrapper only logs a failure, so nothing changes the status afterwards. Seen when workers the pool started on demand were never initialized: their tasks failed and the submissions stayed `VALIDATING`. That cause is fixed (every task now initializes its worker), but any other failure, such as a lost database connection or a missing dictionary, still strands the submission, and a `VALIDATING` submission blocks further edits. Until then, recovery means changing the submission's row in `submissions` by hand.
+
 ### The npm package ships compiled test support code
 fix: build `packages/data-provider` for publishing from a `tsconfig.build.json` that excludes `test/`, so `dist/test/` stays out of `@overture-stack/lyric`.
 standalone: yes

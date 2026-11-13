@@ -64,13 +64,13 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 		onFinishCommit: undefined,
 	};
 
-	// Create a typed proxy, then initialize the worker through it.
-	// Storing the resulting promise allows commitSubmission to await readiness,
-	// preventing a race where commits run before the worker context is ready.
+	// Create a typed proxy, then initialize a worker through it.
+	// This reaches only one worker, so it serves to fail fast at startup on a bad configuration.
+	// Every task below also passes workerConfig, so a worker the pool starts later initializes itself on its first task.
 	const readyProxy = pool
 		.proxy<WorkerProxy>()
 		.then(async (proxy) => {
-			await proxy.initializeWorker(workerConfig);
+			await proxy.verifyWorkerInitialization(workerConfig);
 			logger.info(LOG_MODULE, 'Worker pool initialized successfully');
 			return proxy;
 		})
@@ -94,7 +94,7 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 		commitSubmission: async (input: CommitWorkerInput): Promise<void> => {
 			const proxy = await readyProxy; // wait for worker to initialize before using
 			try {
-				const resultCommit = await proxy.commitSubmission(input);
+				const resultCommit = await proxy.commitSubmission(input, workerConfig);
 
 				// Awaited intentionally: the caller fires commitSubmission without await and returns PROCESSING
 				// to the client immediately, so this does not block the HTTP response. Awaiting here ensures
@@ -113,7 +113,7 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 		dataValidation: async (input: DataValidationWorkerInput): Promise<void> => {
 			const proxy = await readyProxy; // wait for worker to initialize before using
 			try {
-				await proxy.dataValidation(input);
+				await proxy.dataValidation(input, workerConfig);
 			} catch (error) {
 				const errMessage = error instanceof Error ? error.message : String(error);
 				logger.error(LOG_MODULE, `Worker pool execution failed for dataValidation: ${errMessage}`);
@@ -124,7 +124,7 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 		dictionaryMigration: async (input) => {
 			const proxy = await readyProxy; // wait for worker to initialize before using
 			try {
-				await proxy.dictionaryMigration(input);
+				await proxy.dictionaryMigration(input, workerConfig);
 			} catch (error) {
 				const errMessage = error instanceof Error ? error.message : String(error);
 				logger.error(LOG_MODULE, `Worker pool execution failed for dictionaryMigration: ${errMessage}`);
