@@ -10,6 +10,7 @@ import type {
 	SchemaServiceConfig,
 	SubmissionServiceConfig,
 	ValidatorConfig,
+	WorkerPoolSettings,
 } from '../../../src/config/config.js';
 import provider from '../../../src/core/provider.js';
 import type { AuthConfig } from '../../../src/middleware/auth.js';
@@ -22,8 +23,10 @@ export type LyricProviderConfig = {
 	features?: FeaturesConfig;
 	idService?: IdServiceConfig;
 	logger?: LoggerConfig;
+	onFinishCommit?: AppConfig['onFinishCommit'];
 	submissionService?: SubmissionServiceConfig;
 	validator?: ValidatorConfig;
+	workerPool?: WorkerPoolSettings;
 };
 
 export type LyricProvider = Awaited<ReturnType<typeof createLyricProvider>>;
@@ -66,8 +69,10 @@ export async function createLyricProvider(config: LyricProviderConfig) {
 		features: config.features ?? defaultFeatures,
 		idService: config.idService ?? defaultIdService,
 		logger: config.logger ?? { level: 'silent' },
+		onFinishCommit: config.onFinishCommit,
 		submissionService: config.submissionService ?? defaultSubmissionService,
 		validator: config.validator ?? [],
+		workerPool: config.workerPool,
 	};
 
 	return provider(appConfig, {

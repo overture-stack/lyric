@@ -9,6 +9,31 @@ import type { CommitWorkerInput, DataValidationWorkerInput, WorkerFunctions, Wor
 const LOG_MODULE = 'WORKER_POOL_MANAGER';
 
 /**
+ * Most workers the pool runs at the same time when `AppConfig.workerPool.maxWorkers` is not set.
+ * Fixed rather than derived from the CPU count: workerpool's own default counts every CPU of the machine,
+ * which inside a container is the whole node, not the container's CPU limit.
+ */
+export const DEFAULT_MAX_WORKERS = 1;
+
+/**
+ * Resolves the most workers the pool may run, from the application configuration first,
+ * then from the resolver's pool options, then `DEFAULT_MAX_WORKERS`.
+ * @throws when the resolved value is not an integer of at least 1, or when the pool options' `minWorkers` is a number
+ * above it, since workerpool would then raise the maximum to match
+ */
+export const resolveMaxWorkers = (configData: AppConfig, poolOptions: WorkerPoolConfig['poolOptions']): number => {
+	const maxWorkers = configData.workerPool?.maxWorkers ?? poolOptions?.maxWorkers ?? DEFAULT_MAX_WORKERS;
+	if (!Number.isInteger(maxWorkers) || maxWorkers < 1) {
+		throw new Error(`Worker pool 'maxWorkers' must be an integer of at least 1. Received ${maxWorkers}`);
+	}
+	const minWorkers = poolOptions?.minWorkers;
+	if (typeof minWorkers === 'number' && minWorkers > maxWorkers) {
+		throw new Error(`Worker pool 'minWorkers' must not exceed 'maxWorkers' (${maxWorkers}). Received ${minWorkers}`);
+	}
+	return maxWorkers;
+};
+
+/**
  * Worker pool configuration values used to initialize `workerpool.pool`.
  */
 export type WorkerPoolConfig = {
@@ -52,7 +77,9 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 	// Initialize worker pool
 	const resolveWorkerPoolConfig = options?.resolveWorkerPoolConfig ?? defaultWorkerPoolConfigResolver;
 	const { workerPath, poolOptions } = resolveWorkerPoolConfig();
-	const pool = workerpool.pool(workerPath, poolOptions);
+	const maxWorkers = resolveMaxWorkers(configData, poolOptions);
+	const pool = workerpool.pool(workerPath, { ...poolOptions, maxWorkers });
+	logger.info(LOG_MODULE, `Worker pool created with up to ${maxWorkers} worker(s)`);
 
 	// Cannot send non serializable objects/functions to worker, so we need to create a config object without those properties
 	const workerConfig: AppConfig = {
@@ -64,13 +91,13 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 		onFinishCommit: undefined,
 	};
 
-	// Create a typed proxy, then initialize the worker through it.
-	// Storing the resulting promise allows commitSubmission to await readiness,
-	// preventing a race where commits run before the worker context is ready.
+	// Create a typed proxy, then initialize a worker through it.
+	// This reaches only one worker, so it serves to fail fast at startup on a bad configuration.
+	// Every task below also passes workerConfig, so a worker the pool starts later initializes itself on its first task.
 	const readyProxy = pool
 		.proxy<WorkerProxy>()
 		.then(async (proxy) => {
-			await proxy.initializeWorker(workerConfig);
+			await proxy.verifyWorkerInitialization(workerConfig);
 			logger.info(LOG_MODULE, 'Worker pool initialized successfully');
 			return proxy;
 		})
@@ -94,7 +121,7 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 		commitSubmission: async (input: CommitWorkerInput): Promise<void> => {
 			const proxy = await readyProxy; // wait for worker to initialize before using
 			try {
-				const resultCommit = await proxy.commitSubmission(input);
+				const resultCommit = await proxy.commitSubmission(input, workerConfig);
 
 				// Awaited intentionally: the caller fires commitSubmission without await and returns PROCESSING
 				// to the client immediately, so this does not block the HTTP response. Awaiting here ensures
@@ -113,7 +140,7 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 		dataValidation: async (input: DataValidationWorkerInput): Promise<void> => {
 			const proxy = await readyProxy; // wait for worker to initialize before using
 			try {
-				await proxy.dataValidation(input);
+				await proxy.dataValidation(input, workerConfig);
 			} catch (error) {
 				const errMessage = error instanceof Error ? error.message : String(error);
 				logger.error(LOG_MODULE, `Worker pool execution failed for dataValidation: ${errMessage}`);
@@ -124,7 +151,7 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 		dictionaryMigration: async (input) => {
 			const proxy = await readyProxy; // wait for worker to initialize before using
 			try {
-				await proxy.dictionaryMigration(input);
+				await proxy.dictionaryMigration(input, workerConfig);
 			} catch (error) {
 				const errMessage = error instanceof Error ? error.message : String(error);
 				logger.error(LOG_MODULE, `Worker pool execution failed for dictionaryMigration: ${errMessage}`);
