@@ -18,12 +18,17 @@ export const DEFAULT_MAX_WORKERS = 1;
 /**
  * Resolves the most workers the pool may run, from the application configuration first,
  * then from the resolver's pool options, then `DEFAULT_MAX_WORKERS`.
- * @throws when the resolved value is not an integer of at least 1
+ * @throws when the resolved value is not an integer of at least 1, or when the pool options' `minWorkers` is a number
+ * above it, since workerpool would then raise the maximum to match
  */
 export const resolveMaxWorkers = (configData: AppConfig, poolOptions: WorkerPoolConfig['poolOptions']): number => {
 	const maxWorkers = configData.workerPool?.maxWorkers ?? poolOptions?.maxWorkers ?? DEFAULT_MAX_WORKERS;
 	if (!Number.isInteger(maxWorkers) || maxWorkers < 1) {
 		throw new Error(`Worker pool 'maxWorkers' must be an integer of at least 1. Received ${maxWorkers}`);
+	}
+	const minWorkers = poolOptions?.minWorkers;
+	if (typeof minWorkers === 'number' && minWorkers > maxWorkers) {
+		throw new Error(`Worker pool 'minWorkers' must not exceed 'maxWorkers' (${maxWorkers}). Received ${minWorkers}`);
 	}
 	return maxWorkers;
 };

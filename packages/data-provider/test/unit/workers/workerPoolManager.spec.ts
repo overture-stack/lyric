@@ -38,6 +38,17 @@ describe('Worker pool manager - maximum number of workers', () => {
 		expect(resolveMaxWorkers(appConfigWith(), { maxWorkers: 2 })).to.equal(2);
 	});
 
+	it('refuses a minimum number of workers above the maximum', () => {
+		expect(() => resolveMaxWorkers(appConfigWith({ maxWorkers: 1 }), { minWorkers: 2 })).to.throw(
+			"Worker pool 'minWorkers' must not exceed 'maxWorkers'",
+		);
+	});
+
+	it('accepts a minimum number of workers up to the maximum', () => {
+		expect(resolveMaxWorkers(appConfigWith({ maxWorkers: 2 }), { minWorkers: 2 })).to.equal(2);
+		expect(resolveMaxWorkers(appConfigWith({ maxWorkers: 2 }), { minWorkers: 'max' })).to.equal(2);
+	});
+
 	for (const maxWorkers of [0, -1, 1.5, Number.NaN]) {
 		it(`refuses ${maxWorkers} as the maximum`, () => {
 			expect(() => resolveMaxWorkers(appConfigWith({ maxWorkers }), undefined)).to.throw(

@@ -2,7 +2,7 @@
 
 Each section covers one change to something you already use: what changed, who is affected, how to tell, and what to do. Sections are grouped by the release you are upgrading from.
 
-## Upgrading from 0.21.x
+## Upgrading from 0.22.x
 
 <a id="worker-pool-max-workers"></a>
 
@@ -17,6 +17,8 @@ For example, with the default of `1`, three submissions uploaded at the same tim
 **How to tell.** Under concurrent load, a submission can stay in `VALIDATING`, or a commit in `COMMITTING`, for longer, while it waits for a free worker.
 
 **What to do.** Nothing, unless the wait is too long. To run more at once, set `workerPool.maxWorkers` in `AppConfig`, or `WORKER_POOL_MAX_WORKERS` on the reference server. Keep it at most one less than the CPUs given to Lyric (on Kubernetes, the pod's `limits.cpu`), and within its memory and database connections. [Choosing a value](README.md#choosing-a-value) shows how to work it out, and what happens when it exceeds the available CPUs.
+
+## Upgrading from 0.21.x
 
 <a id="administrator-routes"></a>
 
