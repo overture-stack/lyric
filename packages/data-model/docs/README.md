@@ -63,6 +63,36 @@ To view the State diagram for submission status [click here](./stateDiagramSubmi
 To view Submission commit workflow [click here](./submissionCommit.md)
 
 
+### - `submission_files`
+Stores file-level metadata for each submission. A submission can have multiple files associated with it.
+
+Key fields in the submission_files table include:
+
+- `submission_id`: Foreign key to `submissions.id`.
+
+- `file_name`: Name of the file or batch associated with the submission.
+
+- `entity_name`: Entity represented by the file.
+
+- `file_size`: File size in bytes
+
+
+### - `submission_records`
+Stores record-level entries for each submission file.
+
+Key fields in the submission_records table include:
+
+- `file_id`: Foreign key to `submission_files.id`.
+
+- `data`: JSON payload for the record operation.
+
+- `action_type`: Record action and can include `INSERT`, `UPDATE`, or `DELETE`.
+
+- `errors`: JSON array of validation or processing errors for the record.
+
+- `state`: Record state and can include `RECEIVED`, `VALID`, or `INVALID`.
+
+
 ### - `submitted_data`
 Stores individual data entries within a submission, capturing their validation status and relationships to specific schemas.
 
