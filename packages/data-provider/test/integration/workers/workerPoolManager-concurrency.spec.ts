@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { afterEach, beforeEach, describe, it } from 'mocha';
 import sinon from 'sinon';
 
-import type { SubmissionStatus } from '../../../src/utils/types.js';
+import type { MigrationStatus, SubmissionStatus } from '../../../src/utils/types.js';
 import { dictionarySportsData } from '../../fixtures/dictionarySchemasTestData.js';
 import { assertExists } from '../assertions.js';
 import { createLyricProvider, type LyricProvider } from '../dependencies/lyricProvider.js';
@@ -10,6 +10,8 @@ import { getContainers } from '../globalSetup.js';
 
 const WORKER_COUNT = 3;
 const TASK_COUNT = WORKER_COUNT * 2;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe('Integration - Worker Pool - concurrent tasks across several workers', () => {
 	let lyricProvider: LyricProvider;
@@ -107,5 +109,76 @@ describe('Integration - Worker Pool - concurrent tasks across several workers', 
 		reportedCommits.forEach((result) => {
 			expect(result.data?.inserts).to.have.lengthOf(1);
 		});
+	});
+
+	it('completes every dictionary migration when migrations run at the same time', async () => {
+		// Given: one category per migration, each with a submitted record and a migration in IN_PROGRESS
+		const dictionary = await lyricProvider.repositories.dictionary.save({
+			name: 'sports',
+			version: '1.0.0',
+			dictionary: dictionarySportsData,
+		});
+
+		const migrationIds = await Promise.all(
+			Array.from({ length: TASK_COUNT }, async (_, index) => {
+				const category = await lyricProvider.repositories.category.save({
+					name: `sports-category-${index}`,
+					activeDictionaryId: dictionary.id,
+				});
+				await lyricProvider.repositories.submittedData.save({
+					data: { sport_id: `${index}`, name: `Sport ${index}` },
+					dictionaryCategoryId: category.id,
+					entityName: 'sport',
+					isValid: true,
+					lastValidSchemaId: dictionary.id,
+					organization: `org-${index}`,
+					originalSchemaId: dictionary.id,
+					systemId: `SPORT-${index}`,
+					createdBy: 'test-user',
+					updatedBy: 'test-user',
+				});
+				const submissionId = await lyricProvider.repositories.submission.save({
+					data: {},
+					dictionaryCategoryId: category.id,
+					dictionaryId: dictionary.id,
+					organization: `org-${index}`,
+					status: 'OPEN',
+					createdBy: 'test-user',
+				});
+				return lyricProvider.repositories.migration.save({
+					categoryId: category.id,
+					fromDictionaryId: dictionary.id,
+					toDictionaryId: dictionary.id,
+					submissionId,
+					status: 'IN_PROGRESS',
+					createdBy: 'test-user',
+				});
+			}),
+		);
+
+		// When: their migrations run concurrently on the pool
+		await Promise.all(
+			migrationIds.map((migrationId) =>
+				lyricProvider.configs.workerPool.dictionaryMigration({ migrationId, userName: 'test-user' }),
+			),
+		);
+
+		// Then: every one of them completes. The worker records the final status without waiting for it,
+		// so wait for every migration to leave IN_PROGRESS before reading the statuses.
+		const getMigrationStatuses = (): Promise<MigrationStatus[]> =>
+			Promise.all(
+				migrationIds.map(async (migrationId) => {
+					const migration = await lyricProvider.repositories.migration.getMigrationById(migrationId);
+					assertExists(migration);
+					return migration.status;
+				}),
+			);
+
+		let statuses = await getMigrationStatuses();
+		for (let attempt = 0; attempt < 20 && statuses.includes('IN_PROGRESS'); attempt += 1) {
+			await sleep(250);
+			statuses = await getMigrationStatuses();
+		}
+		expect(statuses).to.deep.equal(migrationIds.map(() => 'COMPLETED'));
 	});
 });
