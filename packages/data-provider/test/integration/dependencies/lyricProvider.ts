@@ -23,6 +23,7 @@ export type LyricProviderConfig = {
 	features?: FeaturesConfig;
 	idService?: IdServiceConfig;
 	logger?: LoggerConfig;
+	onFinishCommit?: AppConfig['onFinishCommit'];
 	submissionService?: SubmissionServiceConfig;
 	validator?: ValidatorConfig;
 	workerPool?: WorkerPoolSettings;
@@ -68,6 +69,7 @@ export async function createLyricProvider(config: LyricProviderConfig) {
 		features: config.features ?? defaultFeatures,
 		idService: config.idService ?? defaultIdService,
 		logger: config.logger ?? { level: 'silent' },
+		onFinishCommit: config.onFinishCommit,
 		submissionService: config.submissionService ?? defaultSubmissionService,
 		validator: config.validator ?? [],
 		workerPool: config.workerPool,
