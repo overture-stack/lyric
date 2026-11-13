@@ -12,10 +12,11 @@ describe('Integration - Worker Pool - concurrent tasks across several workers', 
 	let lyricProvider: LyricProvider;
 
 	before(async () => {
-		// Starting every worker up front means concurrent tasks land on workers other than
-		// the first one, which is the only one the pool initializes at startup.
-		lyricProvider = await createLyricProvider(getContainers().providerConfig, {
-			workerCount: { minWorkers: WORKER_COUNT, maxWorkers: WORKER_COUNT },
+		// With more than one worker allowed, concurrent tasks make the pool start workers other than
+		// the first one, which is the only one initialized at startup.
+		lyricProvider = await createLyricProvider({
+			...getContainers().providerConfig,
+			workerPool: { maxWorkers: WORKER_COUNT },
 		});
 	});
 

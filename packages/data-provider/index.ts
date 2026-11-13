@@ -1,5 +1,10 @@
 // config
-export { type AppConfig, type LoggerConfig, type ValidatorEntry } from './src/config/config.js';
+export {
+	type AppConfig,
+	type LoggerConfig,
+	type ValidatorEntry,
+	type WorkerPoolSettings,
+} from './src/config/config.js';
 export { connect } from './src/config/db.js';
 export { getLogger, type Logger } from './src/config/logger.js';
 export { type DbConfig, migrate } from '@overture-stack/lyric-data-model';

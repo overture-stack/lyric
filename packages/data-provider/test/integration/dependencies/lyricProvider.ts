@@ -10,6 +10,7 @@ import type {
 	SchemaServiceConfig,
 	SubmissionServiceConfig,
 	ValidatorConfig,
+	WorkerPoolSettings,
 } from '../../../src/config/config.js';
 import provider from '../../../src/core/provider.js';
 import type { AuthConfig } from '../../../src/middleware/auth.js';
@@ -24,6 +25,7 @@ export type LyricProviderConfig = {
 	logger?: LoggerConfig;
 	submissionService?: SubmissionServiceConfig;
 	validator?: ValidatorConfig;
+	workerPool?: WorkerPoolSettings;
 };
 
 export type LyricProvider = Awaited<ReturnType<typeof createLyricProvider>>;
@@ -46,32 +48,17 @@ const defaultIdService: IdServiceConfig = {
  * Worker pool configuration resolver used for testing.
  * It points to the TypeScript worker entry file.
  */
-const createTestWorkerPoolConfigResolver =
-	(workerCount?: WorkerCount): WorkerPoolConfigResolver =>
-	() => ({
-		workerPath: fileURLToPath(new URL('../../../src/workers/workerpool.ts', import.meta.url)),
-		poolOptions: {
-			workerType: 'process',
-			forkOpts: {
-				execArgv: ['--import=tsx'],
-			},
-			...workerCount,
+const testWorkerPoolConfigResolver: WorkerPoolConfigResolver = () => ({
+	workerPath: fileURLToPath(new URL('../../../src/workers/workerpool.ts', import.meta.url)),
+	poolOptions: {
+		workerType: 'process',
+		forkOpts: {
+			execArgv: ['--import=tsx'],
 		},
-	});
+	},
+});
 
-/**
- * Worker pool sizing for a test provider. Leave unset to use workerpool's defaults.
- */
-export type WorkerCount = {
-	minWorkers?: number;
-	maxWorkers?: number;
-};
-
-export type CreateLyricProviderOptions = {
-	workerCount?: WorkerCount;
-};
-
-export async function createLyricProvider(config: LyricProviderConfig, options?: CreateLyricProviderOptions) {
+export async function createLyricProvider(config: LyricProviderConfig) {
 	await migrate(config.db);
 
 	const appConfig: AppConfig = {
@@ -83,9 +70,10 @@ export async function createLyricProvider(config: LyricProviderConfig, options?:
 		logger: config.logger ?? { level: 'silent' },
 		submissionService: config.submissionService ?? defaultSubmissionService,
 		validator: config.validator ?? [],
+		workerPool: config.workerPool,
 	};
 
 	return provider(appConfig, {
-		workerPoolConfigResolver: createTestWorkerPoolConfigResolver(options?.workerCount),
+		workerPoolConfigResolver: testWorkerPoolConfigResolver,
 	});
 }

@@ -9,6 +9,26 @@ import type { CommitWorkerInput, DataValidationWorkerInput, WorkerFunctions, Wor
 const LOG_MODULE = 'WORKER_POOL_MANAGER';
 
 /**
+ * Most workers the pool runs at the same time when `AppConfig.workerPool.maxWorkers` is not set.
+ * Fixed rather than derived from the CPU count: workerpool's own default counts every CPU of the machine,
+ * which inside a container is the whole node, not the container's CPU limit.
+ */
+export const DEFAULT_MAX_WORKERS = 1;
+
+/**
+ * Resolves the most workers the pool may run, from the application configuration first,
+ * then from the resolver's pool options, then `DEFAULT_MAX_WORKERS`.
+ * @throws when the resolved value is not an integer of at least 1
+ */
+export const resolveMaxWorkers = (configData: AppConfig, poolOptions: WorkerPoolConfig['poolOptions']): number => {
+	const maxWorkers = configData.workerPool?.maxWorkers ?? poolOptions?.maxWorkers ?? DEFAULT_MAX_WORKERS;
+	if (!Number.isInteger(maxWorkers) || maxWorkers < 1) {
+		throw new Error(`Worker pool 'maxWorkers' must be an integer of at least 1. Received ${maxWorkers}`);
+	}
+	return maxWorkers;
+};
+
+/**
  * Worker pool configuration values used to initialize `workerpool.pool`.
  */
 export type WorkerPoolConfig = {
@@ -52,7 +72,9 @@ export const createWorkerPool = (configData: AppConfig, options?: CreateWorkerPo
 	// Initialize worker pool
 	const resolveWorkerPoolConfig = options?.resolveWorkerPoolConfig ?? defaultWorkerPoolConfigResolver;
 	const { workerPath, poolOptions } = resolveWorkerPoolConfig();
-	const pool = workerpool.pool(workerPath, poolOptions);
+	const maxWorkers = resolveMaxWorkers(configData, poolOptions);
+	const pool = workerpool.pool(workerPath, { ...poolOptions, maxWorkers });
+	logger.info(LOG_MODULE, `Worker pool created with up to ${maxWorkers} worker(s)`);
 
 	// Cannot send non serializable objects/functions to worker, so we need to create a config object without those properties
 	const workerConfig: AppConfig = {
