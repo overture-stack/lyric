@@ -2,6 +2,22 @@
 
 Each section covers one change to something you already use: what changed, who is affected, how to tell, and what to do. Sections are grouped by the release you are upgrading from.
 
+## Upgrading from 0.22.x
+
+<a id="worker-pool-max-workers"></a>
+
+### The worker pool runs at most one worker by default
+
+**What changed.** Validations, commits and dictionary migrations run in a pool of workers, and the pool now runs at most `workerPool.maxWorkers` of them at the same time: `1` unless configured. A task that arrives while every worker is busy waits in a queue and starts as soon as a worker is free. No task is refused or dropped for lack of a worker. Previously the pool's limit was the machine's CPU count less one, which inside a container counts the whole node, not the container's CPU limit.
+
+For example, with the default of `1`, three submissions uploaded at the same time are validated one after another: the first starts at once, and the second and third stay in `VALIDATING` until the ones ahead of them finish. With `maxWorkers: 3`, all three are validated at the same time.
+
+**Who is affected.** Deployments that run several validations, commits or dictionary migrations at the same time.
+
+**How to tell.** Under concurrent load, a submission can stay in `VALIDATING`, or a commit in `COMMITTING`, for longer, while it waits for a free worker.
+
+**What to do.** Nothing, unless the wait is too long. To run more at once, set `workerPool.maxWorkers` in `AppConfig`, or `WORKER_POOL_MAX_WORKERS` on the reference server. Keep it at most one less than the CPUs given to Lyric (on Kubernetes, the pod's `limits.cpu`), and within its memory and database connections. [Choosing a value](README.md#choosing-a-value) shows how to work it out, and what happens when it exceeds the available CPUs.
+
 ## Upgrading from 0.21.x
 
 <a id="administrator-routes"></a>

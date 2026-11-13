@@ -55,6 +55,9 @@ const appConfig: AppConfig = {
 		maxFileSize: 10 * 1024 * 1024, // Largest file accepted in an upload, and largest JSON request body, in bytes. 0 or omitted: no per-file limit, and JSON bodies keep the JSON parser's 100kb default
 		maxRequestSize: 100 * 1024 * 1024, // Largest upload accepted, every file in it counted together, in bytes. 0 or omitted: no limit
 	},
+	workerPool: {
+		maxWorkers: 1, // Most workers running validations, commits and dictionary migrations at the same time. Omitted: 1
+	},
 };
 
 
@@ -316,6 +319,32 @@ const upload = multer({ dest: '/tmp', limits: { fileSize: 20 * 1024 * 1024 } });
 router.post('/upload', limitRequestSize(100 * 1024 * 1024), upload.array('files'), uploadController);
 router.use(convertUploadErrors);
 ```
+
+### Worker Pool Size
+
+Validations, commits and dictionary migrations run in a pool of workers. `workerPool.maxWorkers` sets how many can run at the same time, and defaults to `1`.
+
+A task that arrives while every worker is busy waits in a queue, and starts as soon as a worker is free; none is refused or dropped. For example, with the default of `1`, three submissions uploaded at the same time are validated one after another: the second and third stay in `VALIDATING` until the ones ahead of them finish. With `maxWorkers: 3`, all three are validated at the same time.
+
+The default is a fixed number rather than one taken from the machine's CPU count, because inside a container that count is the whole node's, not the container's CPU limit.
+
+#### Choosing a value
+
+Workers run in the same process as the HTTP server and share its CPU, memory and database access. Take the smallest of these three limits:
+
+| Limit | Formula | Example: 4 CPUs, 4 GiB, 2 replicas, Postgres `max_connections` 100 |
+|---|---|---|
+| CPU | CPUs given to Lyric − 1, leaving one for the HTTP server; at least `1` | 4 − 1 = **3** |
+| Memory | (memory limit − memory Lyric uses while idle) ÷ peak memory of your largest validation | (4 GiB − 0.5 GiB) ÷ 1 GiB = **3** |
+| Database | connections available to Lyric ÷ (10 × replicas) − 1. Each worker, and the server itself, opens its own pool of up to 10 connections | 100 ÷ (10 × 2) − 1 = **4** |
+
+Here, set `maxWorkers` to `3`. Measure memory with your own largest submissions: a validation loads the submission together with all the data already submitted for its organization.
+
+On Kubernetes, "CPUs given to Lyric" is the pod's CPU limit (`limits.cpu`), not the node's CPU count.
+
+#### Setting it above the available CPUs
+
+Nothing fails, but nothing gets faster either. The workers take turns on the CPUs they share, so each task takes longer, and total throughput stays about the same as with one worker per CPU. In a container with a CPU limit, the whole process is throttled once the workers use up the limit, including the HTTP server: API responses slow down, and health checks can time out and get the pod restarted. Memory and database connections still grow with every extra worker. If the memory limit is exceeded, the container is killed, and every task running in it is interrupted.
 
 ### Provider Shut down
 
