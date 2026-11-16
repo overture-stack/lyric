@@ -178,7 +178,6 @@ describe('Integration - Submission Router - POST /category/:categoryId/files - D
 		await app.post(`/category/${categoryId}/files?organization=${organization}`).attach('files', sportTsv, 'sport.tsv');
 		await pendingAsyncWork;
 
-
 		const resultFirstSubmission = await waitForSubmissionToStopValidating({
 			lyricProvider,
 			categoryId,
