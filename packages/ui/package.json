@@ -50,7 +50,8 @@
 		"class-variance-authority": "^0.7.1",
 		"cn": "^0.3.2",
 		"lucide-react": "^1.33.0",
-		"radix-ui": "^1.6.7"
+		"radix-ui": "^1.6.7",
+		"react-dropzone": "^20.1.4"
 	},
 	"devDependencies": {
 		"@storybook/react": "^10.5.9",
