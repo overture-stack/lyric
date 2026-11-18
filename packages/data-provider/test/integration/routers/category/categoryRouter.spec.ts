@@ -99,6 +99,34 @@ describe('Integration - Category Router', () => {
 			expect(response.body).to.have.property('id', categoryB.id);
 		});
 
+		it('should resolve a categoryId padded with whitespace to the same category as the bare id', async () => {
+			const category = await seedCategory('padded-id-target');
+
+			const response = await app.get(`/%20${category.id}%20`);
+
+			expect(response.status).to.equal(200);
+			expect(response.body).to.have.property('id', category.id);
+		});
+
+		it('should not resolve a categoryId with a numeric prefix to the category with that numeric id', async () => {
+			const category = await seedCategory('numeric-prefix-target');
+
+			const response = await app.get(`/${category.id}abc`);
+
+			expect(response.status).to.equal(404);
+			expect(response.body).to.have.property('message', `Category '${category.id}abc' not found`);
+		});
+
+		it('should resolve an alias that starts with digits to its own category, not the category whose id matches the digits', async () => {
+			const idOwner = await seedCategory('digit-prefix-id-owner');
+			const aliasOwner = await seedCategory('digit-prefix-alias-owner', `${idOwner.id}-donor`);
+
+			const response = await app.get(`/${idOwner.id}-donor`);
+
+			expect(response.status).to.equal(200);
+			expect(response.body).to.have.property('id', aliasOwner.id);
+		});
+
 		it('should return the same not-found error for an unmatched alias as for an unmatched numeric id', async () => {
 			const response = await app.get('/no-such-alias');
 

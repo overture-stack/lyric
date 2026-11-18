@@ -40,7 +40,7 @@ const controller = ({
 				const dictionaryName = req.body.dictionaryName;
 				const dictionaryVersion = req.body.dictionaryVersion;
 				const defaultCentricEntity = req.body.defaultCentricEntity;
-				const forceRegistration = req.query.force?.toLowerCase() === 'true';
+				const forceRegistration = req.query.force === 'true';
 				const user = req.user;
 
 				logger.info(
