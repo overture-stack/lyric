@@ -79,7 +79,7 @@ const controller = ({
 			try {
 				const submissionId = Number(req.params.submissionId);
 				const user = req.user;
-				const force = req.query.force?.toLowerCase() === 'true';
+				const force = req.query.force === 'true';
 
 				logger.info(LOG_MODULE, `Request Delete Active Submission '${submissionId}'`);
 
@@ -117,7 +117,7 @@ const controller = ({
 				const submissionId = Number(req.params.submissionId);
 				const actionType = SUBMISSION_ACTION_TYPE.parse(req.params.actionType.toUpperCase());
 				const entityName = req.query.entityName;
-				const index = req.query.index ? parseInt(req.query.index) : null;
+				const index = req.query.index ? Number(req.query.index) : null;
 				const user = req.user;
 
 				logger.info(
@@ -238,10 +238,10 @@ const controller = ({
 					if (categoryId === undefined) {
 						throw new NotFound(`Category '${req.params.categoryId}' not found`);
 					}
-					const onlyActive = req.query.onlyActive?.toLowerCase() === 'true';
+					const onlyActive = req.query.onlyActive === 'true';
 					const organization = req.query.organization;
-					const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
-					const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
+					const page = Number(req.query.page) || DEFAULT_PAGE;
+					const pageSize = Number(req.query.pageSize) || DEFAULT_PAGE_SIZE;
 					const username = req.query.username;
 
 					logger.info(
@@ -299,8 +299,8 @@ const controller = ({
 				const actionTypes = parseSubmissionActionTypes(req.query.actionTypes || SUBMISSION_ACTION_TYPE.options);
 
 				// query params
-				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
-				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
+				const page = Number(req.query.page) || DEFAULT_PAGE;
+				const pageSize = Number(req.query.pageSize) || DEFAULT_PAGE_SIZE;
 
 				logger.info(LOG_MODULE, `Request Submission Details by ID '${submissionId}'`);
 

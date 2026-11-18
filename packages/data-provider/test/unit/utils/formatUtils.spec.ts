@@ -9,6 +9,8 @@ import {
 	isValidDateFormat,
 	isValidIdNumber,
 	notEmpty,
+	parseIdNumber,
+	parseNonNegativeInteger,
 	uniqueCharacters,
 } from '../../../src/utils/formatUtils.js';
 
@@ -198,6 +200,63 @@ describe('Format Utils', () => {
 			const invalidNumber = Number.MAX_VALUE + 1;
 			const response = isValidIdNumber(invalidNumber);
 			expect(response).to.be.false;
+		});
+	});
+
+	describe('parseIdNumber', () => {
+		it('should parse a string of digits as an ID', () => {
+			expect(parseIdNumber('1')).to.equal(1);
+			expect(parseIdNumber('123')).to.equal(123);
+		});
+
+		it('should reject a string with a numeric prefix followed by letters, which parseInt would accept', () => {
+			expect(parseIdNumber('1abc')).to.be.undefined;
+		});
+
+		it('should reject a string with a numeric prefix followed by other characters', () => {
+			expect(parseIdNumber('5-donor')).to.be.undefined;
+			expect(parseIdNumber('1.5')).to.be.undefined;
+			expect(parseIdNumber('1e3')).to.be.undefined;
+			expect(parseIdNumber('1 abc')).to.be.undefined;
+		});
+
+		it('should reject letters, signs, whitespace and the empty string', () => {
+			expect(parseIdNumber('abc')).to.be.undefined;
+			expect(parseIdNumber('-1')).to.be.undefined;
+			expect(parseIdNumber('+1')).to.be.undefined;
+			expect(parseIdNumber(' 1')).to.be.undefined;
+			expect(parseIdNumber('')).to.be.undefined;
+		});
+
+		it('should reject zero', () => {
+			expect(parseIdNumber('0')).to.be.undefined;
+		});
+
+		it('should reject a number beyond the safe integer range', () => {
+			expect(parseIdNumber('9007199254740993')).to.be.undefined;
+		});
+	});
+
+	describe('parseNonNegativeInteger', () => {
+		it('should parse a string of digits, including zero', () => {
+			expect(parseNonNegativeInteger('0')).to.equal(0);
+			expect(parseNonNegativeInteger('42')).to.equal(42);
+		});
+
+		it('should reject a numeric prefix followed by other characters', () => {
+			expect(parseNonNegativeInteger('1abc')).to.be.undefined;
+			expect(parseNonNegativeInteger('1.5')).to.be.undefined;
+			expect(parseNonNegativeInteger('1e3')).to.be.undefined;
+		});
+
+		it('should reject signs, whitespace and the empty string', () => {
+			expect(parseNonNegativeInteger('-1')).to.be.undefined;
+			expect(parseNonNegativeInteger(' 1')).to.be.undefined;
+			expect(parseNonNegativeInteger('')).to.be.undefined;
+		});
+
+		it('should reject a number beyond the safe integer range', () => {
+			expect(parseNonNegativeInteger('9007199254740993')).to.be.undefined;
 		});
 	});
 

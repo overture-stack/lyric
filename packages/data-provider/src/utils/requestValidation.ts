@@ -39,12 +39,16 @@ export function validateRequest<
 				req.body = schema.body.parse(req.body);
 			}
 
+			// Keep the parsed values so a schema's trims, lowercasing and defaults reach the handler.
+			// Unlisted keys are stripped, so a handler reads only what its schema declares.
+			// Express 4 allows reassigning these; Express 5 makes `req.query` a getter, so an upgrade
+			// needs `Object.defineProperty` here instead.
 			if (schema.query) {
-				schema.query.parse(req.query);
+				req.query = schema.query.parse(req.query);
 			}
 
 			if (schema.pathParams) {
-				schema.pathParams.parse(req.params);
+				req.params = schema.pathParams.parse(req.params);
 			}
 
 			return handler(req, res, next);

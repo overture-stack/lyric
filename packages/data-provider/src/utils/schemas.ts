@@ -7,7 +7,7 @@ import type { SQON } from '@overture-stack/sqon-builder';
 
 import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js';
 import { parseSQON } from './convertSqonToQuery.js';
-import { isValidCategoryAlias, isValidDateFormat, isValidIdNumber } from './formatUtils.js';
+import { isValidCategoryAlias, isValidDateFormat, parseIdNumber, parseNonNegativeInteger } from './formatUtils.js';
 import { RequestValidation } from './requestValidation.js';
 import { VIEW_TYPE } from './types.js';
 
@@ -30,12 +30,15 @@ const categoryIdSchema = zod
 	.string()
 	.trim()
 	.min(1)
-	.refine((value) => isValidIdNumber(parseInt(value)) || isValidCategoryAlias(value), 'invalid category ID');
+	.refine((value) => parseIdNumber(value) !== undefined || isValidCategoryAlias(value), 'invalid category ID');
 
 const categoryAliasSchema = zod
 	.string()
 	.trim()
-	.refine((value) => value === '' || isValidCategoryAlias(value), 'alias must contain only letters, numbers, hyphens, and underscores');
+	.refine(
+		(value) => value === '' || isValidCategoryAlias(value),
+		'alias must contain only letters, numbers, hyphens, and underscores',
+	);
 
 const endDateSchema = zod
 	.string()
@@ -47,56 +50,14 @@ const entityNameSchema = zod.string().trim().min(1);
 
 const organizationSchema = zod.string().trim().min(1);
 
-const pageSizeSchema = zod.string().superRefine((value, ctx) => {
-	const parsed = parseInt(value);
-	if (isNaN(parsed)) {
-		ctx.addIssue({
-			code: zod.ZodIssueCode.invalid_type,
-			expected: 'number',
-			received: 'nan',
-		});
-	}
+// Whole-string checks: `parseInt` would read `"2abc"` as 2 and let it through, we use `parseIdNumber` instead!
+const positiveInteger = zod.string().refine((value) => parseIdNumber(value) !== undefined, 'not a positive integer');
 
-	if (parsed < 1) {
-		ctx.addIssue({
-			code: zod.ZodIssueCode.too_small,
-			minimum: 1,
-			inclusive: true,
-			type: 'number',
-		});
-	}
-});
+const pageSizeSchema = positiveInteger;
 
-const indexIntegerSchema = zod.string().superRefine((value, ctx) => {
-	const parsed = parseInt(value);
-	if (isNaN(parsed)) {
-		ctx.addIssue({
-			code: zod.ZodIssueCode.invalid_type,
-			expected: 'number',
-			received: 'nan',
-		});
-	}
-});
-
-const positiveInteger = zod.string().superRefine((value, ctx) => {
-	const parsed = parseInt(value);
-	if (isNaN(parsed)) {
-		ctx.addIssue({
-			code: zod.ZodIssueCode.invalid_type,
-			expected: 'number',
-			received: 'nan',
-		});
-	}
-
-	if (parsed < 1) {
-		ctx.addIssue({
-			code: zod.ZodIssueCode.too_small,
-			minimum: 1,
-			inclusive: true,
-			type: 'number',
-		});
-	}
-});
+const indexIntegerSchema = zod
+	.string()
+	.refine((value) => parseNonNegativeInteger(value) !== undefined, 'not a non-negative integer');
 
 const sqonSchema = zod.custom<SQON>((value) => {
 	try {
@@ -123,19 +84,13 @@ const submissionIdSchema = zod
 	.string()
 	.trim()
 	.min(1)
-	.refine((value) => {
-		const parsed = parseInt(value);
-		return isValidIdNumber(parsed);
-	}, 'invalid submission ID');
+	.refine((value) => parseIdNumber(value) !== undefined, 'invalid submission ID');
 
 const migrationIdSchema = zod
 	.string()
 	.trim()
 	.min(1)
-	.refine((value) => {
-		const parsed = parseInt(value);
-		return isValidIdNumber(parsed);
-	}, 'invalid migration ID');
+	.refine((value) => parseIdNumber(value) !== undefined, 'invalid migration ID');
 
 const stringNotEmpty = zod.string().trim().min(1);
 
@@ -310,7 +265,8 @@ export const migrationDataRequestSchema: RequestValidation<object, MigrationData
 		.object({
 			entityNames: zod.union([entityNameSchema, entityNameSchema.array()]).optional(),
 			organizations: zod.union([organizationSchema, organizationSchema.array()]).optional(),
-			isInvalid: booleanSchema.default('false'),
+			// No default: an absent `isInvalid` means "don't filter", returning valid and invalid records.
+			isInvalid: booleanSchema.optional(),
 		})
 		.merge(paginationQuerySchema),
 };
@@ -328,11 +284,13 @@ export const submissionsByCategoryRequestSchema: RequestValidation<
 	SubmissionsByCategoryQueryParams,
 	CategoryPathParams
 > = {
-	query: zod.object({
-		onlyActive: booleanSchema.default('false'),
-		organization: organizationSchema.optional(),
-		username: stringNotEmpty.optional(),
-	}),
+	query: zod
+		.object({
+			onlyActive: booleanSchema.default('false'),
+			organization: organizationSchema.optional(),
+			username: stringNotEmpty.optional(),
+		})
+		.merge(paginationQuerySchema),
 	pathParams: categoryPathParamsSchema,
 };
 

@@ -21,8 +21,8 @@ const controller = (dependencies: BaseDependencies) => {
 				const organization = req.params.organization;
 
 				// pagination parameters
-				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
-				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
+				const page = Number(req.query.page) || DEFAULT_PAGE;
+				const pageSize = Number(req.query.pageSize) || DEFAULT_PAGE_SIZE;
 
 				// optional query parameters
 				const { entityName, eventType, startDate, endDate, systemId } = req.query;

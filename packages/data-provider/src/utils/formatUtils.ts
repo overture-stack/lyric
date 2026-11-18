@@ -46,6 +46,32 @@ export function isValidIdNumber(value: unknown): boolean {
 }
 
 /**
+ * Strictly parses a string as an ID number. Unlike `parseInt`, which stops at the first non-digit
+ * character (`parseInt('1abc') === 1`), the whole string must be digits, so a value such as
+ * `"1abc"`, `"5-donor"`, `"1.5"` or `"1e3"` is never mistaken for an ID.
+ * @param {string} value
+ * @returns {number | undefined} The parsed ID, or undefined if the value is not a valid ID
+ */
+export function parseIdNumber(value: string): number | undefined {
+	const parsed = parseNonNegativeInteger(value);
+	return parsed !== undefined && isValidIdNumber(parsed) ? parsed : undefined;
+}
+
+/**
+ * Strictly parses a string as a non-negative integer, such as a zero-based index. The whole string
+ * must be digits: `"1abc"`, `"-1"`, `"1.5"` and `"1e3"` are rejected, unlike with `parseInt`.
+ * @param {string} value
+ * @returns {number | undefined} The parsed integer, or undefined if the value is not one
+ */
+export function parseNonNegativeInteger(value: string): number | undefined {
+	if (!/^\d+$/.test(value)) {
+		return undefined;
+	}
+	const parsed = Number(value);
+	return Number.isSafeInteger(parsed) ? parsed : undefined;
+}
+
+/**
  * Checks if a string is safe as a category alias: a non-empty URL-safe slug (letters, numbers,
  * hyphens, underscores, periods). A value that is *only* digits (e.g. `"5"`) is rejected, since
  * category ids are whole numbers and an alias must never be able to collide with one, now or once

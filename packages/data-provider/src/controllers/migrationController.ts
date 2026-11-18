@@ -39,8 +39,8 @@ const controller = (dependencies: BaseDependencies) => {
 		getMigrationsByCategoryId: validateRequest(migrationsByCategoryIdRequestSchema, async (req, res, next) => {
 			try {
 				const categoryIdOrAlias = req.params.categoryId;
-				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
-				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
+				const page = Number(req.query.page) || DEFAULT_PAGE;
+				const pageSize = Number(req.query.pageSize) || DEFAULT_PAGE_SIZE;
 
 				logger.info(LOG_MODULE, `Request Migrations by category Id '${categoryIdOrAlias}'`);
 
@@ -75,8 +75,8 @@ const controller = (dependencies: BaseDependencies) => {
 			try {
 				const migrationId = Number(req.params.migrationId);
 
-				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
-				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
+				const page = Number(req.query.page) || DEFAULT_PAGE;
+				const pageSize = Number(req.query.pageSize) || DEFAULT_PAGE_SIZE;
 				const entityNames = req.query.entityNames;
 				const organizations = req.query.organizations;
 				const isInvalid = req.query.isInvalid === undefined ? undefined : req.query.isInvalid === 'true';
