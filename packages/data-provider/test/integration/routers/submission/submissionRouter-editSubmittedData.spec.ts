@@ -254,6 +254,18 @@ describe('Integration - Submission Router - Editing Submitted Data', () => {
 			expect(records.map((record) => record.data.systemId)).to.have.members(['SPORT1', 'SPORT2']);
 		});
 
+		it('should stage an edit that only adds a field the Submitted Data record does not have', async () => {
+			const response = await editSports([
+				{ systemId: 'SPORT1', sport_id: '1', name: 'Soccer', description: 'Football' },
+			]);
+
+			expect(response.body.status).to.equal(ACTIVE_SUBMISSION_STATUS.PROCESSING);
+			const records = await getRecords();
+			expect(records.map((record) => [record.actionType, record.data])).to.eql([
+				['UPDATE', { systemId: 'SPORT1', old: {}, new: { description: 'Football' } }],
+			]);
+		});
+
 		it('should stage only the first of two ID field edits of a System ID sent before either was staged', async () => {
 			let releaseEditStaging = (): void => {};
 			editStagingGate = new Promise((resolve) => {

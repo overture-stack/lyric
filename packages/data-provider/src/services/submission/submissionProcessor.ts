@@ -174,11 +174,14 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 			const changeData = _.omit(record, 'systemId');
 			const diffData = computeDataDiff(foundSubmittedData.data, changeData);
-			if (!_.isEmpty(diffData.old) && !_.isEmpty(diffData.new)) {
+			// A field absent from the stored record that has no value in the request isn't a change. A field the stored
+			// record doesn't have yet is added, so a change can have values in `new` only
+			const newData = _.omitBy(diffData.new, (value, field) => value === undefined && !(field in diffData.old));
+			if (!_.isEmpty(diffData.old) || !_.isEmpty(newData)) {
 				results.push({
 					systemId: systemId,
 					old: diffData.old,
-					new: diffData.new,
+					new: newData,
 				});
 			}
 		});
