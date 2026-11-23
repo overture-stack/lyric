@@ -55,7 +55,7 @@ Every status and transition is drawn in the [Submission status diagram](../../da
 1. **Moves the Submission to `VALIDATING`**, checking its status and version in the same update.
 2. **Loads every staged record**, plus the organization's Submitted Data for the category.
 3. **Leaves out records applied by their children.** See [Records the system stages](#records-the-system-stages) below.
-4. **Rejects conflicting actions.** If the same `systemId` has both an UPDATE and a DELETE staged, or more than one UPDATE, all of those records get an error and none is validated further. Lyric doesn't pick one action over another. Requests already refuse to stage a second change for a `systemId`; this check catches the cases they can't see, such as two edits sent at the same time, or an UPDATE the system stages for a record whose ID reference changed.
+4. **Rejects conflicting actions.** If the same `systemId` has both an UPDATE and a DELETE staged, more than one UPDATE, or more than one DELETE, all of those records get an error and none is validated further. Lyric doesn't pick one action over another. Requests already refuse to stage a second change for a `systemId`, and check again while holding the Submission's lock before they stage it, so two requests sent at the same time can't both stage one. This check catches the cases they can't see, such as an UPDATE the system stages for a record whose ID reference changed.
 5. **Merges the records with Submitted Data**, building the data set the category would have once the Submission is committed:
    - Submitted Data being deleted is removed.
    - Submitted Data being updated gets the new values.

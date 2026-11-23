@@ -1,3 +1,4 @@
+import { TransactionRollbackError } from 'drizzle-orm';
 import * as _ from 'lodash-es';
 
 import type { Dictionary as SchemasDictionary } from '@overture-stack/lectern-client';
@@ -15,6 +16,7 @@ import { InternalServerError, StatusConflict } from '../../utils/errors.js';
 import { genericSubmissionFileName, getSizeInBytes, toLineNumber } from '../../utils/fileUtils.js';
 import type { PaginatedResult } from '../../utils/result.js';
 import {
+	describeStagedActions,
 	findStagedActionsForSystemIds,
 	isDeleteSubmissionRecord,
 	resolveDeleteStagingConflicts,
@@ -133,57 +135,46 @@ const submittedData = (dependencies: BaseDependencies) => {
 			throw error;
 		}
 
-		// Check what the Active Submission already has pending for these systemIds before staging
-		// anything new: a pending UPDATE is a conflict (reject, consistent with how the same
-		// conflict is handled at validation time), a pending DELETE is a duplicate (skip it).
-		const existingSubmissionRecords = await submissionRecordsRepository.getBySubmissionId(
-			activeSubmissionId,
-			undefined,
-			{
-				actionTypes: ['UPDATE', 'DELETE'],
-			},
-		);
-
-		const { filteredRecordsToDeleteMap, conflictingSystemIds, duplicateSystemIds } = resolveDeleteStagingConflicts(
-			recordsToDeleteMap,
-			existingSubmissionRecords.records,
-		);
-
-		if (conflictingSystemIds.length > 0) {
-			logger.error(
-				LOG_MODULE,
-				`Cannot delete system ID(s) '${conflictingSystemIds.join(', ')}' on Submission '${activeSubmissionId}': a pending update already exists for the same system ID`,
-			);
-			return {
-				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: `System ID(s) '${conflictingSystemIds.join(', ')}' already have a pending update staged on Submission '${activeSubmissionId}'. Resolve the conflicting update before deleting.`,
-				inProcessEntities: [],
-			};
-		}
-
-		if (duplicateSystemIds.length > 0) {
-			logger.info(
-				LOG_MODULE,
-				`System ID(s) '${duplicateSystemIds.join(', ')}' are already staged for deletion on Submission '${activeSubmissionId}', skipping duplicate`,
-			);
-		}
-
-		const entitiesToProcess = Object.keys(filteredRecordsToDeleteMap);
-
-		if (entitiesToProcess.length === 0) {
-			return {
-				status: ACTIVE_SUBMISSION_STATUS.PROCESSING,
-				description: 'All requested records are already staged for deletion on the Active Submission',
-				submissionId: activeSubmissionId.toString(),
-				inProcessEntities: [],
-			};
-		}
-
 		let stagedVersion: number;
+		let entitiesToProcess: string[];
 		try {
-			stagedVersion = await dependencies.db.transaction(async (tx) => {
+			({ stagedVersion, entitiesToProcess } = await dependencies.db.transaction(async (tx) => {
 				// Throws StatusConflict and rolls back if the Submission's status no longer allows changes
 				const newVersion = await submissionProcessor.markSubmissionAsChanged(activeSubmissionId, username, tx);
+
+				// Check what the Active Submission already has pending for these systemIds before staging anything new: a
+				// pending UPDATE is a conflict (reject, consistent with how the same conflict is handled at validation
+				// time), a pending DELETE is a duplicate (skip it). The check runs under the Submission's lock, so no
+				// other request can stage a change for these systemIds, or remove one, until this one is committed
+				const existingSubmissionRecords = await submissionRecordsRepository.getBySubmissionId(
+					activeSubmissionId,
+					undefined,
+					{ actionTypes: ['UPDATE', 'DELETE'] },
+					tx,
+				);
+
+				const { filteredRecordsToDeleteMap, conflictingSystemIds, duplicateSystemIds } = resolveDeleteStagingConflicts(
+					recordsToDeleteMap,
+					existingSubmissionRecords.records,
+				);
+
+				if (conflictingSystemIds.length > 0) {
+					throw new StatusConflict(
+						`System ID(s) '${conflictingSystemIds.join(', ')}' already have a pending update staged on Submission '${activeSubmissionId}'. Resolve the conflicting update before deleting.`,
+					);
+				}
+
+				if (duplicateSystemIds.length > 0) {
+					logger.info(
+						LOG_MODULE,
+						`System ID(s) '${duplicateSystemIds.join(', ')}' are already staged for deletion on Submission '${activeSubmissionId}', skipping duplicate`,
+					);
+				}
+
+				// Nothing new to stage: rolling back keeps the Submission's status and version as they were
+				if (Object.keys(filteredRecordsToDeleteMap).length === 0) {
+					tx.rollback();
+				}
 
 				const saveDeleteFile = async ({
 					entityName,
@@ -248,10 +239,19 @@ const submittedData = (dependencies: BaseDependencies) => {
 					}
 				}
 
-				return newVersion;
-			});
+				return { stagedVersion: newVersion, entitiesToProcess: Object.keys(filteredRecordsToDeleteMap) };
+			}));
 		} catch (error) {
+			if (error instanceof TransactionRollbackError) {
+				return {
+					status: ACTIVE_SUBMISSION_STATUS.PROCESSING,
+					description: 'All requested records are already staged for deletion on the Active Submission',
+					submissionId: activeSubmissionId.toString(),
+					inProcessEntities: [],
+				};
+			}
 			if (error instanceof StatusConflict) {
+				logger.info(LOG_MODULE, `Rejected delete of system ID '${systemId}': ${error.message}`);
 				return {
 					status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
 					description: error.message,
@@ -442,18 +442,12 @@ const submittedData = (dependencies: BaseDependencies) => {
 			existingSubmissionRecords: existingSubmissionRecords.records,
 			systemIds: records.map((record) => String(record['systemId'])),
 		});
-		if (updatedSystemIds.length > 0 || deletedSystemIds.length > 0) {
-			const stagedActions = [
-				...(updatedSystemIds.length > 0 ? [`an update staged for System ID(s) '${updatedSystemIds.join(', ')}'`] : []),
-				...(deletedSystemIds.length > 0 ? [`a delete staged for System ID(s) '${deletedSystemIds.join(', ')}'`] : []),
-			];
-			logger.info(
-				LOG_MODULE,
-				`Rejected edit on Submission '${activeSubmissionId}': it already has ${stagedActions.join(' and ')}`,
-			);
+		const stagedActions = describeStagedActions({ updatedSystemIds, deletedSystemIds });
+		if (stagedActions) {
+			logger.info(LOG_MODULE, `Rejected edit on Submission '${activeSubmissionId}': it already has ${stagedActions}`);
 			return {
 				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
-				description: `Submission '${activeSubmissionId}' already has ${stagedActions.join(' and ')}. Remove the file that caused the staged change before editing these records again.`,
+				description: `Submission '${activeSubmissionId}' already has ${stagedActions}. Remove the file that caused the staged change before editing these records again.`,
 			};
 		}
 

@@ -146,25 +146,25 @@ export const findUpdateDeleteConflicts = (submissionData: SubmissionRecordWithEn
 };
 
 /**
- * Finds entity-scoped system IDs that have more than one `UPDATE` record staged in the Active Submission.
- *
- * Every `UPDATE` record of such a system ID gets a conflict error, so none of them is applied in place of the others.
- *
- * @param submissionData - The Active Submission records to inspect.
- * @returns Conflict errors grouped by entity name under the `updates` bucket, or an empty object when there are none.
+ * Gives a conflict error to every record of each entity-scoped system ID that appears on more than one of `records`,
+ * all of them staged with `actionType`.
  */
-export const findDuplicateUpdates = (submissionData: SubmissionRecordWithEntityName[]): SubmissionErrors => {
-	const updateRecordIdsByEntity = new Map<string, Map<string, number[]>>();
+const findDuplicateActions = (
+	records: { entityName: string; recordId: number; systemId: string }[],
+	actionType: typeof SUBMISSION_RECORD_ACTION_TYPE.Values.UPDATE | typeof SUBMISSION_RECORD_ACTION_TYPE.Values.DELETE,
+): SubmissionErrors => {
+	const recordIdsByEntity = new Map<string, Map<string, number[]>>();
 
-	submissionData.filter(isUpdateSubmissionRecord).forEach((record) => {
-		const bySystemId = updateRecordIdsByEntity.get(record.entityName) ?? new Map<string, number[]>();
-		bySystemId.set(record.data.systemId, [...(bySystemId.get(record.data.systemId) ?? []), record.id]);
-		updateRecordIdsByEntity.set(record.entityName, bySystemId);
+	records.forEach(({ entityName, recordId, systemId }) => {
+		const bySystemId = recordIdsByEntity.get(entityName) ?? new Map<string, number[]>();
+		bySystemId.set(systemId, [...(bySystemId.get(systemId) ?? []), recordId]);
+		recordIdsByEntity.set(entityName, bySystemId);
 	});
 
+	const bucket = actionType === SUBMISSION_RECORD_ACTION_TYPE.Values.UPDATE ? 'updates' : 'deletes';
 	const conflictErrors: SubmissionErrors = {};
 
-	updateRecordIdsByEntity.forEach((bySystemId, entityName) => {
+	recordIdsByEntity.forEach((bySystemId, entityName) => {
 		bySystemId.forEach((recordIds, systemId) => {
 			if (recordIds.length < 2) {
 				return;
@@ -172,19 +172,53 @@ export const findDuplicateUpdates = (submissionData: SubmissionRecordWithEntityN
 			const conflictError: RecordErrorActionConflict = {
 				reason: 'CONFLICTING_ACTION',
 				systemId,
-				conflictingActionType: 'UPDATE',
-				message: `Record with systemId '${systemId}' has more than one UPDATE staged in the same Active Submission`,
+				conflictingActionType: actionType,
+				message: `Record with systemId '${systemId}' has more than one ${actionType} staged in the same Active Submission`,
 			};
-			conflictErrors.updates ??= {};
-			conflictErrors.updates[entityName] = [
-				...(conflictErrors.updates[entityName] ?? []),
+			const bucketErrors = conflictErrors[bucket] ?? {};
+			bucketErrors[entityName] = [
+				...(bucketErrors[entityName] ?? []),
 				...recordIds.map((recordId) => ({ recordId, errors: [conflictError] })),
 			];
+			conflictErrors[bucket] = bucketErrors;
 		});
 	});
 
 	return conflictErrors;
 };
+
+/**
+ * Finds entity-scoped system IDs that have more than one `UPDATE` record staged in the Active Submission.
+ *
+ * Every `UPDATE` record of such a system ID gets a conflict error, so none of them is applied in place of the others.
+ *
+ * @param submissionData - The Active Submission records to inspect.
+ * @returns Conflict errors grouped by entity name under the `updates` bucket, or an empty object when there are none.
+ */
+export const findDuplicateUpdates = (submissionData: SubmissionRecordWithEntityName[]): SubmissionErrors =>
+	findDuplicateActions(
+		submissionData
+			.filter(isUpdateSubmissionRecord)
+			.map((record) => ({ entityName: record.entityName, recordId: record.id, systemId: record.data.systemId })),
+		SUBMISSION_RECORD_ACTION_TYPE.Values.UPDATE,
+	);
+
+/**
+ * Finds entity-scoped system IDs that have more than one `DELETE` record staged in the Active Submission.
+ *
+ * Every `DELETE` record of such a system ID gets a conflict error, so the deleted record isn't removed or audited
+ * more than once, and a record replaced through an ID field change isn't replaced twice.
+ *
+ * @param submissionData - The Active Submission records to inspect.
+ * @returns Conflict errors grouped by entity name under the `deletes` bucket, or an empty object when there are none.
+ */
+export const findDuplicateDeletes = (submissionData: SubmissionRecordWithEntityName[]): SubmissionErrors =>
+	findDuplicateActions(
+		submissionData
+			.filter(isDeleteSubmissionRecord)
+			.map((record) => ({ entityName: record.entityName, recordId: record.id, systemId: record.data.systemId })),
+		SUBMISSION_RECORD_ACTION_TYPE.Values.DELETE,
+	);
 
 /**
  * Finds which of the given system IDs of one entity already have an `UPDATE` or a `DELETE` staged in an Active
@@ -214,6 +248,27 @@ export const findStagedActionsForSystemIds = ({
 		updatedSystemIds: systemIds.filter((systemId) => stagedUpdateSystemIds.has(systemId)),
 		deletedSystemIds: systemIds.filter((systemId) => stagedDeleteSystemIds.has(systemId)),
 	};
+};
+
+/**
+ * Describes the system IDs that already have an `UPDATE` or a `DELETE` staged, for a message rejecting a new change to
+ * them.
+ *
+ * @returns A description such as "an update staged for System ID(s) 'A, B' and a delete staged for System ID(s) 'C'",
+ * or `undefined` when both lists are empty.
+ */
+export const describeStagedActions = ({
+	updatedSystemIds,
+	deletedSystemIds,
+}: {
+	updatedSystemIds: string[];
+	deletedSystemIds: string[];
+}): string | undefined => {
+	const stagedActions = [
+		...(updatedSystemIds.length > 0 ? [`an update staged for System ID(s) '${updatedSystemIds.join(', ')}'`] : []),
+		...(deletedSystemIds.length > 0 ? [`a delete staged for System ID(s) '${deletedSystemIds.join(', ')}'`] : []),
+	];
+	return stagedActions.length > 0 ? stagedActions.join(' and ') : undefined;
 };
 
 /**

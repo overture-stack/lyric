@@ -28,8 +28,11 @@ import { formatByteSize, genericSubmissionFileName, getSizeInBytes, toLineNumber
 import { convertRecordToString } from '../../utils/formatUtils.js';
 import { parseRecordsToInsert } from '../../utils/recordsParser.js';
 import {
+	describeStagedActions,
 	extractRecordIdsFromSubmissionErrors,
+	findDuplicateDeletes,
 	findDuplicateUpdates,
+	findStagedActionsForSystemIds,
 	findUpdateDeleteConflicts,
 	mergeSubmissionErrors,
 	reportChildErrorsOnParents,
@@ -124,8 +127,8 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 	/**
 	 * Logs an error thrown while staging changes on a Submission. A `StatusConflict` is an expected outcome when the
-	 * Submission started validating or committing in the meantime, so it is logged at info level. Any other error is
-	 * logged at error level.
+	 * Submission started validating or committing in the meantime, or when another request staged a change for the same
+	 * System ID, so it is logged at info level. Any other error is logged at error level.
 	 */
 	const logStagingError = (message: string, error: unknown): void => {
 		if (error instanceof StatusConflict) {
@@ -674,12 +677,12 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		// Records applied by their children are carried out by those children, which are validated in their place
 		const recordsToValidate = submissionRecords.records.filter((record) => !record.appliedByChildren);
 
-		// Detect records where the same systemId has both an UPDATE and a DELETE staged, or more than one UPDATE, before
-		// running dictionary validation. Every side of a conflict is rejected explicitly instead of letting one action
-		// silently win.
+		// Detect records where the same systemId has both an UPDATE and a DELETE staged, more than one UPDATE, or more
+		// than one DELETE, before running dictionary validation. Every side of a conflict is rejected explicitly instead
+		// of letting one action silently win.
 		const conflictErrors = mergeSubmissionErrors(
-			findUpdateDeleteConflicts(recordsToValidate),
-			findDuplicateUpdates(recordsToValidate),
+			mergeSubmissionErrors(findUpdateDeleteConflicts(recordsToValidate), findDuplicateUpdates(recordsToValidate)),
+			findDuplicateDeletes(recordsToValidate),
 		);
 		const conflictingRecordIds = extractRecordIdsFromSubmissionErrors(conflictErrors);
 
@@ -883,6 +886,26 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 
 			const stagedVersion = await dependencies.db.transaction(async (tx) => {
 				const newVersion = await markSubmissionAsChanged(submission.id, username, tx);
+
+				// Only one UPDATE or DELETE can be staged for a system ID. The request checked this before it returned,
+				// but another request may have staged a change for the same system IDs since then. The check is repeated
+				// here, under the Submission's lock, where no other change can be staged until this one is committed
+				const stagedSubmissionRecords = await submissionRecordsRepository.getBySubmissionId(
+					submission.id,
+					undefined,
+					{ actionTypes: ['UPDATE', 'DELETE'] },
+					tx,
+				);
+				const stagedActions = describeStagedActions(
+					findStagedActionsForSystemIds({
+						entityName: schema.name,
+						existingSubmissionRecords: stagedSubmissionRecords.records,
+						systemIds: userUpdates.map((record) => record.systemId),
+					}),
+				);
+				if (stagedActions) {
+					throw new StatusConflict(`Submission '${submission.id}' already has ${stagedActions}`);
+				}
 
 				/**
 				 * Submission files are entity-scoped: the file's entity name identifies the schema used to

@@ -20,8 +20,10 @@ const OTHER_ORGANIZATION = 'otherOrg';
  * record that has no other change staged:
  * - an edit with an unknown System ID, a System ID of another entity or organization, a record without a System ID,
  *   or a System ID sent twice, is rejected without staging anything
- * - an edit of a System ID that already has an UPDATE or a DELETE staged is rejected without staging anything
- * - validation marks every UPDATE of a System ID with more than one UPDATE staged as INVALID
+ * - an edit of a System ID that already has an UPDATE or a DELETE staged is rejected without staging anything, including
+ *   when the other change was staged after the edit request returned
+ * - validation marks every UPDATE of a System ID with more than one UPDATE staged as INVALID, and every DELETE of a
+ *   System ID with more than one DELETE staged
  *
  * Validation jobs only run when a test enables them, so the records left by staging can be inspected.
  */
@@ -39,6 +41,10 @@ describe('Integration - Submission Router - Editing Submitted Data', () => {
 
 	// When false, validation jobs are not run, so the records left by staging can be inspected
 	let runValidationJobs: boolean;
+
+	// While set, background staging of edits waits for it to resolve, so several edit requests can return before any of
+	// them stages its records
+	let editStagingGate: Promise<void> | undefined;
 
 	const trackPendingWork = <Result>(promise: Promise<Result>): Promise<Result> => {
 		pendingWork.push(promise);
@@ -89,7 +95,8 @@ describe('Integration - Submission Router - Editing Submitted Data', () => {
 			const processor = originalCreate(dependencies);
 			// Edits are staged in the background; track them so tests can wait for them to finish
 			const originalEditRecords = processor.processEditRecordsAsync;
-			processor.processEditRecordsAsync = (...args) => trackPendingWork(originalEditRecords(...args));
+			processor.processEditRecordsAsync = (...args) =>
+				trackPendingWork((editStagingGate ?? Promise.resolve()).then(() => originalEditRecords(...args)));
 			return processor;
 		};
 
@@ -105,6 +112,7 @@ describe('Integration - Submission Router - Editing Submitted Data', () => {
 	beforeEach(async () => {
 		pendingWork = [];
 		runValidationJobs = false;
+		editStagingGate = undefined;
 
 		const dictionary = await lyricProvider.repositories.dictionary.save({
 			name: 'sports',
@@ -245,6 +253,31 @@ describe('Integration - Submission Router - Editing Submitted Data', () => {
 			const records = await getRecords();
 			expect(records.map((record) => record.data.systemId)).to.have.members(['SPORT1', 'SPORT2']);
 		});
+
+		it('should stage only the first of two ID field edits of a System ID sent before either was staged', async () => {
+			let releaseEditStaging = (): void => {};
+			editStagingGate = new Promise((resolve) => {
+				releaseEditStaging = resolve;
+			});
+
+			// Both requests pass the request's own check, since neither edit has been staged when the other is received
+			const editPath = `/category/${categoryId}/data?entityName=sport&organization=${ORGANIZATION}`;
+			const firstResponse = await app.put(editPath).send([{ systemId: 'SPORT2', sport_id: '20', name: 'Hockey' }]);
+			const secondResponse = await app.put(editPath).send([{ systemId: 'SPORT2', sport_id: '21', name: 'Hockey' }]);
+			expect(firstResponse.body.status).to.equal(ACTIVE_SUBMISSION_STATUS.PROCESSING);
+			expect(secondResponse.body.status).to.equal(ACTIVE_SUBMISSION_STATUS.PROCESSING);
+
+			releaseEditStaging();
+			await waitForPendingWork();
+
+			const records = await getRecords();
+			expect(records.map((record) => record.actionType)).to.have.members(['UPDATE', 'DELETE', 'INSERT']);
+			// Either edit can take the Submission's lock first; the other is rejected without staging anything
+			const insertedRecord = records.find((record) => record.actionType === 'INSERT');
+			expect(['20', '21']).to.include(insertedRecord?.data['sport_id']);
+			const submission = await lyricProvider.repositories.submission.getSubmissionById(submissionId);
+			expect(submission?.version).to.equal(1);
+		});
 	});
 
 	describe('Validating a System ID with more than one UPDATE staged', () => {
@@ -281,6 +314,45 @@ describe('Integration - Submission Router - Editing Submitted Data', () => {
 					systemId: 'SPORT1',
 					conflictingActionType: 'UPDATE',
 					message: "Record with systemId 'SPORT1' has more than one UPDATE staged in the same Active Submission",
+				}),
+			);
+		});
+	});
+
+	describe('Validating a System ID with more than one DELETE staged', () => {
+		it('should mark every DELETE of that System ID INVALID, and the Submission INVALID', async () => {
+			const { submissionFiles, submissionRecords } = lyricProvider.repositories;
+			for (const fileName of ['first.json', 'second.json']) {
+				const fileId = await submissionFiles.save({ entityName: 'sport', fileName, fileSize: 0, submissionId });
+				await submissionRecords.saveManyForFile(fileId, [
+					{
+						actionType: 'DELETE',
+						data: {
+							systemId: 'SPORT2',
+							data: { sport_id: '2', name: 'Hockey' },
+							isValid: true,
+							organization: ORGANIZATION,
+						},
+						lineNumber: 2,
+						state: 'RECEIVED',
+					},
+				]);
+			}
+			runValidationJobs = true;
+
+			await workerPool.dataValidation({ submissionId, username: '', version: 0 });
+			await waitForPendingWork();
+
+			const submission = await lyricProvider.repositories.submission.getSubmissionById(submissionId);
+			expect(submission?.status).to.equal(SUBMISSION_STATUS.INVALID);
+			const records = await getRecords();
+			expect(records.map((record) => record.state)).to.eql(['INVALID', 'INVALID']);
+			records.forEach((record) =>
+				expect(record.errors).to.deep.include({
+					reason: 'CONFLICTING_ACTION',
+					systemId: 'SPORT2',
+					conflictingActionType: 'DELETE',
+					message: "Record with systemId 'SPORT2' has more than one DELETE staged in the same Active Submission",
 				}),
 			);
 		});

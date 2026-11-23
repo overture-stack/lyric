@@ -148,6 +148,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		fileIds: number[],
 		paginationOptions?: PaginationOptions,
 		filterOptions?: { actionTypes?: SubmissionRecordActionType[]; states?: SubmissionRecordState[] },
+		tx?: RepositoryTransaction<SubmissionRecord>,
 	): Promise<PaginatedResponse<SubmissionRecordWithEntityName>> => {
 		const whereClause = and(
 			inArray(submissionRecords.fileId, fileIds),
@@ -155,8 +156,8 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 			filterOptions?.states?.length ? inArray(submissionRecords.state, filterOptions.states) : undefined,
 		);
 
-		const [totalRecords, records] = await db.transaction(async (tx) => {
-			const query = tx
+		const [totalRecords, records] = await (tx || db).transaction(async (queryTx) => {
+			const query = queryTx
 				.select({
 					actionType: submissionRecords.actionType,
 					data: submissionRecords.data,
@@ -178,7 +179,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 				query.limit(paginationOptions.pageSize).offset((paginationOptions.page - 1) * paginationOptions.pageSize);
 			}
 
-			return Promise.all([tx.select({ count: count() }).from(submissionRecords).where(whereClause), query]);
+			return Promise.all([queryTx.select({ count: count() }).from(submissionRecords).where(whereClause), query]);
 		});
 
 		const recordCount = totalRecords[0]?.count || 0;
@@ -203,9 +204,10 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 			entityNames?: string[];
 			fileId?: number;
 		},
+		tx?: RepositoryTransaction<SubmissionRecord>,
 	): Promise<PaginatedResponse<SubmissionRecordWithEntityName>> => {
 		try {
-			const submissionFileIds = await db
+			const submissionFileIds = await (tx || db)
 				.select({ id: submissionFiles.id, entityName: submissionFiles.entityName })
 				.from(submissionFiles)
 				.where(
@@ -233,6 +235,7 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 					actionTypes: filterOptions?.actionTypes,
 					states: filterOptions?.states,
 				},
+				tx,
 			);
 		} catch (error) {
 			logger.error(LOG_MODULE, `Failed getting Submission Records by submissionId '${submissionId}'`, error);
