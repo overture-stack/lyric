@@ -34,6 +34,12 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'SUBMISSION_RECORDS_REPOSITORY';
 	const { db, logger } = dependencies;
 
+	// Records per INSERT statement. A record binds at most 8 parameters, so a batch stays far below PostgreSQL's limit
+	const INSERT_BATCH_SIZE = 500 as const;
+
+	// Record IDs per UPDATE statement. Each ID binds one parameter, so a batch stays far below PostgreSQL's limit
+	const UPDATE_BATCH_SIZE = 10_000 as const;
+
 	const countBySubmissionId = async (
 		submissionId: number,
 	): Promise<{ actionType: SubmissionRecordActionType; total: number }[]> => {
@@ -322,14 +328,25 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		if (!inputs.length) {
 			return [];
 		}
+
+		// Inserts in batches so a single statement stays under PostgreSQL's limit of 65,535 bind parameters
+		const insertBatches = async (executor: RepositoryTransaction<SubmissionRecord>): Promise<number[]> => {
+			const savedRecordIds: number[] = [];
+			for (let batchStart = 0; batchStart < inputs.length; batchStart += INSERT_BATCH_SIZE) {
+				const savedSubmissionRecords = await executor
+					.insert(submissionRecords)
+					.values(inputs.slice(batchStart, batchStart + INSERT_BATCH_SIZE))
+					.returning({ id: submissionRecords.id });
+				savedRecordIds.push(...savedSubmissionRecords.map((record) => record.id));
+			}
+			return savedRecordIds;
+		};
+
 		try {
-			// TODO: Insert in batches if inputs.length > 1000 to avoid exceeding the maximum number of parameters in a single query
-			const savedSubmissionRecords = await (tx || db)
-				.insert(submissionRecords)
-				.values(inputs)
-				.returning({ id: submissionRecords.id });
-			logger.info(LOG_MODULE, `Saved '${savedSubmissionRecords.length}' Submission Record records successfully`);
-			return savedSubmissionRecords.map((record) => record.id);
+			// Without a transaction from the caller, the batches run in their own transaction so no partial set is saved
+			const savedRecordIds = tx ? await insertBatches(tx) : await db.transaction(insertBatches);
+			logger.info(LOG_MODULE, `Saved '${savedRecordIds.length}' Submission Record records successfully`);
+			return savedRecordIds;
 		} catch (error) {
 			logger.error(LOG_MODULE, `Failed saving '${inputs.length}' Submission Record records`, error);
 			throw new ServiceUnavailable();
@@ -341,7 +358,6 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		records: Omit<NewSubmissionRecord, 'fileId'>[],
 		tx?: RepositoryTransaction<SubmissionRecord>,
 	): Promise<number[]> => {
-		// TODO: Batch insert records
 		const inputs: NewSubmissionRecord[] = records.map((record) => ({ ...record, fileId }));
 		return await saveMany(inputs, tx);
 	};
@@ -374,23 +390,20 @@ const submissionRecordsRepository = (dependencies: BaseDependencies) => {
 		try {
 			const updatedIds: number[] = [];
 
-			if (validRecordIds.length) {
-				const validUpdates = await executor
-					.update(submissionRecords)
-					.set({ state: 'VALID', errors: null })
-					.where(inArray(submissionRecords.id, validRecordIds))
-					.returning({ id: submissionRecords.id });
-				updatedIds.push(...validUpdates.map((record) => record.id));
-			}
+			// Updates in batches so a single statement stays under PostgreSQL's limit of 65,535 bind parameters
+			const setStateByIds = async (state: 'VALID' | 'RECEIVED', recordIds: number[]): Promise<void> => {
+				for (let batchStart = 0; batchStart < recordIds.length; batchStart += UPDATE_BATCH_SIZE) {
+					const batchUpdates = await executor
+						.update(submissionRecords)
+						.set({ state, errors: null })
+						.where(inArray(submissionRecords.id, recordIds.slice(batchStart, batchStart + UPDATE_BATCH_SIZE)))
+						.returning({ id: submissionRecords.id });
+					updatedIds.push(...batchUpdates.map((record) => record.id));
+				}
+			};
 
-			if (receivedRecordIds.length) {
-				const receivedUpdates = await executor
-					.update(submissionRecords)
-					.set({ state: 'RECEIVED', errors: null })
-					.where(inArray(submissionRecords.id, receivedRecordIds))
-					.returning({ id: submissionRecords.id });
-				updatedIds.push(...receivedUpdates.map((record) => record.id));
-			}
+			await setStateByIds('VALID', validRecordIds);
+			await setStateByIds('RECEIVED', receivedRecordIds);
 
 			// TODO: Batch or chunk invalid record updates to avoid one concurrent query per record.
 			if (invalidRecords.length) {
