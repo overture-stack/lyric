@@ -355,7 +355,8 @@ export const mapInsertDataToRecordReferences = (
  * @param param.dependentData A record where each key is an entity name and each value is an array of `SubmittedData` objects.
  * @param param.filterEntity An array of filter criteria where each entry contains an `entityName`, `dataField`, and `dataValue` to filter.
  * @param param.newDataRecord A record containing new data values to be applied to the filtered entities.
- * @returns
+ * @returns The updates grouped by entity name. A dependent of an entity with no entry in `filterEntity` has nothing to
+ * change, so it gets no update, and an entity left with no updates is omitted.
  */
 export const mapGroupedUpdateSubmissionData = ({
 	dependentData,
@@ -372,12 +373,19 @@ export const mapGroupedUpdateSubmissionData = ({
 }): Record<string, SubmissionUpdateData[]> => {
 	return Object.entries(dependentData).reduce<Record<string, SubmissionUpdateData[]>>(
 		(acc, [entityName, dependentRecords]) => {
-			acc[entityName] = dependentRecords.map((item) => {
-				const filter = filterEntity.find((filter) => filter.entityName === item.entityName);
-				const oldValue = filter ? { [filter.dataField]: filter.dataValue } : {};
-				const newValue = filter ? { [filter.dataField]: newDataRecord[filter.dataField] } : {};
-				return { systemId: item.systemId, old: oldValue, new: newValue };
-			});
+			const entityUpdates = dependentRecords
+				.map((item) => {
+					const filter = filterEntity.find((filter) => filter.entityName === item.entityName);
+					const oldValue = filter ? { [filter.dataField]: filter.dataValue } : {};
+					const newValue = filter ? { [filter.dataField]: newDataRecord[filter.dataField] } : {};
+					return { systemId: item.systemId, old: oldValue, new: newValue };
+				})
+				// A dependent found only through another dependent, such as a grandchild of the updated record, has no
+				// filter of its own, so its update would change nothing
+				.filter((update) => !(_.isEmpty(update.old) && _.isEmpty(update.new)));
+			if (entityUpdates.length > 0) {
+				acc[entityName] = entityUpdates;
+			}
 			return acc;
 		},
 		{},
