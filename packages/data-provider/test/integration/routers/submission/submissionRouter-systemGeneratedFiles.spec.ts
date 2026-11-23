@@ -151,6 +151,22 @@ describe('Integration - Submission Router - System-generated files', () => {
 		await lyricProvider.shutdown();
 	});
 
+	describe('Editing a field that is not an ID field', () => {
+		it("should stage the user's update in a user file, and no system-generated files", async () => {
+			const response = await app
+				.put(`/category/${categoryId}/data?entityName=sport&organization=${ORGANIZATION}`)
+				.send([{ systemId: 'SPORT1', sport_id: '1', name: 'Football' }]);
+			expect(response.status).to.equal(200);
+			await waitForPendingWork();
+
+			const files = await getFiles();
+			expect(files.map((file) => [file.entityName, file.isSystemGenerated])).to.eql([['sport', false]]);
+			expect((await getRecords()).map((record) => [record.actionType, record.fileId])).to.eql([
+				['UPDATE', files[0]?.id],
+			]);
+		});
+	});
+
 	describe('Editing an ID field that other records reference', () => {
 		it("should stage the user's update in a user file, and the DELETE, INSERT and dependent updates carrying it out in system-generated files", async () => {
 			await editSportId();

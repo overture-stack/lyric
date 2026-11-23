@@ -922,6 +922,11 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 					isSystemGenerated: boolean;
 					records: (Omit<NewSubmissionRecord, 'fileId' | 'state'> & { lineNumber: number })[];
 				}): Promise<number[]> => {
+					// An edit without an ID field change has no system DELETE or INSERT, so no file is saved for them
+					if (records.length === 0) {
+						return [];
+					}
+
 					// fileSize reflects only the records attached to this file, not the full `recordsParsed`
 					// input, which belongs to `schema.name` and may be unrelated to a cascading dependent entity.
 					const savedFileId = await submissionFilesRepository.save(
