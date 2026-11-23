@@ -197,7 +197,7 @@ SELECT
 	er.action_type::submission_record_type,
 	ae.error_data,
 	CASE
-		WHEN er.submission_status::text IN ('OPEN', 'VALIDATING') THEN 'RECEIVED'::submission_record_state
+		WHEN er.submission_status::text IN ('OPEN', 'VALIDATING', 'COMMITTING') THEN 'RECEIVED'::submission_record_state
 		WHEN er.submission_status = 'INVALID' OR ae.error_data IS NOT NULL THEN 'INVALID'::submission_record_state
 		ELSE 'VALID'::submission_record_state
 	END AS state,
@@ -208,3 +208,11 @@ LEFT JOIN aggregated_errors ae
 	AND ae.error_bucket = er.error_bucket
 	AND ae.entity_name = er.entity_name
 	AND ae.record_index = er.record_index;
+--> statement-breakpoint
+
+-- Step 9: reopen submissions left in progress. No validation or commit job carries over the migration to finish
+-- them, so they would stay 'VALIDATING' or 'COMMITTING' and block their user from changing or replacing them. Their
+-- records were staged as 'RECEIVED' above, so the next change to the submission validates them.
+UPDATE submissions
+SET status = 'OPEN'
+WHERE status IN ('VALIDATING', 'COMMITTING');
