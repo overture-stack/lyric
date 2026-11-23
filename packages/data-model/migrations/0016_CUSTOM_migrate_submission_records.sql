@@ -197,7 +197,7 @@ SELECT
 	er.action_type::submission_record_type,
 	ae.error_data,
 	CASE
-		WHEN er.submission_status::text IN ('OPEN', 'VALIDATING', 'COMMITTING') THEN 'RECEIVED'::submission_record_state
+		WHEN er.submission_status::text IN ('OPEN', 'VALIDATING') THEN 'RECEIVED'::submission_record_state
 		WHEN er.submission_status = 'INVALID' OR ae.error_data IS NOT NULL THEN 'INVALID'::submission_record_state
 		ELSE 'VALID'::submission_record_state
 	END AS state,
@@ -210,9 +210,18 @@ LEFT JOIN aggregated_errors ae
 	AND ae.record_index = er.record_index;
 --> statement-breakpoint
 
--- Step 9: reopen submissions left in progress. No validation or commit job carries over the migration to finish
--- them, so they would stay 'VALIDATING' or 'COMMITTING' and block their user from changing or replacing them. Their
--- records were staged as 'RECEIVED' above, so the next change to the submission validates them.
+-- Step 9: return submissions left in progress to a status their user can act on. No validation or commit job carries
+-- over the migration to finish them, so they would stay 'VALIDATING' or 'COMMITTING' and block their user from
+-- changing or replacing them.
+-- - 'VALIDATING' becomes 'OPEN'. Its records were staged as 'RECEIVED' above, so the next change to the submission
+--   validates them.
+-- - 'COMMITTING' becomes 'VALID'. A commit only started from 'VALID' and wrote its data in the same transaction that
+--   set 'COMMITTED', so nothing was written and the submission can be committed again.
+-- Statuses are compared as text because 'VALIDATING' and 'COMMITTING' are added to the enum by earlier migrations
+-- that can run in the same transaction, where PostgreSQL rejects casting a literal to a newly added enum value.
 UPDATE submissions
-SET status = 'OPEN'
-WHERE status IN ('VALIDATING', 'COMMITTING');
+SET status = CASE status::text
+	WHEN 'VALIDATING' THEN 'OPEN'::submission_status
+	ELSE 'VALID'::submission_status
+END
+WHERE status::text IN ('VALIDATING', 'COMMITTING');
