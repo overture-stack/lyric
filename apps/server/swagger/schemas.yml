@@ -165,11 +165,13 @@ components:
           description: System ID of the Submitted Data record to update
         old:
           type: object
-          description: Current values of the fields being changed, keyed by field name
+          description: >
+            Current values of the fields being changed or removed, keyed by field name. A field the record doesn't have yet
+            is absent, so this is empty when the update only adds fields.
           additionalProperties: true
         new:
           type: object
-          description: New values of the fields being changed, keyed by field name
+          description: New values of the fields being changed or added, keyed by field name. A field being removed is absent.
           additionalProperties: true
 
     SubmissionDeleteData:
@@ -197,11 +199,19 @@ components:
     SubmissionRecordBase:
       type: object
       required:
+        - appliedByChildren
         - entityName
         - fileId
         - id
+        - parentRecordId
         - state
       properties:
+        appliedByChildren:
+          type: boolean
+          description: >
+            `true` when the system carries out this record through its child records instead of applying it, such as an
+            update to an ID field, carried out as a DELETE and an INSERT. Validation and commit use the children in its
+            place, and the children's errors are reported on this record.
         entityName:
           type: string
           description: Name of the entity
@@ -222,7 +232,15 @@ components:
           nullable: true
           description: >
             Line number of the record in its uploaded file, counting the header as line 1, so the first data row is line 2.
-            For records submitted as JSON or created by edit and delete requests, this is the 1-based position of the record in the request.
+            Records submitted as JSON or staged by edit and delete requests are numbered the same way, so the first record
+            of the request is line 2. Records the system stages are numbered by their position in their system-generated file.
+        parentRecordId:
+          type: integer
+          nullable: true
+          description: >
+            ID of the record that caused the system to stage this one, such as the user's update that a DELETE and INSERT
+            carry out, or the user's delete whose dependents are deleted with it. Removing the file of the parent record
+            removes this record too. `null` for a record the user submitted.
         state:
           type: string
           description: State of the record in the submission
