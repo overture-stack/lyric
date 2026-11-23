@@ -1188,7 +1188,9 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				fileResult.push(fileProcessed.fileResult);
 			}
 
-			const filesToStage = parsingFileDataResult.filter((fileProcessed) => fileProcessed.fileResult.status === 'ok');
+			// Files with values that could not be parsed are staged too; validation reports those values as errors on
+			// their records. Only files that could not be read are left out
+			const filesToStage = parsingFileDataResult.filter((fileProcessed) => fileProcessed.fileResult.status !== 'error');
 
 			if (filesToStage.length === 0) {
 				logger.info(LOG_MODULE, `No valid files to stage on Submission '${submissionId}'`);

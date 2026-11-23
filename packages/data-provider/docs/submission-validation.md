@@ -28,6 +28,8 @@ After the transaction, it queues a validation job for that new `version`.
 
 Before staging uploaded files, Lyric also checks each file's headers against its schema. A file missing a required field is rejected and none of its records are staged. This header check is separate from the validation described on this page.
 
+Every record of a file that passes the header check is staged, including records with values that can't be converted to their field's type, such as `abc` in an integer field. These values are staged as they were sent, and validation reports them as errors on their records. With `sync=true`, the response also lists them in `fileResults`.
+
 Edits and deletes of Submitted Data are also checked before anything is staged. The request responds with status `INVALID_SUBMISSION`, and stages none of its records, when:
 
 - an edit has a record without a `systemId`, or sends the same `systemId` twice;
