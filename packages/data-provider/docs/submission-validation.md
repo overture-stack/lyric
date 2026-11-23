@@ -28,6 +28,14 @@ After the transaction, it queues a validation job for that new `version`.
 
 Before staging uploaded files, Lyric also checks each file's headers against its schema. A file missing a required field is rejected and none of its records are staged. This header check is separate from the validation described on this page.
 
+Edits and deletes of Submitted Data are also checked before anything is staged. The request responds with status `INVALID_SUBMISSION`, and stages none of its records, when:
+
+- an edit has a record without a `systemId`, or sends the same `systemId` twice;
+- a `systemId` isn't found in the request's entity, organization and category (`DELETE /submission/category/{categoryId}/data/{systemId}` responds `400 Bad Request` instead);
+- an edit's `systemId` already has an UPDATE or a DELETE staged, or a delete's `systemId` already has an UPDATE staged. A `systemId` already staged for deletion is skipped instead.
+
+So a `systemId` has at most one staged change. To change it again, remove the file holding its staged change first.
+
 ## Submission status and version
 
 **The `version` makes sure a validation result always describes the Submission's current records.** Every change increments it, and each validation job carries the version it was queued for.
@@ -45,7 +53,7 @@ Every status and transition is drawn in the [Submission status diagram](../../da
 1. **Moves the Submission to `VALIDATING`**, checking its status and version in the same update.
 2. **Loads every staged record**, plus the organization's Submitted Data for the category.
 3. **Leaves out records applied by their children.** See [Records the system stages](#records-the-system-stages) below.
-4. **Rejects conflicting actions.** If the same `systemId` has both an UPDATE and a DELETE staged, both records get an error and neither is validated further. Lyric doesn't pick one action over the other.
+4. **Rejects conflicting actions.** If the same `systemId` has both an UPDATE and a DELETE staged, or more than one UPDATE, all of those records get an error and none is validated further. Lyric doesn't pick one action over another. Requests already refuse to stage a second change for a `systemId`; this check catches the cases they can't see, such as two edits sent at the same time, or an UPDATE the system stages for a record whose ID reference changed.
 5. **Merges the records with Submitted Data**, building the data set the category would have once the Submission is committed:
    - Submitted Data being deleted is removed.
    - Submitted Data being updated gets the new values.

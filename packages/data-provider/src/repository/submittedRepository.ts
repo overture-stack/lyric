@@ -509,6 +509,26 @@ const repository = (dependencies: BaseDependencies) => {
 		},
 
 		/**
+		 * Query to retrieve the SubmittedData records matching any of the given System IDs.
+		 * System IDs with no matching record are left out of the result, so it can be shorter than `systemIds`.
+		 * Returns an empty array when `systemIds` is empty.
+		 * @throws {ServiceUnavailable} When the query fails.
+		 */
+		getSubmittedDataBySystemIds: async (systemIds: string[]): Promise<SubmittedData[]> => {
+			if (systemIds.length === 0) {
+				return [];
+			}
+			try {
+				return await db.query.submittedData.findMany({
+					where: inArray(submittedData.systemId, systemIds),
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying SubmittedData by '${systemIds.length}' systemIds`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
 		 * Query to retrieve submitted data filtered by JSONB field on an organization
 		 * Returns an array of SubmittedData records found or an empty array if there are no matching records
 		 * @param {string} organization

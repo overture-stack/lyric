@@ -146,6 +146,77 @@ export const findUpdateDeleteConflicts = (submissionData: SubmissionRecordWithEn
 };
 
 /**
+ * Finds entity-scoped system IDs that have more than one `UPDATE` record staged in the Active Submission.
+ *
+ * Every `UPDATE` record of such a system ID gets a conflict error, so none of them is applied in place of the others.
+ *
+ * @param submissionData - The Active Submission records to inspect.
+ * @returns Conflict errors grouped by entity name under the `updates` bucket, or an empty object when there are none.
+ */
+export const findDuplicateUpdates = (submissionData: SubmissionRecordWithEntityName[]): SubmissionErrors => {
+	const updateRecordIdsByEntity = new Map<string, Map<string, number[]>>();
+
+	submissionData.filter(isUpdateSubmissionRecord).forEach((record) => {
+		const bySystemId = updateRecordIdsByEntity.get(record.entityName) ?? new Map<string, number[]>();
+		bySystemId.set(record.data.systemId, [...(bySystemId.get(record.data.systemId) ?? []), record.id]);
+		updateRecordIdsByEntity.set(record.entityName, bySystemId);
+	});
+
+	const conflictErrors: SubmissionErrors = {};
+
+	updateRecordIdsByEntity.forEach((bySystemId, entityName) => {
+		bySystemId.forEach((recordIds, systemId) => {
+			if (recordIds.length < 2) {
+				return;
+			}
+			const conflictError: RecordErrorActionConflict = {
+				reason: 'CONFLICTING_ACTION',
+				systemId,
+				conflictingActionType: 'UPDATE',
+				message: `Record with systemId '${systemId}' has more than one UPDATE staged in the same Active Submission`,
+			};
+			conflictErrors.updates ??= {};
+			conflictErrors.updates[entityName] = [
+				...(conflictErrors.updates[entityName] ?? []),
+				...recordIds.map((recordId) => ({ recordId, errors: [conflictError] })),
+			];
+		});
+	});
+
+	return conflictErrors;
+};
+
+/**
+ * Finds which of the given system IDs of one entity already have an `UPDATE` or a `DELETE` staged in an Active
+ * Submission. `INSERT` records and records of other entities are ignored.
+ *
+ * @param existingSubmissionRecords - The Active Submission's existing records.
+ * @returns The system IDs with a staged `UPDATE`, and those with a staged `DELETE`, each in the order of `systemIds`.
+ */
+export const findStagedActionsForSystemIds = ({
+	entityName,
+	existingSubmissionRecords,
+	systemIds,
+}: {
+	entityName: string;
+	existingSubmissionRecords: SubmissionRecordWithEntityName[];
+	systemIds: string[];
+}): { updatedSystemIds: string[]; deletedSystemIds: string[] } => {
+	const entityRecords = existingSubmissionRecords.filter((record) => record.entityName === entityName);
+	const stagedUpdateSystemIds = new Set(
+		entityRecords.filter(isUpdateSubmissionRecord).map(({ data }) => data.systemId),
+	);
+	const stagedDeleteSystemIds = new Set(
+		entityRecords.filter(isDeleteSubmissionRecord).map(({ data }) => data.systemId),
+	);
+
+	return {
+		updatedSystemIds: systemIds.filter((systemId) => stagedUpdateSystemIds.has(systemId)),
+		deletedSystemIds: systemIds.filter((systemId) => stagedDeleteSystemIds.has(systemId)),
+	};
+};
+
+/**
  * Represents the result of resolving conflicts when staging delete records in an Active Submission.
  */
 type DeleteStagingConflictResolution = {

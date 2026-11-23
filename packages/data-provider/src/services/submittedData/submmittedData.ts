@@ -14,7 +14,11 @@ import { getDictionarySchemaRelations } from '../../utils/dictionarySchemaRelati
 import { InternalServerError, StatusConflict } from '../../utils/errors.js';
 import { genericSubmissionFileName, getSizeInBytes, toLineNumber } from '../../utils/fileUtils.js';
 import type { PaginatedResult } from '../../utils/result.js';
-import { isDeleteSubmissionRecord, resolveDeleteStagingConflicts } from '../../utils/submissionRecordUtils.js';
+import {
+	findStagedActionsForSystemIds,
+	isDeleteSubmissionRecord,
+	resolveDeleteStagingConflicts,
+} from '../../utils/submissionRecordUtils.js';
 import {
 	fetchDataErrorResponse,
 	getEntityNamesFromFilterOptions,
@@ -270,6 +274,80 @@ const submittedData = (dependencies: BaseDependencies) => {
 		};
 	};
 
+	/**
+	 * Describes every record of an edit request that doesn't identify exactly one Submitted Data record of `entityName`
+	 * in this category and organization. A record is reported when:
+	 * - it has no `systemId`;
+	 * - its `systemId` appears more than once in `records`;
+	 * - its `systemId` is not found. A System ID of another entity, category or organization is reported as not found,
+	 *   the same as one that doesn't exist.
+	 *
+	 * @returns A description listing each kind of problem found, or `undefined` when every record is recognized.
+	 * @throws {ServiceUnavailable} When the Submitted Data query fails.
+	 *
+	 * @example
+	 * // Records on lines 3 and 4 have no systemId, 'TGR1425' is sent twice and 'BR8912' doesn't exist
+	 * await describeUnrecognizedEditRecords({ categoryId: 1, entityName: 'animals', organization: 'zoo', records });
+	 * // "Records on line(s) 3, 4 have no systemId. System ID(s) 'TGR1425' appear more than once in the request.
+	 * //  System ID(s) 'BR8912' not found in entity 'animals' of organization 'zoo'."
+	 */
+	const describeUnrecognizedEditRecords = async ({
+		categoryId,
+		entityName,
+		organization,
+		records,
+	}: {
+		categoryId: number;
+		entityName: string;
+		organization: string;
+		records: Record<string, unknown>[];
+	}): Promise<string | undefined> => {
+		const linesWithoutSystemId: number[] = [];
+		const systemIdCounts = new Map<string, number>();
+		records.forEach((record, index) => {
+			const systemId = record['systemId'];
+			if (systemId === undefined || systemId === null || systemId === '') {
+				linesWithoutSystemId.push(toLineNumber(index));
+				return;
+			}
+			systemIdCounts.set(String(systemId), (systemIdCounts.get(String(systemId)) ?? 0) + 1);
+		});
+
+		const requestedSystemIds = [...systemIdCounts.keys()];
+		const repeatedSystemIds = requestedSystemIds.filter((systemId) => (systemIdCounts.get(systemId) ?? 0) > 1);
+
+		const foundSystemIds = new Set(
+			(await submittedDataRepo.getSubmittedDataBySystemIds(requestedSystemIds))
+				.filter(
+					(found) =>
+						found.entityName === entityName &&
+						found.organization === organization &&
+						found.dictionaryCategoryId === categoryId,
+				)
+				.map((found) => found.systemId),
+		);
+		const notFoundSystemIds = requestedSystemIds.filter((systemId) => !foundSystemIds.has(systemId));
+
+		const problems = [
+			...(linesWithoutSystemId.length > 0
+				? [`Records on line(s) ${linesWithoutSystemId.join(', ')} have no systemId`]
+				: []),
+			...(repeatedSystemIds.length > 0
+				? [`System ID(s) '${repeatedSystemIds.join(', ')}' appear more than once in the request`]
+				: []),
+			...(notFoundSystemIds.length > 0
+				? [
+						`System ID(s) '${notFoundSystemIds.join(', ')}' not found in entity '${entityName}' of organization '${organization}'`,
+					]
+				: []),
+		];
+		if (problems.length === 0) {
+			return undefined;
+		}
+		logger.info(LOG_MODULE, `Rejected edit on entity '${entityName}': ${problems.join('. ')}`);
+		return `${problems.join('. ')}.`;
+	};
+
 	const editSubmittedData = async ({
 		categoryId,
 		entityName,
@@ -326,6 +404,19 @@ const submittedData = (dependencies: BaseDependencies) => {
 			};
 		}
 
+		const unrecognizedRecordsDescription = await describeUnrecognizedEditRecords({
+			categoryId,
+			entityName,
+			organization,
+			records,
+		});
+		if (unrecognizedRecordsDescription) {
+			return {
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				description: unrecognizedRecordsDescription,
+			};
+		}
+
 		// Get Active Submission or Open a new one
 		let activeSubmissionId: number;
 		try {
@@ -338,6 +429,32 @@ const submittedData = (dependencies: BaseDependencies) => {
 				};
 			}
 			throw error;
+		}
+
+		// Only one UPDATE or DELETE can be staged for a system ID, so validation and commit always apply the same change
+		const existingSubmissionRecords = await submissionRecordsRepository.getBySubmissionId(
+			activeSubmissionId,
+			undefined,
+			{ actionTypes: ['UPDATE', 'DELETE'] },
+		);
+		const { updatedSystemIds, deletedSystemIds } = findStagedActionsForSystemIds({
+			entityName,
+			existingSubmissionRecords: existingSubmissionRecords.records,
+			systemIds: records.map((record) => String(record['systemId'])),
+		});
+		if (updatedSystemIds.length > 0 || deletedSystemIds.length > 0) {
+			const stagedActions = [
+				...(updatedSystemIds.length > 0 ? [`an update staged for System ID(s) '${updatedSystemIds.join(', ')}'`] : []),
+				...(deletedSystemIds.length > 0 ? [`a delete staged for System ID(s) '${deletedSystemIds.join(', ')}'`] : []),
+			];
+			logger.info(
+				LOG_MODULE,
+				`Rejected edit on Submission '${activeSubmissionId}': it already has ${stagedActions.join(' and ')}`,
+			);
+			return {
+				status: ACTIVE_SUBMISSION_STATUS.INVALID_SUBMISSION,
+				description: `Submission '${activeSubmissionId}' already has ${stagedActions.join(' and ')}. Remove the file that caused the staged change before editing these records again.`,
+			};
 		}
 
 		// Running Schema validation in the background do not need to wait

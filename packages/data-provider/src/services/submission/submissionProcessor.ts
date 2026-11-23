@@ -29,6 +29,7 @@ import { convertRecordToString } from '../../utils/formatUtils.js';
 import { parseRecordsToInsert } from '../../utils/recordsParser.js';
 import {
 	extractRecordIdsFromSubmissionErrors,
+	findDuplicateUpdates,
 	findUpdateDeleteConflicts,
 	mergeSubmissionErrors,
 	reportChildErrorsOnParents,
@@ -141,6 +142,8 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 	 * @returns {Promise<SubmissionUpdateData[]>} An array of `SubmissionUpdateData` objects. Each object
 	 *          contains the `systemId`, `old` data, and `new` data representing the differences
 	 *          between the previously submitted data and the updated record.
+	 *          Records without a `systemId`, records whose `systemId` is not found in `schemaName`, and records
+	 *          that change nothing are left out.
 	 */
 	const compareUpdatedData = async (records: DataRecord[], schemaName: string): Promise<SubmissionUpdateData[]> => {
 		const results: SubmissionUpdateData[] = [];
@@ -152,38 +155,29 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 				return;
 			}
 
+			// System IDs are checked when the edit is requested; a record removed since then has nothing left to update
 			const foundSubmittedData = await getSubmittedDataBySystemId(systemId);
-			if (foundSubmittedData?.data) {
-				if (foundSubmittedData.entityName !== schemaName) {
-					logger.info(
-						LOG_MODULE,
-						`Entity name mismatch for system ID '${systemId}': expected '${schemaName}', found '${foundSubmittedData.entityName}'`,
-					);
-					results.push({
-						systemId: systemId,
-						old: {},
-						new: {},
-					});
-					return;
-				}
-				const changeData = _.omit(record, 'systemId');
-				const diffData = computeDataDiff(foundSubmittedData.data, changeData);
-				if (!_.isEmpty(diffData.old) && !_.isEmpty(diffData.new)) {
-					results.push({
-						systemId: systemId,
-						old: diffData.old,
-						new: diffData.new,
-					});
-				}
-			} else {
+			if (!foundSubmittedData?.data) {
 				logger.info(LOG_MODULE, `No submitted data found for system ID '${systemId}'`);
+				return;
+			}
+			if (foundSubmittedData.entityName !== schemaName) {
+				logger.info(
+					LOG_MODULE,
+					`Entity name mismatch for system ID '${systemId}': expected '${schemaName}', found '${foundSubmittedData.entityName}'`,
+				);
+				return;
+			}
+
+			const changeData = _.omit(record, 'systemId');
+			const diffData = computeDataDiff(foundSubmittedData.data, changeData);
+			if (!_.isEmpty(diffData.old) && !_.isEmpty(diffData.new)) {
 				results.push({
 					systemId: systemId,
-					old: {},
-					new: {},
+					old: diffData.old,
+					new: diffData.new,
 				});
 			}
-			return;
 		});
 
 		// Wait for all records to be processed
@@ -680,16 +674,19 @@ const createSubmissionProcessor = (dependencies: BaseDependencies) => {
 		// Records applied by their children are carried out by those children, which are validated in their place
 		const recordsToValidate = submissionRecords.records.filter((record) => !record.appliedByChildren);
 
-		// Detect records where the same systemId has both an UPDATE and a DELETE staged, before
-		// running dictionary validation. Both sides of a conflict are rejected explicitly instead
-		// of letting one action silently win.
-		const conflictErrors = findUpdateDeleteConflicts(recordsToValidate);
+		// Detect records where the same systemId has both an UPDATE and a DELETE staged, or more than one UPDATE, before
+		// running dictionary validation. Every side of a conflict is rejected explicitly instead of letting one action
+		// silently win.
+		const conflictErrors = mergeSubmissionErrors(
+			findUpdateDeleteConflicts(recordsToValidate),
+			findDuplicateUpdates(recordsToValidate),
+		);
 		const conflictingRecordIds = extractRecordIdsFromSubmissionErrors(conflictErrors);
 
 		if (conflictingRecordIds.size > 0) {
 			logger.info(
 				LOG_MODULE,
-				`Detected '${conflictingRecordIds.size}' Submission Record(s) with conflicting UPDATE/DELETE actions on the same systemId in Submission '${submissionId}'`,
+				`Detected '${conflictingRecordIds.size}' Submission Record(s) with conflicting actions on the same systemId in Submission '${submissionId}'`,
 				JSON.stringify(conflictErrors),
 			);
 		}
