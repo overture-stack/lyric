@@ -111,23 +111,25 @@ const submissionActionTypeSchema = zod
 	.min(1)
 	.refine((value) => isSubmissionActionTypeValid(value), 'invalid Submission Action Type');
 
-const submissionIdSchema = zod
-	.string()
-	.trim()
-	.min(1)
-	.refine((value) => {
-		const parsed = parseInt(value);
-		return isValidIdNumber(parsed);
-	}, 'invalid submission ID');
+// The largest value of a PostgreSQL `serial` column, the type of every ID column
+const MAX_SERIAL_ID = 2_147_483_647;
 
-const migrationIdSchema = zod
-	.string()
-	.trim()
-	.min(1)
-	.refine((value) => {
-		const parsed = parseInt(value);
-		return isValidIdNumber(parsed);
-	}, 'invalid migration ID');
+// An ID must be digits only, so that `parseInt` and `Number` read the same value from it: `parseInt` reads '1e2' as 1
+// and '12abc' as 12, while `Number` reads them as 100 and NaN
+const idSchema = (description: string) =>
+	zod
+		.string()
+		.trim()
+		.refine(
+			(value) => /^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= MAX_SERIAL_ID,
+			`invalid ${description}`,
+		);
+
+const submissionIdSchema = idSchema('submission ID');
+
+const migrationIdSchema = idSchema('migration ID');
+
+const fileIdSchema = idSchema('file ID');
 
 const stringNotEmpty = zod.string().trim().min(1);
 
@@ -346,7 +348,7 @@ export const submissionDetailsRequestSchema: RequestValidation<
 		.object({
 			entityNames: zod.union([entityNameSchema, entityNameSchema.array()]).optional(),
 			actionTypes: zod.union([submissionActionTypeSchema, submissionActionTypeSchema.array()]).optional(),
-			fileId: positiveInteger.optional(),
+			fileId: fileIdSchema.optional(),
 		})
 		.merge(paginationQuerySchema),
 	pathParams: submissionIdPathParamSchema,
@@ -401,7 +403,7 @@ export const submissionFileDeleteRequestSchema: RequestValidation<
 	SubmissionFileDeleteParams
 > = {
 	query: zod.object({
-		fileId: positiveInteger,
+		fileId: fileIdSchema,
 	}),
 	pathParams: zod.object({
 		submissionId: submissionIdSchema,

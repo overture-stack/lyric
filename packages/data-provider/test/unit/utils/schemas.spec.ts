@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { uploadSubmissionRequestSchema } from '../../../src/utils/schemas.js';
+import { submissionFileDeleteRequestSchema, uploadSubmissionRequestSchema } from '../../../src/utils/schemas.js';
 
 const bodySchema = uploadSubmissionRequestSchema.body;
 const querySchema = uploadSubmissionRequestSchema.query;
@@ -87,5 +87,31 @@ describe('uploadSubmissionRequestSchema query', () => {
 	it('rejects sync with a value outside the allowed enum', () => {
 		const result = querySchema?.safeParse({ organization: 'test-org', sync: 'yes' });
 		expect(result?.success).to.be.false;
+	});
+});
+
+describe('submissionFileDeleteRequestSchema', () => {
+	const fileQuerySchema = submissionFileDeleteRequestSchema.query;
+	const pathParamsSchema = submissionFileDeleteRequestSchema.pathParams;
+
+	it('accepts a positive integer file ID and submission ID', () => {
+		expect(fileQuerySchema?.safeParse({ fileId: '12' }).success).to.be.true;
+		expect(pathParamsSchema?.safeParse({ submissionId: '3' }).success).to.be.true;
+	});
+
+	it('rejects a file ID that is not digits only', () => {
+		['1e2', '12abc', '1.5', '-1', '0x10', ''].forEach(
+			(fileId) => expect(fileQuerySchema?.safeParse({ fileId }).success, fileId).to.be.false,
+		);
+	});
+
+	it('rejects a file ID of 0 or above the largest serial value', () => {
+		expect(fileQuerySchema?.safeParse({ fileId: '0' }).success).to.be.false;
+		expect(fileQuerySchema?.safeParse({ fileId: '2147483648' }).success).to.be.false;
+		expect(fileQuerySchema?.safeParse({ fileId: '2147483647' }).success).to.be.true;
+	});
+
+	it('rejects a submission ID that is not digits only', () => {
+		expect(pathParamsSchema?.safeParse({ submissionId: '1e2' }).success).to.be.false;
 	});
 });

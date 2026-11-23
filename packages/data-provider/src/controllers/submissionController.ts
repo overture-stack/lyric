@@ -278,7 +278,7 @@ const controller = ({
 			try {
 				const submissionId = Number(req.params.submissionId);
 				const entityNames = asArray(req.query.entityNames || []);
-				const fileId = req.query.fileId ? parseInt(req.query.fileId) : undefined;
+				const fileId = req.query.fileId ? Number(req.query.fileId) : undefined;
 
 				const actionTypes = parseSubmissionActionTypes(req.query.actionTypes || SUBMISSION_RECORD_ACTION_TYPE.options);
 
