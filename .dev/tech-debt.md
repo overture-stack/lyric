@@ -58,9 +58,9 @@ standalone: yes
 context: `server.ts` creates a logger with `getLogger()` and `buildAppConfig()` creates a second one internally from `LoggerConfig`.
 
 ### Base image has known high vulnerability
-fix: pin to a patched digest, or upgrade to a newer `node:22-alpine` release once available.
+fix: check whether `node:24-alpine` is still flagged; if it is, pin to a patched digest, or upgrade to a newer `node:24-alpine` release once available.
 standalone: yes
-context: `FROM node:22-alpine` (Dockerfile line 9) is flagged with a high CVE by the IDE linter. Pre-existing, unrelated to Kafka work.
+context: `FROM node:22-alpine` (Dockerfile line 9) was flagged with a high CVE by the IDE linter. The Dockerfile now uses `node:24-alpine`, the Node version pinned in `.nvmrc`, and hasn't been checked against the linter since. Pre-existing, unrelated to Kafka work.
 
 ### Category-level admin actions have no privilege check beyond "authenticated"
 fix: needs a scope decision (likely an `isAdmin` gate) covering all three call sites together, not a patch to just the new ones.
