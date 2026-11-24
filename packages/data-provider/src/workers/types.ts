@@ -61,33 +61,42 @@ export type WorkerFunctions = {
  * Defines the functions that the worker thread registers dynamically, they are primarily used by the Worker Pool Manager only.
  * These functions must be serializable and cannot include functions (e.g., database connections, logger instances, etc.)
  * since they will be executed in a separate thread.
+ *
+ * The pool runs each call on whichever worker is free, and starts or replaces workers at any time,
+ * so every task receives the serializable `appConfig` and initializes its worker on first use.
  */
 export type WorkerProxy = {
 	/**
-	 * Initializes the worker context with the provided application configuration.
+	 * Checks at startup that a worker can initialize with the provided application configuration,
+	 * so a bad configuration stops the application from starting.
+	 * Only reaches one worker in the pool, which it leaves initialized; it does not prepare the other workers,
+	 * since every task initializes its own worker on first use.
 	 * @param appConfig The application configuration
-	 * @returns A void promise that resolves when the worker context is initialized
+	 * @returns A void promise that resolves when the worker has initialized
 	 */
-	initializeWorker: (appConfig: AppConfig) => Promise<void>;
+	verifyWorkerInitialization: (appConfig: AppConfig) => Promise<void>;
 	/**
 	 * * This function is executed in the worker thread to start processing the commit submission logic.
 	 * Since this runs in a worker, we cannot execute the onFinishCommit callback here,
 	 * instead we return the result and execute it in the main thread.
 	 * @param input The input data for the commit submission
+	 * @param appConfig The application configuration, used to initialize the worker if it has not been yet
 	 * @returns A promise that resolves with the result of the commit submission process
 	 */
-	commitSubmission: (input: CommitWorkerInput) => Promise<ResultOnCommit>;
+	commitSubmission: (input: CommitWorkerInput, appConfig: AppConfig) => Promise<ResultOnCommit>;
 	/**
 	 * This function is executed in the worker thread to start the data validation process.
 	 *
 	 * Resolves with the submission ID, or `undefined` when the validation was skipped or its result discarded
 	 * because the Submission changed after the validation was queued.
+	 * @param input The input data for the data validation
+	 * @param appConfig The application configuration, used to initialize the worker if it has not been yet
 	 */
-	dataValidation: (input: DataValidationWorkerInput) => Promise<number | undefined>;
+	dataValidation: (input: DataValidationWorkerInput, appConfig: AppConfig) => Promise<number | undefined>;
 	/**
 	 * This function is executed in the worker thread to start the dictionary migration process.
-	 * @param input
-	 * @returns
+	 * @param input The input data for the dictionary migration
+	 * @param appConfig The application configuration, used to initialize the worker if it has not been yet
 	 */
-	dictionaryMigration: (input: DictionaryMigrationWorkerInput) => Promise<void>;
+	dictionaryMigration: (input: DictionaryMigrationWorkerInput, appConfig: AppConfig) => Promise<void>;
 };

@@ -17,10 +17,11 @@ const router = ({
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	router.use(authMiddleware(authConfig));
+	const defaultAuthenticator = authMiddleware(authConfig);
 
 	router.get(
 		'/category/:categoryId/entity/:entityName/exists',
+		defaultAuthenticator,
 		validationController({ baseDependencies, validatorConfig }).existsRecord,
 	);
 

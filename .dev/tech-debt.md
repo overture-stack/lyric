@@ -23,9 +23,34 @@ standalone: yes
 context: Services are called from more than HTTP controllers: the validation and commit workers call `submissionProcessor` directly, and future scheduled tasks will too. A service that picks its error for the HTTP response it expects encodes an assumption about its caller that is wrong in those other contexts. For example, `markSubmissionAsChanged` used to throw `BadRequest` for a missing submission even though every caller has already confirmed the submission exists, so a missing one is an inconsistency, not a client error; it now throws `InternalServerError`. The current error classes in `utils/errors.ts` are named after HTTP statuses and mapped to them in `middleware/errorHandler.ts`, so services have no other vocabulary to use. Doing this properly may mean adding error types named for the failure (for example not found, conflict, inconsistent state) and having controllers or `errorHandler` map them to responses. Of the not-found errors thrown under `services/`, 9 use `BadRequest`, 2 `NotFound`, 1 `InternalServerError` and 5 a plain `Error`. `Result` is already used this way in parts of the codebase: `migrationService.ts` returns `AsyncResult<…, string>`, and `submissionFile.ts` returns `Result<SupportedFileExtension, SubmittedFileError>` with a typed failure. The migration functions use a plain message string as failure data, which can't be narrowed by case, so they would need typed failure data too.
 
 ### Migrate off `@overture-stack/sqon-builder` once `@overture-stack/sqon` leaves RC
-fix: Replace `@overture-stack/sqon-builder` (`1.1.0`) with `@overture-stack/sqon`. Rewrite `convertSqonToQuery.ts`'s type guards and SQL-generation branches against the new package's schema types (`SqonLeafSchema`/`SqonGroupSchema`/`SqonNode`), adding the operators sqon-builder never had (`notIn`, `someNotIn`, `all`, `gte`, `lte`, `between`, `wildcard`) alongside the existing `in`/`gt`/`lt`. Update `parseSQON` to the named export `SqonBuilder` (`.from()`/`.toValue()`), and `schemas.ts`'s `sqonSchema` to validate against the new schema directly.
+fix: Replace `@overture-stack/sqon-builder` (`1.1.0`) with `@overture-stack/sqon`. Rewrite `convertSqonToQuery.ts`'s type guards and SQL-generation branches against the new package's schema types (`SqonLeafSchema`/`SqonCombinationSchema`/`SqonNode`). Its field operators are `in`, `not-in`, `some-not-in`, `all`, `gt`, `gte`, `lt`, `lte`, `between` and `wildcard`, and its combinations `and`, `or` and `not`, each with an optional `pivot`; Lyric handles `in`, `gt` and `lt` today. Shapes to respect: `wildcard` takes a `fieldNames` list, `between` a two-value list, and `not-in` and `some-not-in` differ only on nested fields (`not-in`: at least one nested item's value is outside the list; `some-not-in`: no nested item's value is in it). Import shape changes too: `SqonBuilder` is a named export (today's `SQONBuilder` is a default export), and `SqonBuilder.from()` takes an object or a JSON string, throws a `ZodError` when the input is invalid, and returns a builder handle needing `.toValue()` to extract the plain `SqonNode`. Update `parseSQON` accordingly: it maps the SQON package's `ZodError` to `BadRequest` and rethrows every other error, so a parse failure never reaches a caller as `undefined`, which callers read as no filter. The package uses zod 4 (see context) and exports zod schemas in its public API, and a zod 4 schema can't nest inside Lyric's zod 3 schemas, so `schemas.ts`'s `sqonSchema` either moves with Lyric to zod 4, or validates the SQON as a separate step (`SqonSchema.safeParse`, or `SqonBuilder.from()` in a try), or validates against `getSqonJsonSchema()`; `parseSQON`'s `ZodError` check must match the zod major the package throws. Empty groups follow the Overture-wide rule stated in the SQON package's README and Arranger's 3.1 migration guide: an empty `and`, `or` or `not` means everything, and a root `and[]` means no filter; a compiler may reject an empty group, as Lyric does, but never reads one as nothing; removing one is allowed only directly under `and`; and an access filter containing an empty group anywhere is refused. Add Lyric's conformance cases for that rule as part of this migration.
 standalone: no
-context: `sqon-builder` was absorbed into `@overture-stack/sqon` as a builder utility (its `docs/sqon-builder-absorption.md`), confirmed 2026-07-21. Blocked on release status: `latest` is still `1.0.0-rc.1` (no absorbed builder); only `1.0.0-rc.2` (`rc` tag) has it, no stable release yet. Check `npm view @overture-stack/sqon dist-tags` before starting; once `latest` is non-RC, pick this up rather than defer further. Also check its zod version against Lyric's own for conflicts before adding.
+context: `sqon-builder` was absorbed into `@overture-stack/sqon` as a builder utility (its `docs/sqon-builder-absorption.md`), confirmed 2026-07-21. Blocked on release status, re-checked 2026-11-03: `latest` is still `1.0.0-rc.1` (predates the absorption) and `rc` is at `1.0.0-rc.6`, no stable release yet. The package's main carries changes since rc.6, so ask its maintainers which release to target rather than assuming the newest RC. Check `npm view @overture-stack/sqon dist-tags` before starting; once `latest` is non-RC, pick this up rather than defer further. zod: through rc.5 the package needed `^3.24.2`, which Lyric's `^3.23.8` satisfies; rc.6 moved to `^4.2.0`, as a regular dependency rather than a peer. Acceptance widens in two ways, confirmed against the rc.6 source: `SqonBuilder.from()` normalizes legacy operator aliases rather than rejecting them (`=`, `==` and `===` become `in`; `!=` and `!==` become `not-in`; `>`, `>=`, `<` and `<=` become `gt`, `gte`, `lt` and `lte`; `filter` becomes `wildcard`), and every node schema keeps unknown keys, which sqon-builder accepts but strips. Confirm with the iMS Submission Service before shipping: its request validation uses `parseSQON`, and this migration widens what `parseSQON` accepts. Ship this together with the access entries that follow it.
+
+### An empty readable-organization list matches no submitted data
+fix: `filterByOrganizationArray` (`submittedRepository.ts`) compiles an empty organization list to a condition matching no records, so every caller inherits it. An absent list (`undefined`, which `getUserReadableOrganizations` returns for admins and when auth is disabled) keeps meaning every organization. Test: a non-admin user with no readable organizations sees no submitted data from both category-wide reads, `getSubmittedDataByCategory` and `getSubmittedDataByCategoryStream`, and the pagination total is zero.
+standalone: no
+context: ship before or with the SQON migration release.
+
+### A session is an admin only when `isAdmin` is `true`
+fix: `getUserReadableOrganizations`, `hasUserReadAccess` and `hasUserWriteAccess` (`authUtils.ts`) check `user.isAdmin === true`, since a custom auth handler can build the session from token claims that TypeScript's types don't bind. Test: a session whose `isAdmin` is any value other than `true` reads and writes only its listed organizations, in all three. Ships with a MIGRATION.md note: a `UserSession` reads and writes every organization through `isAdmin: true` only.
+standalone: no
+context: ship before or with the SQON migration release.
+
+### A session without a list of readable organizations reads none
+fix: `getUserReadableOrganizations` (`authUtils.ts`) returns `[]` for a session that isn't an admin and whose `allowedReadOrganizations` isn't an array, which matches no records, as the empty readable-organization list entry requires. Test: such a session sees no submitted data from both category-wide reads, and the pagination total is zero.
+standalone: no
+context: ship before or with the SQON migration release, and no earlier than the empty readable-organization list entry.
+
+### Auth applies to a `HEAD` request wherever it applies to `GET`
+fix: `shouldBypassAuth` (`auth.ts`) decides a `HEAD` request as it decides `GET`, so every route behind the auth middleware, and both category-wide submitted data reads, inherit it. Test: with `protectedMethods: ['GET']`, a `HEAD` request without a user is answered `401`, both through the auth middleware and through `getSubmittedDataByCategory` called from a route outside Lyric's router. Ships with a MIGRATION.md note: auth applies to a `HEAD` request wherever it applies to `GET`.
+standalone: no
+context: ship before or with the SQON migration release.
+
+### `in(field, [])` answers 500 instead of matching nothing
+fix: `processFilterOperator`'s `isArrayFilter` branch (`convertSqonToQuery.ts`) needs an explicit empty-array case that compiles to a condition matching zero rows, not a thrown error. Do not turn it into a `BadRequest` either: an empty value list is valid input and must compile. Once Lyric supports `not-in`, `not-in(field, [])` on a plain field compiles to a condition matching everything, and on a nested field to one matching the records holding at least one nested item. `all` with an empty list is refused by the SQON schema, so Lyric needn't compile it.
+standalone: yes
+context: a client sending an `in` filter with an empty value array (`{op:'in',content:{fieldName,value:[]}}`) gets a 500, not an empty result. The `in` branch calls drizzle's `inArray(column, [])`, which throws a plain `Error('inArray requires at least one value')`, and `errorHandler` answers it with its fixed-text 500 and logs it. The field name does not matter: an unknown field fails the same way. It fails closed: no rows are returned. Arranger's SQON reference defines `in` with `[]` as match-none, which no backend may refuse, and `not-in` with `[]` as match-all on a flat field ([An empty value list is not an empty group](https://github.com/overture-stack/arranger/blob/main/docs/reference/04-sqon-in-detail.md#an-empty-value-list-is-not-an-empty-group)); `SqonBuilder.matchNothing(fieldName)` produces exactly that shape. Usher's bridge never sends it: holding no grants is a deny before any filter exists (Usher's `decisions.md`, "Holding no grants is a distinct state, never an empty filter"). It reaches the compiler from any client, today, and from Lyric's own Usher adapter, which uses `matchNothing(fieldName)` as its backstop on any path that builds a filter after a deny, so this fix is required before that adapter ships. The empty-group rule in the migration entry concerns groups, not value lists, so this fix doesn't depend on it. Because `convertSqonToQuery` is public API, a consumer forwarding a client SQON through `parseSQON` into `getSubmittedDataByOrganization` answers the same 500.
 
 ### Tests live in `test/` not co-located with source
 fix: relocate each spec file into the same directory as the source file it tests, renaming `.spec.ts` to `.test.ts` to match convention. New tests should be co-located from now on; migrating the existing files is a standalone cleanup task, not in scope of feature work.
@@ -35,7 +60,7 @@ context: Convention mismatch: team convention is to co-locate test files with so
 ### Some request body/query param types hand-duplicated instead of derived from their zod schema
 fix: convert to `zod.infer`.
 standalone: yes
-context: `schemas.ts` already uses `zod.infer<typeof schema>` in several places (`CategoryOrganizationPathParams`, `UploadSubmissionQueryParams`, others), but `CategoryPathParams`, `DictionaryRegisterBodyParams`, and `DictionaryRegisterQueryParams` are hand-written next to a schema that could derive them, risking drift. Pre-existing, not touched by the alias work; its own new schemas already follow the pattern.
+context: `schemas.ts` already uses `zod.infer<typeof schema>` in several places (`CategoryOrganizationPathParams`, `UploadSubmissionQueryParams`, others), but `CategoryPathParams`, `DictionaryRegisterBodyParams`, and `DictionaryRegisterQueryParams` are hand-written next to a schema that could derive them, risking drift.
 
 ### No centralised env var validation
 fix: add a schema-based startup validation pass (e.g. `zod` on `process.env`) that surfaces all missing/malformed vars at once with a single readable error, rather than each config area failing lazily on first use.
@@ -55,17 +80,17 @@ context: `server.ts` creates a logger with `getLogger()` and `buildAppConfig()` 
 ### Base image has known high vulnerability
 fix: check whether `node:24-alpine` is still flagged; if it is, pin to a patched digest, or upgrade to a newer `node:24-alpine` release once available.
 standalone: yes
-context: `FROM node:22-alpine` (Dockerfile line 9) was flagged with a high CVE by the IDE linter. The Dockerfile now uses `node:24-alpine`, the Node version pinned in `.nvmrc`, and hasn't been checked against the linter since. Pre-existing, unrelated to Kafka work.
+context: `FROM node:22-alpine` (Dockerfile line 9) was flagged with a high CVE by the IDE linter. The Dockerfile now uses `node:24-alpine`, the Node version pinned in `.nvmrc`, and hasn't been checked against the linter since.
 
-### Category-level admin actions have no privilege check beyond "authenticated"
-fix: needs a scope decision (likely an `isAdmin` gate) covering all three call sites together, not a patch to just the new ones.
-standalone: no
-context: `UserSession` declares `isAdmin`/org-scoped read-write lists, and `authUtils.ts` enforces them, but only the submission/submitted-data controllers call those helpers. Category actions (`dictionaryService.register()`, and now `assignAlias`/`unassignAlias`) have no privilege check beyond authentication; categories aren't organization-scoped, so the existing helpers don't apply directly. Not a regression, assign/unassign matches `register()`'s existing posture, but both are administrative, audit-logged actions worth gating.
+### The image is built with a different pnpm than CI
+fix: change the `Dockerfile`'s `corepack prepare pnpm@11.1.1 --activate` to the version vetted by the Jenkins pipeline library's shared pnpm step, 12.9.1 as of 2026-11-09, so the image and the tests use the same pnpm.
+standalone: yes
+context: Lyric's pipeline installs, builds and tests through the library's shared pnpm step. That step uses the version named by `packageManager` in the root `package.json`, or the library's default when none is named, as in Lyric's today. Setting `packageManager` stops the build unless the library has vetted the version it names. Both builds install from the same frozen lockfile, and pnpm 12.9.1 installs it.
 
 ### `auditController`'s own "No Records found" check is unreachable dead code
 fix: remove the redundant check, or confirm why both exist first.
 standalone: yes
-context: `byCategoryIdAndOrganization` (`auditController.ts`) throws `NotFound('No Records found')` on zero results, but `auditService.byCategoryIdAndOrganization` already throws its own `NotFound('No data found')` first whenever the query is empty, so the controller's check can never fire. Pre-existing, unrelated to the alias work.
+context: `byCategoryIdAndOrganization` (`auditController.ts`) throws `NotFound('No Records found')` on zero results, but `auditService.byCategoryIdAndOrganization` already throws its own `NotFound('No data found')` first whenever the query is empty, so the controller's check can never fire.
 
 ### Sequential numeric category id allows enumeration
 fix: not scoped yet; would mean exposing categories only by alias externally, or moving to a non-sequential primary key, both bigger decisions than this entry alone can resolve.
@@ -74,9 +99,12 @@ context: `dictionary_categories.id` is a plain auto-increment `serial`, used dir
 
 ### Issue #43 ("Sanitize JSON data") covers 3 items; only the SQON one is fixed
 standalone: yes
-context: #43 lists three items: SQON `fieldName`/`value` sanitization on the query endpoint, TSV-data sanitization before DB insert, and a general other-endpoints input-parameter audit. Only the first is fixed in code today, via parameterized queries in `convertSqonToQuery.ts` and, for the same unescaped-splice-into-`sql.raw()` pattern, `submittedRepository.ts`'s `getSubmittedDataFiltered` (that path is FK-relationship resolution during compound-view reads/submission processing, not literally "the query endpoint" the item names). TSV sanitization and the broader endpoint audit remain untouched and unscoped. Fix: two further, separate efforts — (1) sanitize TSV data before inserting into the database, (2) audit other endpoints' input parameters (path params, query params, etc.) for the same class of issue. #43 should stay open until both land.
+context: #43 lists three items: SQON `fieldName`/`value` sanitization on the query endpoint, TSV-data sanitization before DB insert, and a general other-endpoints input-parameter audit. Only the first is fixed in code today, via parameterized queries in `convertSqonToQuery.ts` and, for the same unescaped-splice-into-`sql.raw()` pattern, `submittedRepository.ts`'s `getSubmittedDataFiltered` (that path is FK-relationship resolution during compound-view reads/submission processing, not literally "the query endpoint" the item names). TSV sanitization and the broader endpoint audit remain untouched and unscoped. Fix: two further, separate efforts: (1) sanitize TSV data before inserting into the database, (2) audit other endpoints' input parameters (path params, query params, etc.) for the same class of issue. #43 should stay open until both land.
 
----
+### A dictionary Lectern doesn't have answers 503 instead of a client error
+fix: Have `@overture-stack/lectern-client`'s `getDictionary` report Lectern's HTTP status on a failed result; its `Result` type already takes failure data. `src/external/lecternClient.ts`'s `fetchDictionaryByVersion` then checks the result outside its `try`, throws `NotFound` for Lectern's 404 and `ServiceUnavailable` for every other failure, and logs the failed result under `LOG_MODULE`. Registration (`dictionaryService.register`, where the name and version come from the request body) answers `NotFound` with `BadRequest` naming the dictionary. `getDictionaryJson` (`dictionaryController.ts`, where the name and version come from the category's stored dictionary) answers it with `InternalServerError`, saying the problem is in the server's configuration, not in the request. Test: registering a dictionary Lectern doesn't have gets 400; reading a category whose dictionary Lectern no longer has gets 500; Lectern unreachable gets 503 on both.
+standalone: no
+context: needs a `lectern-client` release that reports the status, and Lyric moving to it from `2.0.0-beta.6`; `latest` is `2.0.0`. Today a failed `getDictionary` result carries only a message, for a dictionary Lectern doesn't have (Lectern answers 404) and for Lectern being unreachable alike, so moving the `BadRequest` out of the `try` on its own would answer an outage 400. A permanent condition answered 503 tells clients to wait and retry, so a request naming a missing dictionary is retried for as long as the client keeps trying.
 
 ### No integration tests exist for the submission edit, delete, or commit endpoints — let alone mixed insert+update+delete scenarios
 standalone: yes
@@ -106,20 +134,10 @@ context: `GET /submission/category/:categoryId` (`submissionController.ts:233-27
 standalone: yes
 context: The response (`SubmissionSummaryResponse`, `types.ts:302-305`, built by `createSubmissionSummaryResponse`/`submissionResponseParser.ts:65-78`) groups `inserts`/`updates` by `entityName`, each entry only exposing `batchName` (the original filename), `recordsCount`, and `errors` (a count, not detail) — see `submissionResponseParser.ts:14-58` and the source rows shape in `submissionRecordsRepository.ts:20-26,188-208`. Missing relative to the ask: no `fileId` in the response (so a client can't correlate a listed file to a future per-file download/error-report endpoint, above); no file size, even though `submission_files.fileSize` is already stored in the DB (`submission_files.ts:16`) and just isn't selected by `getRecordsSummaryBySubmissionId` (`submissionRecordsRepository.ts:188-197`); no rolled-up per-file validation status (only an error count — the per-record `state` enum `RECEIVED`/`VALID`/`INVALID` exists at `submission_records.ts:12` but isn't aggregated to file level); `deletes` has no per-file breakdown at all in the current model (`DataDeletesSubmissionSummary` is not batched by file).
 
-### Read endpoints must enforce the user's readable organizations on every path
-fix: A non-admin user's readable-organization filter must carry at least one organization clause, so a user with no readable organizations gets no records; an empty combination is not a restriction. `GET /audit/category/{categoryId}/organization/{organization}` checks `hasUserReadAccess` before querying, as the `/data` endpoints with the same path do. Lookups by ID check read access before reporting whether the record exists.
-standalone: yes
-context: Severity high: fix before the next release. Tests: integration tests for a non-admin user with no readable organizations on `GET /data/category/{categoryId}` and `/stream` (no records), for a user without read access on the audit endpoint (403), and for a by-ID lookup of an existing and a non-existing System ID by a user without access (same status for both).
-
 ### `invalidRecords` in the migration list counts every audit record of the migration
 fix: In `getMigrationsByCategoryId` (`packages/data-provider/src/services/migrationService.ts`), pass `newIsValid: false` to `getTotalRecordsByCategoryIdAndOrganization`, as `getMigrationById` already does.
 standalone: yes
 context: `GET /migration/category/{categoryId}` and `GET /migration/{migrationId}` return different `invalidRecords` for the same migration. Once fixed, describe `invalidRecords` as the number of records that are invalid after the migration in `MigrationResult` (`apps/server/swagger/schemas.yml`).
-
-### A dictionary that Lectern doesn't have returns 503 instead of 400
-fix: In `fetchDictionaryByVersion` (`packages/data-provider/src/external/lecternClient.ts`), throw the `BadRequest` for an unsuccessful fetch outside the `try`, so only a failed request to Lectern becomes `ServiceUnavailable`. Then document the `400` for an unknown dictionary on `POST /dictionary/register` in `apps/server/swagger/dictionary-api.yml`.
-standalone: yes
-context: The `BadRequest` is thrown inside the `try` and the `catch` replaces every error with `ServiceUnavailable`, so a wrong dictionary name or version is reported as an outage.
 
 ### `DELETE /submission/category/{categoryId}/data/{systemId}` returns `submissionId` as a string
 fix: Type `submissionId` as `number` in the result of `deleteSubmittedDataBySystemId` (`packages/data-provider/src/services/submittedData/submmittedData.ts`) and drop the `.toString()` calls, then change `DeleteSubmittedDataResult.submissionId` in `apps/server/swagger/schemas.yml` to `integer`. Call it out in the release notes, since clients reading it as a string will see a number.
@@ -166,6 +184,41 @@ fix: Add a mocha test that checks the integration tests' real responses against 
 standalone: no
 context: The response schemas are written by hand in `apps/server`, while the response types live in `packages/data-provider`, so nothing connects them. Blocked on the parameter flattening entry above.
 
+### A malformed multipart upload answers 500 instead of 400
+fix: tell a request that can't be parsed apart from a storage failure on the same upload path, and answer the first with `BadRequest`. Both reach the route as plain `Error`s with no `status`: busboy's parse errors (`Multipart: Boundary not found`, `Unexpected end of form`, `Malformed part header`), and disk storage's own failures, such as `ENOSPC` or `EACCES`, which carry a Node `code` the parse errors lack. A storage failure is a server error and stays a 500, so the fix recognizes parse failures specifically rather than answering every non-multer error from an upload with 400. Test: a body with no boundary, a truncated body and a malformed part header each get 400; a storage failure still gets 500.
+standalone: yes
+context: multer passes busboy's errors on unchanged (`make-middleware.js`, its `busboy.on('error', ...)` handler), so `convertUploadErrors` passes them through and `errorHandler` answers them with its fixed-text 500 and logs them. 0.20.x answered them with 500 too.
+
+### A dictionary migration's revalidation never reaches `onFinishCommit`
+fix: pass each organization's `ResultOnCommit` from a migration back to the main thread and call `onFinishCommit` with it, as `workerPoolManager.ts` does after a commit, so a host reindexes records whose validity was changed by the migration.
+standalone: yes
+context: `performMigrationValidation` (`migrationService.ts`) passes `onFinishCommit` along, but the worker's config sets it to `undefined`, and `performCommitSubmissionAsync` never calls it. A host reindexing on commit keeps stale `isValid` values for every record revalidated by a migration. A later commit reports only records whose validity changes in that commit, so it does not correct them either.
+
+### A migration interrupted by a restart blocks its category's commits
+fix: when the server starts, mark `FAILED` any `IN_PROGRESS` migration whose run no longer holds its lock, so `?force=true` on dictionary registration can re-run it.
+standalone: yes
+context: the run takes the lock when it starts, such as a session-level Postgres advisory lock keyed to the migration, or a lease it renews. `submission.commitSubmission` answers `409` for a category while one of its migrations is `IN_PROGRESS`, and nothing changes that status after a restart. The lock keeps a server starting beside another from failing a migration still running there. Until then, recovery means changing the migration's row in `dictionary_migration` by hand.
+
+### The migration worker finishes before recording the migration's final status
+fix: `performDictionaryMigration` (`dictionaryMigrationWorker.ts`) awaits `finalizeMigration` and throws when it returns a failure, so the worker task ends only once the migration is `COMPLETED` or `FAILED`, and a failure to record it reaches the pool manager's log. Then drop the polling in `workerPoolManager-concurrency.spec.ts`'s migration test. Test: once `workerPool.dictionaryMigration` resolves, the migration is no longer `IN_PROGRESS`.
+standalone: yes
+context: both `finalizeMigration` calls are made without `await`, so the task resolves while the status update is still running. `finalizeMigration` catches its own errors and returns a failure that nobody reads, so a failed update leaves the migration `IN_PROGRESS` without any error from the worker, which blocks its category's commits as the entry above describes.
+
+### A failed validation task leaves its submission in `VALIDATING`
+fix: when a data validation task fails, in the worker or in `workerPoolManager.ts`'s `dataValidation` wrapper, move the submission out of `VALIDATING` to a status from which it can be edited or validated again, and do the same at server start for any submission left `VALIDATING` by a restart. Decide the status first: `submission_status` has no error value, and `OPEN` or `INVALID` each tell the client something different, so this may need a new enum value and a migration. Test: a validation whose worker task throws leaves its submission in that status, not `VALIDATING`.
+standalone: yes
+context: every caller sets `VALIDATING` before firing `workerPool.dataValidation` without awaiting it, and the wrapper only logs a failure, so nothing changes the status afterwards. Workers left uninitialized were one such failure, and every task now initializes its own worker, but any other failure, such as a lost database connection or a missing dictionary, still strands the submission. A `VALIDATING` submission accepts no further edits. Until then, the client cancels it with `DELETE /submission/:submissionId?force=true` and starts a new submission.
+
+### The npm package ships compiled test support code
+fix: build `packages/data-provider` for publishing from a `tsconfig.build.json` that excludes `test/`, so `dist/test/` stays out of `@overture-stack/lyric`.
+standalone: yes
+context: `tsconfig.json` includes the whole package except `*.spec.ts`, and `package.json`'s `files` publishes all of `dist/`. The published package carries test fixtures, the integration setup and test container configuration, none of them used by consumers.
+
+### Parse request bodies after authentication in every router
+fix: in the audit, category, dictionary, migration, submitted data and validator routers, parse a body on each route after Lyric's auth middleware, as `submissionRouter.ts` does, in place of their router-wide `urlencoded` and `json` parsers. Then extend `routerAuthentication.spec.ts`'s check for router-wide middleware from the submission router to every router. Ship it with a MIGRATION.md section: an application's own route, registered after a Lyric router on the same path, then gets no `req.body` from Lyric and parses its own.
+standalone: yes
+context: a router-wide parser runs for every request under its router's path, ahead of the route's authentication, and also for a request passing through to an application's own route. Each parser holds at most its 100kb default in memory per request.
+
 ## Resolved
 
 ### Submission endpoints don't accept a categoryId alias, unlike everywhere else
@@ -196,9 +249,3 @@ resolved: 2026-08-12, added explicit conflict detection ahead of dictionary vali
 resolved: 2026-08-12, same session as the fix above. Once `findUpdateDeleteConflicts` became the real, wired-in conflict detector, the unused `filterRecordsByConflicts`/`filterDeletesFromUpdates` pair (`submissionUtils.ts`, previously lines 234-280) had no remaining reason to exist — deleted both functions and their orphaned spec (`test/unit/utils/submission/filterDeletesFromUpdates.spec.ts`). Confirmed via repo-wide grep that nothing else referenced them before removing.
 
 <!-- Move entries here when addressed, with a note of when and what fixed it -->
-
-### Kafka publish tracking: no unit tests for `createPublishTracker`
-resolved: tracker removed in PR #208 (published_at column dropped during review; tracking responsibility deferred)
-
-### SQON `fieldName` has no allowlist against the dictionary schema
-resolved: invalid, not tracked. A record's `fieldName`s can legitimately fall outside the *current* dictionary after a migration: `migrationService.ts`'s `performMigrationValidation` re-validates existing records against a new dictionary but never rewrites their stored `data`, so a field the new schema dropped stays present and queryable on old records. Rejecting an unrecognized `fieldName` at query time would break querying that legitimate historical data. Submission-time validation already rejects an unrecognized field on the way in, via Lectern's `UNRECOGNIZED_FIELD` check (`validateRecord.ts`), called from `submissionProcessor.ts` against the category's active dictionary; that's the correct and only place for this check.

@@ -15,15 +15,15 @@ const router = ({
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	router.use(authMiddleware(authConfig));
+	const defaultAuthenticator = authMiddleware(authConfig);
 
 	const migrationController = createMigrationController(baseDependencies);
 
-	router.get('/:migrationId', migrationController.getMigrationById);
+	router.get('/:migrationId', defaultAuthenticator, migrationController.getMigrationById);
 
-	router.get('/category/:categoryId', migrationController.getMigrationsByCategoryId);
+	router.get('/category/:categoryId', defaultAuthenticator, migrationController.getMigrationsByCategoryId);
 
-	router.get('/:migrationId/records', migrationController.getMigrationRecords);
+	router.get('/:migrationId/records', defaultAuthenticator, migrationController.getMigrationRecords);
 
 	return router;
 };

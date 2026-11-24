@@ -7,7 +7,18 @@ import multer from 'multer';
 import { BaseDependencies } from '../config/config.js';
 import createSubmissionController from '../controllers/submissionController.js';
 import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
+import { convertUploadErrors } from '../middleware/convertUploadErrors.js';
+import { limitRequestSize } from '../middleware/limitRequestSize.js';
+import { ContentTooLarge } from '../utils/errors.js';
+import { getSubmissionBodyLimits } from '../utils/submissionLimits.js';
 
+/**
+ * Creates the submission router. It authenticates a request before it parses the body, and refuses:
+ * - a file or a JSON body over `maxFileSize` with `ContentTooLarge` (413), naming the limit;
+ * - any other upload refused by multer with `ContentTooLarge` (413) for one of its limits, or `BadRequest` (400);
+ * - with `maxRequestSize` set, an upload over it with `ContentTooLarge` (413), one without `Content-Length` with
+ *   `LengthRequired` (411), and one whose `Content-Length` is not a whole number of bytes with `BadRequest` (400).
+ */
 const router = ({
 	baseDependencies,
 	authConfig,
@@ -19,11 +30,43 @@ const router = ({
 	 * Local Router Middleware *
 	 * ======================= */
 
+	const { fileSize, jsonSize, requestSize } = getSubmissionBodyLimits(baseDependencies.submissionService);
+
 	/**
 	 * Multer multipart form upload processor. Returns middleware that can capture uploaded files and make them
 	 * available at `req.files`.
 	 */
-	const upload = multer({ dest: '/tmp', limits: { fileSize: baseDependencies.submissionService?.maxFileSize } });
+	const upload = multer({ dest: '/tmp', limits: { fileSize } });
+
+	/**
+	 * Runs the upload processor, answering a file over the size limit with `ContentTooLarge` naming the limit, so the
+	 * submitter knows how far to shrink or split the file.
+	 */
+	const uploadFiles: RequestHandler = (req, res, next) => {
+		upload.any()(req, res, (error?: unknown) => {
+			if (fileSize && error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+				return next(new ContentTooLarge(`Each file must be at most ${bytes.format(fileSize)}`));
+			}
+			return next(error);
+		});
+	};
+
+	const uploadSizeLimit: RequestHandler[] = requestSize ? [limitRequestSize(requestSize)] : [];
+
+	const parseJson = json({ limit: jsonSize });
+
+	/**
+	 * Parses a JSON body, answering one over the size limit with `ContentTooLarge` naming the limit.
+	 */
+	const parseJsonBody: RequestHandler = (req, res, next) => {
+		parseJson(req, res, (error?: unknown) => {
+			if (typeof error === 'object' && error !== null && 'type' in error && error.type === 'entity.too.large') {
+				return next(new ContentTooLarge(`JSON request bodies must be at most ${bytes.format(jsonSize)}`));
+			}
+			return next(error);
+		});
+	};
+
 	/**
 	 * File upload is done via a multi-part form. This form data includes both "files" and optionally a "fileEntityMap".
 	 * This middleware moves the content of the fileEntityMap out of the req.files property and into the req.body value
@@ -56,40 +99,54 @@ const router = ({
 		authConfig,
 	});
 
-	// Handles null edgecase and values of 0 as no limit.
-	const bytesFileLimit = bytes.format(baseDependencies.submissionService?.maxFileSize ?? 0) || undefined;
-
 	const router = Router();
-	router.use(urlencoded({ extended: false }));
-	router.use(
-		json({
-			limit: bytesFileLimit,
-		}),
+
+	// Authenticates each request requiring authentication under `protectedMethods`. A refused
+	// request goes to the error handler, so no later handler on its route runs.
+	const defaultAuthenticator = authMiddleware(authConfig);
+
+	// Each route authenticates before parsing a body. Parsing holds the whole body in memory, so it runs only for a
+	// request that has passed authentication or needs none. `urlencoded` and `parseJsonBody` fill `req.body` from a
+	// URL-encoded form or a JSON body.
+	const authenticateThenParseBody = [defaultAuthenticator, urlencoded({ extended: false }), parseJsonBody];
+
+	router.get('/:submissionId', ...authenticateThenParseBody, submissionController.getSubmissionById);
+
+	router.delete('/:submissionId', ...authenticateThenParseBody, submissionController.delete);
+
+	router.get('/:submissionId/data', ...authenticateThenParseBody, submissionController.getSubmissionDetailsById);
+
+	router.delete('/:submissionId/data', ...authenticateThenParseBody, submissionController.deleteByFileId);
+
+	router.get('/category/:categoryId', ...authenticateThenParseBody, submissionController.getSubmissionsByCategory);
+
+	router.get(
+		'/category/:categoryId/organization/:organization',
+		...authenticateThenParseBody,
+		submissionController.getActiveByOrganization,
 	);
 
-	router.use(authMiddleware(authConfig));
+	router.post('/category/:categoryId/data', ...authenticateThenParseBody, submissionController.submit);
 
-	router.get('/:submissionId', submissionController.getSubmissionById);
+	router.put(`/category/:categoryId/data`, ...authenticateThenParseBody, submissionController.editSubmittedData);
 
-	router.delete('/:submissionId', submissionController.delete);
+	router.post(
+		'/category/:categoryId/files',
+		...authenticateThenParseBody,
+		...uploadSizeLimit,
+		uploadFiles,
+		convertUploadErrors,
+		extractFileEntityMap,
+		submissionController.submitFiles,
+	);
 
-	router.get('/:submissionId/data', submissionController.getSubmissionDetailsById);
+	router.delete(
+		`/category/:categoryId/data/:systemId`,
+		...authenticateThenParseBody,
+		submissionController.deleteSubmittedDataBySystemId,
+	);
 
-	router.delete('/:submissionId/data', submissionController.deleteByFileId);
-
-	router.get('/category/:categoryId', submissionController.getSubmissionsByCategory);
-
-	router.get('/category/:categoryId/organization/:organization', submissionController.getActiveByOrganization);
-
-	router.post('/category/:categoryId/data', submissionController.submit);
-
-	router.put(`/category/:categoryId/data`, submissionController.editSubmittedData);
-
-	router.post('/category/:categoryId/files', upload.any(), extractFileEntityMap, submissionController.submitFiles);
-
-	router.delete(`/category/:categoryId/data/:systemId`, submissionController.deleteSubmittedDataBySystemId);
-
-	router.post('/category/:categoryId/commit/:submissionId', submissionController.commit);
+	router.post('/category/:categoryId/commit/:submissionId', ...authenticateThenParseBody, submissionController.commit);
 
 	return router;
 };

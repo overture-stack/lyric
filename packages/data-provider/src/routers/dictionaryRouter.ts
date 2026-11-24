@@ -2,7 +2,7 @@ import { json, Router, urlencoded } from 'express';
 
 import { BaseDependencies } from '../config/config.js';
 import dictionaryController from '../controllers/dictionaryController.js';
-import { type AuthConfig, authMiddleware } from '../middleware/auth.js';
+import { type AuthConfig, authMiddleware, authMiddlewareForEveryMethod } from '../middleware/auth.js';
 
 const router = ({
 	baseDependencies,
@@ -15,12 +15,27 @@ const router = ({
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	router.use(authMiddleware(authConfig));
+	const defaultAuthenticator = authMiddleware(authConfig);
+	const authenticateEveryMethod = authMiddlewareForEveryMethod(authConfig);
 
-	router.post('/register', dictionaryController(baseDependencies).registerDictionary);
+	// Registering a dictionary authenticates on every method, regardless of `protectedMethods`, since a category's
+	// dictionary governs every organization's submissions.
+	router.post(
+		'/register',
+		authenticateEveryMethod,
+		dictionaryController({ authConfig, baseDependencies }).registerDictionary,
+	);
 
-	router.get('/category/:categoryId', dictionaryController(baseDependencies).getDictionaryJson);
-	router.get('/category/:categoryId/templates', dictionaryController(baseDependencies).downloadDataFileTemplates);
+	router.get(
+		'/category/:categoryId',
+		defaultAuthenticator,
+		dictionaryController({ authConfig, baseDependencies }).getDictionaryJson,
+	);
+	router.get(
+		'/category/:categoryId/templates',
+		defaultAuthenticator,
+		dictionaryController({ authConfig, baseDependencies }).downloadDataFileTemplates,
+	);
 	return router;
 };
 

@@ -3,7 +3,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { serve, setup } from 'swagger-ui-express';
 
-import { errorHandler, getLogger, provider } from '@overture-stack/lyric';
+import { createErrorHandler, getLogger, provider } from '@overture-stack/lyric';
 
 import { buildAppConfig, getServerConfig } from './config/app.js';
 import { getKafkaConfig, setupKafka } from './config/kafka.js';
@@ -63,7 +63,7 @@ app.use('/api-docs', serve, setup(swaggerDoc, { swaggerUrl: '/openapi.json' }));
 
 app.use('/health', healthRouter);
 
-app.use(errorHandler);
+app.use(createErrorHandler({ logger }));
 
 const server = app.listen(port, () => {
 	logger.info(`ExpressJS server is running on port ${port}`);

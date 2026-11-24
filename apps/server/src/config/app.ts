@@ -4,7 +4,8 @@ import { type AppConfig, type ValidatorEntry } from '@overture-stack/lyric';
 
 import { getBoolean, getJSONConfig, getOptionalIntegerConfig, getRequiredConfig } from './envUtils.js';
 
-const DEFAULT_SUBMISSION_MAX_SIZE = 10 * 1024 * 1024; // 10Mb
+const DEFAULT_SUBMISSION_MAX_REQUEST_SIZE = 100 * 1024 * 1024; // 100MB
+const DEFAULT_SUBMISSION_MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
 export const getServerConfig = () => {
 	return {
@@ -70,7 +71,12 @@ export const buildAppConfig = (overrides: Partial<AppConfig> = {}): AppConfig =>
 	},
 	submissionService: {
 		maxFileSize: getOptionalIntegerConfig('SUBMISSION_MAX_SIZE') || DEFAULT_SUBMISSION_MAX_SIZE,
+		maxRequestSize: getOptionalIntegerConfig('SUBMISSION_MAX_REQUEST_SIZE') || DEFAULT_SUBMISSION_MAX_REQUEST_SIZE,
 	},
 	validator: getValidatorConfig('VALIDATOR_CONFIG'),
+	workerPool: {
+		// Unset leaves Lyric's own default
+		maxWorkers: getOptionalIntegerConfig('WORKER_POOL_MAX_WORKERS'),
+	},
 	...overrides,
 });

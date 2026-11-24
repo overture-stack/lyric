@@ -307,6 +307,8 @@
           application/json:
             schema:
               $ref: '#/components/responses/Error'
+      413:
+        $ref: '#/components/responses/ContentTooLarge'
       500:
         $ref: '#/components/responses/ServerError'
       503:
@@ -353,6 +355,8 @@
           application/json:
             schema:
               $ref: '#/components/responses/Error'
+      413:
+        $ref: '#/components/responses/ContentTooLarge'
       500:
         $ref: '#/components/responses/ServerError'
       503:
@@ -433,6 +437,10 @@
           application/json:
             schema:
               $ref: '#/components/responses/Error'
+      411:
+        $ref: '#/components/responses/LengthRequired'
+      413:
+        $ref: '#/components/responses/ContentTooLarge'
       500:
         $ref: '#/components/responses/ServerError'
       503:

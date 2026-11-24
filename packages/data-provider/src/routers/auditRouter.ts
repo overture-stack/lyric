@@ -15,10 +15,11 @@ const router = ({
 	router.use(urlencoded({ extended: false }));
 	router.use(json());
 
-	router.use(authMiddleware(authConfig));
+	const defaultAuthenticator = authMiddleware(authConfig);
 
 	router.get(
 		'/category/:categoryId/organization/:organization',
+		defaultAuthenticator,
 		auditController(baseDependencies).byCategoryIdAndOrganization,
 	);
 	return router;
