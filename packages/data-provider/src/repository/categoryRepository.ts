@@ -5,7 +5,7 @@ import { Category, Dictionary, dictionaryCategories, NewCategory } from '@overtu
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable, StatusConflict } from '../utils/errors.js';
-import { isValidIdNumber } from '../utils/formatUtils.js';
+import { parseIdNumber } from '../utils/formatUtils.js';
 
 // Postgres' unique_violation code, via the `pg` driver's `.code` field. A race between an
 // app-level uniqueness check and the write can still surface here, handled as 409, not 503.
@@ -127,8 +127,8 @@ const repository = (dependencies: BaseDependencies) => {
 			value: string,
 		): Promise<(Category & { activeDictionary: Dictionary | null }) | undefined> => {
 			try {
-				const parsedId = parseInt(value);
-				if (isValidIdNumber(parsedId)) {
+				const parsedId = parseIdNumber(value);
+				if (parsedId !== undefined) {
 					const byId = await db.query.dictionaryCategories.findFirst({
 						where: eq(dictionaryCategories.id, parsedId),
 						with: {

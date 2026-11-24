@@ -44,8 +44,8 @@ const controller = ({
 
 				// query params
 				const entityName = asArray(req.query.entityName || []);
-				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
-				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
+				const page = Number(req.query.page) || DEFAULT_PAGE;
+				const pageSize = Number(req.query.pageSize) || DEFAULT_PAGE_SIZE;
 				const view = convertToViewType(req.query.view) || defaultView;
 
 				logger.info(
@@ -91,8 +91,8 @@ const controller = ({
 
 				// query parameters
 				const entityName = asArray(req.query.entityName || []);
-				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
-				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
+				const page = Number(req.query.page) || DEFAULT_PAGE;
+				const pageSize = Number(req.query.pageSize) || DEFAULT_PAGE_SIZE;
 				const view = convertToViewType(String(req.query.view)) || defaultView;
 				const user = req.user;
 
@@ -148,8 +148,8 @@ const controller = ({
 
 				// query parameters
 				const entityName = asArray(req.query.entityName || []);
-				const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
-				const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
+				const page = Number(req.query.page) || DEFAULT_PAGE;
+				const pageSize = Number(req.query.pageSize) || DEFAULT_PAGE_SIZE;
 				const user = req.user;
 
 				logger.info(
