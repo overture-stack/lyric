@@ -35,6 +35,7 @@ import {
 	PaginatedResponse,
 	type PaginationOptions,
 	SUBMISSION_STATUS,
+	type SubmissionListOptions,
 	type SubmitDataResult,
 	type SubmitFileResult,
 } from '../../utils/types.js';
@@ -269,25 +270,19 @@ const submissionService = (dependencies: BaseDependencies) => {
 	 * @param {Object} paginationOptions - Pagination properties
 	 * @param {number} paginationOptions.page - Page number
 	 * @param {number} paginationOptions.pageSize - Items per page
-	 * @param {Object} filterOptions
-	 * @param {boolean} filterOptions.onlyActive - Filter by Active status
-	 * @param {string} filterOptions.username - User Name
-	 * @returns an array of Submission
+	 * @param {SubmissionListOptions} listOptions - Filters and sort order
+	 * @returns One page of Submissions, and the number of Submissions matching the filters
 	 */
 
 	const getSubmissionsByCategory = async (
 		categoryId: number,
 		paginationOptions: PaginationOptions,
-		filterOptions: {
-			onlyActive: boolean;
-			username?: string;
-			organization?: string;
-		},
+		listOptions: SubmissionListOptions,
 	): Promise<PaginatedResult<SubmissionSummaryResponse>> => {
 		const recordsPaginated = await submissionRepository.getSubmissionsByCategory(
 			categoryId,
 			paginationOptions,
-			filterOptions,
+			listOptions,
 		);
 		if (!recordsPaginated || recordsPaginated.length === 0) {
 			return {
@@ -298,7 +293,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 			};
 		}
 
-		const totalSubmissions = await submissionRepository.getTotalSubmissionsByCategory(categoryId, filterOptions);
+		const totalSubmissions = await submissionRepository.getTotalSubmissionsByCategory(categoryId, listOptions.filters);
 		const submissionRecordsSummaries = await submissionRecordsRepository.getRecordsSummaryBySubmissionIds(
 			recordsPaginated.map((submission) => submission.id),
 		);

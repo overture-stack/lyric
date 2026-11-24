@@ -1,7 +1,11 @@
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
 
-import { submissionFileDeleteRequestSchema, uploadSubmissionRequestSchema } from '../../../src/utils/schemas.js';
+import {
+	submissionFileDeleteRequestSchema,
+	submissionsByCategoryRequestSchema,
+	uploadSubmissionRequestSchema,
+} from '../../../src/utils/schemas.js';
 
 const bodySchema = uploadSubmissionRequestSchema.body;
 const querySchema = uploadSubmissionRequestSchema.query;
@@ -113,5 +117,62 @@ describe('submissionFileDeleteRequestSchema', () => {
 
 	it('rejects a submission ID that is not digits only', () => {
 		expect(pathParamsSchema?.safeParse({ submissionId: '1e2' }).success).to.be.false;
+	});
+});
+
+describe('submissionsByCategoryRequestSchema query', () => {
+	const listQuerySchema = submissionsByCategoryRequestSchema.query;
+
+	it('accepts a query with no parameters', () => {
+		const result = listQuerySchema?.safeParse({});
+		expect(result?.success).to.be.true;
+	});
+
+	it('accepts a sort with several keys', () => {
+		const result = listQuerySchema?.safeParse({ sort: '-createdAt,organization' });
+		expect(result?.success).to.be.true;
+	});
+
+	it('rejects a sort naming a field that cannot be sorted by, and lists the allowed fields', () => {
+		const result = listQuerySchema?.safeParse({ sort: '-dictionaryId' });
+		expect(result?.success).to.be.false;
+		expect(result?.error?.issues[0]?.path).to.eql(['sort']);
+		expect(result?.error?.issues[0]?.message).to.include('createdAt');
+	});
+
+	it('rejects a sort given more than once, since sort keys are comma-separated', () => {
+		const result = listQuerySchema?.safeParse({ sort: ['createdAt', 'id'] });
+		expect(result?.success).to.be.false;
+	});
+
+	it('accepts a single organization and several organizations', () => {
+		expect(listQuerySchema?.safeParse({ organization: 'org-a' }).success).to.be.true;
+		expect(listQuerySchema?.safeParse({ organization: ['org-a', 'org-b'] }).success).to.be.true;
+	});
+
+	it('accepts a single status and several statuses, in any case', () => {
+		expect(listQuerySchema?.safeParse({ status: 'OPEN' }).success).to.be.true;
+		expect(listQuerySchema?.safeParse({ status: ['committed', 'Closed'] }).success).to.be.true;
+	});
+
+	it('rejects an unknown status', () => {
+		const result = listQuerySchema?.safeParse({ status: ['OPEN', 'DONE'] });
+		expect(result?.success).to.be.false;
+	});
+
+	it('rejects status together with onlyActive=true', () => {
+		const result = listQuerySchema?.safeParse({ onlyActive: 'true', status: 'OPEN' });
+		expect(result?.success).to.be.false;
+		expect(result?.error?.issues[0]?.path).to.eql(['status']);
+	});
+
+	it('accepts status together with onlyActive=false', () => {
+		const result = listQuerySchema?.safeParse({ onlyActive: 'false', status: 'OPEN' });
+		expect(result?.success).to.be.true;
+	});
+
+	it('rejects a page that is not a positive number', () => {
+		const result = listQuerySchema?.safeParse({ page: 'abc' });
+		expect(result?.success).to.be.false;
 	});
 });

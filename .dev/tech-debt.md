@@ -2,6 +2,16 @@
 
 ## Open
 
+### Listing Submissions newest-first sorts the whole category on every page
+fix: Add a composite index on `submissions (dictionary_category_id, created_at, id)` in `packages/data-model/src/models/submissions.ts` and generate its migration with `build:migration`. Keep the columns ascending: drizzle-orm `0.29` cannot declare `DESC` on index columns, and the list query orders by `created_at DESC, id DESC` using Postgres' default null placement (`NULLS FIRST` for `DESC`), which is exactly what a backward scan of an ascending index yields. If that query ever switches to `NULLS LAST`, the index no longer matches its order.
+standalone: yes
+context: `GET /submission/category/:categoryId` filters by category and orders by `created_at DESC, id DESC`. The only indexes are single-column (`dictionary_category_id`, `organization`, `created_by`), so Postgres reads every Submission in the category and sorts them before applying `LIMIT`/`OFFSET`, a cost that grows with the category rather than the page size. Negligible at current volumes, which is why it was deferred when sorting and filtering were added to that endpoint. Only the default sort benefits; other sort fields still sort at query time.
+
+### Listing Submissions past the last page reports `totalRecords: 0`
+fix: In `getSubmissionsByCategory` (`packages/data-provider/src/services/submission/submissionService.ts`), always run `getTotalSubmissionsByCategory`, even when the page query returns no rows, so `pagination.totalRecords` and `totalPages` describe the filtered set regardless of the page requested.
+standalone: yes
+context: The service returns early with `totalRecords: 0` whenever the requested page is empty. A client that asks for a page beyond the last one is told there are no Submissions at all, so it cannot recover by jumping to the last page. The list and count queries also build the same `where` clause twice, so a filter added to one but not the other makes the count disagree with the rows.
+
 ### Closing a Submission with `force=true` can relabel a committed Submission as `CLOSED`
 fix: In `deleteActiveSubmissionById` (`packages/data-provider/src/services/submission/submissionService.ts`), keep rejecting a Submission that is already `COMMITTED` or `CLOSED` even when `force` is set, and let `force` only add `VALIDATING` and `COMMITTING` to the statuses that can be closed. Do the status check and the update in one conditional update (`updateWithConditions` with `expectedStatuses`), as staging and commit already do. Document in the `ForceDeleteSubmission` Swagger parameter which statuses `force` allows.
 standalone: yes

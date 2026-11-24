@@ -25,6 +25,7 @@ import {
 	uploadSingleEntitySubmissionDataRequestSchema,
 	uploadSubmissionRequestSchema,
 } from '../utils/schemas.js';
+import { buildSubmissionListOptions } from '../utils/submissionListOptions.js';
 import type { SubmissionSummaryResponse } from '../utils/submissionResponseParser.js';
 import { SUBMISSION_RECORD_ACTION_TYPE } from '../utils/submissionTypes.js';
 import { isSubmissionActive, parseSubmissionActionTypes } from '../utils/submissionUtils.js';
@@ -221,24 +222,29 @@ const controller = ({
 					if (categoryId === undefined) {
 						throw new NotFound(`Category '${req.params.categoryId}' not found`);
 					}
-					const onlyActive = req.query.onlyActive?.toLowerCase() === 'true';
-					const organization = req.query.organization;
 					const page = parseInt(String(req.query.page)) || DEFAULT_PAGE;
 					const pageSize = parseInt(String(req.query.pageSize)) || DEFAULT_PAGE_SIZE;
-					const username = req.query.username;
+					const listOptions = buildSubmissionListOptions({
+						onlyActive: req.query.onlyActive?.toLowerCase() === 'true',
+						organization: req.query.organization,
+						sort: req.query.sort,
+						status: req.query.status,
+						username: req.query.username,
+					});
 
 					logger.info(
 						LOG_MODULE,
 						`Request Submission categoryId '${categoryId}'`,
 						`pagination params: page '${page}' pageSize '${pageSize}'`,
-						`onlyActive '${onlyActive}'`,
-						`organization '${organization}'`,
+						`organizations '${listOptions.filters.organizations}'`,
+						`statuses '${listOptions.filters.statuses}'`,
+						`sort '${JSON.stringify(listOptions.sort)}'`,
 					);
 
 					const submissionsResult = await submissionService.getSubmissionsByCategory(
 						categoryId,
 						{ page, pageSize },
-						{ onlyActive, username, organization },
+						listOptions,
 					);
 
 					const response: PaginatedResponse<SubmissionSummaryResponse> = {

@@ -162,6 +162,8 @@
       - $ref: '#/components/parameters/query/PageSize'
       - $ref: '#/components/parameters/query/OnlyActive'
       - $ref: '#/components/parameters/query/OrganizationFilter'
+      - $ref: '#/components/parameters/query/SubmissionSort'
+      - $ref: '#/components/parameters/query/SubmissionStatusFilter'
       - $ref: '#/components/parameters/query/Username'
     responses:
       200:
