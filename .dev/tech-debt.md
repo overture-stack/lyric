@@ -27,11 +27,6 @@ fix: Replace `@overture-stack/sqon-builder` (`1.1.0`) with `@overture-stack/sqon
 standalone: no
 context: `sqon-builder` was absorbed into `@overture-stack/sqon` as a builder utility (its `docs/sqon-builder-absorption.md`), confirmed 2026-07-21. Blocked on release status: `latest` is still `1.0.0-rc.1` (no absorbed builder); only `1.0.0-rc.2` (`rc` tag) has it, no stable release yet. Check `npm view @overture-stack/sqon dist-tags` before starting; once `latest` is non-RC, pick this up rather than defer further. Also check its zod version against Lyric's own for conflicts before adding.
 
-### Submission endpoints don't accept a categoryId alias, unlike everywhere else
-fix: wire `resolveCategoryId` into `submissionController.ts` the same way every other categoryId-accepting router already does.
-standalone: yes
-context: `submissionController.ts` still parses `categoryId` with raw `Number(req.params.categoryId)` on create/commit/delete. Every other categoryId-accepting router (category, audit, migration, submittedData, validator) resolves id-or-alias via `resolveCategoryId`.
-
 ### Tests live in `test/` not co-located with source
 fix: relocate each spec file into the same directory as the source file it tests, renaming `.spec.ts` to `.test.ts` to match convention. New tests should be co-located from now on; migrating the existing files is a standalone cleanup task, not in scope of feature work.
 standalone: yes
@@ -109,9 +104,72 @@ context: `GET /submission/category/:categoryId` (`submissionController.ts:233-27
 
 ### `GET /submission/:submissionId` needs richer per-file details
 standalone: yes
-context: The response (`SubmissionSummaryResponse`, `types.ts:302-305`, built by `createSubmissionSummaryResponse`/`submissionResponseParser.ts:65-78`) groups `inserts`/`updates` by `entityName`, each entry only exposing `batchName` (the original filename), `recordsCount`, and `errors` (a count, not detail) — see `submissionResponseParser.ts:14-58` and the source rows shape in `submissionRecordsRepository.ts:20-26,188-208`. Missing relative to the ask: no `fileId` in the response (so a client can't correlate a listed file to a future per-file download/error-report endpoint, above); no file size, even though `submission_files.fileSize` is already stored in the DB (`submission_files.ts:16`) and just isn't selected by `getRecordsSummaryBySubmissionId` (`submissionRecordsRepository.ts:188-197`); no rolled-up per-file validation status (only an error count — the per-record `state` enum `RECEIVED`/`VALID`/`INVALID` exists at `submission_records.ts:12` but isn't aggregated to file level); `deletes` has no per-file breakdown at all in the current model (`DataDeletesSubmissionSummary` is not batched by file). Also found in passing: swagger's `SubmissionDetailsResult` schema (`schemas.yml:87-111`) documents a shape that doesn't match what `/submission/:submissionId/details` actually returns (`SubmissionRecordWithEntityName[]`, i.e. `{id, actionType, state, fileId, data, errors, entityName}[]`) — worth correcting alongside this work since both touch the same response family.
+context: The response (`SubmissionSummaryResponse`, `types.ts:302-305`, built by `createSubmissionSummaryResponse`/`submissionResponseParser.ts:65-78`) groups `inserts`/`updates` by `entityName`, each entry only exposing `batchName` (the original filename), `recordsCount`, and `errors` (a count, not detail) — see `submissionResponseParser.ts:14-58` and the source rows shape in `submissionRecordsRepository.ts:20-26,188-208`. Missing relative to the ask: no `fileId` in the response (so a client can't correlate a listed file to a future per-file download/error-report endpoint, above); no file size, even though `submission_files.fileSize` is already stored in the DB (`submission_files.ts:16`) and just isn't selected by `getRecordsSummaryBySubmissionId` (`submissionRecordsRepository.ts:188-197`); no rolled-up per-file validation status (only an error count — the per-record `state` enum `RECEIVED`/`VALID`/`INVALID` exists at `submission_records.ts:12` but isn't aggregated to file level); `deletes` has no per-file breakdown at all in the current model (`DataDeletesSubmissionSummary` is not batched by file).
+
+### Read endpoints must enforce the user's readable organizations on every path
+fix: A non-admin user's readable-organization filter must carry at least one organization clause, so a user with no readable organizations gets no records; an empty combination is not a restriction. `GET /audit/category/{categoryId}/organization/{organization}` checks `hasUserReadAccess` before querying, as the `/data` endpoints with the same path do. Lookups by ID check read access before reporting whether the record exists.
+standalone: yes
+context: Severity high: fix before the next release. Tests: integration tests for a non-admin user with no readable organizations on `GET /data/category/{categoryId}` and `/stream` (no records), for a user without read access on the audit endpoint (403), and for a by-ID lookup of an existing and a non-existing System ID by a user without access (same status for both).
+
+### `invalidRecords` in the migration list counts every audit record of the migration
+fix: In `getMigrationsByCategoryId` (`packages/data-provider/src/services/migrationService.ts`), pass `newIsValid: false` to `getTotalRecordsByCategoryIdAndOrganization`, as `getMigrationById` already does.
+standalone: yes
+context: `GET /migration/category/{categoryId}` and `GET /migration/{migrationId}` return different `invalidRecords` for the same migration. Once fixed, describe `invalidRecords` as the number of records that are invalid after the migration in `MigrationResult` (`apps/server/swagger/schemas.yml`).
+
+### A dictionary that Lectern doesn't have returns 503 instead of 400
+fix: In `fetchDictionaryByVersion` (`packages/data-provider/src/external/lecternClient.ts`), throw the `BadRequest` for an unsuccessful fetch outside the `try`, so only a failed request to Lectern becomes `ServiceUnavailable`. Then document the `400` for an unknown dictionary on `POST /dictionary/register` in `apps/server/swagger/dictionary-api.yml`.
+standalone: yes
+context: The `BadRequest` is thrown inside the `try` and the `catch` replaces every error with `ServiceUnavailable`, so a wrong dictionary name or version is reported as an outage.
+
+### `DELETE /submission/category/{categoryId}/data/{systemId}` returns `submissionId` as a string
+fix: Type `submissionId` as `number` in the result of `deleteSubmittedDataBySystemId` (`packages/data-provider/src/services/submittedData/submmittedData.ts`) and drop the `.toString()` calls, then change `DeleteSubmittedDataResult.submissionId` in `apps/server/swagger/schemas.yml` to `integer`. Call it out in the release notes, since clients reading it as a string will see a number.
+standalone: yes
+context: Every other endpoint returns `submissionId` as a number.
+
+### Unknown dates and users are returned as `""` on some endpoints and `null` on others
+fix: Pick one representation for an unset `createdAt`, `createdBy`, `updatedAt` and `updatedBy`, preferably `null` with ISO 8601 dates, and apply it in `createSubmissionSummaryResponse` (`submissionResponseParser.ts`), `categoryService.getDetails` and the audit response formatter (`auditUtils.ts`), then update the descriptions in `apps/server/swagger/schemas.yml`. Changing `""` to `null` is a breaking change for clients and needs release notes.
+standalone: yes
+context: Submission, category and audit responses turn a null column into `""` with `_.toString`. Migration responses return `null`.
+
+### Audit `startDate` and `endDate` filters exclude the given instant
+fix: Decide whether the filters are inclusive. If they are, use `gte` and `lte` in `getOptionalFilter` (`packages/data-provider/src/repository/auditRepository.ts`), and make a date-only `endDate` include that whole day. Then say in both parameter descriptions in `apps/server/swagger/audit-api.yml` whether the bound is included, and that a date-only value means midnight UTC.
+standalone: yes
+context: The query uses `gt` and `lt`, so `endDate=2024-01-31` returns no events from that day.
+
+### `GET /migration/{migrationId}/records` accepts `entityNames` and `organizations` but ignores them
+fix: Either apply both filters in the migration records query (`dictionaryMigrationRepository.ts`) and document them in `apps/server/swagger/migration-api.yml`, or remove them from `migrationDataRequestSchema` (`packages/data-provider/src/utils/schemas.ts`).
+standalone: yes
+context: `migrationDataRequestSchema` validates both query parameters, but the query doesn't use them, so a client filtering by them silently gets every record.
+
+### Swagger docs outside the submission endpoints don't match the responses
+fix: Correct the category, dictionary, data, audit, migration, validator, health and ping docs in `apps/server/swagger/` against what each controller returns, the way the submission docs were corrected:
+- Move the shared `Error` from `components.responses` to `components.schemas` in `schemas.yml`, add its `details` property, fix the `decription` typo, and say in `Forbidden` and `UnauthorizedError` that a rejected token returns only `message`.
+- Document 403 on every endpoint (every router uses `authMiddleware`), and give each 400 and 404 a description of what causes it. Drop the codes an endpoint can't return, such as 400 and 404 on `GET /category`.
+- `Pagination`: integers, all four fields required.
+- `MigrationResult`: status `IN_PROGRESS` (not `IN-PROGRESS`), nullable dates, users and dictionaries. `MigrationChangeHistoryRecord`: `newDataIsValid` and `oldDataIsValid` (not `newIsValid`/`oldIsValid`), nullable `errors`.
+- `ChangeHistoryRecord` and `MigrationChangeHistoryRecord.errors`: replace the obsolete `ValidationError` with the dictionary validation error shape (`reason`, `fieldName`, `fieldValue`), already defined as `RecordErrorDetails`. `submissionId` is an integer.
+- `RegisterDictionaryResult`: `migrationId` is an integer, absent when the category was just created; drop `allowEmptyValue` and the never-returned `dictionary`.
+- `Health`: `uptime` is a number and `timestamp` an int64 integer. `/ping`: document the `{name, version}` body.
+- `GET /dictionary`: document the response (`name`, `version`, `schemas`). `GET /data` `view`: explain that `compound` nests related records under the centric entity.
+- Spec errors that an OpenAPI 3 validator rejects: the `isInvalid` parameter in `migration-api.yml` has its fields one level too deep, the audit query parameters have no `schema`, and the `/data/.../stream` parameter uses the Swagger 2 `collectionFormat`.
+- Use `integer` instead of `number` for IDs and counts, and add `required` lists.
+standalone: yes
+context: The submission endpoints' docs were corrected in their own change; these were left out to keep that change to the submission endpoints. The shared `Pagination` and `Error` are still in their old form, so the submission endpoints show them that way too. Until the spec errors are fixed, validating the spec needs those paths skipped.
+
+### Swagger parameters are grouped under `path` and `query`, which OpenAPI 3 doesn't allow
+fix: Flatten `components.parameters` in `apps/server/swagger/parameters.yml` to one level, renaming the parameters whose names exist in both groups (for example `PathEntityName` and `QueryEntityName`, `PathOrganization` and `QueryOrganization`), and update every `$ref` to them.
+standalone: yes
+context: Swagger UI resolves the nested refs, but an OpenAPI validator rejects the spec, which blocks generating clients from it or checking responses against it.
+
+### Swagger docs drift from the responses
+fix: Add a mocha test that checks the integration tests' real responses against the spec built from `apps/server/swagger/*.yml`, for example with `chai-openapi-response-validator`, so a response change without a docs change fails the build. Needs the parameter flattening above first.
+standalone: no
+context: The response schemas are written by hand in `apps/server`, while the response types live in `packages/data-provider`, so nothing connects them. Blocked on the parameter flattening entry above.
 
 ## Resolved
+
+### Submission endpoints don't accept a categoryId alias, unlike everywhere else
+resolved: by 2026-11-24, every `submissionController.ts` handler that takes a `categoryId` resolves it through `resolveCategoryId`, so the submission endpoints accept an alias like the other routers.
 
 ### Removing one file of an ID-field edit left the other half of its DELETE + INSERT pair staged
 resolved: 2026-10-19, `processEditRecordsAsync` (`packages/data-provider/src/services/submission/submissionProcessor.ts`) now stages every change the user sends as the user's UPDATE, in a single user file. An update to an ID field is marked `applied_by_children` and carried out by a system-generated DELETE and INSERT whose `parent_record_id` is that UPDATE, with the dependent updates as children of the DELETE. The user can only remove the UPDATE's file, which removes the whole chain through `ON DELETE CASCADE`. Validation and commit skip records applied by their children, and `reportChildErrorsOnParents` (`submissionRecordUtils.ts`) reports the DELETE and INSERT errors on the UPDATE.

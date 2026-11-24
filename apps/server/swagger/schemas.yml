@@ -76,6 +76,9 @@ components:
 
     ListSubmissionsResult:
       type: object
+      required:
+        - pagination
+        - records
       properties:
         pagination:
           $ref: '#/components/schemas/Pagination'
@@ -86,6 +89,9 @@ components:
 
     SubmissionDetailsResult:
       type: object
+      required:
+        - pagination
+        - records
       properties:
         pagination:
           $ref: '#/components/schemas/Pagination'
@@ -280,11 +286,48 @@ components:
           description: Details of the error
       additionalProperties: true
 
+    RecordErrorDetails:
+      type: object
+      description: >
+        A validation error of a record, as reported by the dictionary validation. Besides the properties listed, each
+        `reason` can add its own details, such as `foreignSchema` for `INVALID_BY_FOREIGNKEY`, `matchingRecords` for
+        `INVALID_BY_UNIQUE` or `uniqueKey` for `INVALID_BY_UNIQUE_KEY`.
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          description: The type of error
+          enum:
+            - INVALID_BY_FOREIGNKEY
+            - INVALID_BY_RESTRICTION
+            - INVALID_BY_UNIQUE
+            - INVALID_BY_UNIQUE_KEY
+            - INVALID_VALUE_TYPE
+            - UNRECOGNIZED_FIELD
+        fieldName:
+          type: string
+          description: The field name that the error is related to. Absent for `INVALID_BY_UNIQUE_KEY`.
+        fieldValue:
+          description: The value of the field that caused the error. Absent for `INVALID_BY_UNIQUE_KEY`.
+      additionalProperties: true
+
     SubmissionResult:
       type: object
+      required:
+        - id
+        - data
+        - dictionary
+        - dictionaryCategory
+        - organization
+        - status
+        - createdAt
+        - createdBy
+        - updatedAt
+        - updatedBy
       properties:
         id:
-          type: number
+          type: integer
           description: ID of the Submission
         data:
           type: object
@@ -318,19 +361,13 @@ components:
               type: integer
               description: Total number of records with errors in the submission
         dictionary:
-          type: object
-          description: Dictionary used to validate the submission
-          properties:
-            name:
-              type: string
-            version:
-              type: string
+          $ref: '#/components/schemas/DictionarySummary'
         dictionaryCategory:
           type: object
           description: Category this dictionary belongs in
           properties:
             id:
-              type: number
+              type: integer
             name:
               type: string
             alias:
@@ -345,16 +382,28 @@ components:
           enum: ['OPEN', 'VALIDATING', 'VALID', 'INVALID', 'CLOSED', 'COMMITTING', 'COMMITTED']
         createdAt:
           type: string
-          description: Date and time of creation
+          description: Date and time of creation, in ISO 8601 format. Empty string when unknown.
         createdBy:
           type: string
-          description: Name of user who created the submission
+          description: Name of user who created the submission. Empty string when unknown.
         updatedAt:
           type: string
-          description: Date and time of latest update
+          description: Date and time of latest update, in ISO 8601 format. Empty string when the Submission was never updated.
         updatedBy:
           type: string
-          description: Name of user who last updated the submission
+          description: Name of user who last updated the submission. Empty string when the Submission was never updated.
+
+    DictionarySummary:
+      type: object
+      description: Dictionary used to validate the data
+      required:
+        - name
+        - version
+      properties:
+        name:
+          type: string
+        version:
+          type: string
 
     SubmissionFileSummary:
       type: object
@@ -392,6 +441,10 @@ components:
 
     BatchError:
       type: object
+      required:
+        - message
+        - type
+        - batchName
       properties:
         message:
           type: string
@@ -400,6 +453,7 @@ components:
           type: string
           description: The type of error
           enum:
+            - FILE_READ_ERROR
             - INCORRECT_SECTION
             - INVALID_FILE_EXTENSION
             - INVALID_FILE_NAME
@@ -408,10 +462,57 @@ components:
             - TSV_PARSING_FAILED
             - UNRECOGNIZED_HEADER
         batchName:
+          type: string
+          description: Name of the file causing the error
+
+    FileParseResult:
+      type: object
+      description: Result of parsing one uploaded file
+      required:
+        - fileName
+        - entityName
+        - fileSize
+        - status
+      properties:
+        fileName:
+          type: string
+          description: Original filename of the uploaded file
+        entityName:
+          type: string
+          description: Entity the file was submitted for
+        fileSize:
+          type: integer
+          description: Size of the file in bytes
+        status:
+          type: string
+          description: >
+            `ok` when every row was parsed, `invalid` when some values could not be parsed (see `parseErrors`), `error`
+            when the file could not be read (see `streamError`).
+          enum: ['ok', 'invalid', 'error']
+        parseErrors:
           type: array
-          description: List of batch names causing error
+          description: Only when `status` is `invalid`. Values that could not be parsed, grouped by record.
           items:
-            type: string
+            $ref: '#/components/schemas/ParseSchemaError'
+        streamError:
+          type: string
+          description: Only when `status` is `error`. Why the file could not be read.
+
+    ParseSchemaError:
+      type: object
+      required:
+        - recordIndex
+        - recordErrors
+      properties:
+        recordIndex:
+          type: integer
+          description: >
+            Line number of the record in the file, counting the header as line 1, so the first data row is line 2. Named
+            `recordIndex` for consistency with the dictionary validation errors.
+        recordErrors:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecordErrorDetails'
 
     CategoryDetails:
       type: object
@@ -520,6 +621,7 @@ components:
       required:
         - status
         - dictionary
+        - processedEntities
       type: object
       properties:
         status:
@@ -527,13 +629,7 @@ components:
           description: Result of Commiting Submission
           enum: ['PROCESSING']
         dictionary:
-          type: object
-          description: The dictionary used to validate the submission
-          properties:
-            name:
-              type: string
-            version:
-              type: string
+          $ref: '#/components/schemas/DictionarySummary'
         processedEntities:
           type: array
           description: Names of the entities that will be processed
@@ -548,19 +644,59 @@ components:
       properties:
         description:
           type: string
-          description: Description of uploading Submission files
+          description: Description of the result
         status:
           type: string
-          description: Result of uploading Submission files
+          description: >
+            `PROCESSING` when the records were accepted and are being validated, `INVALID_SUBMISSION` when nothing was
+            accepted (see `description`).
           enum: ['PROCESSING', 'INVALID_SUBMISSION']
         submissionId:
+          type: integer
+          description: ID of the Active Submission. Absent when `status` is `INVALID_SUBMISSION`.
+
+    SubmitFilesResult:
+      required:
+        - status
+        - description
+        - batchErrors
+        - fileResults
+        - inProcessEntities
+      type: object
+      properties:
+        description:
           type: string
-          description: ID of the Submission
+          description: Description of the result
+        status:
+          type: string
+          description: >
+            `PROCESSING` when every file was accepted, `PARTIAL_SUBMISSION` when some files were accepted and others
+            were rejected (see `batchErrors`), `INVALID_SUBMISSION` when no file was accepted.
+          enum: ['PROCESSING', 'PARTIAL_SUBMISSION', 'INVALID_SUBMISSION']
+        submissionId:
+          type: integer
+          description: ID of the Active Submission. Absent when `status` is `INVALID_SUBMISSION`.
+        batchErrors:
+          type: array
+          description: Files that were rejected, and why
+          items:
+            $ref: '#/components/schemas/BatchError'
+        fileResults:
+          type: array
+          description: Result of parsing each accepted file. Only filled when `sync=true`; empty otherwise.
+          items:
+            $ref: '#/components/schemas/FileParseResult'
+        inProcessEntities:
+          type: array
+          description: Names of the entities whose files were accepted and are being processed
+          items:
+            type: string
 
     DeleteSubmissionResult:
       required:
         - status
         - description
+        - submissionId
       type: object
       properties:
         description:
@@ -571,13 +707,14 @@ components:
           description: Result of closing the Submission
           enum: ['CLOSED']
         submissionId:
-          type: string
+          type: integer
           description: ID of the Submission
 
     DeleteSubmissionEntityResult:
       required:
         - status
         - description
+        - submissionId
       type: object
       properties:
         description:
@@ -590,6 +727,35 @@ components:
         submissionId:
           type: integer
           description: ID of the Submission
+
+    DeleteSubmittedDataResult:
+      required:
+        - status
+        - description
+        - inProcessEntities
+      type: object
+      properties:
+        description:
+          type: string
+          description: Description of the result
+        status:
+          type: string
+          description: >
+            `PROCESSING` when the deletes were staged on the Active Submission, or all of them were already staged.
+            `INVALID_SUBMISSION` when nothing was staged (see `description`), for example when the record belongs to
+            another category, or has an update pending on the Active Submission.
+          enum: ['PROCESSING', 'INVALID_SUBMISSION']
+        submissionId:
+          type: string
+          description: ID of the Active Submission, as a string. Absent when `status` is `INVALID_SUBMISSION`.
+          example: '12'
+        inProcessEntities:
+          type: array
+          description: >
+            Names of the entities with records newly staged for deletion: the record's entity and the entities of its
+            dependent records. Empty when nothing new was staged.
+          items:
+            type: string
 
     GetSubmittedDataResult:
       type: object

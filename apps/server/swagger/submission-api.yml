@@ -6,10 +6,7 @@
     tags:
       - Submission
     parameters:
-      - name: submissionId
-        in: path
-        type: string
-        required: true
+      - $ref: '#/components/parameters/path/SubmissionId'
     responses:
       200:
         description: Submission information
@@ -17,9 +14,12 @@
           application/json:
             schema:
               $ref: '#/components/schemas/SubmissionResult'
-
+      400:
+        $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      403:
+        $ref: '#/components/responses/Forbidden'
       404:
         $ref: '#/components/responses/NotFound'
       500:
@@ -42,11 +42,15 @@
             schema:
               $ref: '#/components/schemas/DeleteSubmissionResult'
       400:
-        $ref: '#/components/responses/BadRequest'
+        description: The request is invalid, or the Submission was not found
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/responses/Error'
       401:
         $ref: '#/components/responses/UnauthorizedError'
-      404:
-        $ref: '#/components/responses/NotFound'
+      403:
+        $ref: '#/components/responses/Forbidden'
       409:
         $ref: '#/components/responses/StatusConflict'
       500:
@@ -68,7 +72,7 @@
           items:
             type: string
             enum: [insert, update, delete]
-        uniqueItems: true
+          uniqueItems: true
         description: Filters the Submission Data records by action type. Valid values are `insert`, `update`, and `delete` (case insensitive). If not provided, all action types are returned.
       - name: entityNames
         in: query
@@ -76,7 +80,7 @@
           type: array
           items:
             type: string
-        uniqueItems: true
+          uniqueItems: true
         description: Filters the Submission Data records by entity name. Must match schema names in the Submission's dictionary. If not provided, all entity names are returned.
       - name: fileId
         in: query
@@ -94,9 +98,15 @@
             schema:
               $ref: '#/components/schemas/SubmissionDetailsResult'
       400:
-        $ref: '#/components/responses/BadRequest'
+        description: The request is invalid, the Submission was not found, or an entity name is not in its dictionary
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/responses/Error'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      403:
+        $ref: '#/components/responses/Forbidden'
       500:
         $ref: '#/components/responses/ServerError'
       503:
@@ -123,9 +133,17 @@
             schema:
               $ref: '#/components/schemas/DeleteSubmissionEntityResult'
       400:
-        $ref: '#/components/responses/BadRequest'
+        description: >
+          The request is invalid, the Submission or the file was not found, or the file is system-generated and can't
+          be removed by the user
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/responses/Error'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      403:
+        $ref: '#/components/responses/Forbidden'
       409:
         $ref: '#/components/responses/StatusConflict'
       500:
@@ -152,11 +170,49 @@
           application/json:
             schema:
               $ref: '#/components/schemas/ListSubmissionsResult'
-
+      400:
+        $ref: '#/components/responses/BadRequest'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      403:
+        $ref: '#/components/responses/Forbidden'
       404:
         $ref: '#/components/responses/NotFound'
+      500:
+        $ref: '#/components/responses/ServerError'
+      503:
+        $ref: '#/components/responses/ServiceUnavailableError'
+
+/submission/category/{categoryId}/organization/{organization}:
+  get:
+    summary: Get the Active Submission of the requesting user for a category and organization
+    description: >
+      Returns the Active Submission created by the requesting user, identified by the access token, for this category
+      and organization.
+    tags:
+      - Submission
+    parameters:
+      - $ref: '#/components/parameters/path/CategoryId'
+      - $ref: '#/components/parameters/path/Organization'
+    responses:
+      200:
+        description: Active Submission of the requesting user
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissionResult'
+      400:
+        $ref: '#/components/responses/BadRequest'
+      401:
+        $ref: '#/components/responses/UnauthorizedError'
+      403:
+        $ref: '#/components/responses/Forbidden'
+      404:
+        description: The category was not found, or the requesting user has no Active Submission for this category and organization
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/responses/Error'
       500:
         $ref: '#/components/responses/ServerError'
       503:
@@ -169,10 +225,7 @@
       - Submission
     parameters:
       - $ref: '#/components/parameters/path/CategoryId'
-      - name: submissionId
-        in: path
-        type: string
-        required: true
+      - $ref: '#/components/parameters/path/SubmissionId'
     responses:
       200:
         description: Commit Submission Result
@@ -181,11 +234,31 @@
             schema:
               $ref: '#/components/schemas/CommitSubmissionResult'
       400:
-        $ref: '#/components/responses/BadRequest'
+        description: >
+          The request is invalid, the Submission was not found, it belongs to another category, or the category has no
+          active dictionary
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/responses/Error'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      403:
+        $ref: '#/components/responses/Forbidden'
+      404:
+        description: The category was not found
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/responses/Error'
       409:
-        $ref: '#/components/responses/StatusConflict'
+        description: >
+          The Submission or one of its records is not `VALID`, the Submission changed while the commit was requested,
+          or a dictionary migration is running for the category
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/responses/Error'
       500:
         $ref: '#/components/responses/ServerError'
       503:
@@ -211,15 +284,29 @@
               type: object
     responses:
       200:
-        description: Submission accepted
+        description: >
+          Request processed. Check `status`: `INVALID_SUBMISSION` means nothing was accepted, for example because the
+          entity name is not in the dictionary or the Active Submission can't be changed.
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateSubmissionResult'
       400:
-        $ref: '#/components/responses/BadRequest'
+        description: The request is invalid, the payload is empty, or the category has no dictionary
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/responses/Error'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      403:
+        $ref: '#/components/responses/Forbidden'
+      404:
+        description: The category was not found
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/responses/Error'
       500:
         $ref: '#/components/responses/ServerError'
       503:
@@ -243,15 +330,29 @@
               type: object
     responses:
       200:
-        description: Edit Data request accepted
+        description: >
+          Request processed. Check `status`: `INVALID_SUBMISSION` means nothing was accepted, for example because some
+          records have no `systemId` or it was not found (see `description`).
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateSubmissionResult'
       400:
-        $ref: '#/components/responses/BadRequest'
+        description: The request is invalid or the payload is empty
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/responses/Error'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      403:
+        $ref: '#/components/responses/Forbidden'
+      404:
+        description: The category was not found
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/responses/Error'
       500:
         $ref: '#/components/responses/ServerError'
       503:
@@ -304,15 +405,34 @@
               contentType: application/json
     responses:
       200:
-        description: Submission accepted
+        description: >
+          At least one file was accepted and is being processed. `status` is `PARTIAL_SUBMISSION` when other files
+          were rejected; see `batchErrors`.
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateSubmissionResult'
+              $ref: '#/components/schemas/SubmitFilesResult'
       400:
-        $ref: '#/components/responses/BadRequest'
+        description: >
+          No file was accepted. When the files were checked, the body is a `SubmitFilesResult` with `status`
+          `INVALID_SUBMISSION` and the reasons in `batchErrors`. When the request itself is invalid, no files were sent,
+          or the category has no dictionary, the body is an `Error`.
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/SubmitFilesResult'
+                - $ref: '#/components/responses/Error'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      403:
+        $ref: '#/components/responses/Forbidden'
+      404:
+        description: The category was not found
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/responses/Error'
       500:
         $ref: '#/components/responses/ServerError'
       503:
@@ -320,7 +440,11 @@
 
 /submission/category/{categoryId}/data/{systemId}:
   delete:
-    summary: Removes data from a submission using the System ID. Returns an Active Submission containing the records that will be deleted
+    summary: Stage the deletion of a Submitted Data record, and of the records that depend on it, on the Active Submission
+    description: >
+      Adds a delete of the record with this System ID, and of every record that depends on it, to the requesting user's
+      Active Submission for the record's organization, opening one if needed. The Active Submission is then validated
+      again in the background. The records are deleted when the Submission is committed.
     tags:
       - Submission
     parameters:
@@ -333,19 +457,29 @@
         description: The unique system ID of the data to be deleted
     responses:
       200:
-        description: Delete Data request accepted
+        description: >
+          Request processed. Check `status`: `INVALID_SUBMISSION` means nothing was staged, for example because the
+          record belongs to another category or has an update pending on the Active Submission (see `description`).
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateSubmissionResult'
+              $ref: '#/components/schemas/DeleteSubmittedDataResult'
       400:
-        $ref: '#/components/responses/BadRequest'
+        description: The request is invalid, or no Submitted Data was found with this System ID
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/responses/Error'
       401:
         $ref: '#/components/responses/UnauthorizedError'
+      403:
+        $ref: '#/components/responses/Forbidden'
       404:
-        $ref: '#/components/responses/NotFound'
-      409:
-        $ref: '#/components/responses/StatusConflict'
+        description: The category was not found
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/responses/Error'
       500:
         $ref: '#/components/responses/ServerError'
       503:
