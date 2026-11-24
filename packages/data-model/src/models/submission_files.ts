@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { index, integer, pgTable, serial, varchar } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, pgTable, serial, varchar } from 'drizzle-orm/pg-core';
 
 import { submissionRecords } from './submission_records.js';
 import { submissions } from './submissions.js';
@@ -14,6 +14,9 @@ export const submissionFiles = pgTable(
 		fileName: varchar('file_name').notNull(),
 		entityName: varchar('entity_name').notNull(),
 		fileSize: integer('file_size').notNull(),
+		// True when the file holds records the system staged on its own, such as cascading changes to dependent records,
+		// rather than records the user submitted. Users can't remove these files; the system removes them once empty.
+		isSystemGenerated: boolean('is_system_generated').notNull().default(false),
 	},
 	(table) => {
 		return {

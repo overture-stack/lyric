@@ -112,11 +112,11 @@ const router = ({
 
 	router.get('/:submissionId', ...authenticateThenParseBody, submissionController.getSubmissionById);
 
-	router.get('/:submissionId/details', ...authenticateThenParseBody, submissionController.getSubmissionDetailsById);
-
 	router.delete('/:submissionId', ...authenticateThenParseBody, submissionController.delete);
 
-	router.delete('/:submissionId/:actionType', ...authenticateThenParseBody, submissionController.deleteEntityName);
+	router.get('/:submissionId/data', ...authenticateThenParseBody, submissionController.getSubmissionDetailsById);
+
+	router.delete('/:submissionId/data', ...authenticateThenParseBody, submissionController.deleteByFileId);
 
 	router.get('/category/:categoryId', ...authenticateThenParseBody, submissionController.getSubmissionsByCategory);
 

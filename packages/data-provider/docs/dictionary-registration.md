@@ -76,7 +76,7 @@ sequenceDiagram
         note over LyricAPI: [Migration] Initiate migration
         LyricAPI->>+LyricDB: Create a new submission (no data, status=COMMITTED)
         LyricDB-->>-LyricAPI: Return submission
-        LyricAPI->>+LyricDB: Create a migration in `category_migration` table<br />(categoryId, fromDictionaryId, toDictionaryId, submissionId, status=IN_PROGRESS, createdAt, createdBy)
+        LyricAPI->>+LyricDB: Create a migration in `dictionary_migration` table<br />(categoryId, fromDictionaryId, toDictionaryId, submissionId, status=IN_PROGRESS, createdAt, createdBy)
         LyricDB-->>-LyricAPI: Return migrationId
 
         LyricAPI->>User: 200 OK: Return Dictionary, Category and migrationId
@@ -95,9 +95,9 @@ sequenceDiagram
         end
 
         alt if Migration succeed
-            Worker->>LyricDB: Change Migration (`category_migration` table) Status to COMPLETED
+            Worker->>LyricDB: Change Migration (`dictionary_migration` table) Status to COMPLETED
         else if migration fails
-            Worker->>LyricDB: Change Migration (`category_migration` table) Status to FAILED
+            Worker->>LyricDB: Change Migration (`dictionary_migration` table) Status to FAILED
         end
     end
 ```

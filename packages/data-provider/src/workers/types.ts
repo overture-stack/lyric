@@ -4,10 +4,15 @@ import type { AppConfig, BaseDependencies } from '../config/config.js';
 export type CommitWorkerInput = {
 	submissionId: number;
 	username: string;
+	/** Version of the Submission when its status was set to `COMMITTING` */
+	version: number;
 };
 
 export type DataValidationWorkerInput = {
 	submissionId: number;
+	username: string;
+	/** Version of the Submission that contains the staged changes to validate */
+	version: number;
 };
 
 export type DictionaryMigrationWorkerInput = {
@@ -81,11 +86,13 @@ export type WorkerProxy = {
 	commitSubmission: (input: CommitWorkerInput, appConfig: AppConfig) => Promise<ResultOnCommit>;
 	/**
 	 * This function is executed in the worker thread to start the data validation process.
+	 *
+	 * Resolves with the submission ID, or `undefined` when the validation was skipped or its result discarded
+	 * because the Submission changed after the validation was queued.
 	 * @param input The input data for the data validation
 	 * @param appConfig The application configuration, used to initialize the worker if it has not been yet
-	 * @returns A promise that resolves the submission ID
 	 */
-	dataValidation: (input: DataValidationWorkerInput, appConfig: AppConfig) => Promise<number>;
+	dataValidation: (input: DataValidationWorkerInput, appConfig: AppConfig) => Promise<number | undefined>;
 	/**
 	 * This function is executed in the worker thread to start the dictionary migration process.
 	 * @param input The input data for the dictionary migration

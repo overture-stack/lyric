@@ -35,7 +35,10 @@ const categoryIdSchema = zod
 const categoryAliasSchema = zod
 	.string()
 	.trim()
-	.refine((value) => value === '' || isValidCategoryAlias(value), 'alias must contain only letters, numbers, hyphens, and underscores');
+	.refine(
+		(value) => value === '' || isValidCategoryAlias(value),
+		'alias must contain only letters, numbers, hyphens, and underscores',
+	);
 
 const endDateSchema = zod
 	.string()
@@ -63,17 +66,6 @@ const pageSizeSchema = zod.string().superRefine((value, ctx) => {
 			minimum: 1,
 			inclusive: true,
 			type: 'number',
-		});
-	}
-});
-
-const indexIntegerSchema = zod.string().superRefine((value, ctx) => {
-	const parsed = parseInt(value);
-	if (isNaN(parsed)) {
-		ctx.addIssue({
-			code: zod.ZodIssueCode.invalid_type,
-			expected: 'number',
-			received: 'nan',
 		});
 	}
 });
@@ -119,23 +111,25 @@ const submissionActionTypeSchema = zod
 	.min(1)
 	.refine((value) => isSubmissionActionTypeValid(value), 'invalid Submission Action Type');
 
-const submissionIdSchema = zod
-	.string()
-	.trim()
-	.min(1)
-	.refine((value) => {
-		const parsed = parseInt(value);
-		return isValidIdNumber(parsed);
-	}, 'invalid submission ID');
+// The largest value of a PostgreSQL `serial` column, the type of every ID column
+const MAX_SERIAL_ID = 2_147_483_647;
 
-const migrationIdSchema = zod
-	.string()
-	.trim()
-	.min(1)
-	.refine((value) => {
-		const parsed = parseInt(value);
-		return isValidIdNumber(parsed);
-	}, 'invalid migration ID');
+// An ID must be digits only, so that `parseInt` and `Number` read the same value from it: `parseInt` reads '1e2' as 1
+// and '12abc' as 12, while `Number` reads them as 100 and NaN
+const idSchema = (description: string) =>
+	zod
+		.string()
+		.trim()
+		.refine(
+			(value) => /^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= MAX_SERIAL_ID,
+			`invalid ${description}`,
+		);
+
+const submissionIdSchema = idSchema('submission ID');
+
+const migrationIdSchema = idSchema('migration ID');
+
+const fileIdSchema = idSchema('file ID');
 
 const stringNotEmpty = zod.string().trim().min(1);
 
@@ -342,6 +336,7 @@ export const submissionByIdRequestSchema: RequestValidation<object, ParsedQs, su
 export interface SubmissionsDetailsQueryParams extends PaginationQueryParams {
 	entityNames?: string | string[];
 	actionTypes?: string | string[];
+	fileId?: string;
 }
 
 export const submissionDetailsRequestSchema: RequestValidation<
@@ -353,6 +348,7 @@ export const submissionDetailsRequestSchema: RequestValidation<
 		.object({
 			entityNames: zod.union([entityNameSchema, entityNameSchema.array()]).optional(),
 			actionTypes: zod.union([submissionActionTypeSchema, submissionActionTypeSchema.array()]).optional(),
+			fileId: fileIdSchema.optional(),
 		})
 		.merge(paginationQuerySchema),
 	pathParams: submissionIdPathParamSchema,
@@ -393,27 +389,23 @@ export const submissionDeleteRequestSchema: RequestValidation<
 	}),
 };
 
-export interface SubmissionDeleteEntityNameParams extends ParamsDictionary {
-	actionType: string;
+export interface SubmissionFileDeleteParams extends ParamsDictionary {
 	submissionId: string;
 }
 
-export interface SubmissionDeleteEntityNameQueryParams extends ParsedQs {
-	entityName: string;
-	index?: string;
+export interface SubmissionFileDeleteQueryParams extends ParsedQs {
+	fileId: string;
 }
 
-export const submissionDeleteEntityNameRequestSchema: RequestValidation<
+export const submissionFileDeleteRequestSchema: RequestValidation<
 	object,
-	SubmissionDeleteEntityNameQueryParams,
-	SubmissionDeleteEntityNameParams
+	SubmissionFileDeleteQueryParams,
+	SubmissionFileDeleteParams
 > = {
 	query: zod.object({
-		entityName: entityNameSchema,
-		index: indexIntegerSchema.optional(),
+		fileId: fileIdSchema,
 	}),
 	pathParams: zod.object({
-		actionType: submissionActionTypeSchema,
 		submissionId: submissionIdSchema,
 	}),
 };

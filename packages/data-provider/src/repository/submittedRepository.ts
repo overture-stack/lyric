@@ -1,6 +1,3 @@
-import type { ExtractTablesWithRelations } from 'drizzle-orm';
-import type { PgTransaction } from 'drizzle-orm/pg-core';
-import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
 import { and, count, eq, inArray, or, SQL, sql } from 'drizzle-orm/sql';
 
 import type { DictionaryValidationRecordErrorDetails } from '@overture-stack/lectern-client';
@@ -15,7 +12,8 @@ import {
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
-import { AUDIT_ACTION, BooleanTrueObject, PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
+import { AUDIT_ACTION, PaginationOptions, SubmittedDataResponse } from '../utils/types.js';
+import type { BooleanTrueObject, RepositoryTransaction } from './types.js';
 
 /**
  * Builds a filter comparing a JSONB data field against a value, binding both as query
@@ -39,7 +37,7 @@ const repository = (dependencies: BaseDependencies) => {
 			submissionId: number;
 			username: string;
 		},
-		tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
+		tx?: RepositoryTransaction<SubmittedData>,
 	) => {
 		const { recordDeleted, diff, submissionId, username } = input;
 		const newAudit: NewAuditSubmittedData = {
@@ -76,7 +74,7 @@ const repository = (dependencies: BaseDependencies) => {
 			isMigration: boolean;
 			errors?: DictionaryValidationRecordErrorDetails[];
 		},
-		tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
+		tx?: RepositoryTransaction<SubmittedData>,
 	) => {
 		const newAudit: NewAuditSubmittedData = {
 			action: isMigration ? AUDIT_ACTION.Values.MIGRATION : AUDIT_ACTION.Values.UPDATE,
@@ -147,7 +145,7 @@ const repository = (dependencies: BaseDependencies) => {
 			params:
 				| { diff: DataDiff; submissionId: number; systemId: string; username: string }
 				| { diff: DataDiff; submissionId: number; systemId: string; username: string }[],
-			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
+			tx?: RepositoryTransaction<SubmittedData>,
 		) => {
 			const rows = Array.isArray(params) ? params : [params];
 
@@ -195,7 +193,7 @@ const repository = (dependencies: BaseDependencies) => {
 		 */
 		save: async (
 			data: NewSubmittedData | NewSubmittedData[],
-			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
+			tx?: RepositoryTransaction<SubmittedData>,
 		): Promise<{ id: number } | { id: number }[]> => {
 			const rows = Array.isArray(data) ? data : [data];
 
@@ -448,7 +446,7 @@ const repository = (dependencies: BaseDependencies) => {
 							submissionId: number;
 						};
 				  }[],
-			tx?: PgTransaction<PostgresJsQueryResultHKT, SubmittedData, ExtractTablesWithRelations<SubmittedData>>,
+			tx?: RepositoryTransaction<SubmittedData>,
 		): Promise<SubmittedData | SubmittedData[]> => {
 			const updates = Array.isArray(params) ? params : [params];
 
@@ -506,6 +504,26 @@ const repository = (dependencies: BaseDependencies) => {
 				});
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed querying SubmittedData by systemId '${systemId}'`, error);
+				throw new ServiceUnavailable();
+			}
+		},
+
+		/**
+		 * Query to retrieve the SubmittedData records matching any of the given System IDs.
+		 * System IDs with no matching record are left out of the result, so it can be shorter than `systemIds`.
+		 * Returns an empty array when `systemIds` is empty.
+		 * @throws {ServiceUnavailable} When the query fails.
+		 */
+		getSubmittedDataBySystemIds: async (systemIds: string[]): Promise<SubmittedData[]> => {
+			if (systemIds.length === 0) {
+				return [];
+			}
+			try {
+				return await db.query.submittedData.findMany({
+					where: inArray(submittedData.systemId, systemIds),
+				});
+			} catch (error) {
+				logger.error(LOG_MODULE, `Failed querying SubmittedData by '${systemIds.length}' systemIds`, error);
 				throw new ServiceUnavailable();
 			}
 		},

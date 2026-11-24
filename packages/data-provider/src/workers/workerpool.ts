@@ -46,7 +46,7 @@ const workerProxy: WorkerProxy = {
 		// workerpool.workerEmit({ type: 'chunk', chunk: { type: 'commitResult', result } });
 		return result;
 	},
-	dataValidation: async (input: DataValidationWorkerInput, appConfig: AppConfig): Promise<number> => {
+	dataValidation: async (input: DataValidationWorkerInput, appConfig: AppConfig): Promise<number | undefined> => {
 		await ensureWorkerInitialized(appConfig);
 		return await processDataValidation(input);
 	},

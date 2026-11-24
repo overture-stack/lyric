@@ -7,9 +7,7 @@ components:
         required: true
         schema:
           type: string
-        description: >-
-          Numeric ID or alias of the category to which the data belongs. Not yet accepted on
-          submission endpoints (create/commit/delete), which still require the numeric id.
+        description: Numeric ID or alias of the category to which the data belongs.
       EntityName:
         description: The name of the Entity
         name: entityName
@@ -36,7 +34,8 @@ components:
         required: true
         schema:
           type: string
-        description: The ID of the Submission
+          pattern: '^\d+$'
+        description: The ID of the Submission. Digits only.
     query:
       EntityName:
         description: The name of the Entity

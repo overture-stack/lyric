@@ -2,6 +2,7 @@ import { expect } from 'chai';
 import { afterEach, beforeEach, describe, it } from 'mocha';
 import sinon from 'sinon';
 
+import type { SubmissionRecordState } from '../../../src/utils/submissionTypes.js';
 import type { MigrationStatus, SubmissionStatus } from '../../../src/utils/types.js';
 import { dictionarySportsData } from '../../fixtures/dictionarySchemasTestData.js';
 import { assertExists } from '../assertions.js';
@@ -36,10 +37,11 @@ describe('Integration - Worker Pool - concurrent tasks across several workers', 
 	});
 
 	/**
-	 * Saves one submission per organization in the given status, each inserting a single valid sport record.
+	 * Saves one submission per organization in the given status, at version 0, each with one file staging a single
+	 * valid sport record to insert, in the given record state.
 	 * @returns the ids of the saved submissions
 	 */
-	const saveSubmissions = async (status: SubmissionStatus): Promise<number[]> => {
+	const saveSubmissions = async (status: SubmissionStatus, recordState: SubmissionRecordState): Promise<number[]> => {
 		const dictionary = await lyricProvider.repositories.dictionary.save({
 			name: 'sports',
 			version: '1.0.0',
@@ -51,20 +53,30 @@ describe('Integration - Worker Pool - concurrent tasks across several workers', 
 		});
 
 		return Promise.all(
-			Array.from({ length: TASK_COUNT }, (_, index) =>
-				lyricProvider.repositories.submission.save({
-					data: {
-						inserts: {
-							sport: { batchName: 'sports.tsv', records: [{ sport_id: `${index}`, name: `Sport ${index}` }] },
-						},
-					},
+			Array.from({ length: TASK_COUNT }, async (_, index) => {
+				const submissionId = await lyricProvider.repositories.submission.save({
 					dictionaryCategoryId: category.id,
 					dictionaryId: dictionary.id,
 					organization: `org-${index}`,
 					status,
 					createdBy: 'test-user',
-				}),
-			),
+				});
+				const fileId = await lyricProvider.repositories.submissionFiles.save({
+					entityName: 'sport',
+					fileName: 'sports.tsv',
+					fileSize: 0,
+					submissionId,
+				});
+				await lyricProvider.repositories.submissionRecords.saveManyForFile(fileId, [
+					{
+						actionType: 'INSERT',
+						data: { sport_id: `${index}`, name: `Sport ${index}` },
+						lineNumber: 2,
+						state: recordState,
+					},
+				]);
+				return submissionId;
+			}),
 		);
 	};
 
@@ -78,12 +90,14 @@ describe('Integration - Worker Pool - concurrent tasks across several workers', 
 		);
 
 	it('validates every submission when validations run at the same time', async () => {
-		// Given: several submissions waiting in VALIDATING, one per organization
-		const submissionIds = await saveSubmissions('VALIDATING');
+		// Given: several submissions waiting in OPEN for their validation, one per organization
+		const submissionIds = await saveSubmissions('OPEN', 'RECEIVED');
 
 		// When: their validations run concurrently on the pool
 		await Promise.all(
-			submissionIds.map((submissionId) => lyricProvider.configs.workerPool.dataValidation({ submissionId })),
+			submissionIds.map((submissionId) =>
+				lyricProvider.configs.workerPool.dataValidation({ submissionId, username: 'test-user', version: 0 }),
+			),
 		);
 
 		// Then: every one of them is validated
@@ -92,12 +106,12 @@ describe('Integration - Worker Pool - concurrent tasks across several workers', 
 
 	it('commits every submission and reports each one when commits run at the same time', async () => {
 		// Given: several submissions waiting in COMMITTING, one per organization
-		const submissionIds = await saveSubmissions('COMMITTING');
+		const submissionIds = await saveSubmissions('COMMITTING', 'VALID');
 
 		// When: their commits run concurrently on the pool
 		await Promise.all(
 			submissionIds.map((submissionId) =>
-				lyricProvider.configs.workerPool.commitSubmission({ submissionId, username: 'test-user' }),
+				lyricProvider.configs.workerPool.commitSubmission({ submissionId, username: 'test-user', version: 0 }),
 			),
 		);
 
@@ -138,7 +152,6 @@ describe('Integration - Worker Pool - concurrent tasks across several workers', 
 					updatedBy: 'test-user',
 				});
 				const submissionId = await lyricProvider.repositories.submission.save({
-					data: {},
 					dictionaryCategoryId: category.id,
 					dictionaryId: dictionary.id,
 					organization: `org-${index}`,

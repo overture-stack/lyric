@@ -48,4 +48,44 @@ describe('Submission Utils - Transforms updates from the Submission object into 
 			new: { scientificName: 'Panthera Tigris' },
 		});
 	});
+
+	it('should not return an update for a dependent of an entity without a filter, and omit an entity left without updates', () => {
+		const dependant: SubmittedData = {
+			id: 5,
+			data: { name: 'tiger', scientificName: 'tigris' },
+			dictionaryCategoryId: 20,
+			entityName: 'animals',
+			isValid: true,
+			lastValidSchemaId: 20,
+			organization: 'zoo',
+			originalSchemaId: 20,
+			systemId: 'TGR1425',
+			createdAt: todaysDate,
+			createdBy: 'me',
+			updatedAt: null,
+			updatedBy: null,
+		};
+		const grandchild: SubmittedData = {
+			...dependant,
+			id: 6,
+			data: { name: 'Tony', animal: 'tiger' },
+			entityName: 'keepers',
+			systemId: 'KPR0001',
+		};
+
+		const dependentData: Record<string, SubmittedData[]> = { animals: [dependant], keepers: [grandchild] };
+		const filterEntity = [{ entityName: 'animals', dataField: 'scientificName', dataValue: 'tigris' }];
+		const newDataRecord: DataRecord = { scientificName: 'Panthera Tigris' };
+
+		const response = mapGroupedUpdateSubmissionData({ dependentData, filterEntity, newDataRecord });
+		expect(response).to.eql({
+			animals: [
+				{
+					systemId: 'TGR1425',
+					old: { scientificName: 'tigris' },
+					new: { scientificName: 'Panthera Tigris' },
+				},
+			],
+		});
+	});
 });

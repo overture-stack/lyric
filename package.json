@@ -1,6 +1,9 @@
 {
 	"name": "lyric",
 	"description": "Lyric Monorepo",
+	"engines": {
+		"node": "^24"
+	},
 	"scripts": {
 		"\n=================  Build  ===============": "",
 		"build:all": "pnpm -r build:all",
