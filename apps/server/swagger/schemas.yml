@@ -891,7 +891,7 @@ components:
         status:
           type: string
           description: Status of the Migration
-          enum: ['IN-PROGRESS', 'COMPLETED', 'FAILED']
+          enum: ['IN_PROGRESS', 'COMPLETED', 'FAILED']
         retries:
           type: number
           description: Number of times the migration has run. When a migration fails, it can be retried by registering again the same dictionary.
