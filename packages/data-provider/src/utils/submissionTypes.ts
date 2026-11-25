@@ -68,3 +68,10 @@ export type SubmissionErrorsSummary = {
 	recordsWithErrors: number;
 	errorsByFieldAndReason: SubmissionErrorFieldReasonCount[];
 };
+
+/** The validation errors of one file of a Submission, along with the entity the file was submitted for. */
+export type SubmissionFileErrorReport = {
+	fileId: number;
+	entityName: string;
+	errors: SubmissionRecordFieldError[];
+};
