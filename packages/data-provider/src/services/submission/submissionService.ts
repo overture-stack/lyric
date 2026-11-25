@@ -11,10 +11,16 @@ import createSubmissionFilesRepository from '../../repository/submissionFilesRep
 import createSubmissionRecordsRepository, {
 	type SubmissionRecordWithEntityName,
 } from '../../repository/submissionRecordsRepository.js';
+import createSubmittedDataRepository from '../../repository/submittedRepository.js';
 import { getSchemaByName } from '../../utils/dictionaryUtils.js';
 import { BadRequest, InternalServerError, StatusConflict } from '../../utils/errors.js';
 import type { PaginatedResult } from '../../utils/result.js';
 import type { FilenameEntityPair } from '../../utils/schemas.js';
+import {
+	buildSubmissionFileData,
+	isSubmissionUpdateData,
+	type SubmissionFileData,
+} from '../../utils/submissionFileDownload.js';
 import {
 	buildDataSummary,
 	createSubmissionSummaryResponse,
@@ -52,6 +58,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 	const submissionRecordsRepository = createSubmissionRecordsRepository(dependencies);
 	const dictionaryRepository = createDictionaryRepository(dependencies);
 	const submissionFilesRepository = createSubmissionFilesRepository(dependencies);
+	const submittedDataRepository = createSubmittedDataRepository(dependencies);
 
 	/**
 	 * Runs Schema validation asynchronously in a worker thread and moves the Active Submission to Submitted Data.
@@ -405,6 +412,67 @@ const submissionService = (dependencies: BaseDependencies) => {
 	};
 
 	/**
+	 * Gets the data of a Submission File to download.
+	 *
+	 * - The headers are the field names of the file's schema. When the file has UPDATE or DELETE records, a `systemId`
+	 *   column is added at the end, empty for INSERT records.
+	 * - Each row is one of the file's records, ordered by the line it was submitted on.
+	 * - UPDATE rows hold their new values over the record's current Submitted Data, or only their new values when that
+	 *   Submitted Data is not found.
+	 *
+	 * @throws {BadRequest} If the submission does not exist, or the file is not found in the submission.
+	 * @throws {InternalServerError} If the dictionary or schema associated with the file cannot be found.
+	 * @throws {ServiceUnavailable} When a database query fails.
+	 */
+	const getSubmissionFileData = async (submissionId: number, fileId: number): Promise<SubmissionFileData> => {
+		const submission = await submissionRepository.getSubmissionById(submissionId);
+		if (!submission) {
+			throw new BadRequest(`Submission '${submissionId}' not found`);
+		}
+
+		const file = await submissionFilesRepository.getById(fileId);
+		if (!file || file.submissionId !== submissionId) {
+			throw new BadRequest(`File with ID '${fileId}' not found in Submission '${submissionId}'`);
+		}
+
+		const dictionary = await dictionaryRepository.getDictionary(
+			submission.dictionary.name,
+			submission.dictionary.version,
+		);
+		if (!dictionary) {
+			throw new InternalServerError(
+				`Dictionary '${submission.dictionary.name}' version '${submission.dictionary.version}' not found`,
+			);
+		}
+
+		const schema = getSchemaByName(file.entityName, {
+			name: dictionary.name,
+			version: dictionary.version,
+			schemas: dictionary.dictionary,
+		});
+		if (!schema) {
+			throw new InternalServerError(
+				`Schema '${file.entityName}' not found in Dictionary '${dictionary.name}' version '${dictionary.version}'`,
+			);
+		}
+
+		const { records } = await submissionRecordsRepository.getBySubmissionId(submissionId, undefined, { fileId });
+
+		const updatedSystemIds = records.flatMap((record) =>
+			record.actionType === 'UPDATE' && isSubmissionUpdateData(record.data) ? [record.data.systemId] : [],
+		);
+		const submittedData = await submittedDataRepository.getSubmittedDataBySystemIds(updatedSystemIds);
+		const submittedDataBySystemId = new Map(submittedData.map((data) => [data.systemId, data.data]));
+
+		return {
+			submissionId,
+			fileId,
+			entityName: file.entityName,
+			...buildSubmissionFileData({ schema, records, submittedDataBySystemId }),
+		};
+	};
+
+	/**
 	 * Get an active Submission by Organization
 	 * @param {Object} params
 	 * @param {number} params.categoryId
@@ -706,6 +774,7 @@ const submissionService = (dependencies: BaseDependencies) => {
 		getSubmissionsByCategory,
 		getSubmissionById,
 		getSubmissionDetailsById,
+		getSubmissionFileData,
 		getActiveSubmissionByOrganization,
 		getOrCreateActiveSubmission,
 		submit,
