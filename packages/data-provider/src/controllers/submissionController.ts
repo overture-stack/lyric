@@ -9,6 +9,7 @@ import createSubmissionService from '../services/submission/submissionService.js
 import createSubmittedDataService from '../services/submittedData/submmittedData.js';
 import { hasUserWriteAccess } from '../utils/authUtils.js';
 import { BadRequest, Forbidden, NotFound, StatusConflict } from '../utils/errors.js';
+import { toSafeFileNameSegment } from '../utils/fileUtils.js';
 import { asArray } from '../utils/formatUtils.js';
 import { validateRequest } from '../utils/requestValidation.js';
 import { resolveCategoryId } from '../utils/resolveCategoryId.js';
@@ -20,6 +21,8 @@ import {
 	submissionCommitRequestSchema,
 	submissionDeleteRequestSchema,
 	submissionDetailsRequestSchema,
+	submissionErrorsDownloadRequestSchema,
+	submissionErrorsRequestSchema,
 	submissionFileDeleteRequestSchema,
 	submissionsByCategoryRequestSchema,
 	uploadSingleEntitySubmissionDataRequestSchema,
@@ -27,7 +30,11 @@ import {
 } from '../utils/schemas.js';
 import type { SubmissionSummaryResponse } from '../utils/submissionResponseParser.js';
 import { SUBMISSION_RECORD_ACTION_TYPE } from '../utils/submissionTypes.js';
-import { isSubmissionActive, parseSubmissionActionTypes } from '../utils/submissionUtils.js';
+import {
+	formatFieldErrorsAsDelimitedText,
+	isSubmissionActive,
+	parseSubmissionActionTypes,
+} from '../utils/submissionUtils.js';
 import { BATCH_ERROR_TYPE, BatchError, type PaginatedResponse } from '../utils/types.js';
 
 const controller = ({
@@ -295,6 +302,50 @@ const controller = ({
 				});
 
 				return res.status(200).json(submission);
+			} catch (error) {
+				next(error);
+			}
+		}),
+		getSubmissionErrorsSummaryByFileId: validateRequest(submissionErrorsRequestSchema, async (req, res, next) => {
+			try {
+				const submissionId = Number(req.params.submissionId);
+				const fileId = parseInt(req.query.fileId);
+
+				logger.info(
+					LOG_MODULE,
+					`Request Submission errors summary for fileId '${fileId}' on Submission '${submissionId}'`,
+				);
+
+				const summary = await submissionService.getSubmissionErrorsSummaryByFileId({ submissionId, fileId });
+
+				return res.status(200).json(summary);
+			} catch (error) {
+				next(error);
+			}
+		}),
+		downloadSubmissionErrorsByFileId: validateRequest(submissionErrorsDownloadRequestSchema, async (req, res, next) => {
+			try {
+				const submissionId = Number(req.params.submissionId);
+				const fileId = parseInt(req.query.fileId);
+				const fileType = req.query.fileType ?? 'csv';
+
+				logger.info(
+					LOG_MODULE,
+					`Request download Submission errors for fileId '${fileId}' on Submission '${submissionId}' as '${fileType}'`,
+				);
+
+				const { entityName, errors } = await submissionService.getSubmissionErrorsByFileId({ submissionId, fileId });
+
+				const delimiter = fileType === 'tsv' ? '\t' : ',';
+				const content = formatFieldErrorsAsDelimitedText(errors, delimiter);
+				const downloadFileName = `${submissionId}_file_${fileId}_${toSafeFileNameSegment(entityName)}_errors.${fileType}`;
+
+				res.set({
+					'Content-Disposition': `attachment; filename=${downloadFileName}`,
+					'Content-Type': fileType === 'tsv' ? 'text/tab-separated-values' : 'text/csv',
+				});
+
+				return res.status(200).send(content);
 			} catch (error) {
 				next(error);
 			}
