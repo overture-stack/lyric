@@ -1,12 +1,22 @@
 import type { SQL } from 'drizzle-orm';
-import { and, count, eq, inArray, sql } from 'drizzle-orm/sql';
+import type { PgColumn } from 'drizzle-orm/pg-core';
+import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm/sql';
 
 import { type NewSubmission, type Submission, submissions } from '@overture-stack/lyric-data-model/models';
 
 import { BaseDependencies } from '../config/config.js';
 import { ServiceUnavailable } from '../utils/errors.js';
 import { inProcessSubmissionStatus, openSubmissionStatus } from '../utils/submissionUtils.js';
-import type { CategorySummary, DictionarySummary, PaginationOptions, SubmissionStatus } from '../utils/types.js';
+import type {
+	CategorySummary,
+	DictionarySummary,
+	PaginationOptions,
+	SortKey,
+	SubmissionListFilters,
+	SubmissionListOptions,
+	SubmissionSortField,
+	SubmissionStatus,
+} from '../utils/types.js';
 import type { BooleanTrueObject, PartialColumns, RepositoryTransaction } from './types.js';
 
 export type SubmissionWithDictionaryAndCategoryRepositoryRecord = {
@@ -21,6 +31,16 @@ export type SubmissionWithDictionaryAndCategoryRepositoryRecord = {
 	updatedAt: Date | null;
 	updatedBy: string | null;
 };
+
+const submissionSortColumns = {
+	createdAt: submissions.createdAt,
+	createdBy: submissions.createdBy,
+	id: submissions.id,
+	organization: submissions.organization,
+	status: submissions.status,
+	updatedAt: submissions.updatedAt,
+	updatedBy: submissions.updatedBy,
+} as const satisfies Record<SubmissionSortField, PgColumn>;
 
 const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 	const LOG_MODULE = 'ACTIVE_SUBMISSION_REPOSITORY';
@@ -81,6 +101,22 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 		...openSubmissionStatus,
 		...inProcessSubmissionStatus,
 	]);
+
+	const buildSubmissionListCondition = (categoryId: number, filters: SubmissionListFilters): SQL | undefined =>
+		and(
+			eq(submissions.dictionaryCategoryId, categoryId),
+			filters.organizations?.length ? inArray(submissions.organization, filters.organizations) : undefined,
+			filters.statuses?.length ? inArray(submissions.status, filters.statuses) : undefined,
+			filters.username ? eq(submissions.createdBy, filters.username) : undefined,
+		);
+
+	const buildSubmissionListOrder = (sort: SortKey<SubmissionSortField>[]): SQL[] => {
+		const requestedOrder = sort.map(({ direction, field }) =>
+			direction === 'desc' ? desc(submissionSortColumns[field]) : asc(submissionSortColumns[field]),
+		);
+		const isOrderedById = sort.some(({ field }) => field === 'id');
+		return isOrderedById ? requestedOrder : [...requestedOrder, desc(submissions.id)];
+	};
 
 	return {
 		/**
@@ -247,38 +283,27 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Get Submissions by category
+		 * Get one page of the Submissions of a category, filtered and sorted.
+		 * Submissions that are equal on every requested sort key are ordered by descending ID, so pages never overlap.
 		 * @param {number} categoryId - Category ID
 		 * @param {Object} paginationOptions - Pagination properties
 		 * @param {number} paginationOptions.page - Page number
 		 * @param {number} paginationOptions.pageSize - Items per page
-		 * @param {Object} filterOptions
-		 * @param {boolean} filterOptions.onlyActive - Filter by Active status
-		 * @param {string} filterOptions.username - Filter by creator's username
-		 * @param {string} filterOptions.organization - Filter by Organization
-		 * @returns One or many Active Submissions
+		 * @param {SubmissionListOptions} listOptions - Filters and sort order
+		 * @returns The Submissions on the requested page
 		 */
 		getSubmissionsByCategory: async (
 			categoryId: number,
 			paginationOptions: PaginationOptions,
-			filterOptions: {
-				onlyActive: boolean;
-				username?: string;
-				organization?: string;
-			},
+			listOptions: SubmissionListOptions,
 		): Promise<SubmissionWithDictionaryAndCategoryRepositoryRecord[] | undefined> => {
 			const { page, pageSize } = paginationOptions;
 			try {
 				const results = await db.query.submissions.findMany({
-					where: and(
-						eq(submissions.dictionaryCategoryId, categoryId),
-						filterOptions.username ? eq(submissions.createdBy, filterOptions.username) : undefined,
-						filterOptions.onlyActive ? activeStatusesCondition : undefined,
-						filterOptions.organization ? eq(submissions.organization, filterOptions.organization) : undefined,
-					),
+					where: buildSubmissionListCondition(categoryId, listOptions.filters),
 					columns: submissionColumns,
 					with: submissionDictionaryRelationColumns,
-					orderBy: (submissions, { desc }) => desc(submissions.createdAt),
+					orderBy: buildSubmissionListOrder(listOptions.sort),
 					limit: pageSize,
 					offset: (page - 1) * pageSize,
 				});
@@ -290,34 +315,17 @@ const activeSubmissionRepository = (dependencies: BaseDependencies) => {
 		},
 
 		/**
-		 * Count Submissions by category ID
+		 * Count the Submissions of a category that match the filters
 		 * @param {number} categoryId - Category ID
-		 * @param {Object} filterOptions
-		 * @param {boolean} filterOptions.onlyActive - Filter by Active status
-		 * @param {string} filterOptions.username - Filter by creator's username
-		 * @param {string} filterOptions.organization - Filter by Organization
-		 * @returns One or many Active Submissions
+		 * @param {SubmissionListFilters} filters - The same filters given to `getSubmissionsByCategory`
+		 * @returns The number of matching Submissions across all pages
 		 */
-		getTotalSubmissionsByCategory: async (
-			categoryId: number,
-			filterOptions: {
-				onlyActive: boolean;
-				username?: string;
-				organization?: string;
-			},
-		): Promise<number> => {
+		getTotalSubmissionsByCategory: async (categoryId: number, filters: SubmissionListFilters): Promise<number> => {
 			try {
 				const resultCount = await db
 					.select({ total: count() })
 					.from(submissions)
-					.where(
-						and(
-							eq(submissions.dictionaryCategoryId, categoryId),
-							filterOptions.username ? eq(submissions.createdBy, filterOptions.username) : undefined,
-							filterOptions.onlyActive ? activeStatusesCondition : undefined,
-							filterOptions.organization ? eq(submissions.organization, filterOptions.organization) : undefined,
-						),
-					);
+					.where(buildSubmissionListCondition(categoryId, filters));
 				return resultCount[0]?.total ?? 0;
 			} catch (error) {
 				logger.error(LOG_MODULE, `Failed counting Submission with categoryId '${categoryId}'`, error);

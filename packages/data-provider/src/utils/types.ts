@@ -33,6 +33,46 @@ export const SUBMISSION_STATUS = {
 } as const;
 export type SubmissionStatus = ObjectValues<typeof SUBMISSION_STATUS>;
 
+/**
+ * Submission fields a list of Submissions can be sorted by, named as in the `sort` query parameter.
+ */
+export const SUBMISSION_SORT_FIELD = zod.enum([
+	'createdAt',
+	'createdBy',
+	'id',
+	'organization',
+	'status',
+	'updatedAt',
+	'updatedBy',
+]);
+export type SubmissionSortField = zod.infer<typeof SUBMISSION_SORT_FIELD>;
+
+/**
+ * One key of a sort order. In a list of keys, each key only orders the items the keys before it consider equal.
+ */
+export type SortKey<Field extends string> = {
+	direction: 'asc' | 'desc';
+	field: Field;
+};
+
+/**
+ * Filters for listing the Submissions of a category. An absent or empty filter matches every Submission.
+ */
+export type SubmissionListFilters = {
+	organizations?: string[];
+	statuses?: SubmissionStatus[];
+	/** Matches the user who created the Submission */
+	username?: string;
+};
+
+/**
+ * Filters and sort order for listing the Submissions of a category.
+ */
+export type SubmissionListOptions = {
+	filters: SubmissionListFilters;
+	sort: SortKey<SubmissionSortField>[];
+};
+
 export const MIGRATION_STATUS = zod.enum(['IN_PROGRESS', 'COMPLETED', 'FAILED']);
 export type MigrationStatus = zod.infer<typeof MIGRATION_STATUS>;
 

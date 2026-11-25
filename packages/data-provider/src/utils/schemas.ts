@@ -9,7 +9,8 @@ import { isAuditEventValid, isSubmissionActionTypeValid } from './auditUtils.js'
 import { parseSQON } from './convertSqonToQuery.js';
 import { isValidCategoryAlias, isValidDateFormat, isValidIdNumber } from './formatUtils.js';
 import { RequestValidation } from './requestValidation.js';
-import { VIEW_TYPE } from './types.js';
+import { isSubmissionStatus, parseSubmissionSort } from './submissionListOptions.js';
+import { SUBMISSION_SORT_FIELD, SUBMISSION_STATUS, VIEW_TYPE } from './types.js';
 
 const auditEventTypeSchema = zod
 	.string()
@@ -311,9 +312,45 @@ export const migrationDataRequestSchema: RequestValidation<object, MigrationData
 
 // Submission Requests
 
+const submissionSortSchema = zod
+	.string()
+	.refine(
+		(value) => parseSubmissionSort(value) !== undefined,
+		`invalid. Expected comma-separated, distinct field names, each optionally prefixed with '-' for descending order. Allowed fields: ${SUBMISSION_SORT_FIELD.options.join(', ')}`,
+	);
+
+const submissionStatusSchema = zod
+	.string()
+	.trim()
+	.refine(
+		(value) => isSubmissionStatus(value.toUpperCase()),
+		`invalid. Allowed statuses: ${Object.values(SUBMISSION_STATUS).join(', ')}`,
+	);
+
+const submissionsByCategoryQuerySchema = zod
+	.object({
+		onlyActive: booleanSchema.default('false'),
+		organization: zod.union([organizationSchema, organizationSchema.array()]).optional(),
+		sort: submissionSortSchema.optional(),
+		status: zod.union([submissionStatusSchema, submissionStatusSchema.array()]).optional(),
+		username: stringNotEmpty.optional(),
+	})
+	.merge(paginationQuerySchema)
+	.superRefine((query, context) => {
+		if (query.onlyActive === 'true' && query.status !== undefined) {
+			context.addIssue({
+				code: zod.ZodIssueCode.custom,
+				message: 'not allowed together with onlyActive=true',
+				path: ['status'],
+			});
+		}
+	});
+
 export interface SubmissionsByCategoryQueryParams extends PaginationQueryParams {
 	onlyActive?: string;
-	organization?: string;
+	organization?: string | string[];
+	sort?: string;
+	status?: string | string[];
 	username?: string;
 }
 
@@ -322,11 +359,7 @@ export const submissionsByCategoryRequestSchema: RequestValidation<
 	SubmissionsByCategoryQueryParams,
 	CategoryPathParams
 > = {
-	query: zod.object({
-		onlyActive: booleanSchema.default('false'),
-		organization: organizationSchema.optional(),
-		username: stringNotEmpty.optional(),
-	}),
+	query: submissionsByCategoryQuerySchema,
 	pathParams: categoryPathParamsSchema,
 };
 
